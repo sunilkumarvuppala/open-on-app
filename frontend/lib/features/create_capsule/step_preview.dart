@@ -1,0 +1,296 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:openon_app/core/providers/providers.dart';
+import 'package:openon_app/core/theme/app_theme.dart';
+import 'package:openon_app/core/theme/dynamic_theme.dart';
+
+class StepPreview extends ConsumerWidget {
+  final VoidCallback onBack;
+  final VoidCallback onSubmit;
+  
+  const StepPreview({
+    super.key,
+    required this.onBack,
+    required this.onSubmit,
+  });
+  
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final draft = ref.watch(draftCapsuleProvider);
+    final recipient = draft.recipient!;
+    final unlockAt = draft.unlockAt!;
+    final label = draft.label?.isNotEmpty == true
+        ? draft.label!
+        : 'A special letter';
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
+    final dreamyGradient = DynamicTheme.dreamyGradient(colorScheme);
+    
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(AppTheme.spacingLg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Preview your letter',
+                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textDark,
+                      ),
+                ),
+                SizedBox(height: AppTheme.spacingSm),
+                Text(
+                  'Everything looks good? Let\'s send it!',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: AppTheme.textGrey,
+                      ),
+                ),
+                SizedBox(height: AppTheme.spacingXl),
+                
+                // Envelope preview
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(AppTheme.spacingLg),
+                  decoration: BoxDecoration(
+                    gradient: dreamyGradient,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colorScheme.primary1.withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      // Envelope icon
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: AppColors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.mail_outline,
+                          size: 40,
+                          color: AppColors.white,
+                        ),
+                      ),
+                      
+                      SizedBox(height: AppTheme.spacingLg),
+                      
+                      // Label
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          color: AppColors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      
+                      SizedBox(height: AppTheme.spacingSm),
+                      
+                      // To/From
+                      Text(
+                        'To: ${recipient.name}',
+                        style: TextStyle(
+                          color: AppColors.white.withOpacity(0.9),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                SizedBox(height: AppTheme.spacingXl),
+                
+                // Details card
+                Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(AppTheme.spacingMd),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildDetailRow(
+                          context,
+                          icon: Icons.person_outline,
+                          label: 'Recipient',
+                          value: '${recipient.name} (${recipient.relationship})',
+                          primaryColor: colorScheme.primary1,
+                        ),
+                        Divider(height: AppTheme.spacingXl),
+                        _buildDetailRow(
+                          context,
+                          icon: Icons.access_time,
+                          label: 'Unlocks On',
+                          value: DateFormat('EEEE, MMMM d, y \'at\' h:mm a').format(unlockAt),
+                          primaryColor: colorScheme.primary1,
+                        ),
+                        Divider(height: AppTheme.spacingXl),
+                        _buildDetailRow(
+                          context,
+                          icon: Icons.description_outlined,
+                          label: 'Letter Length',
+                          value: '${draft.content?.length ?? 0} characters',
+                          primaryColor: colorScheme.primary1,
+                        ),
+                        if (draft.photoPath != null) ...[
+                          Divider(height: AppTheme.spacingXl),
+                          _buildDetailRow(
+                            context,
+                            icon: Icons.photo_outlined,
+                            label: 'Photo',
+                            value: 'Included',
+                            primaryColor: colorScheme.primary1,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                
+                SizedBox(height: AppTheme.spacingLg),
+                
+                // Letter preview
+                Text(
+                  'Letter Preview',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textDark,
+                      ),
+                ),
+                SizedBox(height: AppTheme.spacingSm),
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(AppTheme.spacingMd),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    border: Border.all(color: AppColors.lightGray),
+                  ),
+                  child: Text(
+                    draft.content ?? '',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          height: 1.6,
+                        ),
+                  ),
+                ),
+                
+                if (draft.photoPath != null) ...[
+                  SizedBox(height: AppTheme.spacingLg),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    child: Image.file(
+                      File(draft.photoPath!),
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        
+        // Navigation buttons
+        Container(
+          padding: EdgeInsets.all(AppTheme.spacingLg),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, -5),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onBack,
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                    ),
+                  ),
+                  child: const Text('Back'),
+                ),
+              ),
+              SizedBox(width: AppTheme.spacingMd),
+              Expanded(
+                flex: 2,
+                child: ElevatedButton.icon(
+                  onPressed: onSubmit,
+                  icon: const Icon(Icons.send),
+                  label: const Text('Send Letter'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorScheme.primary1,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildDetailRow(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color primaryColor,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: primaryColor),
+        SizedBox(width: AppTheme.spacingSm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textGrey,
+                ),
+              ),
+              SizedBox(height: AppTheme.spacingXs),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textDark,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
