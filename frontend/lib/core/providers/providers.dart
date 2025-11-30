@@ -179,3 +179,32 @@ class ColorSchemeNotifier extends StateNotifier<AppColorScheme> {
 
 // Loading state provider
 final isLoadingProvider = StateProvider<bool>((ref) => false);
+
+// Drafts provider - in-memory storage (can be replaced with Supabase later)
+class DraftsNotifier extends StateNotifier<List<Draft>> {
+  DraftsNotifier() : super([]);
+  
+  void addDraft(Draft draft) {
+    state = [...state, draft];
+  }
+  
+  void updateDraft(String id, Draft updatedDraft) {
+    state = state.map((draft) => draft.id == id ? updatedDraft : draft).toList();
+  }
+  
+  void deleteDraft(String id) {
+    state = state.where((draft) => draft.id != id).toList();
+  }
+  
+  void clearDrafts() {
+    state = [];
+  }
+}
+
+final draftsProvider = StateNotifierProvider<DraftsNotifier, List<Draft>>((ref) {
+  return DraftsNotifier();
+});
+
+final draftsCountProvider = Provider<int>((ref) {
+  return ref.watch(draftsProvider).length;
+});

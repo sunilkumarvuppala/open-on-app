@@ -1,10 +1,13 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
+import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
+import 'package:openon_app/core/widgets/magic_dust_background.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/models/models.dart';
@@ -40,11 +43,13 @@ class _ReceiverHomeScreenState extends ConsumerState<ReceiverHomeScreen>
 
     return Scaffold(
       extendBody: true,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: softGradient,
-        ),
-        child: SafeArea(
+      body: MagicDustBackground(
+        baseColor: colorScheme.primary1,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: softGradient,
+          ),
+          child: SafeArea(
           child: Column(
             children: [
               // Header - Same structure as Sender Home
@@ -107,6 +112,24 @@ class _ReceiverHomeScreenState extends ConsumerState<ReceiverHomeScreen>
                 ),
               ),
               
+              // Subtle Header Separator
+              Container(
+                height: 1,
+                margin: EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      Colors.white.withOpacity(0.0),
+                      Colors.white.withOpacity(0.1),
+                      Colors.white.withOpacity(0.0),
+                    ],
+                    stops: const [0.0, 0.5, 1.0],
+                  ),
+                ),
+              ),
+              
               SizedBox(height: AppTheme.spacingLg),
               
               // Tabs - Same style as Sender Home
@@ -116,18 +139,10 @@ class _ReceiverHomeScreenState extends ConsumerState<ReceiverHomeScreen>
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                 ),
-                child: TabBar(
-                  controller: _tabController,
-                  indicator: BoxDecoration(
-                    gradient: DynamicTheme.dreamyGradient(colorScheme),
-                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                  ),
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  labelColor: Colors.white,
-                  unselectedLabelColor: AppTheme.textGrey,
-                  dividerColor: Colors.transparent,
-                  isScrollable: false,
-                  tabAlignment: TabAlignment.fill,
+                child: _AnimatedMagicalTabBar(
+                  tabController: _tabController,
+                  gradient: DynamicTheme.dreamyGradient(colorScheme),
+                  colorScheme: colorScheme,
                   tabs: [
                     Tab(
                       child: Row(
@@ -168,7 +183,7 @@ class _ReceiverHomeScreenState extends ConsumerState<ReceiverHomeScreen>
                         mainAxisAlignment: MainAxisAlignment.center,
                         mainAxisSize: MainAxisSize.min,
                         children: const [
-                          Icon(Icons.favorite, size: 14),
+                          Icon(Icons.favorite_outline, size: 14),
                           SizedBox(width: 3),
                           Flexible(
                             child: Text(
@@ -200,8 +215,221 @@ class _ReceiverHomeScreenState extends ConsumerState<ReceiverHomeScreen>
             ],
           ),
         ),
-      ),
+          ),
+        ),
     );
+  }
+}
+
+/// Animated wrapper for TabBar with magical effects (shared with home screen)
+class _AnimatedMagicalTabBar extends StatefulWidget {
+  final TabController tabController;
+  final Gradient gradient;
+  final AppColorScheme colorScheme;
+  final List<Widget> tabs;
+
+  const _AnimatedMagicalTabBar({
+    required this.tabController,
+    required this.gradient,
+    required this.colorScheme,
+    required this.tabs,
+  });
+
+  @override
+  State<_AnimatedMagicalTabBar> createState() => _AnimatedMagicalTabBarState();
+}
+
+class _AnimatedMagicalTabBarState extends State<_AnimatedMagicalTabBar>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _sparkleController;
+
+  @override
+  void initState() {
+    super.initState();
+    _sparkleController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _sparkleController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _sparkleController,
+      builder: (context, child) {
+        return TabBar(
+          controller: widget.tabController,
+          indicator: _MagicalTabIndicator(
+            gradient: widget.gradient,
+            colorScheme: widget.colorScheme,
+            animationValue: _sparkleController.value * 2 * math.pi,
+          ),
+          indicatorSize: TabBarIndicatorSize.tab,
+          labelColor: Colors.white,
+          unselectedLabelColor: AppTheme.textGrey,
+          dividerColor: Colors.transparent,
+          isScrollable: false,
+          tabAlignment: TabAlignment.fill,
+          labelPadding: EdgeInsets.symmetric(horizontal: 4), // Reduced by 10-12px
+          tabs: widget.tabs,
+        );
+      },
+    );
+  }
+}
+
+/// Custom tab indicator with magical effects: glow, sparkle animation, and glow ring
+class _MagicalTabIndicator extends Decoration {
+  final Gradient gradient;
+  final AppColorScheme colorScheme;
+  final double animationValue;
+
+  const _MagicalTabIndicator({
+    required this.gradient,
+    required this.colorScheme,
+    required this.animationValue,
+  });
+
+  @override
+  BoxPainter createBoxPainter([VoidCallback? onChanged]) {
+    return _MagicalTabIndicatorPainter(
+      gradient: gradient,
+      colorScheme: colorScheme,
+      animationValue: animationValue,
+      onChanged: onChanged,
+    );
+  }
+}
+
+class _MagicalTabIndicatorPainter extends BoxPainter {
+  final Gradient gradient;
+  final AppColorScheme colorScheme;
+  final double animationValue;
+
+  _MagicalTabIndicatorPainter({
+    required this.gradient,
+    required this.colorScheme,
+    required this.animationValue,
+    VoidCallback? onChanged,
+  }) : super(onChanged);
+
+  @override
+  void paint(Canvas canvas, Offset offset, ImageConfiguration configuration) {
+    final Rect rect = offset & configuration.size!;
+    final double radius = AppTheme.radiusLg;
+
+    // Main gradient background
+    final Paint gradientPaint = Paint()
+      ..shader = gradient.createShader(rect)
+      ..style = PaintingStyle.fill;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(radius)),
+      gradientPaint,
+    );
+
+    // Glow ring effect
+    final Paint glowPaint = Paint()
+      ..color = colorScheme.primary1.withOpacity(0.3)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect.deflate(1), Radius.circular(radius)),
+      glowPaint,
+    );
+
+    // Shadow/glow effect
+    final Paint shadowPaint = Paint()
+      ..color = colorScheme.primary1.withOpacity(0.2)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12)
+      ..style = PaintingStyle.fill;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(radius)),
+      shadowPaint,
+    );
+
+    // Sparkle micro-animation
+    _drawSparkles(canvas, rect, animationValue);
+  }
+
+  void _drawSparkles(Canvas canvas, Rect rect, double time) {
+    final int sparkleCount = 4; // Increased from 3 to 4
+    final double centerX = rect.center.dx;
+    final double centerY = rect.center.dy;
+    final double maxRadius = math.min(rect.width, rect.height) * 0.35; // Increased from 0.3 to 0.35
+
+    for (int i = 0; i < sparkleCount; i++) {
+      final double angle = time + (i * 2 * math.pi / sparkleCount);
+      final double radius = maxRadius * (0.3 + 0.7 * math.sin(time * 2 + i));
+      final double x = centerX + math.cos(angle) * radius;
+      final double y = centerY + math.sin(angle) * radius;
+      final double opacity = (math.sin(time * 3 + i) + 1) / 2;
+      final double size = 3 + math.sin(time * 4 + i) * 2.5; // Increased from 2 + 1.5 to 3 + 2.5
+
+      // More visible sparkle with accent color tint
+      final Paint sparklePaint = Paint()
+        ..color = Colors.white.withOpacity(opacity * 0.6) // Decreased opacity for subtlety
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, size * 0.8) // Reduced blur for sharper appearance
+        ..style = PaintingStyle.fill;
+
+      // Accent color glow for extra visibility
+      final Paint accentGlowPaint = Paint()
+        ..color = colorScheme.accent.withOpacity(opacity * 0.3) // Decreased opacity
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, size * 1.5)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(
+        Offset(x, y),
+        size * 0.8,
+        accentGlowPaint,
+      );
+
+      // Draw 4-pointed star sparkle
+      final Path starPath = Path();
+      for (int j = 0; j < 4; j++) {
+        final double starAngle = angle + (j * math.pi / 2);
+        final double outerX = x + math.cos(starAngle) * size;
+        final double outerY = y + math.sin(starAngle) * size;
+        if (j == 0) {
+          starPath.moveTo(outerX, outerY);
+        } else {
+          starPath.lineTo(outerX, outerY);
+        }
+        final double innerAngle = starAngle + (math.pi / 4);
+        final double innerX = x + math.cos(innerAngle) * (size * 0.4);
+        final double innerY = y + math.sin(innerAngle) * (size * 0.4);
+        starPath.lineTo(innerX, innerY);
+      }
+      starPath.close();
+      canvas.drawPath(starPath, sparklePaint);
+
+      // Enhanced center glow - more visible circles
+      // Outer glow circle
+      final Paint centerGlowPaint = Paint()
+        ..color = Colors.white.withOpacity(opacity * 0.8) // Higher opacity
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, size * 1.5) // Less blur for sharper appearance
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(
+        Offset(x, y),
+        size * 0.7, // Larger size for visibility
+        centerGlowPaint,
+      );
+      
+      // Inner solid circle for more definition
+      final Paint innerCirclePaint = Paint()
+        ..color = Colors.white.withOpacity(opacity * 0.9) // High opacity
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(
+        Offset(x, y),
+        size * 0.3, // Smaller inner circle
+        innerCirclePaint,
+      );
+    }
   }
 }
 
@@ -245,9 +473,14 @@ class _LockedTab extends ConsumerWidget {
           ),
           itemCount: capsules.length,
           itemBuilder: (context, index) {
+            final capsule = capsules[index];
             return Padding(
               padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
-              child: _ReceiverCapsuleCard(capsule: capsules[index]),
+              child: InkWell(
+                onTap: () => context.push('/capsule/${capsule.id}', extra: capsule),
+                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                child: _ReceiverCapsuleCard(capsule: capsule),
+              ),
             );
           },
         );
@@ -274,7 +507,7 @@ class _OpeningSoonTab extends ConsumerWidget {
       data: (capsules) {
         if (capsules.isEmpty) {
           return const EmptyState(
-            icon: Icons.schedule,
+            icon: Icons.schedule_outlined,
             title: 'Nothing opening soon',
             message: 'Capsules unlocking within 7 days will appear here',
           );
@@ -287,9 +520,14 @@ class _OpeningSoonTab extends ConsumerWidget {
           ),
           itemCount: capsules.length,
           itemBuilder: (context, index) {
+            final capsule = capsules[index];
             return Padding(
               padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
-              child: _ReceiverCapsuleCard(capsule: capsules[index]),
+              child: InkWell(
+                onTap: () => context.push('/capsule/${capsule.id}', extra: capsule),
+                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                child: _ReceiverCapsuleCard(capsule: capsule),
+              ),
             );
           },
         );
@@ -329,9 +567,14 @@ class _OpenedTab extends ConsumerWidget {
           ),
           itemCount: capsules.length,
           itemBuilder: (context, index) {
+            final capsule = capsules[index];
             return Padding(
               padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
-              child: _ReceiverCapsuleCard(capsule: capsules[index]),
+              child: InkWell(
+                onTap: () => context.push('/capsule/${capsule.id}/opened', extra: capsule),
+                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                child: _ReceiverCapsuleCard(capsule: capsule),
+              ),
             );
           },
         );
@@ -359,27 +602,25 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
     final softGradient = DynamicTheme.softGradient(colorScheme);
     final dreamyGradient = DynamicTheme.dreamyGradient(colorScheme);
 
-    return Card(
+    return Container(
       margin: EdgeInsets.zero,
-      elevation: 2,
-      shape: RoundedRectangleBorder(
+      decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: InkWell(
-        onTap: () {
-          if (capsule.isOpened) {
-            context.push('/capsule/${capsule.id}/opened', extra: capsule);
-          } else {
-            context.push('/capsule/${capsule.id}/locked', extra: capsule);
-          }
-        },
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        child: Padding(
-          padding: EdgeInsets.all(AppTheme.spacingMd),
-          child: Row(
-            children: [
-              // Envelope Icon - Same style as sender, with incoming indicator
-              Container(
+      child: Padding(
+        padding: EdgeInsets.all(AppTheme.spacingMd),
+        child: Row(
+          children: [
+            // Envelope Icon - Same style as sender, with incoming indicator
+            Container(
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
@@ -393,8 +634,8 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
                   children: [
                     Icon(
                       capsule.isOpened 
-                          ? Icons.mark_email_read 
-                          : Icons.mail,
+                          ? Icons.mark_email_read_outlined 
+                          : Icons.mail_outline,
                       color: Colors.white,
                     ),
                     // Subtle incoming indicator badge
@@ -418,11 +659,11 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              
-              SizedBox(width: AppTheme.spacingMd),
-              
-              // Content
-              Expanded(
+            
+            SizedBox(width: AppTheme.spacingMd),
+            
+            // Content
+            Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -439,7 +680,7 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
                         else if (capsule.isUnlocked)
                           StatusPill.readyToOpen()
                         else if (capsule.isUnlockingSoon)
-                          StatusPill.unlockingSoon()
+                          AnimatedUnlockingSoonBadge()
                         else
                           StatusPill.lockedDynamic(colorScheme.primary1),
                       ],
@@ -447,17 +688,19 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
                     SizedBox(height: AppTheme.spacingXs),
                     Text(
                       capsule.label,
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600, // Semi-bold for title
+                      ),
                     ),
                     SizedBox(height: AppTheme.spacingXs),
                     Row(
                       children: [
                         Icon(
                           capsule.isOpened 
-                              ? Icons.check_circle 
-                              : Icons.schedule,
+                              ? Icons.check_circle_outline 
+                              : Icons.schedule_outlined,
                           size: 14,
-                          color: AppTheme.textGrey,
+                          color: AppTheme.textGrey, // 60% opacity for visibility
                         ),
                         SizedBox(width: AppTheme.spacingXs),
                         Expanded(
@@ -466,7 +709,7 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
                                 ? 'Opened ${dateFormat.format(capsule.openedAt!)}'
                                 : 'Unlocks ${dateFormat.format(capsule.unlockTime)} at ${timeFormat.format(capsule.unlockTime)}',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppTheme.textGrey,
+                              color: AppTheme.textGrey, // 60% opacity for visibility
                             ),
                           ),
                         ),
@@ -477,7 +720,7 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
                       CountdownDisplay(
                         duration: capsule.timeUntilUnlock,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colorScheme.primary1,
+                          color: colorScheme.accent, // Slightly brighter accent purple
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -485,14 +728,13 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              
-              Icon(
-                Icons.chevron_right,
-                color: AppTheme.textGrey,
-                size: 24,
-              ),
-            ],
-          ),
+            
+            Icon(
+              Icons.chevron_right_outlined,
+              color: AppTheme.textGrey,
+              size: 24,
+            ),
+          ],
         ),
       ),
     );

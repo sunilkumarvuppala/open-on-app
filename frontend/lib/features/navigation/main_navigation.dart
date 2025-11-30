@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/color_scheme.dart';
+import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/providers/providers.dart';
 
 /// Main navigation shell with bottom navigation bar
@@ -21,7 +22,25 @@ class MainNavigation extends ConsumerStatefulWidget {
   ConsumerState<MainNavigation> createState() => _MainNavigationState();
 }
 
-class _MainNavigationState extends ConsumerState<MainNavigation> {
+class _MainNavigationState extends ConsumerState<MainNavigation>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
   int get _currentIndex {
     if (widget.location == Routes.home) {
       return 0;
@@ -33,6 +52,11 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
 
   void _onTabTapped(int index) {
     if (index == _currentIndex) return;
+
+    // Trigger rising animation when switching tabs
+    _animationController.forward(from: 0.0).then((_) {
+      _animationController.reverse();
+    });
 
     if (index == 0) {
       context.go(Routes.home);
@@ -68,18 +92,20 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
                 _buildNavItem(
                   context: context,
                   icon: Icons.home_outlined,
-                  activeIcon: Icons.home,
+                  activeIcon: Icons.home_outlined, // Changed to outline version
                   label: 'Home',
                   index: 0,
                   colorScheme: colorScheme,
+                  animationController: _animationController,
                 ),
                 _buildNavItem(
                   context: context,
                   icon: Icons.inbox_outlined,
-                  activeIcon: Icons.inbox,
+                  activeIcon: Icons.inbox_outlined,
                   label: 'Inbox',
                   index: 1,
                   colorScheme: colorScheme,
+                  animationController: _animationController,
                 ),
               ],
             ),
@@ -96,8 +122,18 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     required String label,
     required int index,
     required AppColorScheme colorScheme,
+    required AnimationController animationController,
   }) {
     final isSelected = index == _currentIndex;
+    
+    // Rising animation - moves up when this tab is selected
+    final risingAnimation = Tween<double>(
+      begin: 0.0,
+      end: -4.0, // Move up by 4px
+    ).animate(CurvedAnimation(
+      parent: animationController,
+      curve: Curves.easeOut,
+    ));
 
     return Expanded(
       child: InkWell(
@@ -111,12 +147,33 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                isSelected ? activeIcon : icon,
-                color: isSelected
-                    ? colorScheme.primary1
-                    : AppTheme.textGrey,
-                size: 24,
+              AnimatedBuilder(
+                animation: animationController,
+                builder: (context, child) {
+                  // Only animate if this tab is selected
+                  final translateY = isSelected ? risingAnimation.value : 0.0;
+                  
+                  return Transform.translate(
+                    offset: Offset(0, translateY),
+                    child: isSelected
+                        ? ShaderMask(
+                            shaderCallback: (bounds) {
+                              final gradient = DynamicTheme.dreamyGradient(colorScheme);
+                              return gradient.createShader(bounds);
+                            },
+                            child: Icon(
+                              activeIcon,
+                              color: Colors.white, // White is required for ShaderMask
+                              size: 21, // Reduced from 24 to 21 (3px reduction)
+                            ),
+                          )
+                        : Icon(
+                            icon,
+                            color: AppTheme.textGrey,
+                            size: 21, // Reduced from 24 to 21 (3px reduction)
+                          ),
+                  );
+                },
               ),
               SizedBox(height: 2),
               Text(

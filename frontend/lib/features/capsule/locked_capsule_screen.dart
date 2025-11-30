@@ -18,25 +18,12 @@ class LockedCapsuleScreen extends ConsumerStatefulWidget {
   ConsumerState<LockedCapsuleScreen> createState() => _LockedCapsuleScreenState();
 }
 
-class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
-    with SingleTickerProviderStateMixin {
+class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
   Timer? _countdownTimer;
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
   
   @override
   void initState() {
     super.initState();
-    
-    // Set up pulse animation
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
-    
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
     
     // Update countdown every second
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -49,7 +36,6 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
   @override
   void dispose() {
     _countdownTimer?.cancel();
-    _pulseController.dispose();
     super.dispose();
   }
   
@@ -94,7 +80,6 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
   Widget build(BuildContext context) {
     final capsule = widget.capsule;
     final canOpen = capsule.canOpen;
-    final progress = _calculateProgress();
     final colorScheme = ref.watch(selectedColorSchemeProvider);
     final gradient = DynamicTheme.dreamyGradient(colorScheme);
     
@@ -155,44 +140,36 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                         
                         SizedBox(height: AppTheme.spacingXl * 2),
                         
-                        // Envelope with progress ring
+                        // Envelope with countdown
                         GestureDetector(
                           onTap: _handleTapEnvelope,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // Progress ring
-                              SizedBox(
-                                width: 200,
-                                height: 200,
-                              child: CircularProgressIndicator(
-                                value: progress,
-                                strokeWidth: 4,
-                                backgroundColor: AppColors.white.withOpacity(0.2),
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  colorScheme.accent,
-                                ),
-                              ),
-                              ),
-                              
-                              // Envelope icon with pulse
-                              ScaleTransition(
-                                scale: _pulseAnimation,
-                                child: Container(
-                                  width: 140,
-                                  height: 140,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.white.withOpacity(0.2),
-                                    shape: BoxShape.circle,
+                          child: Container(
+                            width: 200,
+                            height: 200,
+                            decoration: BoxDecoration(
+                              color: AppColors.white.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                // Countdown progress indicator
+                                if (!canOpen)
+                                  CircularProgressIndicator(
+                                    value: 1.0 - (capsule.timeUntilUnlock.inSeconds / capsule.unlockAt.difference(capsule.createdAt).inSeconds),
+                                    strokeWidth: 6,
+                                    valueColor: AlwaysStoppedAnimation<Color>(colorScheme.secondary1),
+                                    backgroundColor: AppColors.white.withOpacity(0.2),
                                   ),
-                                  child: Icon(
-                                    canOpen ? Icons.mail_outline : Icons.lock_outline,
-                                    size: 70,
-                                    color: AppColors.white,
-                                  ),
+                                
+                                // Envelope icon
+                                Icon(
+                                  canOpen ? Icons.mail_outline : Icons.lock_outline,
+                                  size: 70,
+                                  color: AppColors.white,
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                         
@@ -279,14 +256,4 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
     );
   }
   
-  double _calculateProgress() {
-    final now = DateTime.now();
-    final total = widget.capsule.unlockAt.difference(widget.capsule.createdAt);
-    final elapsed = now.difference(widget.capsule.createdAt);
-    
-    if (elapsed.inSeconds <= 0) return 0.0;
-    if (elapsed >= total) return 1.0;
-    
-    return elapsed.inSeconds / total.inSeconds;
-  }
 }

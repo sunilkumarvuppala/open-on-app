@@ -269,3 +269,42 @@ class DraftCapsule {
     );
   }
 }
+
+/// Draft model - represents a saved draft letter
+class Draft {
+  final String id;
+  final String? title;
+  final String body;
+  final DateTime lastEdited;
+  
+  Draft({
+    String? id,
+    this.title,
+    required this.body,
+    DateTime? lastEdited,
+  })  : id = id ?? _uuid.v4(),
+        lastEdited = lastEdited ?? DateTime.now();
+  
+  String get displayTitle => title?.trim().isEmpty ?? true ? 'Untitled Draft' : title!;
+  
+  String get snippet {
+    final trimmed = body.trim();
+    if (trimmed.isEmpty) return 'No content yet';
+    if (trimmed.length <= 100) return trimmed;
+    return '${trimmed.substring(0, 100)}...';
+  }
+  
+  Draft copyWith({
+    String? id,
+    String? title,
+    String? body,
+    DateTime? lastEdited,
+  }) {
+    return Draft(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      lastEdited: lastEdited ?? this.lastEdited,
+    );
+  }
+}

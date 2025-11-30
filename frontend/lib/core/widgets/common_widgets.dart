@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/app_theme.dart';
 import '../providers/providers.dart';
 import '../theme/dynamic_theme.dart';
+import '../theme/color_scheme.dart';
 
 /// Custom gradient button with consistent styling
 class GradientButton extends StatelessWidget {
@@ -192,6 +193,7 @@ class StatusPill extends StatelessWidget {
     );
   }
 
+
   factory StatusPill.opened() {
     return const StatusPill(
       text: 'Opened',
@@ -361,6 +363,93 @@ class CountdownDisplay extends StatelessWidget {
     return Text(
       text,
       style: style ?? Theme.of(context).textTheme.bodyMedium,
+    );
+  }
+}
+
+/// Animated unlocking soon badge that cycles through theme colors
+/// to increase anticipation - changes color every 0.5 seconds
+class AnimatedUnlockingSoonBadge extends ConsumerStatefulWidget {
+  const AnimatedUnlockingSoonBadge({super.key});
+
+  @override
+  ConsumerState<AnimatedUnlockingSoonBadge> createState() =>
+      _AnimatedUnlockingSoonBadgeState();
+}
+
+class _AnimatedUnlockingSoonBadgeState
+    extends ConsumerState<AnimatedUnlockingSoonBadge>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // 1 second per color transition, 5 colors = 5 seconds total cycle
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 5000),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Color _getCurrentColor(AppColorScheme colorScheme, double animationValue) {
+    // Cycle through 5 colors: primary1, primary2, secondary1, secondary2, accent
+    final colors = [
+      colorScheme.primary1,
+      colorScheme.primary2,
+      colorScheme.secondary1,
+      colorScheme.secondary2,
+      colorScheme.accent,
+    ];
+
+    // Map animation value (0-1) to cycle through all colors
+    // Each color gets 0.2 of the animation (1.0 / 5 colors)
+    final scaledValue = animationValue * colors.length;
+    final colorIndex = scaledValue.floor() % colors.length;
+    final nextColorIndex = (colorIndex + 1) % colors.length;
+    
+    // Get interpolation factor (0-1) for smooth transition between colors
+    // Apply easeInOut curve for smoother, more gradual transitions
+    final rawT = (scaledValue % 1.0);
+    final t = Curves.easeInOut.transform(rawT);
+    
+    // Smooth interpolation between current and next color
+    return Color.lerp(colors[colorIndex], colors[nextColorIndex], t)!;
+  }
+
+  /// Calculates contrasting text color based on background color luminance
+  /// Returns white for dark backgrounds, dark for light backgrounds
+  Color _getContrastingTextColor(Color backgroundColor) {
+    // Calculate relative luminance (0-1, where 0 is black and 1 is white)
+    final luminance = backgroundColor.computeLuminance();
+    
+    // Use white text for dark backgrounds (luminance < 0.5)
+    // Use dark text for light backgrounds (luminance >= 0.5)
+    return luminance < 0.5 ? Colors.white : AppTheme.textDark;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
+    
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final currentColor = _getCurrentColor(colorScheme, _controller.value);
+        final textColor = _getContrastingTextColor(currentColor);
+        
+        return StatusPill(
+          text: 'Unlocking Soon',
+          backgroundColor: currentColor,
+          textColor: textColor,
+        );
+      },
     );
   }
 }
