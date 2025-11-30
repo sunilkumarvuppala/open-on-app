@@ -14,8 +14,11 @@ docs/
     ├── FEATURES.md                    # Features overview
     │
     ├── QUICK_START.md                 # Getting started guide
+    ├── DEVELOPMENT_GUIDE.md           # Complete development guide
     ├── ARCHITECTURE.md                # Architecture and design patterns
     ├── CODE_STRUCTURE.md              # Visual code structure guide
+    ├── CORE_COMPONENTS.md             # Core components documentation
+    ├── THEME_SYSTEM.md                 # Theme system guide
     ├── PERFORMANCE_OPTIMIZATIONS.md   # Performance improvements
     ├── REFACTORING_GUIDE.md           # Code quality improvements
     ├── API_REFERENCE.md               # API documentation
@@ -38,9 +41,12 @@ docs/
 
 ### Getting Started
 - **New to the project?** Start with [frontend/QUICK_START.md](./frontend/QUICK_START.md)
+- **New developer?** Read [frontend/DEVELOPMENT_GUIDE.md](./frontend/DEVELOPMENT_GUIDE.md)
 - **Navigation index?** See [frontend/INDEX.md](./frontend/INDEX.md)
 - **Understanding the codebase?** Read [frontend/ARCHITECTURE.md](./frontend/ARCHITECTURE.md)
 - **Visual code structure?** See [frontend/CODE_STRUCTURE.md](./frontend/CODE_STRUCTURE.md)
+- **Core components?** See [frontend/CORE_COMPONENTS.md](./frontend/CORE_COMPONENTS.md)
+- **Theme system?** See [frontend/THEME_SYSTEM.md](./frontend/THEME_SYSTEM.md)
 
 ### Features
 - **All features overview?** Check [frontend/FEATURES.md](./frontend/FEATURES.md)
@@ -100,15 +106,23 @@ This codebase has been extensively refactored and optimized for:
 
 ## 🔗 Next Steps
 
-1. **Start Here**: Read [frontend/INDEX.md](./frontend/INDEX.md) for navigation
-2. **Get Started**: Follow [frontend/QUICK_START.md](./frontend/QUICK_START.md) to set up
-3. **Understand Structure**: Explore [frontend/ARCHITECTURE.md](./frontend/ARCHITECTURE.md)
-4. **Visual Guide**: Review [frontend/CODE_STRUCTURE.md](./frontend/CODE_STRUCTURE.md)
-5. **Learn Features**: Check [frontend/FEATURES.md](./frontend/FEATURES.md) and feature docs
-6. **Performance**: See [frontend/PERFORMANCE_OPTIMIZATIONS.md](./frontend/PERFORMANCE_OPTIMIZATIONS.md)
-7. **Code Quality**: Review [frontend/REFACTORING_GUIDE.md](./frontend/REFACTORING_GUIDE.md)
-8. **APIs**: Check [frontend/API_REFERENCE.md](./frontend/API_REFERENCE.md)
-9. **Contributing**: Read [frontend/CONTRIBUTING.md](./frontend/CONTRIBUTING.md)
+### For New Developers
+1. **Quick Start**: Follow [frontend/QUICK_START.md](./frontend/QUICK_START.md) to set up
+2. **Development Guide**: Read [frontend/DEVELOPMENT_GUIDE.md](./frontend/DEVELOPMENT_GUIDE.md) for complete workflow
+3. **Core Components**: Understand [frontend/CORE_COMPONENTS.md](./frontend/CORE_COMPONENTS.md)
+4. **Architecture**: Explore [frontend/ARCHITECTURE.md](./frontend/ARCHITECTURE.md)
+
+### For Understanding the Codebase
+1. **Navigation**: Start with [frontend/INDEX.md](./frontend/INDEX.md)
+2. **Visual Guide**: Review [frontend/CODE_STRUCTURE.md](./frontend/CODE_STRUCTURE.md)
+3. **Features**: Check [frontend/FEATURES.md](./frontend/FEATURES.md) and feature docs
+4. **Theme System**: Learn [frontend/THEME_SYSTEM.md](./frontend/THEME_SYSTEM.md)
+
+### For Advanced Topics
+1. **Performance**: See [frontend/PERFORMANCE_OPTIMIZATIONS.md](./frontend/PERFORMANCE_OPTIMIZATIONS.md)
+2. **Code Quality**: Review [frontend/REFACTORING_GUIDE.md](./frontend/REFACTORING_GUIDE.md)
+3. **APIs**: Check [frontend/API_REFERENCE.md](./frontend/API_REFERENCE.md)
+4. **Contributing**: Read [frontend/CONTRIBUTING.md](./frontend/CONTRIBUTING.md)
 
 ---
 

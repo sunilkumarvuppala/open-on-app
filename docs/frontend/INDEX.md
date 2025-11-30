@@ -36,10 +36,15 @@ docs/
 
 ### Getting Started
 - **[QUICK_START.md](./QUICK_START.md)** - Setup and installation guide
+- **[GETTING_STARTED.md](./GETTING_STARTED.md)** - Beginner-friendly guide
+- **[DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md)** - Complete development guide
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Understanding the architecture
 - **[CODE_STRUCTURE.md](./CODE_STRUCTURE.md)** - Visual code organization
 
 ### Core Documentation
+- **[CORE_COMPONENTS.md](./CORE_COMPONENTS.md)** - Core components documentation
+- **[THEME_SYSTEM.md](./THEME_SYSTEM.md)** - Complete theme system guide
+- **[VISUAL_FLOWS.md](./VISUAL_FLOWS.md)** - Visual diagrams and flows
 - **[PERFORMANCE_OPTIMIZATIONS.md](./PERFORMANCE_OPTIMIZATIONS.md)** - All performance improvements
 - **[REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md)** - Code quality improvements
 - **[API_REFERENCE.md](./API_REFERENCE.md)** - Complete API documentation
@@ -63,7 +68,10 @@ docs/
 ### Architecture & Design
 - [ARCHITECTURE.md](./ARCHITECTURE.md) - Overall architecture
 - [CODE_STRUCTURE.md](./CODE_STRUCTURE.md) - Code organization
+- [CORE_COMPONENTS.md](./CORE_COMPONENTS.md) - Core components
+- [VISUAL_FLOWS.md](./VISUAL_FLOWS.md) - Visual diagrams
 - [NAVIGATION.md](./features/NAVIGATION.md) - Navigation patterns
+- [THEME_SYSTEM.md](./THEME_SYSTEM.md) - Theme system
 
 ### Features
 - [FEATURES.md](./FEATURES.md) - All features overview
@@ -77,6 +85,9 @@ docs/
 - [PROFILE.md](./features/PROFILE.md) - Profile
 
 ### Technical
+- [CORE_COMPONENTS.md](./CORE_COMPONENTS.md) - Core components
+- [THEME_SYSTEM.md](./THEME_SYSTEM.md) - Theme system
+- [VISUAL_FLOWS.md](./VISUAL_FLOWS.md) - Visual flows
 - [PERFORMANCE_OPTIMIZATIONS.md](./PERFORMANCE_OPTIMIZATIONS.md) - Performance
 - [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md) - Code quality
 - [API_REFERENCE.md](./API_REFERENCE.md) - APIs
@@ -84,6 +95,8 @@ docs/
 
 ### Development
 - [QUICK_START.md](./QUICK_START.md) - Getting started
+- [GETTING_STARTED.md](./GETTING_STARTED.md) - Beginner guide
+- [DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md) - Development guide
 - [CONTRIBUTING.md](./CONTRIBUTING.md) - Contributing
 
 ## 🎯 Feature Quick Reference
