@@ -1,3 +1,4 @@
+import 'package:openon_app/core/constants/app_constants.dart';
 import 'package:uuid/uuid.dart';
 
 const _uuid = Uuid();
@@ -5,7 +6,7 @@ const _uuid = Uuid();
 /// Capsule status enum
 enum CapsuleStatus {
   locked,
-  unlockingSoon, // Within 7 days
+  unlockingSoon,
   opened,
 }
 
@@ -54,7 +55,7 @@ class Capsule {
     }
     
     final daysUntilUnlock = unlockAt.difference(now).inDays;
-    if (daysUntilUnlock <= 7) {
+    if (daysUntilUnlock <= AppConstants.unlockingSoonDaysThreshold) {
       return CapsuleStatus.unlockingSoon;
     }
     
@@ -70,7 +71,7 @@ class Capsule {
   bool get isUnlockingSoon {
     if (isOpened || isUnlocked) return false;
     final daysUntilUnlock = unlockAt.difference(DateTime.now()).inDays;
-    return daysUntilUnlock <= 7;
+    return daysUntilUnlock <= AppConstants.unlockingSoonDaysThreshold;
   }
   
   bool get canOpen => unlockAt.isBefore(DateTime.now()) && openedAt == null;
@@ -285,13 +286,16 @@ class Draft {
   })  : id = id ?? _uuid.v4(),
         lastEdited = lastEdited ?? DateTime.now();
   
-  String get displayTitle => title?.trim().isEmpty ?? true ? 'Untitled Draft' : title!;
+  String get displayTitle =>
+      title?.trim().isEmpty ?? true
+          ? AppConstants.untitledDraftTitle
+          : title!;
   
   String get snippet {
     final trimmed = body.trim();
-    if (trimmed.isEmpty) return 'No content yet';
-    if (trimmed.length <= 100) return trimmed;
-    return '${trimmed.substring(0, 100)}...';
+    if (trimmed.isEmpty) return AppConstants.noContentText;
+    if (trimmed.length <= AppConstants.draftSnippetLength) return trimmed;
+    return '${trimmed.substring(0, AppConstants.draftSnippetLength)}...';
   }
   
   Draft copyWith({

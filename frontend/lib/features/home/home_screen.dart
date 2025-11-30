@@ -3,24 +3,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:openon_app/core/constants/app_constants.dart';
+import 'package:openon_app/core/models/models.dart';
+import 'package:openon_app/core/providers/providers.dart';
+import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
-import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/theme/color_scheme.dart';
+import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
 import 'package:openon_app/core/widgets/magic_dust_background.dart';
-import 'package:openon_app/core/router/app_router.dart';
-import 'package:openon_app/core/providers/providers.dart';
-import 'package:openon_app/core/models/models.dart';
 
 /// Custom FAB location to position it right above bottom navigation
 class _CustomFABLocation extends FloatingActionButtonLocation {
   @override
   Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
-    // Position at bottom right, accounting for bottom nav (60px) + spacing (10px)
-    final double fabX = scaffoldGeometry.scaffoldSize.width - 
-        scaffoldGeometry.floatingActionButtonSize.width - 16;
-    final double fabY = scaffoldGeometry.scaffoldSize.height - 
-        scaffoldGeometry.floatingActionButtonSize.height - 70; // 60px nav + 10px spacing
+    final double fabX = scaffoldGeometry.scaffoldSize.width -
+        scaffoldGeometry.floatingActionButtonSize.width -
+        AppConstants.fabMargin;
+    final double fabY = scaffoldGeometry.scaffoldSize.height -
+        scaffoldGeometry.floatingActionButtonSize.height -
+        AppConstants.fabYOffset;
     return Offset(fabX, fabY);
   }
 }
@@ -77,15 +79,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       onTap: () => context.push(Routes.profile),
                       child: userAsync.when(
                         data: (user) => UserAvatar(
-                          name: user?.name ?? 'User',
+                          name: user?.name ?? AppConstants.defaultUserName,
                           imageUrl: user?.avatarUrl,
                           imagePath: user?.localAvatarPath,
-                          size: 48,
+                          size: AppConstants.userAvatarSize,
                         ),
                         loading: () => const CircularProgressIndicator(),
                         error: (_, __) => const UserAvatar(
-                          name: 'User',
-                          size: 48,
+                          name: AppConstants.defaultUserName,
+                          size: AppConstants.userAvatarSize,
                         ),
                       ),
                     ),
@@ -119,7 +121,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         color: colorScheme.primary1,
                       ),
                       onPressed: () {
-                        // TODO: Navigate to notifications
+                        // Feature: Notifications screen - to be implemented
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Notifications coming soon!'),
@@ -133,7 +135,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               
               // Subtle Header Separator
               Container(
-                height: 1,
+                height: AppConstants.headerSeparatorHeight,
                 margin: EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -154,7 +156,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 padding: EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
                 child: Center(
                   child: Container(
-                    height: 56,
+                    height: AppConstants.createButtonHeight,
                     decoration: BoxDecoration(
                       gradient: DynamicTheme.dreamyGradient(colorScheme),
                       borderRadius: BorderRadius.circular(AppTheme.radiusLg),
@@ -172,7 +174,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         backgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
                         padding: EdgeInsets.zero,
-                        minimumSize: const Size(double.infinity, 56),
+                        minimumSize: Size(double.infinity, AppConstants.createButtonHeight),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                         ),
@@ -244,7 +246,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         mainAxisSize: MainAxisSize.min,
                         children: const [
                           Icon(Icons.auto_awesome, size: 14),
-                          SizedBox(width: 3),
+                          SizedBox(width: AppConstants.tabSpacing),
                           Flexible(
                             child: Text(
                               'Unfolding',
@@ -261,7 +263,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         mainAxisSize: MainAxisSize.min,
                         children: const [
                           Icon(Icons.lock_outline, size: 14), // Already outline version
-                          SizedBox(width: 3),
+                          SizedBox(width: AppConstants.tabSpacing),
                           Flexible(
                             child: Text(
                               'Sealed',
@@ -278,7 +280,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         mainAxisSize: MainAxisSize.min,
                         children: const [
                           Icon(Icons.favorite_outline, size: 14),
-                          SizedBox(width: 3),
+                          SizedBox(width: AppConstants.tabSpacing),
                           Flexible(
                             child: Text(
                               'Revealed',
@@ -321,7 +323,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.people_outline, size: 18, color: Colors.white),
-            SizedBox(width: 3),
+            SizedBox(width: AppConstants.tabSpacing),
             Text('+', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
           ],
         ),
@@ -357,7 +359,7 @@ class _DraftsButtonState extends State<_DraftsButton>
     super.initState();
     _glowController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 200),
+      duration: AppConstants.animationDurationShort,
     );
   }
 
@@ -499,7 +501,7 @@ class _AnimatedMagicalTabBarState extends State<_AnimatedMagicalTabBar>
     super.initState();
     _sparkleController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 3),
+      duration: AppConstants.sparkleAnimationDuration,
     )..repeat();
   }
 
@@ -511,26 +513,28 @@ class _AnimatedMagicalTabBarState extends State<_AnimatedMagicalTabBar>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _sparkleController,
-      builder: (context, child) {
-        return TabBar(
-          controller: widget.tabController,
-          indicator: _MagicalTabIndicator(
-            gradient: widget.gradient,
-            colorScheme: widget.colorScheme,
-            animationValue: _sparkleController.value * 2 * math.pi,
-          ),
-          indicatorSize: TabBarIndicatorSize.tab,
-          labelColor: Colors.white,
-          unselectedLabelColor: AppTheme.textGrey,
-          dividerColor: Colors.transparent,
-          isScrollable: false,
-          tabAlignment: TabAlignment.fill,
-          labelPadding: EdgeInsets.symmetric(horizontal: 4), // Reduced by 10-12px
-          tabs: widget.tabs,
-        );
-      },
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _sparkleController,
+        builder: (context, child) {
+          return TabBar(
+            controller: widget.tabController,
+            indicator: _MagicalTabIndicator(
+              gradient: widget.gradient,
+              colorScheme: widget.colorScheme,
+              animationValue: _sparkleController.value * 2 * math.pi,
+            ),
+            indicatorSize: TabBarIndicatorSize.tab,
+            labelColor: Colors.white,
+            unselectedLabelColor: AppTheme.textGrey,
+            dividerColor: Colors.transparent,
+            isScrollable: false,
+            tabAlignment: TabAlignment.fill,
+            labelPadding: EdgeInsets.symmetric(horizontal: AppConstants.tabLabelPadding),
+            tabs: widget.tabs,
+          );
+        },
+      ),
     );
   }
 }
@@ -563,6 +567,15 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
   final AppColorScheme colorScheme;
   final double animationValue;
 
+  // Reusable Paint objects to avoid allocation
+  final Paint _gradientPaint = Paint()..style = PaintingStyle.fill;
+  final Paint _glowPaint = Paint()..style = PaintingStyle.stroke;
+  final Paint _shadowPaint = Paint()..style = PaintingStyle.fill;
+  final Paint _sparklePaint = Paint()..style = PaintingStyle.fill;
+  final Paint _accentGlowPaint = Paint()..style = PaintingStyle.fill;
+  final Paint _centerGlowPaint = Paint()..style = PaintingStyle.fill;
+  final Paint _innerCirclePaint = Paint()..style = PaintingStyle.fill;
+
   _MagicalTabIndicatorPainter({
     required this.gradient,
     required this.colorScheme,
@@ -576,33 +589,29 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
     final double radius = AppTheme.radiusLg;
 
     // Main gradient background
-    final Paint gradientPaint = Paint()
-      ..shader = gradient.createShader(rect)
-      ..style = PaintingStyle.fill;
+    _gradientPaint.shader = gradient.createShader(rect);
     canvas.drawRRect(
       RRect.fromRectAndRadius(rect, Radius.circular(radius)),
-      gradientPaint,
+      _gradientPaint,
     );
 
     // Glow ring effect
-    final Paint glowPaint = Paint()
+    _glowPaint
       ..color = colorScheme.primary1.withOpacity(0.3)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8)
-      ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
     canvas.drawRRect(
       RRect.fromRectAndRadius(rect.deflate(1), Radius.circular(radius)),
-      glowPaint,
+      _glowPaint,
     );
 
     // Shadow/glow effect
-    final Paint shadowPaint = Paint()
+    _shadowPaint
       ..color = colorScheme.primary1.withOpacity(0.2)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12)
-      ..style = PaintingStyle.fill;
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
     canvas.drawRRect(
       RRect.fromRectAndRadius(rect, Radius.circular(radius)),
-      shadowPaint,
+      _shadowPaint,
     );
 
     // Sparkle micro-animation
@@ -610,10 +619,10 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
   }
 
   void _drawSparkles(Canvas canvas, Rect rect, double time) {
-    final int sparkleCount = 4; // Increased from 3 to 4
+    const int sparkleCount = 3; // Reduced from 4 to 3 for better performance
     final double centerX = rect.center.dx;
     final double centerY = rect.center.dy;
-    final double maxRadius = math.min(rect.width, rect.height) * 0.35; // Increased from 0.3 to 0.35
+    final double maxRadius = math.min(rect.width, rect.height) * 0.3; // Reduced from 0.35
 
     for (int i = 0; i < sparkleCount; i++) {
       final double angle = time + (i * 2 * math.pi / sparkleCount);
@@ -621,64 +630,44 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
       final double x = centerX + math.cos(angle) * radius;
       final double y = centerY + math.sin(angle) * radius;
       final double opacity = (math.sin(time * 3 + i) + 1) / 2;
-      final double size = 3 + math.sin(time * 4 + i) * 2.5; // Increased from 2 + 1.5 to 3 + 2.5
+      final double size = 2.5 + math.sin(time * 4 + i) * 1.5; // Reduced from 3 + 2.5
 
-      // More visible sparkle with accent color tint
-      final Paint sparklePaint = Paint()
-        ..color = Colors.white.withOpacity(opacity * 0.6) // Decreased opacity for subtlety
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, size * 0.8) // Reduced blur for sharper appearance
-        ..style = PaintingStyle.fill;
-
-      // Accent color glow for extra visibility
-      final Paint accentGlowPaint = Paint()
-        ..color = colorScheme.accent.withOpacity(opacity * 0.3) // Decreased opacity
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, size * 1.5)
-        ..style = PaintingStyle.fill;
+      // Reuse paint objects
+      _accentGlowPaint
+        ..color = colorScheme.accent.withOpacity(opacity * 0.25)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, size * 1.2);
       canvas.drawCircle(
         Offset(x, y),
-        size * 0.8,
-        accentGlowPaint,
+        size * 0.7,
+        _accentGlowPaint,
       );
 
-      // Draw 4-pointed star sparkle
-      final Path starPath = Path();
-      for (int j = 0; j < 4; j++) {
-        final double starAngle = angle + (j * math.pi / 2);
-        final double outerX = x + math.cos(starAngle) * size;
-        final double outerY = y + math.sin(starAngle) * size;
-        if (j == 0) {
-          starPath.moveTo(outerX, outerY);
-        } else {
-          starPath.lineTo(outerX, outerY);
-        }
-        final double innerAngle = starAngle + (math.pi / 4);
-        final double innerX = x + math.cos(innerAngle) * (size * 0.4);
-        final double innerY = y + math.sin(innerAngle) * (size * 0.4);
-        starPath.lineTo(innerX, innerY);
-      }
-      starPath.close();
-      canvas.drawPath(starPath, sparklePaint);
-
-      // Enhanced center glow - more visible circles
-      // Outer glow circle
-      final Paint centerGlowPaint = Paint()
-        ..color = Colors.white.withOpacity(opacity * 0.8) // Higher opacity
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, size * 1.5) // Less blur for sharper appearance
-        ..style = PaintingStyle.fill;
+      // Draw simplified sparkle (circle instead of star for performance)
+      _sparklePaint
+        ..color = Colors.white.withOpacity(opacity * 0.5)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, size * 0.6);
       canvas.drawCircle(
         Offset(x, y),
-        size * 0.7, // Larger size for visibility
-        centerGlowPaint,
+        size,
+        _sparklePaint,
+      );
+
+      // Center glow
+      _centerGlowPaint
+        ..color = Colors.white.withOpacity(opacity * 0.7)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, size * 1.2);
+      canvas.drawCircle(
+        Offset(x, y),
+        size * 0.6,
+        _centerGlowPaint,
       );
       
-      // Inner solid circle for more definition
-      final Paint innerCirclePaint = Paint()
-        ..color = Colors.white.withOpacity(opacity * 0.9) // High opacity
-        ..style = PaintingStyle.fill;
+      // Inner circle
+      _innerCirclePaint.color = Colors.white.withOpacity(opacity * 0.8);
       canvas.drawCircle(
         Offset(x, y),
-        size * 0.3, // Smaller inner circle
-        innerCirclePaint,
+        size * 0.25,
+        _innerCirclePaint,
       );
     }
   }
@@ -708,6 +697,7 @@ class _UpcomingTab extends ConsumerWidget {
         }
 
         return ListView.builder(
+          key: const PageStorageKey('upcoming_capsules'),
           padding: EdgeInsets.symmetric(
             horizontal: AppTheme.spacingLg,
             vertical: AppTheme.spacingSm,
@@ -716,6 +706,7 @@ class _UpcomingTab extends ConsumerWidget {
           itemBuilder: (context, index) {
             final capsule = capsules[index];
             return Padding(
+              key: ValueKey('upcoming_${capsule.id}'),
               padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
               child: InkWell(
                 onTap: () => context.push('/capsule/${capsule.id}', extra: capsule),
@@ -755,6 +746,7 @@ class _UnlockingSoonTab extends ConsumerWidget {
         }
 
         return ListView.builder(
+          key: const PageStorageKey('unlocking_soon_capsules'),
           padding: EdgeInsets.symmetric(
             horizontal: AppTheme.spacingLg,
             vertical: AppTheme.spacingSm,
@@ -763,6 +755,7 @@ class _UnlockingSoonTab extends ConsumerWidget {
           itemBuilder: (context, index) {
             final capsule = capsules[index];
             return Padding(
+              key: ValueKey('unlocking_soon_${capsule.id}'),
               padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
               child: InkWell(
                 onTap: () => context.push('/capsule/${capsule.id}', extra: capsule),
@@ -802,6 +795,7 @@ class _OpenedTab extends ConsumerWidget {
         }
 
         return ListView.builder(
+          key: const PageStorageKey('opened_capsules'),
           padding: EdgeInsets.symmetric(
             horizontal: AppTheme.spacingLg,
             vertical: AppTheme.spacingSm,
@@ -810,6 +804,7 @@ class _OpenedTab extends ConsumerWidget {
           itemBuilder: (context, index) {
             final capsule = capsules[index];
             return Padding(
+              key: ValueKey('opened_${capsule.id}'),
               padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
               child: InkWell(
                 onTap: () => context.push('/capsule/${capsule.id}/opened', extra: capsule),
@@ -834,15 +829,18 @@ class _CapsuleCard extends ConsumerWidget {
 
   const _CapsuleCard({required this.capsule});
 
+  // Cache DateFormat instances to avoid recreating on every build
+  static final _dateFormat = DateFormat('MMM dd, yyyy');
+  static final _timeFormat = DateFormat('h:mm a');
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final dateFormat = DateFormat('MMM dd, yyyy');
-    final timeFormat = DateFormat('h:mm a');
     final colorScheme = ref.watch(selectedColorSchemeProvider);
     final softGradient = DynamicTheme.softGradient(colorScheme);
     final dreamyGradient = DynamicTheme.dreamyGradient(colorScheme);
 
-    return Container(
+    return RepaintBoundary(
+      child: Container(
       margin: EdgeInsets.zero,
       decoration: BoxDecoration(
         color: Colors.white,
@@ -923,8 +921,8 @@ class _CapsuleCard extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             capsule.isOpened
-                                ? 'Opened ${dateFormat.format(capsule.openedAt!)}'
-                                : 'Unlocks ${dateFormat.format(capsule.unlockTime)} at ${timeFormat.format(capsule.unlockTime)}',
+                                ? 'Opened ${_dateFormat.format(capsule.openedAt!)}'
+                                : 'Unlocks ${_dateFormat.format(capsule.unlockTime)} at ${_timeFormat.format(capsule.unlockTime)}',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: AppTheme.textGrey, // 60% opacity for visibility
                             ),
@@ -965,6 +963,7 @@ class _CapsuleCard extends ConsumerWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }

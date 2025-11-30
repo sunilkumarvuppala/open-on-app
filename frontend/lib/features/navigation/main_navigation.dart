@@ -42,12 +42,14 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
   }
 
   int get _currentIndex {
-    if (widget.location == Routes.home) {
+    // Inbox (receiverHome) is now index 0 (primary home)
+    // Outbox (home) is now index 1 (secondary)
+    if (widget.location == Routes.receiverHome) {
       return 0;
-    } else if (widget.location == Routes.receiverHome) {
+    } else if (widget.location == Routes.home) {
       return 1;
     }
-    return 0;
+    return 0; // Default to inbox
   }
 
   void _onTabTapped(int index) {
@@ -59,9 +61,9 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
     });
 
     if (index == 0) {
-      context.go(Routes.home);
+      context.go(Routes.receiverHome); // Inbox (primary home)
     } else if (index == 1) {
-      context.go(Routes.receiverHome);
+      context.go(Routes.home); // Outbox (secondary)
     }
   }
 
@@ -91,18 +93,18 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
               children: [
                 _buildNavItem(
                   context: context,
-                  icon: Icons.home_outlined,
-                  activeIcon: Icons.home_outlined, // Changed to outline version
-                  label: 'Home',
+                  icon: Icons.inbox_outlined,
+                  activeIcon: Icons.inbox_outlined,
+                  label: 'Inbox',
                   index: 0,
                   colorScheme: colorScheme,
                   animationController: _animationController,
                 ),
                 _buildNavItem(
                   context: context,
-                  icon: Icons.inbox_outlined,
-                  activeIcon: Icons.inbox_outlined,
-                  label: 'Inbox',
+                  icon: Icons.send_outlined,
+                  activeIcon: Icons.send_outlined,
+                  label: 'Outbox',
                   index: 1,
                   colorScheme: colorScheme,
                   animationController: _animationController,

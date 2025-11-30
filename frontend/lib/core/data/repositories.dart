@@ -1,7 +1,13 @@
+import 'package:openon_app/core/constants/app_constants.dart';
+import 'package:openon_app/core/errors/app_exceptions.dart';
 import 'package:openon_app/core/models/models.dart';
+import 'package:openon_app/core/utils/logger.dart';
+import 'package:openon_app/core/utils/validation.dart';
 
 /// Repository interface for capsule operations
-/// TODO: Replace with actual backend implementation (e.g., Supabase, Firebase)
+/// 
+/// This is a mock implementation for development.
+/// Replace with actual backend implementation (e.g., Supabase, Firebase) when ready.
 abstract class CapsuleRepository {
   Future<List<Capsule>> getCapsules({required String userId, bool asSender = true});
   Future<Capsule> createCapsule(Capsule capsule);
@@ -27,11 +33,11 @@ class MockCapsuleRepository implements CapsuleRepository {
       // Sent capsules (as sender)
       Capsule(
         id: 'mock-1',
-        senderId: 'current-user',
+        senderId: AppConstants.mockUserId,
         senderName: 'You',
-        receiverId: 'priya-123',
+        receiverId: AppConstants.mockPriyaId,
         receiverName: 'Priya',
-        receiverAvatar: 'assets/images/avatar_priya.png',
+        receiverAvatar: AppConstants.avatarPriya,
         label: 'Open on your birthday 🎂',
         content: 'Happy birthday my love! I hope this year brings you everything you\'ve been dreaming of...',
         unlockAt: now.add(const Duration(days: 12)),
@@ -39,11 +45,11 @@ class MockCapsuleRepository implements CapsuleRepository {
       ),
       Capsule(
         id: 'mock-2',
-        senderId: 'current-user',
+        senderId: AppConstants.mockUserId,
         senderName: 'You',
-        receiverId: 'ananya-456',
+        receiverId: AppConstants.mockAnanyaId,
         receiverName: 'Ananya',
-        receiverAvatar: 'assets/images/avatar_ananya.png',
+        receiverAvatar: AppConstants.avatarAnanya,
         label: 'For your graduation day',
         content: 'My dearest Ananya, watching you grow has been the greatest joy of my life...',
         unlockAt: now.add(const Duration(days: 45)),
@@ -51,11 +57,11 @@ class MockCapsuleRepository implements CapsuleRepository {
       ),
       Capsule(
         id: 'mock-3',
-        senderId: 'current-user',
+        senderId: AppConstants.mockUserId,
         senderName: 'You',
-        receiverId: 'raj-789',
+        receiverId: AppConstants.mockRajId,
         receiverName: 'Raj',
-        receiverAvatar: 'assets/images/avatar_raj.png',
+        receiverAvatar: AppConstants.avatarRaj,
         label: 'Anniversary surprise',
         content: 'Remember our first date? You wore that blue shirt and I couldn\'t stop smiling...',
         unlockAt: now.add(const Duration(days: 3)),
@@ -63,11 +69,11 @@ class MockCapsuleRepository implements CapsuleRepository {
       ),
       Capsule(
         id: 'mock-4',
-        senderId: 'current-user',
+        senderId: AppConstants.mockUserId,
         senderName: 'You',
-        receiverId: 'mom-999',
+        receiverId: AppConstants.mockMomId,
         receiverName: 'Mom',
-        receiverAvatar: 'assets/images/avatar_mom.png',
+        receiverAvatar: AppConstants.avatarMom,
         label: 'Mother\'s Day letter',
         content: 'Mom, there aren\'t enough words to express how grateful I am for everything you\'ve done...',
         unlockAt: now.subtract(const Duration(days: 2)),
@@ -78,9 +84,9 @@ class MockCapsuleRepository implements CapsuleRepository {
       // Incoming capsules (as receiver)
       Capsule(
         id: 'incoming-1',
-        senderId: 'priya-123',
+        senderId: AppConstants.mockPriyaId,
         senderName: 'Priya',
-        receiverId: 'current-user',
+        receiverId: AppConstants.mockUserId,
         receiverName: 'You',
         receiverAvatar: '',
         label: 'Open on your birthday 🎂',
@@ -90,9 +96,9 @@ class MockCapsuleRepository implements CapsuleRepository {
       ),
       Capsule(
         id: 'incoming-2',
-        senderId: 'ananya-456',
+        senderId: AppConstants.mockAnanyaId,
         senderName: 'Ananya',
-        receiverId: 'current-user',
+        receiverId: AppConstants.mockUserId,
         receiverName: 'You',
         receiverAvatar: '',
         label: 'For when you need encouragement',
@@ -102,9 +108,9 @@ class MockCapsuleRepository implements CapsuleRepository {
       ),
       Capsule(
         id: 'incoming-3',
-        senderId: 'mom-999',
+        senderId: AppConstants.mockMomId,
         senderName: 'Mom',
-        receiverId: 'current-user',
+        receiverId: AppConstants.mockUserId,
         receiverName: 'You',
         receiverAvatar: '',
         label: 'A letter from your mom',
@@ -119,77 +125,219 @@ class MockCapsuleRepository implements CapsuleRepository {
   
   @override
   Future<List<Capsule>> getCapsules({required String userId, bool asSender = true}) async {
-    await Future.delayed(const Duration(milliseconds: 500)); // Simulate network delay
-    
-    if (asSender) {
-      return _capsules.where((c) => c.senderId == userId).toList()
-        ..sort((a, b) => a.unlockAt.compareTo(b.unlockAt));
-    } else {
-      return _capsules.where((c) => c.receiverId == userId).toList()
-        ..sort((a, b) => a.unlockAt.compareTo(b.unlockAt));
+    try {
+      if (userId.isEmpty) {
+        throw const ValidationException('User ID cannot be empty');
+      }
+
+      await Future.delayed(AppConstants.networkDelaySimulation);
+
+      final filteredCapsules = asSender
+          ? _capsules.where((c) => c.senderId == userId).toList()
+          : _capsules.where((c) => c.receiverId == userId).toList();
+
+      filteredCapsules.sort((a, b) => a.unlockAt.compareTo(b.unlockAt));
+      return filteredCapsules;
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to get capsules',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw RepositoryException(
+        'Failed to retrieve capsules: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
     }
   }
   
   @override
   Future<Capsule> createCapsule(Capsule capsule) async {
-    await Future.delayed(const Duration(milliseconds: 800));
-    _capsules.add(capsule);
-    return capsule;
+    try {
+      Validation.validateContent(capsule.content);
+      if (capsule.label.isNotEmpty) {
+        Validation.validateLabel(capsule.label);
+      }
+      Validation.validateUnlockDate(capsule.unlockAt);
+      Validation.validateRecipientName(capsule.receiverName);
+
+      await Future.delayed(AppConstants.createCapsuleDelay);
+      _capsules.add(capsule);
+      Logger.info('Capsule created: ${capsule.id}');
+      return capsule;
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to create capsule',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      if (e is ValidationException) {
+        rethrow;
+      }
+      throw RepositoryException(
+        'Failed to create capsule: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
   
   @override
   Future<Capsule> updateCapsule(Capsule capsule) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    final index = _capsules.indexWhere((c) => c.id == capsule.id);
-    if (index != -1) {
+    try {
+      Validation.validateContent(capsule.content);
+      if (capsule.label.isNotEmpty) {
+        Validation.validateLabel(capsule.label);
+      }
+
+      await Future.delayed(AppConstants.updateDelay);
+
+      final index = _capsules.indexWhere((c) => c.id == capsule.id);
+      if (index == -1) {
+        throw NotFoundException('Capsule not found: ${capsule.id}');
+      }
+
       _capsules[index] = capsule;
+      Logger.info('Capsule updated: ${capsule.id}');
       return capsule;
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to update capsule',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      if (e is ValidationException || e is NotFoundException) {
+        rethrow;
+      }
+      throw RepositoryException(
+        'Failed to update capsule: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
     }
-    throw Exception('Capsule not found');
   }
   
   @override
   Future<void> deleteCapsule(String capsuleId) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    _capsules.removeWhere((c) => c.id == capsuleId);
+    try {
+      if (capsuleId.isEmpty) {
+        throw const ValidationException('Capsule ID cannot be empty');
+      }
+
+      await Future.delayed(AppConstants.deleteDelay);
+
+      final initialCount = _capsules.length;
+      _capsules.removeWhere((c) => c.id == capsuleId);
+      if (_capsules.length == initialCount) {
+        throw NotFoundException('Capsule not found: $capsuleId');
+      }
+
+      Logger.info('Capsule deleted: $capsuleId');
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to delete capsule',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      if (e is ValidationException || e is NotFoundException) {
+        rethrow;
+      }
+      throw RepositoryException(
+        'Failed to delete capsule: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
   
   @override
   Future<void> markAsOpened(String capsuleId) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    final index = _capsules.indexWhere((c) => c.id == capsuleId);
-    if (index != -1) {
+    try {
+      if (capsuleId.isEmpty) {
+        throw const ValidationException('Capsule ID cannot be empty');
+      }
+
+      await Future.delayed(AppConstants.updateDelay);
+
+      final index = _capsules.indexWhere((c) => c.id == capsuleId);
+      if (index == -1) {
+        throw NotFoundException('Capsule not found: $capsuleId');
+      }
+
       _capsules[index] = _capsules[index].copyWith(openedAt: DateTime.now());
-      
-      // TODO: Send notification to sender that capsule was opened
+      Logger.info('Capsule marked as opened: $capsuleId');
+
+      // Notification will be handled by backend service when integrated
       _sendNotificationToSender(_capsules[index]);
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to mark capsule as opened',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      if (e is ValidationException || e is NotFoundException) {
+        rethrow;
+      }
+      throw RepositoryException(
+        'Failed to mark capsule as opened: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
     }
   }
   
   @override
   Future<void> addReaction(String capsuleId, String reaction) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    
-    final index = _capsules.indexWhere((c) => c.id == capsuleId);
-    if (index != -1) {
-      _capsules[index] = _capsules[index].copyWith(reaction: reaction);
-      
-      // TODO: Send notification to sender about reaction
+    try {
+      if (capsuleId.isEmpty) {
+        throw const ValidationException('Capsule ID cannot be empty');
+      }
+      if (reaction.trim().isEmpty) {
+        throw const ValidationException('Reaction cannot be empty');
+      }
+
+      await Future.delayed(AppConstants.deleteDelay);
+
+      final index = _capsules.indexWhere((c) => c.id == capsuleId);
+      if (index == -1) {
+        throw NotFoundException('Capsule not found: $capsuleId');
+      }
+
+      _capsules[index] = _capsules[index].copyWith(reaction: reaction.trim());
+      Logger.info('Reaction added to capsule: $capsuleId');
+
+      // Notification will be handled by backend service when integrated
       _sendReactionNotification(_capsules[index], reaction);
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to add reaction',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      if (e is ValidationException || e is NotFoundException) {
+        rethrow;
+      }
+      throw RepositoryException(
+        'Failed to add reaction: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
     }
   }
-  
+
   void _sendNotificationToSender(Capsule capsule) {
-    // TODO: Implement push notification
-    // This would call your backend API to trigger a push notification
-    print('TODO: Send notification to ${capsule.senderId} that ${capsule.receiverName} opened their letter');
+    // Notification service will be implemented when backend is integrated
+    Logger.debug(
+      'Capsule opened notification: sender=${capsule.senderId}, receiver=${capsule.receiverName}',
+    );
   }
-  
+
   void _sendReactionNotification(Capsule capsule, String reaction) {
-    // TODO: Implement push notification for reactions
-    print('TODO: Send notification to ${capsule.senderId} that ${capsule.receiverName} reacted with $reaction');
+    // Notification service will be implemented when backend is integrated
+    Logger.debug(
+      'Reaction notification: sender=${capsule.senderId}, receiver=${capsule.receiverName}, reaction=$reaction',
+    );
   }
 }
 
@@ -212,29 +360,29 @@ class MockRecipientRepository implements RecipientRepository {
   void _initializeMockData() {
     _recipients.addAll([
       Recipient(
-        id: 'priya-123',
-        userId: 'current-user',
+        id: AppConstants.mockPriyaId,
+        userId: AppConstants.mockUserId,
         name: 'Priya',
         relationship: 'Partner',
         avatar: 'assets/images/avatar_priya.png',
       ),
       Recipient(
-        id: 'ananya-456',
-        userId: 'current-user',
+        id: AppConstants.mockAnanyaId,
+        userId: AppConstants.mockUserId,
         name: 'Ananya',
         relationship: 'Daughter',
         avatar: 'assets/images/avatar_ananya.png',
       ),
       Recipient(
-        id: 'raj-789',
-        userId: 'current-user',
+        id: AppConstants.mockRajId,
+        userId: AppConstants.mockUserId,
         name: 'Raj',
         relationship: 'Best Friend',
         avatar: 'assets/images/avatar_raj.png',
       ),
       Recipient(
-        id: 'mom-999',
-        userId: 'current-user',
+        id: AppConstants.mockMomId,
+        userId: AppConstants.mockUserId,
         name: 'Mom',
         relationship: 'Mother',
         avatar: 'assets/images/avatar_mom.png',
@@ -244,34 +392,121 @@ class MockRecipientRepository implements RecipientRepository {
   
   @override
   Future<List<Recipient>> getRecipients(String userId) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    return _recipients.where((r) => r.userId == userId).toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
+    try {
+      if (userId.isEmpty) {
+        throw const ValidationException('User ID cannot be empty');
+      }
+
+      await Future.delayed(AppConstants.deleteDelay);
+
+      final recipients = _recipients.where((r) => r.userId == userId).toList();
+      recipients.sort((a, b) => a.name.compareTo(b.name));
+      return recipients;
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to get recipients',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw RepositoryException(
+        'Failed to retrieve recipients: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
-  
+
   @override
   Future<Recipient> createRecipient(Recipient recipient) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    _recipients.add(recipient);
-    return recipient;
+    try {
+      Validation.validateRecipientName(recipient.name);
+      Validation.validateRelationship(recipient.relationship);
+
+      await Future.delayed(AppConstants.createCapsuleDelay);
+      _recipients.add(recipient);
+      Logger.info('Recipient created: ${recipient.id}');
+      return recipient;
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to create recipient',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      if (e is ValidationException) {
+        rethrow;
+      }
+      throw RepositoryException(
+        'Failed to create recipient: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
-  
+
   @override
   Future<Recipient> updateRecipient(Recipient recipient) async {
-    await Future.delayed(const Duration(milliseconds: 400));
-    
-    final index = _recipients.indexWhere((r) => r.id == recipient.id);
-    if (index != -1) {
+    try {
+      Validation.validateRecipientName(recipient.name);
+      Validation.validateRelationship(recipient.relationship);
+
+      await Future.delayed(AppConstants.updateDelay);
+
+      final index = _recipients.indexWhere((r) => r.id == recipient.id);
+      if (index == -1) {
+        throw NotFoundException('Recipient not found: ${recipient.id}');
+      }
+
       _recipients[index] = recipient;
+      Logger.info('Recipient updated: ${recipient.id}');
       return recipient;
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to update recipient',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      if (e is ValidationException || e is NotFoundException) {
+        rethrow;
+      }
+      throw RepositoryException(
+        'Failed to update recipient: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
     }
-    throw Exception('Recipient not found');
   }
-  
+
   @override
   Future<void> deleteRecipient(String recipientId) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    _recipients.removeWhere((r) => r.id == recipientId);
+    try {
+      if (recipientId.isEmpty) {
+        throw const ValidationException('Recipient ID cannot be empty');
+      }
+
+      await Future.delayed(AppConstants.deleteDelay);
+
+      final initialCount = _recipients.length;
+      _recipients.removeWhere((r) => r.id == recipientId);
+      if (_recipients.length == initialCount) {
+        throw NotFoundException('Recipient not found: $recipientId');
+      }
+
+      Logger.info('Recipient deleted: $recipientId');
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to delete recipient',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      if (e is ValidationException || e is NotFoundException) {
+        rethrow;
+      }
+      throw RepositoryException(
+        'Failed to delete recipient: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
 }
 
@@ -289,58 +524,150 @@ class MockAuthRepository implements AuthRepository {
   User? _currentUser;
   
   @override
-  Future<User> signUp({required String email, required String password, required String name}) async {
-    await Future.delayed(const Duration(milliseconds: 1000));
-    
-    // TODO: Implement actual authentication
-    _currentUser = User(
-      id: 'current-user',
-      name: name,
-      email: email,
-    );
-    
-    return _currentUser!;
+  Future<User> signUp({
+    required String email,
+    required String password,
+    required String name,
+  }) async {
+    try {
+      final sanitizedEmail = Validation.sanitizeEmail(email);
+      Validation.validateEmail(sanitizedEmail);
+      Validation.validatePassword(password);
+      Validation.validateName(name);
+
+      await Future.delayed(AppConstants.authDelay);
+
+      _currentUser = User(
+        id: AppConstants.defaultUserId,
+        name: Validation.sanitizeString(name),
+        email: sanitizedEmail,
+      );
+
+      Logger.info('User signed up: $sanitizedEmail');
+      return _currentUser!;
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to sign up',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      if (e is ValidationException) {
+        rethrow;
+      }
+      throw AuthenticationException(
+        'Failed to sign up: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
-  
+
   @override
-  Future<User> signIn({required String email, required String password}) async {
-    await Future.delayed(const Duration(milliseconds: 1000));
-    
-    // TODO: Implement actual authentication
-    _currentUser = User(
-      id: 'current-user',
-      name: 'Sunil',
-      email: email,
-    );
-    
-    return _currentUser!;
+  Future<User> signIn({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final sanitizedEmail = Validation.sanitizeEmail(email);
+      Validation.validateEmail(sanitizedEmail);
+      Validation.validatePassword(password);
+
+      await Future.delayed(AppConstants.authDelay);
+
+      _currentUser = User(
+        id: AppConstants.defaultUserId,
+        name: AppConstants.defaultUserName,
+        email: sanitizedEmail,
+      );
+
+      Logger.info('User signed in: $sanitizedEmail');
+      return _currentUser!;
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to sign in',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      if (e is ValidationException) {
+        rethrow;
+      }
+      throw AuthenticationException(
+        'Failed to sign in: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
-  
+
   @override
   Future<void> signOut() async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    _currentUser = null;
+    try {
+      await Future.delayed(AppConstants.signOutDelay);
+      _currentUser = null;
+      Logger.info('User signed out');
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to sign out',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw AuthenticationException(
+        'Failed to sign out: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
-  
+
   @override
   Future<User?> getCurrentUser() async {
-    await Future.delayed(const Duration(milliseconds: 200));
-    return _currentUser;
+    try {
+      await Future.delayed(AppConstants.getCurrentUserDelay);
+      return _currentUser;
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to get current user',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return null;
+    }
   }
-  
+
   @override
   Future<User> updateProfile({String? name, String? avatar}) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    if (_currentUser == null) {
-      throw Exception('No user logged in');
+    try {
+      if (_currentUser == null) {
+        throw const AuthenticationException('No user logged in');
+      }
+
+      if (name != null) {
+        Validation.validateName(name);
+      }
+
+      await Future.delayed(AppConstants.updateDelay);
+
+      _currentUser = _currentUser!.copyWith(
+        name: name != null ? Validation.sanitizeString(name) : null,
+        avatar: avatar,
+      );
+
+      Logger.info('Profile updated: ${_currentUser!.id}');
+      return _currentUser!;
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to update profile',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      if (e is ValidationException || e is AuthenticationException) {
+        rethrow;
+      }
+      throw RepositoryException(
+        'Failed to update profile: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
     }
-    
-    _currentUser = _currentUser!.copyWith(
-      name: name,
-      avatar: avatar,
-    );
-    
-    return _currentUser!;
   }
 }

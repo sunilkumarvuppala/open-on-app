@@ -165,9 +165,10 @@ class _RevealedCardAnimationState extends State<RevealedCardAnimation>
   
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: widget.autoReveal ? null : _triggerReveal,
-      child: Stack(
+    return RepaintBoundary(
+      child: GestureDetector(
+        onTap: widget.autoReveal ? null : _triggerReveal,
+        child: Stack(
         children: [
           // Background radial gradient
           AnimatedBuilder(
@@ -195,11 +196,12 @@ class _RevealedCardAnimationState extends State<RevealedCardAnimation>
           ),
           
           // Sparkle background
-          SparkleParticleEngine(
-            isActive: _isRevealing,
-            mode: SparkleMode.burst,
-            particleCount: 40,
-            child: FlashGlow(
+          RepaintBoundary(
+            child: SparkleParticleEngine(
+              isActive: _isRevealing,
+              mode: SparkleMode.burst,
+              particleCount: 30, // Reduced from 40 for better performance
+              child: FlashGlow(
               trigger: _showFlash,
               child: GlowEffect(
                 isActive: _isRevealing,
@@ -248,6 +250,7 @@ class _RevealedCardAnimationState extends State<RevealedCardAnimation>
               ),
             ),
           ),
+          ),
           
           // Confetti layer (on top)
           if (_showConfetti)
@@ -261,6 +264,7 @@ class _RevealedCardAnimationState extends State<RevealedCardAnimation>
             ),
         ],
       ),
+    ),
     );
   }
   

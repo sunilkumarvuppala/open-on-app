@@ -113,9 +113,10 @@ class _UnfoldingCardAnimationState extends State<UnfoldingCardAnimation>
   
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: widget.onTap,
-      child: AnimatedBuilder(
+    return RepaintBoundary(
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedBuilder(
         animation: Listenable.merge([
           _bobController,
           _envelopeController,
@@ -145,14 +146,15 @@ class _UnfoldingCardAnimationState extends State<UnfoldingCardAnimation>
             ),
             
             // Golden mist layer
-            MagicalMist(
-              isActive: widget.isUnfolding,
-              intensity: 0.7,
-              child: SparkleParticleEngine(
+            RepaintBoundary(
+              child: MagicalMist(
                 isActive: widget.isUnfolding,
-                mode: SparkleMode.drift,
-                particleCount: 30,
-                child: AnimatedBuilder(
+                intensity: 0.7,
+                child: SparkleParticleEngine(
+                  isActive: widget.isUnfolding,
+                  mode: SparkleMode.drift,
+                  particleCount: 20, // Reduced from 30 for better performance
+                  child: AnimatedBuilder(
                   animation: _envelopeController,
                   builder: (context, child) {
                     // Envelope opening perspective effect
@@ -209,9 +211,11 @@ class _UnfoldingCardAnimationState extends State<UnfoldingCardAnimation>
                 ),
               ),
             ),
+          ),
           ],
         ),
       ),
+    ),
     );
   }
   
@@ -248,11 +252,13 @@ class _UnfoldingCardAnimationState extends State<UnfoldingCardAnimation>
   }
   
   Widget _buildOrbitParticles() {
-    return SparkleParticleEngine(
-      isActive: widget.isUnfolding,
-      mode: SparkleMode.orbit,
-      particleCount: 8,
-      child: const SizedBox.expand(),
+    return RepaintBoundary(
+      child: SparkleParticleEngine(
+        isActive: widget.isUnfolding,
+        mode: SparkleMode.orbit,
+        particleCount: 6, // Reduced from 8 for better performance
+        child: const SizedBox.expand(),
+      ),
     );
   }
   

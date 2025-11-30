@@ -47,9 +47,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           state.matchedLocation == Routes.login ||
           state.matchedLocation == Routes.signup;
       
-      // Redirect to home if authenticated and trying to access auth screens
+      // Redirect to inbox (new home) if authenticated and trying to access auth screens
       if (isAuth && isGoingToAuth) {
-        return Routes.home;
+        return Routes.receiverHome;
       }
       
       // Redirect to welcome if not authenticated and trying to access protected screens
@@ -86,12 +86,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         },
         routes: [
           GoRoute(
-            path: Routes.home,
-            builder: (context, state) => const HomeScreen(),
-          ),
-          GoRoute(
             path: Routes.receiverHome,
             builder: (context, state) => const ReceiverHomeScreen(),
+          ),
+          GoRoute(
+            path: Routes.home,
+            builder: (context, state) => const HomeScreen(),
           ),
         ],
       ),

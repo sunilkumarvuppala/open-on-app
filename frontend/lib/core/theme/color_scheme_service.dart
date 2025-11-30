@@ -31,7 +31,7 @@ class ColorSchemeService {
     }
   }
 
-  /// Get the current color scheme (defaults to forest green)
+  /// Get the current color scheme (defaults to galaxy aurora)
   static Future<AppColorScheme> getCurrentScheme() async {
     try {
       final schemeId = await getSavedSchemeId();
@@ -44,7 +44,7 @@ class ColorSchemeService {
         print('Error getting current scheme: $e');
       }
     }
-    return AppColorScheme.forestGreen; // Default
+    return AppColorScheme.galaxyAurora; // Default
   }
 }
 

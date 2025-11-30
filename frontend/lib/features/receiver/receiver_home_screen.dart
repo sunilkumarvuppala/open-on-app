@@ -3,14 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:openon_app/core/constants/app_constants.dart';
+import 'package:openon_app/core/models/models.dart';
+import 'package:openon_app/core/providers/providers.dart';
+import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
-import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/theme/color_scheme.dart';
+import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
 import 'package:openon_app/core/widgets/magic_dust_background.dart';
-import 'package:openon_app/core/router/app_router.dart';
-import 'package:openon_app/core/providers/providers.dart';
-import 'package:openon_app/core/models/models.dart';
 
 class ReceiverHomeScreen extends ConsumerStatefulWidget {
   const ReceiverHomeScreen({super.key});
@@ -62,15 +63,15 @@ class _ReceiverHomeScreenState extends ConsumerState<ReceiverHomeScreen>
                       onTap: () => context.push(Routes.profile),
                       child: userAsync.when(
                         data: (user) => UserAvatar(
-                          name: user?.name ?? 'User',
+                          name: user?.name ?? AppConstants.defaultUserName,
                           imageUrl: user?.avatarUrl,
                           imagePath: user?.localAvatarPath,
-                          size: 48,
+                          size: AppConstants.userAvatarSize,
                         ),
                         loading: () => const CircularProgressIndicator(),
                         error: (_, __) => const UserAvatar(
-                          name: 'User',
-                          size: 48,
+                          name: AppConstants.defaultUserName,
+                          size: AppConstants.userAvatarSize,
                         ),
                       ),
                     ),
@@ -467,6 +468,7 @@ class _LockedTab extends ConsumerWidget {
         }
 
         return ListView.builder(
+          key: const PageStorageKey('incoming_locked_capsules'),
           padding: EdgeInsets.symmetric(
             horizontal: AppTheme.spacingLg,
             vertical: AppTheme.spacingSm,
@@ -475,6 +477,7 @@ class _LockedTab extends ConsumerWidget {
           itemBuilder: (context, index) {
             final capsule = capsules[index];
             return Padding(
+              key: ValueKey('incoming_locked_${capsule.id}'),
               padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
               child: InkWell(
                 onTap: () => context.push('/capsule/${capsule.id}', extra: capsule),
@@ -514,6 +517,7 @@ class _OpeningSoonTab extends ConsumerWidget {
         }
 
         return ListView.builder(
+          key: const PageStorageKey('incoming_opening_soon_capsules'),
           padding: EdgeInsets.symmetric(
             horizontal: AppTheme.spacingLg,
             vertical: AppTheme.spacingSm,
@@ -522,6 +526,7 @@ class _OpeningSoonTab extends ConsumerWidget {
           itemBuilder: (context, index) {
             final capsule = capsules[index];
             return Padding(
+              key: ValueKey('incoming_opening_soon_${capsule.id}'),
               padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
               child: InkWell(
                 onTap: () => context.push('/capsule/${capsule.id}', extra: capsule),
@@ -561,6 +566,7 @@ class _OpenedTab extends ConsumerWidget {
         }
 
         return ListView.builder(
+          key: const PageStorageKey('incoming_opened_capsules'),
           padding: EdgeInsets.symmetric(
             horizontal: AppTheme.spacingLg,
             vertical: AppTheme.spacingSm,
@@ -569,6 +575,7 @@ class _OpenedTab extends ConsumerWidget {
           itemBuilder: (context, index) {
             final capsule = capsules[index];
             return Padding(
+              key: ValueKey('incoming_opened_${capsule.id}'),
               padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
               child: InkWell(
                 onTap: () => context.push('/capsule/${capsule.id}/opened', extra: capsule),
@@ -594,10 +601,12 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
 
   const _ReceiverCapsuleCard({required this.capsule});
 
+  // Cache DateFormat instances to avoid recreating on every build
+  static final _dateFormat = DateFormat('MMM dd, yyyy');
+  static final _timeFormat = DateFormat('h:mm a');
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final dateFormat = DateFormat('MMM dd, yyyy');
-    final timeFormat = DateFormat('h:mm a');
     final colorScheme = ref.watch(selectedColorSchemeProvider);
     final softGradient = DynamicTheme.softGradient(colorScheme);
     final dreamyGradient = DynamicTheme.dreamyGradient(colorScheme);
@@ -706,8 +715,8 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             capsule.isOpened
-                                ? 'Opened ${dateFormat.format(capsule.openedAt!)}'
-                                : 'Unlocks ${dateFormat.format(capsule.unlockTime)} at ${timeFormat.format(capsule.unlockTime)}',
+                                ? 'Opened ${_dateFormat.format(capsule.openedAt!)}'
+                                : 'Unlocks ${_dateFormat.format(capsule.unlockTime)} at ${_timeFormat.format(capsule.unlockTime)}',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: AppTheme.textGrey, // 60% opacity for visibility
                             ),

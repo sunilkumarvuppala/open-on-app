@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:openon_app/core/constants/app_constants.dart';
 import '../theme/animation_theme.dart';
 
 /// Individual sparkle particle data
@@ -29,10 +30,18 @@ class Sparkle {
 class SparklePainter extends CustomPainter {
   final List<Sparkle> sparkles;
   final double animationValue;
+  final double canvasWidth;
+  final double canvasHeight;
+  
+  // Reusable Paint objects to avoid allocation
+  final Paint _sparklePaint = Paint()..style = PaintingStyle.fill;
+  final Path _starPath = Path();
   
   SparklePainter({
     required this.sparkles,
     required this.animationValue,
+    required this.canvasWidth,
+    required this.canvasHeight,
   });
   
   @override
@@ -44,13 +53,17 @@ class SparklePainter extends CustomPainter {
       
       if (currentOpacity <= 0.01) continue;
       
-      final paint = Paint()
+      // Reuse paint object
+      _sparklePaint
         ..color = sparkle.color.withOpacity(currentOpacity)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, sparkle.size * 0.5)
-        ..style = PaintingStyle.fill;
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, sparkle.size * 0.5);
+      
+      // Convert normalized coordinates to actual pixels
+      final x = sparkle.x * canvasWidth;
+      final y = sparkle.y * canvasHeight;
       
       // Draw star-shaped sparkle
-      _drawStar(canvas, sparkle.x, sparkle.y, sparkle.size, paint);
+      _drawStar(canvas, x, y, sparkle.size, _sparklePaint);
     }
   }
   
@@ -68,7 +81,7 @@ class SparklePainter extends CustomPainter {
   
   /// Draw a 4-pointed star sparkle
   void _drawStar(Canvas canvas, double x, double y, double size, Paint paint) {
-    final path = Path();
+    _starPath.reset();
     
     // Create 4-pointed star
     for (int i = 0; i < 4; i++) {
@@ -77,26 +90,27 @@ class SparklePainter extends CustomPainter {
       final outerY = y + math.sin(angle) * size;
       
       if (i == 0) {
-        path.moveTo(outerX, outerY);
+        _starPath.moveTo(outerX, outerY);
       } else {
-        path.lineTo(outerX, outerY);
+        _starPath.lineTo(outerX, outerY);
       }
       
       // Inner point (between outer points)
       final innerAngle = angle + (math.pi / 4);
       final innerX = x + math.cos(innerAngle) * (size * 0.3);
       final innerY = y + math.sin(innerAngle) * (size * 0.3);
-      path.lineTo(innerX, innerY);
+      _starPath.lineTo(innerX, innerY);
     }
     
-    path.close();
-    canvas.drawPath(path, paint);
+    _starPath.close();
+    canvas.drawPath(_starPath, paint);
     
     // Add center glow
+    final glowMask = MaskFilter.blur(BlurStyle.normal, size);
     canvas.drawCircle(
       Offset(x, y),
       size * 0.3,
-      paint..maskFilter = MaskFilter.blur(BlurStyle.normal, size),
+      paint..maskFilter = glowMask,
     );
   }
   
@@ -147,7 +161,7 @@ class _SparkleParticleEngineState extends State<SparkleParticleEngine>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 3),
+      duration: AppConstants.sparkleAnimationDuration,
     )..repeat();
     
     _initializeSparkles();
@@ -181,7 +195,8 @@ class _SparkleParticleEngineState extends State<SparkleParticleEngine>
   }
   
   void _updateSparkles(Size size) {
-    final dt = 1 / 60; // Assume 60fps
+    // Use constant frame time for consistent animation speed
+    final dt = AppConstants.frameTime;
     
     for (int i = 0; i < _sparkles.length; i++) {
       final sparkle = _sparkles[i];
@@ -269,35 +284,29 @@ class _SparkleParticleEngineState extends State<SparkleParticleEngine>
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
+          if (!widget.isActive) {
+            return child!;
+          }
+          
           return Stack(
             children: [
               child!,
-              if (widget.isActive)
-                Positioned.fill(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      _updateSparkles(constraints.biggest);
-                      
-                      return CustomPaint(
-                        painter: SparklePainter(
-                          sparkles: _sparkles.map((s) {
-                            return Sparkle(
-                              x: s.x * constraints.maxWidth,
-                              y: s.y * constraints.maxHeight,
-                              size: s.size,
-                              speed: s.speed,
-                              opacity: s.opacity,
-                              angle: s.angle,
-                              lifetime: s.lifetime,
-                              color: s.color,
-                            );
-                          }).toList(),
-                          animationValue: _controller.value,
-                        ),
-                      );
-                    },
-                  ),
+              Positioned.fill(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    _updateSparkles(constraints.biggest);
+                    
+                    return CustomPaint(
+                      painter: SparklePainter(
+                        sparkles: _sparkles,
+                        animationValue: _controller.value,
+                        canvasWidth: constraints.maxWidth,
+                        canvasHeight: constraints.maxHeight,
+                      ),
+                    );
+                  },
                 ),
+              ),
             ],
           );
         },

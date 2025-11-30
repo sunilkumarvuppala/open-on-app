@@ -121,9 +121,10 @@ class _SealedCardAnimationState extends State<SealedCardAnimation>
   
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: _handleTap,
-      child: AnimatedBuilder(
+    return RepaintBoundary(
+      child: GestureDetector(
+        onTap: _handleTap,
+        child: AnimatedBuilder(
         animation: Listenable.merge([
           _floatController,
           _breatheController,
@@ -221,6 +222,7 @@ class _SealedCardAnimationState extends State<SealedCardAnimation>
           ),
         ),
       ),
+    ),
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:openon_app/core/constants/app_constants.dart';
 
 /// Magic dust background effect with soft glow speckles and animated sparkles
 class MagicDustBackground extends StatefulWidget {
@@ -27,26 +28,29 @@ class _MagicDustBackgroundState extends State<MagicDustBackground>
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 8),
+      duration: AppConstants.magicDustAnimationDuration,
     )..repeat();
 
     // Initialize particles (soft glow speckles)
     final random = math.Random();
-    for (int i = 0; i < 25; i++) {
+    for (int i = 0; i < AppConstants.magicDustParticleCount; i++) {
       _particles.add(_Particle(
         x: random.nextDouble(),
-        y: random.nextDouble() * 0.4, // Only in header area (top 40%)
+        y: random.nextDouble() * AppConstants.magicDustHeaderAreaRatio,
         size: 2 + random.nextDouble() * 3,
-        baseOpacity: 0.04 + random.nextDouble() * 0.02, // 4-6% opacity
+        baseOpacity: AppConstants.magicDustMinOpacity +
+            random.nextDouble() *
+                (AppConstants.magicDustMaxOpacity -
+                    AppConstants.magicDustMinOpacity),
         phase: random.nextDouble() * 2 * math.pi,
       ));
     }
 
     // Initialize sparkles (animated)
-    for (int i = 0; i < 12; i++) {
+    for (int i = 0; i < AppConstants.magicDustSparkleCount; i++) {
       _sparkles.add(_Sparkle(
         x: random.nextDouble(),
-        y: random.nextDouble() * 0.4, // Only in header area
+        y: random.nextDouble() * AppConstants.magicDustHeaderAreaRatio,
         size: 1.5 + random.nextDouble() * 2,
         phase: random.nextDouble() * 2 * math.pi,
         delay: random.nextDouble() * 2 * math.pi,
@@ -62,27 +66,29 @@ class _MagicDustBackgroundState extends State<MagicDustBackground>
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        widget.child,
-        Positioned.fill(
-          child: IgnorePointer(
-            child: AnimatedBuilder(
-              animation: _animationController,
-              builder: (context, child) {
-                return CustomPaint(
-                  painter: _MagicDustPainter(
-                    particles: _particles,
-                    sparkles: _sparkles,
-                    baseColor: widget.baseColor,
-                    animationValue: _animationController.value,
-                  ),
-                );
-              },
+    return RepaintBoundary(
+      child: Stack(
+        children: [
+          widget.child,
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: _animationController,
+                builder: (context, child) {
+                  return CustomPaint(
+                    painter: _MagicDustPainter(
+                      particles: _particles,
+                      sparkles: _sparkles,
+                      baseColor: widget.baseColor,
+                      animationValue: _animationController.value,
+                    ),
+                  );
+                },
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -135,6 +141,12 @@ class _MagicDustPainter extends CustomPainter {
     required this.animationValue,
   });
 
+  // Reusable Paint objects to avoid allocation
+  final Paint _particlePaint = Paint()..style = PaintingStyle.fill;
+  final Paint _glowPaint = Paint()..style = PaintingStyle.fill;
+  final Paint _sparklePaint = Paint()..style = PaintingStyle.fill;
+  final Paint _centerPaint = Paint()..style = PaintingStyle.fill;
+
   @override
   void paint(Canvas canvas, Size size) {
     // Draw soft glow speckles (static particles with 4-6% opacity)
@@ -142,15 +154,14 @@ class _MagicDustPainter extends CustomPainter {
       final x = particle.x * size.width;
       final y = particle.y * size.height;
       
-      final paint = Paint()
+      _particlePaint
         ..color = Colors.white.withOpacity(particle.baseOpacity)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, particle.size * 2)
-        ..style = PaintingStyle.fill;
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, particle.size * 2);
       
       canvas.drawCircle(
         Offset(x, y),
         particle.size,
-        paint,
+        _particlePaint,
       );
     }
 
@@ -161,39 +172,35 @@ class _MagicDustPainter extends CustomPainter {
       
       // Slow opacity animation (0 → 1 → 0)
       final opacityCycle = (math.sin(animationValue * 2 * math.pi + sparkle.delay) + 1) / 2;
-      final opacity = opacityCycle * 0.8; // Max 80% opacity for subtlety
+      final opacity = opacityCycle * AppConstants.sparkleMaxOpacity;
       
-      if (opacity > 0.05) { // Only draw if visible enough
+      if (opacity > AppConstants.sparkleMinVisibleOpacity) {
         // Outer glow
-        final glowPaint = Paint()
+        _glowPaint
           ..color = Colors.white.withOpacity(opacity * 0.3)
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, sparkle.size * 3)
-          ..style = PaintingStyle.fill;
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, sparkle.size * 3);
         canvas.drawCircle(
           Offset(x, y),
           sparkle.size * 1.5,
-          glowPaint,
+          _glowPaint,
         );
 
         // Main sparkle
-        final sparklePaint = Paint()
+        _sparklePaint
           ..color = Colors.white.withOpacity(opacity)
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, sparkle.size * 0.5)
-          ..style = PaintingStyle.fill;
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, sparkle.size * 0.5);
         canvas.drawCircle(
           Offset(x, y),
           sparkle.size,
-          sparklePaint,
+          _sparklePaint,
         );
 
         // Center bright point
-        final centerPaint = Paint()
-          ..color = Colors.white.withOpacity(opacity * 1.2)
-          ..style = PaintingStyle.fill;
+        _centerPaint.color = Colors.white.withOpacity(opacity * 1.2);
         canvas.drawCircle(
           Offset(x, y),
           sparkle.size * 0.3,
-          centerPaint,
+          _centerPaint,
         );
       }
     }

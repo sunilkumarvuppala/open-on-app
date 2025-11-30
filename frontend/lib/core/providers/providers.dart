@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:openon_app/core/constants/app_constants.dart';
 import 'package:openon_app/core/data/repositories.dart';
 import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/theme/color_scheme.dart';
@@ -39,9 +40,12 @@ final upcomingCapsulesProvider = FutureProvider.family<List<Capsule>, String>((r
   final capsulesAsync = ref.watch(capsulesProvider(userId));
   
   return capsulesAsync.when(
-    data: (capsules) => capsules
-        .where((c) => c.status == CapsuleStatus.locked && c.timeUntilUnlock.inDays > 7)
-        .toList(),
+    data: (capsules) {
+      final threshold = AppConstants.unlockingSoonDaysThreshold;
+      return capsules
+          .where((c) => c.status == CapsuleStatus.locked && c.timeUntilUnlock.inDays > threshold)
+          .toList();
+    },
     loading: () => <Capsule>[],
     error: (_, __) => <Capsule>[],
   );
@@ -81,9 +85,12 @@ final incomingLockedCapsulesProvider = FutureProvider.family<List<Capsule>, Stri
   final capsulesAsync = ref.watch(incomingCapsulesProvider(userId));
   
   return capsulesAsync.when(
-    data: (capsules) => capsules
-        .where((c) => c.status == CapsuleStatus.locked && c.timeUntilUnlock.inDays > 7)
-        .toList(),
+    data: (capsules) {
+      final threshold = AppConstants.unlockingSoonDaysThreshold;
+      return capsules
+          .where((c) => c.status == CapsuleStatus.locked && c.timeUntilUnlock.inDays > threshold)
+          .toList();
+    },
     loading: () => <Capsule>[],
     error: (_, __) => <Capsule>[],
   );
@@ -164,7 +171,7 @@ final colorSchemeProvider = FutureProvider<AppColorScheme>((ref) async {
 // Selected color scheme - reactive to changes
 final selectedColorSchemeProvider = StateNotifierProvider<ColorSchemeNotifier, AppColorScheme>((ref) {
   final currentSchemeAsync = ref.watch(colorSchemeProvider);
-  final initialScheme = currentSchemeAsync.asData?.value ?? AppColorScheme.forestGreen;
+  final initialScheme = currentSchemeAsync.asData?.value ?? AppColorScheme.galaxyAurora;
   return ColorSchemeNotifier(initialScheme);
 });
 

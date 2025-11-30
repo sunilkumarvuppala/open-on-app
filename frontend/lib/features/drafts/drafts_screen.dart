@@ -229,7 +229,7 @@ class DraftsScreen extends ConsumerWidget {
                       size: 14,
                       color: AppTheme.textGrey.withOpacity(0.6),
                     ),
-                    SizedBox(width: AppTheme.spacingXs),
+                    SizedBox(width: 4),
                     Text(
                       'Edited $lastEditedText',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
