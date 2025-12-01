@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
+import 'package:openon_app/core/data/api_repositories.dart';
+import 'package:openon_app/core/utils/error_handler.dart';
 import 'package:openon_app/features/create_capsule/step_choose_recipient.dart';
 import 'package:openon_app/features/create_capsule/step_write_letter.dart';
 import 'package:openon_app/features/create_capsule/step_choose_time.dart';
@@ -89,7 +91,14 @@ class _CreateCapsuleScreenState extends ConsumerState<CreateCapsuleScreen> {
       );
       
       final repo = ref.read(capsuleRepositoryProvider);
-      await repo.createCapsule(capsule);
+      
+      // Create capsule (in draft state)
+      final createdCapsule = await repo.createCapsule(capsule);
+      
+      // Seal capsule with unlock time (if using API repository)
+      if (repo is ApiCapsuleRepository && draft.unlockAt != null) {
+        await repo.sealCapsule(createdCapsule.id, draft.unlockAt!);
+      }
       
       // Invalidate capsules cache
       ref.invalidate(capsulesProvider);
@@ -110,9 +119,14 @@ class _CreateCapsuleScreenState extends ConsumerState<CreateCapsuleScreen> {
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
         
+        final errorMsg = ErrorHandler.getErrorMessage(
+          e,
+          defaultMessage: ErrorHandler.getDefaultErrorMessage('create letter'),
+        );
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to create letter. Please try again.'),
+          SnackBar(
+            content: Text(errorMsg),
             backgroundColor: AppColors.error,
           ),
         );

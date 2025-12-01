@@ -174,14 +174,17 @@ class User {
   final String id;
   final String name;
   final String email;
+  final String username; // Unique username for searching
   final String avatar;
   
   User({
     String? id,
     required this.name,
     required this.email,
+    String? username,
     String? avatar,
   })  : id = id ?? _uuid.v4(),
+        username = username ?? email.split('@')[0], // Default to email prefix if not provided
         avatar = avatar ?? '';
   
   String get firstName {
@@ -197,12 +200,14 @@ class User {
     String? id,
     String? name,
     String? email,
+    String? username,
     String? avatar,
   }) {
     return User(
       id: id ?? this.id,
       name: name ?? this.name,
       email: email ?? this.email,
+      username: username ?? this.username,
       avatar: avatar ?? this.avatar,
     );
   }
