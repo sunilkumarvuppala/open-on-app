@@ -1,0 +1,61 @@
+name: openon_app
+description: A viral, emotional time-locked letters app
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management
+  flutter_riverpod: ^2.4.9
+  
+  # Navigation
+  go_router: ^13.0.0
+  
+  # UI & Animation
+  lottie: ^3.0.0
+  flutter_animate: ^4.3.0
+  
+  # Image Handling
+  image_picker: ^1.0.5
+  cached_network_image: ^3.3.0
+  
+  # Sharing
+  share_plus: ^7.2.1
+  
+  # Utils
+  intl: ^0.19.0
+  uuid: ^4.2.2
+  shared_preferences: ^2.2.2
+  
+  # Icons
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/animations/
+    - assets/images/
+
+  # Fonts commented out - Poppins fonts not included
+  # To use Poppins, download from Google Fonts and add to assets/fonts/
+  # fonts:
+  #   - family: Poppins
+  #     fonts:
+  #       - asset: assets/fonts/Poppins-Regular.ttf
+  #       - asset: assets/fonts/Poppins-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/Poppins-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/Poppins-Bold.ttf
+  #         weight: 700
