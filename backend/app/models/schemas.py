@@ -3,21 +3,37 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from app.db.models import CapsuleState
+from app.core.config import settings
 
 
 # ===== User Models =====
 class UserBase(BaseModel):
     """Base user model."""
     email: EmailStr
-    username: str = Field(min_length=3, max_length=100)
-    first_name: str = Field(min_length=1, max_length=100)
-    last_name: str = Field(min_length=1, max_length=100)
-    full_name: Optional[str] = Field(None, max_length=255)  # Computed from first_name + last_name
+    username: str = Field(
+        min_length=settings.min_username_length,
+        max_length=settings.max_username_length
+    )
+    first_name: str = Field(
+        min_length=settings.min_name_length,
+        max_length=settings.max_name_length
+    )
+    last_name: str = Field(
+        min_length=settings.min_name_length,
+        max_length=settings.max_name_length
+    )
+    full_name: Optional[str] = Field(
+        None,
+        max_length=settings.max_full_name_length
+    )  # Computed from first_name + last_name
 
 
 class UserCreate(UserBase):
     """User creation model."""
-    password: str = Field(min_length=8, max_length=100)
+    password: str = Field(
+        min_length=settings.min_password_length,
+        max_length=settings.max_password_length
+    )
     
     @field_validator("full_name", mode="before")
     @classmethod

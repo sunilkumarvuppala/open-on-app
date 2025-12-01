@@ -96,13 +96,19 @@ class Recipient {
 ```dart
 class User {
   final String id;
-  final String name;
-  final String firstName;
-  final String? email;
-  final String? avatarUrl;
-  final String? localAvatarPath;
+  final String name;  // Full name (computed from first_name + last_name from backend)
+  final String email;
+  final String username;  // Unique username for searching
+  final String avatar;  // URL or asset path
+  
+  // Computed properties
+  String get firstName;  // Extracted from name
+  String? get avatarUrl;  // If avatar is HTTP URL
+  String? get localAvatarPath;  // If avatar is local path
 }
 ```
+
+**Note**: The frontend `User` model uses `name` (full name) which is computed from `first_name` and `last_name` received from the backend. The backend API returns `first_name`, `last_name`, and `username` separately.
 
 ### Draft
 

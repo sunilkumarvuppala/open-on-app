@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:openon_app/core/theme/color_scheme.dart';
+import 'package:openon_app/core/utils/logger.dart';
 
 class ColorSchemeService {
   static const String _schemeKey = 'selected_color_scheme_id';
@@ -11,9 +11,7 @@ class ColorSchemeService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString(_schemeKey);
     } catch (e) {
-      if (kDebugMode) {
-        print('Error getting saved scheme ID: $e');
-      }
+      Logger.error('Error getting saved scheme ID', error: e);
       return null; // Return null on error, will use default
     }
   }
@@ -24,9 +22,7 @@ class ColorSchemeService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_schemeKey, schemeId);
     } catch (e) {
-      if (kDebugMode) {
-        print('Error saving scheme ID: $e');
-      }
+      Logger.error('Error saving scheme ID', error: e);
       // Silently fail - user can still use the app, just won't persist preference
     }
   }
@@ -40,9 +36,7 @@ class ColorSchemeService {
         if (scheme != null) return scheme;
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('Error getting current scheme: $e');
-      }
+      Logger.error('Error getting current scheme', error: e);
     }
     return AppColorScheme.galaxyAurora; // Default
   }

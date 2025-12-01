@@ -1,6 +1,6 @@
 """FastAPI dependencies for authentication and database access."""
 from typing import Annotated
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.base import get_db
@@ -14,11 +14,14 @@ security = HTTPBearer()
 
 
 async def get_current_user(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
     session: Annotated[AsyncSession, Depends(get_db)]
 ) -> User:
     """
     Get current authenticated user from JWT token.
+    
+    Also sets user_id in request.state for logging purposes.
     
     Raises:
         HTTPException: If token is invalid or user not found.
@@ -50,6 +53,9 @@ async def get_current_user(
             detail="Invalid token payload",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    # Set user_id in request.state for logging middleware
+    request.state.user_id = user_id
     
     user_repo = UserRepository(session)
     user = await user_repo.get_by_id(user_id)

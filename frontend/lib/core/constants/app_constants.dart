@@ -38,6 +38,8 @@ class AppConstants {
   static const Duration animationDurationShort = Duration(milliseconds: 200);
   static const Duration animationDurationMedium = Duration(milliseconds: 300);
   static const Duration animationDurationLong = Duration(milliseconds: 500);
+  static const Duration openingAnimationDuration = Duration(milliseconds: 1500);
+  static const Duration openingAnimationDelay = Duration(milliseconds: 500);
   static const Duration magicDustAnimationDuration = Duration(seconds: 8);
   static const Duration sparkleAnimationDuration = Duration(seconds: 3);
   
@@ -64,6 +66,8 @@ class AppConstants {
   static const int maxPasswordLength = 128;
   static const int maxEmailLength = 254;
   static const int maxNameLength = 100;
+  static const int minUsernameLength = 3;
+  static const int maxUsernameLength = 100;
 
   // Search settings
   static const int minSearchQueryLength = 2;

@@ -110,7 +110,7 @@ class CapsuleRepository(BaseRepository[Capsule]):
         sender_id: str,
         state: Optional[CapsuleState] = None,
         skip: int = 0,
-        limit: int = 100
+        limit: int = 100  # Using default limit, can be overridden
     ) -> list[Capsule]:
         """Get capsules by sender with optional state filter."""
         query = select(Capsule).where(Capsule.sender_id == sender_id)
@@ -127,7 +127,7 @@ class CapsuleRepository(BaseRepository[Capsule]):
         receiver_id: str,
         state: Optional[CapsuleState] = None,
         skip: int = 0,
-        limit: int = 100
+        limit: int = 100  # Using default limit, can be overridden
     ) -> list[Capsule]:
         """Get capsules by receiver with optional state filter."""
         query = select(Capsule).where(Capsule.receiver_id == receiver_id)
@@ -279,7 +279,7 @@ class RecipientRepository(BaseRepository[Recipient]):
         self,
         owner_id: str,
         skip: int = 0,
-        limit: int = 100
+        limit: int = 100  # Using default limit, can be overridden
     ) -> list[Recipient]:
         """Get all recipients by owner."""
         query = (

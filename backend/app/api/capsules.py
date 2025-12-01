@@ -36,8 +36,6 @@ async def create_capsule(
     """
     capsule_repo = CapsuleRepository(session)
     
-    from app.core.config import settings
-    
     # Sanitize and validate inputs
     title = sanitize_text(capsule_data.title.strip(), max_length=settings.max_title_length)
     body = sanitize_text(capsule_data.body.strip(), max_length=settings.max_content_length)
@@ -77,8 +75,8 @@ async def list_capsules(
     session: DatabaseSession,
     box: str = Query("inbox", regex="^(inbox|outbox)$"),
     state: Optional[CapsuleState] = None,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100)
+    page: int = Query(settings.default_page, ge=1),
+    page_size: int = Query(settings.default_page_size, ge=settings.min_page_size, le=settings.max_page_size)
 ) -> CapsuleListResponse:
     """
     List capsules for the current user.
@@ -179,8 +177,6 @@ async def update_capsule(
     
     # Prepare update data
     update_dict = update_data.model_dump(exclude_unset=True)
-    
-    from app.core.config import settings
     
     # Sanitize text fields if provided
     if "title" in update_dict:

@@ -4,6 +4,7 @@ from app.models.schemas import DraftCreate, DraftUpdate, DraftResponse, MessageR
 from app.dependencies import DatabaseSession, CurrentUser
 from app.db.repositories import DraftRepository
 from app.core.logging import get_logger
+from app.core.config import settings
 import json
 
 
@@ -46,7 +47,7 @@ async def create_draft(
 async def list_drafts(
     current_user: CurrentUser,
     session: DatabaseSession,
-    page: int = Query(1, ge=1),
+    page: int = Query(settings.default_page, ge=1),
     page_size: int = Query(50, ge=1, le=100)
 ) -> list[DraftResponse]:
     """

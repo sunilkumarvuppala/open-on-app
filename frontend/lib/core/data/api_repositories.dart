@@ -474,9 +474,9 @@ class ApiUserService {
   }
 
   /// Search for registered users
-  Future<List<User>> searchUsers(String query, {int limit = 10}) async {
+  Future<List<User>> searchUsers(String query, {int limit = AppConstants.defaultSearchLimit}) async {
     try {
-      if (query.length < 2) {
+      if (query.length < AppConstants.minSearchQueryLength) {
         return [];
       }
 

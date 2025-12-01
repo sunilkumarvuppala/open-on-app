@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     early_view_threshold_days: int = 3
     
     # Pagination defaults
+    default_page: int = 1
     default_page_size: int = 20
     max_page_size: int = 100
     min_page_size: int = 1
@@ -59,6 +60,13 @@ class Settings(BaseSettings):
     min_name_length: int = 1
     max_name_length: int = 100
     max_full_name_length: int = 255
+    
+    # Email constraints
+    max_email_length: int = 254  # RFC 5321 limit
+    
+    # Password constraints
+    min_password_length: int = 8
+    max_password_length: int = 128  # bcrypt limit is 72 bytes, but we allow longer for hashing truncation
     
     # Content constraints
     min_content_length: int = 1

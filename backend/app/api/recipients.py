@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, status, Query
 from app.models.schemas import RecipientCreate, RecipientResponse, MessageResponse
 from app.dependencies import DatabaseSession, CurrentUser
 from app.db.repositories import RecipientRepository
+from app.core.config import settings
 from app.core.logging import get_logger
 from app.utils.helpers import sanitize_text, validate_email
 
@@ -34,9 +35,11 @@ async def create_recipient(
             detail="Recipient name is required"
         )
     
+    from app.core.config import settings
+    
     email = None
     if recipient_data.email:
-        email = sanitize_text(recipient_data.email.lower().strip(), max_length=254)
+        email = sanitize_text(recipient_data.email.lower().strip(), max_length=settings.max_email_length)
         if not validate_email(email):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -62,8 +65,8 @@ async def create_recipient(
 async def list_recipients(
     current_user: CurrentUser,
     session: DatabaseSession,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=100)
+    page: int = Query(settings.default_page, ge=1),
+    page_size: int = Query(settings.default_page_size, ge=settings.min_page_size, le=settings.max_page_size)
 ) -> list[RecipientResponse]:
     """
     List all saved recipients for the current user.

@@ -9,6 +9,17 @@ docs/
 ├── README.md (this file)              # Overview and navigation
 ├── CHANGELOG.md                       # Documentation changelog
 │
+├── backend/                           # Backend documentation
+│   ├── INDEX.md                       # Navigation index
+│   ├── GETTING_STARTED.md             # Quick start guide
+│   ├── ARCHITECTURE.md                # Architecture overview
+│   ├── CODE_STRUCTURE.md              # Code organization
+│   ├── API_REFERENCE.md               # Complete API documentation
+│   ├── SECURITY.md                    # Security practices
+│   ├── CONFIGURATION.md               # Configuration guide
+│   ├── REFACTORING_CHANGES.md         # Recent refactoring documentation
+│   └── DEVELOPMENT.md                 # Development guide
+│
 └── frontend/                          # Frontend documentation
     ├── INDEX.md                       # Navigation index
     ├── FEATURES.md                    # Features overview
@@ -38,7 +49,13 @@ docs/
 
 ## 🚀 Quick Navigation
 
-### Getting Started
+### Backend
+- **New to backend?** Start with [backend/GETTING_STARTED.md](./backend/GETTING_STARTED.md)
+- **Backend architecture?** See [backend/ARCHITECTURE.md](./backend/ARCHITECTURE.md)
+- **API reference?** See [backend/API_REFERENCE.md](./backend/API_REFERENCE.md)
+- **Backend navigation?** See [backend/INDEX.md](./backend/INDEX.md)
+
+### Frontend
 - **New to the project?** Start with [frontend/QUICK_START.md](./frontend/QUICK_START.md)
 - **New developer?** Read [frontend/DEVELOPMENT_GUIDE.md](./frontend/DEVELOPMENT_GUIDE.md)
 - **Navigation index?** See [frontend/INDEX.md](./frontend/INDEX.md)
@@ -54,7 +71,8 @@ docs/
 ### Technical
 - **Performance concerns?** Check [PERFORMANCE_OPTIMIZATIONS.md](./PERFORMANCE_OPTIMIZATIONS.md)
 - **Making changes?** Review [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md)
-- **API details?** See [API_REFERENCE.md](./API_REFERENCE.md)
+- **Frontend API details?** See [API_REFERENCE.md](./API_REFERENCE.md) (Frontend classes/patterns)
+- **Backend API details?** See [backend/API_REFERENCE.md](./backend/API_REFERENCE.md) (REST API endpoints)
 - **Contributing?** Follow [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## 📖 What is OpenOn?

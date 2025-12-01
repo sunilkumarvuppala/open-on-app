@@ -4,6 +4,7 @@ from app.models.schemas import UserCreate, UserLogin, UserResponse, TokenRespons
 from app.dependencies import DatabaseSession, CurrentUser
 from app.db.repositories import UserRepository
 from app.core.security import get_password_hash, verify_password, create_access_token, create_refresh_token
+from app.core.config import settings
 from app.utils.helpers import validate_username, validate_password, sanitize_text, validate_email
 
 
@@ -23,10 +24,8 @@ async def signup(
     """
     user_repo = UserRepository(session)
     
-    from app.core.config import settings
-    
     # Sanitize and validate inputs
-    email = sanitize_text(user_data.email.lower().strip(), max_length=254)
+    email = sanitize_text(user_data.email.lower().strip(), max_length=settings.max_email_length)
     username = sanitize_text(user_data.username.strip(), max_length=settings.max_username_length)
     first_name = sanitize_text(user_data.first_name.strip(), max_length=settings.max_name_length)
     last_name = sanitize_text(user_data.last_name.strip(), max_length=settings.max_name_length)
@@ -164,7 +163,7 @@ async def check_username_availability(
     user_repo = UserRepository(session)
     
     # Sanitize username
-    sanitized_username = sanitize_text(username.strip(), max_length=100)
+    sanitized_username = sanitize_text(username.strip(), max_length=settings.max_username_length)
     
     # Validate username format
     username_valid, username_msg = validate_username(sanitized_username)
@@ -189,13 +188,13 @@ async def search_users(
     session: DatabaseSession,
     query: str = Query(
         ..., 
-        min_length=2, 
+        min_length=settings.min_search_query_length, 
         description="Search query (email, username, or name)"
     ),
     limit: int = Query(
-        10, 
+        settings.default_search_limit, 
         ge=1, 
-        le=50, 
+        le=settings.max_search_limit, 
         description="Maximum number of results"
     ),
 ) -> list[UserResponse]:

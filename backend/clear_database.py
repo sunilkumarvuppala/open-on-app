@@ -15,50 +15,56 @@ Usage:
 
 import asyncio
 import sys
+import logging
 from sqlalchemy import text
 from app.db.base import engine, Base
 from app.db.models import User, Capsule, Draft, Recipient
 from app.core.config import settings
+from app.core.logging import setup_logging
+
+# Setup logging
+setup_logging(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 async def clear_all_data():
     """Clear all data from all tables."""
-    print("🗑️  Clearing all data from database...")
+    logger.info("🗑️  Clearing all data from database...")
     
     async with engine.begin() as conn:
         # Delete in reverse order of dependencies to avoid foreign key constraints
-        print("  - Deleting recipients...")
+        logger.info("  - Deleting recipients...")
         await conn.execute(text("DELETE FROM recipients"))
         
-        print("  - Deleting drafts...")
+        logger.info("  - Deleting drafts...")
         await conn.execute(text("DELETE FROM drafts"))
         
-        print("  - Deleting capsules...")
+        logger.info("  - Deleting capsules...")
         await conn.execute(text("DELETE FROM capsules"))
         
-        print("  - Deleting users...")
+        logger.info("  - Deleting users...")
         await conn.execute(text("DELETE FROM users"))
         
         # Reset SQLite sequences (if using SQLite)
         if "sqlite" in settings.database_url:
-            print("  - Resetting SQLite sequences...")
+            logger.info("  - Resetting SQLite sequences...")
             await conn.execute(text("DELETE FROM sqlite_sequence"))
     
-    print("✅ All data cleared successfully!")
+    logger.info("✅ All data cleared successfully!")
 
 
 async def recreate_tables():
     """Drop and recreate all tables."""
-    print("🔄 Recreating database tables...")
+    logger.info("🔄 Recreating database tables...")
     
     async with engine.begin() as conn:
-        print("  - Dropping all tables...")
+        logger.info("  - Dropping all tables...")
         await conn.run_sync(Base.metadata.drop_all)
         
-        print("  - Creating all tables...")
+        logger.info("  - Creating all tables...")
         await conn.run_sync(Base.metadata.create_all)
     
-    print("✅ Database tables recreated successfully!")
+    logger.info("✅ Database tables recreated successfully!")
 
 
 async def main():
@@ -79,13 +85,13 @@ async def main():
     args = parser.parse_args()
     
     # Show database info
-    print(f"📊 Database: {settings.database_url}")
+    logger.info(f"📊 Database: {settings.database_url}")
     
     if not args.confirm:
         action = "recreate tables" if args.recreate else "clear all data"
         response = input(f"\n⚠️  This will {action}. Are you sure? (yes/no): ")
         if response.lower() not in ["yes", "y"]:
-            print("❌ Operation cancelled.")
+            logger.warning("❌ Operation cancelled.")
             sys.exit(0)
     
     try:
@@ -94,10 +100,10 @@ async def main():
         else:
             await clear_all_data()
         
-        print("\n✨ Done! Database is now empty.")
+        logger.info("\n✨ Done! Database is now empty.")
         
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        logger.error(f"\n❌ Error: {e}", exc_info=True)
         sys.exit(1)
     finally:
         await engine.dispose()

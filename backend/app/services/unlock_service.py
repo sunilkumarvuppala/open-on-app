@@ -1,9 +1,13 @@
 """Time-lock unlock service for automated capsule state transitions."""
+from typing import TYPE_CHECKING
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.repositories import CapsuleRepository
 from app.services.state_machine import CapsuleStateMachine
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from app.db.models import Capsule
 
 
 logger = get_logger(__name__)
@@ -56,7 +60,7 @@ class UnlockService:
     
     async def _update_capsule_state(
         self,
-        capsule,
+        capsule: "Capsule",
         stats: dict[str, int]
     ) -> None:
         """Update a single capsule's state if needed."""
@@ -89,7 +93,7 @@ class UnlockService:
         if next_state.value == "ready":
             await self._notify_ready(capsule)
     
-    async def _notify_ready(self, capsule) -> None:
+    async def _notify_ready(self, capsule: "Capsule") -> None:
         """Send notification that capsule is ready (placeholder for future)."""
         # TODO: Integrate with notification service
         logger.info(

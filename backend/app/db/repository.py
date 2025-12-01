@@ -34,7 +34,7 @@ class BaseRepository(Generic[ModelType]):
     async def get_all(
         self,
         skip: int = 0,
-        limit: int = 100,
+        limit: int = 100,  # Default limit, can be overridden
         **filters: Any
     ) -> list[ModelType]:
         """Get all records with optional filters."""

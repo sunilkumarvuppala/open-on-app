@@ -15,11 +15,18 @@ def setup_logging(level: int = logging.INFO) -> None:
     # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
+    # Set handler level to INFO to ensure request logs are visible
+    console_handler.setLevel(logging.INFO)
     
     # Root logger
     root_logger = logging.getLogger()
-    root_logger.setLevel(level)
+    # Ensure root logger is at least INFO to see request logs
+    root_logger.setLevel(min(level, logging.INFO))
     root_logger.addHandler(console_handler)
+    
+    # Ensure request logging middleware always logs at INFO level
+    request_logger = logging.getLogger("app.middleware.request_logging")
+    request_logger.setLevel(logging.INFO)
     
     # Silence noisy loggers
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)

@@ -8,12 +8,17 @@ from app.core.logging import setup_logging
 from app.db.base import init_db, close_db
 from app.workers.scheduler import start_worker, shutdown_worker
 from app.api import auth, capsules, drafts, recipients
+from app.middleware.request_logging import RequestLoggingMiddleware
+from app.middleware.rate_limiting import RateLimitingMiddleware
 from app.models.schemas import HealthResponse
 import logging
 
 
 # Setup logging
-setup_logging(level=logging.INFO if settings.debug else logging.WARNING)
+# Use INFO level in debug mode, WARNING in production
+# Request logs will still show (middleware sets its own level to INFO)
+log_level = logging.INFO if settings.debug else logging.WARNING
+setup_logging(level=log_level)
 logger = logging.getLogger(__name__)
 
 
@@ -92,6 +97,12 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+
+# Rate limiting middleware (add first to protect against abuse)
+app.add_middleware(RateLimitingMiddleware)
+
+# Request logging middleware (add after rate limiting to log all requests)
+app.add_middleware(RequestLoggingMiddleware)
 
 # CORS middleware
 app.add_middleware(
