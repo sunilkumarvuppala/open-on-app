@@ -29,31 +29,33 @@ features/navigation/
 
 **Key Features**:
 - Bottom navigation bar
-- Two main tabs: Home and Inbox
+- Two main tabs: Inbox and Outbox
 - Smooth tab switching animation
 - Theme-aware styling
 - Gradient tint on selected tab
+- Rising animation on tab selection
 
 **Navigation Tabs**:
-1. **Home** (Tab 0)
-   - Icon: `Icons.home_outlined`
-   - Label: "Home"
-   - Route: `/home`
-   - Shows sender's home screen
-
-2. **Inbox** (Tab 1)
+1. **Inbox** (Tab 0) - PRIMARY
    - Icon: `Icons.inbox_outlined`
    - Label: "Inbox"
    - Route: `/inbox`
-   - Shows receiver's home screen
+   - Shows receiver's home screen (incoming capsules)
+   - Default screen after authentication
+
+2. **Outbox** (Tab 1) - SECONDARY
+   - Icon: `Icons.send_outlined`
+   - Label: "Outbox"
+   - Route: `/home`
+   - Shows sender's home screen (sent capsules)
 
 **Layout Structure**:
 ```
 MainNavigation
 ├── Body (child widget)
 └── BottomNavigationBar
-    ├── Home Tab
-    └── Inbox Tab
+    ├── Inbox Tab (Tab 0 - PRIMARY)
+    └── Outbox Tab (Tab 1 - SECONDARY)
 ```
 
 ## User Flows
@@ -74,11 +76,11 @@ App Start
 Welcome/Login
   ↓
 Main Navigation (ShellRoute)
-  ├── Home Tab (/home)
-  │   └── HomeScreen
+  ├── Inbox Tab (/inbox) - Tab 0 (PRIMARY)
+  │   └── ReceiverHomeScreen
   │
-  └── Inbox Tab (/inbox)
-      └── ReceiverHomeScreen
+  └── Outbox Tab (/home) - Tab 1 (SECONDARY)
+      └── HomeScreen
   ↓
 Feature Screens (push routes)
   ├── Create Capsule
@@ -116,8 +118,8 @@ ShellRoute(
 
 ### Routes
 
-- `/home` - Home tab (sender)
-- `/inbox` - Inbox tab (receiver)
+- `/inbox` - Inbox tab (receiver) - Tab 0, PRIMARY, default after auth
+- `/home` - Outbox tab (sender) - Tab 1, SECONDARY
 
 ## State Management
 
@@ -125,30 +127,31 @@ ShellRoute(
 
 ```dart
 class _MainNavigationState extends ConsumerState<MainNavigation> {
-  int _currentIndex = 0;
+  int get _currentIndex {
+    // Inbox (receiverHome) is index 0 (primary home)
+    // Outbox (home) is index 1 (secondary)
+    if (widget.location == Routes.receiverHome) {
+      return 0;
+    } else if (widget.location == Routes.home) {
+      return 1;
+    }
+    return 0; // Default to inbox
+  }
   
   void _onTabTapped(int index) {
-    setState(() => _currentIndex = index);
+    if (index == _currentIndex) return;
     
-    switch (index) {
-      case 0:
-        context.go(Routes.home);
-        break;
-      case 1:
-        context.go(Routes.receiverHome);
-        break;
+    // Trigger rising animation
+    _animationController.forward(from: 0.0).then((_) {
+      _animationController.reverse();
+    });
+    
+    if (index == 0) {
+      context.go(Routes.receiverHome); // Inbox (primary)
+    } else if (index == 1) {
+      context.go(Routes.home); // Outbox (secondary)
     }
   }
-}
-```
-
-### Location Tracking
-
-```dart
-int _getCurrentIndex(String location) {
-  if (location == Routes.home) return 0;
-  if (location == Routes.receiverHome) return 1;
-  return 0; // Default to home
 }
 ```
 
@@ -157,19 +160,21 @@ int _getCurrentIndex(String location) {
 ### Bottom Navigation Bar
 
 **Features**:
-- Two tabs (Home, Inbox)
-- Outline icons
-- Selected tab with gradient tint
-- Smooth animation
+- Two tabs (Inbox, Outbox)
+- Outline icons (inbox_outlined, send_outlined)
+- Selected tab with gradient tint (ShaderMask)
+- Rising animation on selection (moves up 4px)
+- Smooth animation transitions
 - Theme-aware colors
-- Reduced height (60px)
+- Height: 60px
 
 **Styling**:
 - White background
 - Subtle shadow
 - Rounded corners
-- Icon size: 24px
-- Label font size: 12px
+- Icon size: 21px (reduced from 24px)
+- Label font size: 11px
+- Selected tab: Gradient tint with rising animation
 
 ### Tab Animation
 
@@ -211,15 +216,17 @@ int _getCurrentIndex(String location) {
 
 ```dart
 void _onTabTapped(int index) {
-  setState(() => _currentIndex = index);
+  if (index == _currentIndex) return;
   
-  switch (index) {
-    case 0:
-      context.go(Routes.home);
-      break;
-    case 1:
-      context.go(Routes.receiverHome);
-      break;
+  // Trigger rising animation
+  _animationController.forward(from: 0.0).then((_) {
+    _animationController.reverse();
+  });
+  
+  if (index == 0) {
+    context.go(Routes.receiverHome); // Inbox (primary)
+  } else if (index == 1) {
+    context.go(Routes.home); // Outbox (secondary)
   }
 }
 ```
@@ -278,9 +285,9 @@ Widget _buildNavItem({
 
 - [Home Screen](./HOME.md) - For home tab
 - [Receiver Screen](./RECEIVER.md) - For inbox tab
-- [Architecture](../ARCHITECTURE.md) - For navigation architecture
+- [Architecture](../../ARCHITECTURE.md) - For navigation architecture
 
 ---
 
-**Last Updated**: 2024
+**Last Updated**: 2025
 

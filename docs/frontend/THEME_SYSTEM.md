@@ -546,10 +546,10 @@ final colorScheme = ref.watch(selectedColorSchemeProvider);
 ## Related Documentation
 
 - [Core Components](./CORE_COMPONENTS.md#theme-system)
-- [Architecture](./ARCHITECTURE.md#theming-system)
+- [Architecture](../ARCHITECTURE.md#theming-system)
 - [Profile Feature](./features/PROFILE.md)
 
 ---
 
-**Last Updated**: 2024
+**Last Updated**: 2025
 

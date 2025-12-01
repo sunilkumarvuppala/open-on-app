@@ -159,19 +159,19 @@ Welcome → Login/Signup → Home
 
 #### 2. Create Letter Flow
 ```
-Home → Create Capsule → Choose Recipient → Write → Set Time → Preview → Send
+Outbox → Create Capsule → Choose Recipient → Write → Set Time → Preview → Send
 ```
 
 #### 3. View Letter Flow
 ```
-Home → Select Capsule → View (Locked/Opening/Opened)
+Inbox/Outbox → Select Capsule → View (Locked/Opening/Opened)
 ```
 
 ### Key Screens
 
 - **Welcome**: First screen, login/signup
-- **Home**: Sender's dashboard (3 tabs)
-- **Inbox**: Receiver's inbox (3 tabs)
+- **Inbox**: Receiver's inbox (3 tabs: Sealed, Ready, Opened) - PRIMARY, default after auth
+- **Outbox**: Sender's dashboard (3 tabs: Unfolding, Sealed, Revealed) - SECONDARY
 - **Create Capsule**: Multi-step letter creation
 - **Profile**: User settings and theme
 
@@ -349,5 +349,5 @@ flutter pub upgrade
 
 ---
 
-**Last Updated**: 2024
+**Last Updated**: 2025
 

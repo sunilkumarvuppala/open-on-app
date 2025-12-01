@@ -400,5 +400,5 @@ Before requesting review, ensure:
 
 Thank you for contributing! 🎉
 
-**Last Updated**: 2024
+**Last Updated**: 2025
 

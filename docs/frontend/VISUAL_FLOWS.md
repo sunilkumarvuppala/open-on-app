@@ -75,7 +75,7 @@ This document provides visual representations of key flows, architectures, and r
        ▼
 ┌─────────────┐
 │  Authenticated│
-│  → Home      │
+│  → Inbox     │
 └─────────────┘
 ```
 
@@ -153,20 +153,20 @@ User Action
 │   ├── /login
 │   └── /signup
 │
-└── /home (ShellRoute)
+└── /inbox (ShellRoute - PRIMARY)
     │
-    ├── /home (Tab 0)
-    │   ├── /create-capsule
-    │   ├── /drafts
-    │   ├── /recipients
-    │   │   └── /recipients/add
-    │   ├── /profile
-    │   │   └── /profile/color-scheme
+    ├── /inbox (Tab 0 - PRIMARY)
     │   └── /capsule/:id
     │       ├── /capsule/:id/opening
     │       └── /capsule/:id/opened
     │
-    └── /inbox (Tab 1)
+    └── /home (Tab 1 - SECONDARY/Outbox)
+        ├── /create-capsule
+        ├── /drafts
+        ├── /recipients
+        │   └── /recipients/add
+        ├── /profile
+        │   └── /profile/color-scheme
         └── /capsule/:id
             ├── /capsule/:id/opening
             └── /capsule/:id/opened
@@ -494,5 +494,5 @@ Operation
 
 ---
 
-**Last Updated**: 2024
+**Last Updated**: 2025
 

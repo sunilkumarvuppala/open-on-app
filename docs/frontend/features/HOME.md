@@ -32,25 +32,28 @@ features/home/
 - User greeting with avatar
 - "Create a New Letter" button
 - Drafts button with count
-- Three tabs: Unfolding Soon, Upcoming, Opened
+- Three tabs: Unfolding, Sealed, Revealed
 - Floating Action Button (FAB) for recipients
 - Magic dust background animation
 - Tab animations with sparkle effects
 
 **Tabs**:
 
-1. **Unfolding Soon Tab** (`_UnlockingSoonTab`)
+1. **Unfolding Tab** (`_UnlockingSoonTab`)
+   - Label: "Unfolding" (with sparkles icon)
    - Shows capsules unlocking within 7 days
    - Uses `unlockingSoonCapsulesProvider`
    - Displays countdown timers
    - Animated "Unlocking Soon" badges
 
-2. **Upcoming Tab** (`_UpcomingTab`)
+2. **Sealed Tab** (`_UpcomingTab`)
+   - Label: "Sealed" (with lock icon)
    - Shows capsules unlocking later than 7 days
    - Uses `upcomingCapsulesProvider`
    - Shows unlock dates
 
-3. **Opened Tab** (`_OpenedTab`)
+3. **Revealed Tab** (`_OpenedTab`)
+   - Label: "Revealed" (with heart icon)
    - Shows already opened capsules
    - Uses `openedCapsulesProvider`
    - Displays open date and reactions
@@ -339,5 +342,5 @@ return capsulesAsync.when(
 
 ---
 
-**Last Updated**: 2024
+**Last Updated**: 2025
 

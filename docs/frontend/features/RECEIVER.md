@@ -30,26 +30,29 @@ features/receiver/
 **Key Features**:
 - User greeting with avatar
 - "Your incoming capsules" subtitle
-- Three tabs: Locked, Opening Soon, Opened
+- Three tabs: Sealed, Ready, Opened
 - Empty state with share link CTA
 - Magic dust background animation
 - Tab animations matching home screen style
 
 **Tabs**:
 
-1. **Locked Tab** (`_LockedTab`)
-   - Shows capsules locked for more than 7 days
-   - Uses `incomingLockedCapsulesProvider`
-   - Displays lock badges
-   - Shows unlock dates
-
-2. **Opening Soon Tab** (`_OpeningSoonTab`)
+1. **Sealed Tab** (`_OpeningSoonTab`)
+   - Label: "Sealed" (with lock icon)
    - Shows capsules unlocking within 7 days
    - Uses `incomingOpeningSoonCapsulesProvider`
    - Displays countdown timers
    - Animated "Unlocking Soon" badges
 
+2. **Ready Tab** (`_LockedTab`)
+   - Label: "Ready" (with sparkles icon)
+   - Shows capsules locked for more than 7 days
+   - Uses `incomingLockedCapsulesProvider`
+   - Displays lock badges
+   - Shows unlock dates
+
 3. **Opened Tab** (`_OpenedTab`)
+   - Label: "Opened" (with heart icon)
    - Shows already opened incoming capsules
    - Uses `incomingOpenedCapsulesProvider`
    - Displays open date
@@ -327,5 +330,5 @@ return capsulesAsync.when(
 
 ---
 
-**Last Updated**: 2024
+**Last Updated**: 2025
 

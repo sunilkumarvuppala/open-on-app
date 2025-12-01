@@ -140,7 +140,7 @@ All auth screens use `context.push()` for navigation:
 ```dart
 context.push(Routes.login);
 context.push(Routes.signup);
-context.push(Routes.home); // After successful auth
+// After successful auth, redirects automatically to Routes.receiverHome (Inbox)
 ```
 
 ## State Management
@@ -218,10 +218,10 @@ try {
 ## Related Documentation
 
 - [API Reference](../API_REFERENCE.md) - For provider and repository APIs
-- [Architecture](../ARCHITECTURE.md) - For overall architecture
+- [Architecture](../../ARCHITECTURE.md) - For overall architecture
 - [Navigation Feature](./NAVIGATION.md) - For navigation patterns
 
 ---
 
-**Last Updated**: 2024
+**Last Updated**: 2025
 

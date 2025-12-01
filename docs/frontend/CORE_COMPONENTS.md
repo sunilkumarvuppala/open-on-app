@@ -378,37 +378,45 @@ GoRouter configuration for app navigation. Handles routing, deep linking, and na
 ├── /welcome          # Welcome screen
 ├── /login            # Login screen
 ├── /signup           # Signup screen
-└── /home (shell)     # Main app shell
-    ├── /home         # Sender home
-    ├── /inbox        # Receiver inbox
-    ├── /create       # Create capsule
+└── /inbox (shell)    # Main app shell (PRIMARY)
+    ├── /inbox        # Receiver inbox (Tab 0 - PRIMARY, default after auth)
+    ├── /home         # Sender home/Outbox (Tab 1 - SECONDARY)
+    ├── /create-capsule # Create capsule
     ├── /drafts       # Drafts list
     ├── /recipients   # Recipients list
+    │   └── /recipients/add # Add recipient
     ├── /profile      # User profile
-    ├── /capsule/:id  # View capsule
-    └── /color-scheme # Theme selection
+    │   └── /profile/color-scheme # Theme selection
+    └── /capsule/:id  # View capsule
+        ├── /capsule/:id/opening # Opening animation
+        └── /capsule/:id/opened  # Opened letter
 ```
 
 ### Route Configuration
 
 ```dart
 final goRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(currentUserProvider);
+  final isAuthenticated = ref.watch(isAuthenticatedProvider);
   
   return GoRouter(
-    initialLocation: '/welcome',
+    initialLocation: Routes.welcome,
     redirect: (context, state) {
-      final isAuthenticated = authState.asData?.value != null;
-      final isAuthRoute = state.uri.path == '/welcome' || 
-                         state.uri.path == '/login' || 
-                         state.uri.path == '/signup';
+      final isAuth = isAuthenticated;
+      final isGoingToAuth = state.matchedLocation == Routes.welcome ||
+          state.matchedLocation == Routes.login ||
+          state.matchedLocation == Routes.signup;
       
-      if (!isAuthenticated && !isAuthRoute) {
-        return '/welcome';
+      // Redirect to inbox (primary home) if authenticated and trying to access auth screens
+      if (isAuth && isGoingToAuth) {
+        return Routes.receiverHome;
       }
-      if (isAuthenticated && isAuthRoute) {
-        return '/home';
+      
+      // Redirect to welcome if not authenticated and trying to access protected screens
+      final isProtectedRoute = !isGoingToAuth;
+      if (!isAuth && isProtectedRoute) {
+        return Routes.welcome;
       }
+      
       return null;
     },
     routes: [
@@ -420,24 +428,30 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
 ### Navigation Methods
 
-**Push Route**:
+**Push Route** (adds to navigation stack):
 ```dart
-context.push('/capsule/$id');
+context.push('/capsule/$id', extra: capsule);
+context.push(Routes.profile);
+context.push(Routes.createCapsule);
 ```
 
-**Go Route**:
+**Go Route** (replaces current route, used for tab switching):
 ```dart
-context.go('/home');
+context.go(Routes.receiverHome); // Navigate to Inbox (Tab 0 - PRIMARY)
+context.go(Routes.home);          // Navigate to Outbox (Tab 1 - SECONDARY)
 ```
 
-**Pop Route**:
+**Pop Route** (goes back):
 ```dart
 context.pop();
 ```
 
 ### Route Guards
 
-Authentication guard automatically redirects unauthenticated users to welcome screen.
+Authentication guard automatically:
+- **Redirects authenticated users** from auth screens to **Inbox** (`Routes.receiverHome`) - PRIMARY, default after auth
+- **Redirects unauthenticated users** from protected screens to **Welcome** (`Routes.welcome`)
+- **Default after authentication**: Inbox (Tab 0 - PRIMARY)
 
 ---
 
@@ -671,5 +685,5 @@ Use common widgets instead of duplicating code.
 
 ---
 
-**Last Updated**: 2024
+**Last Updated**: 2025
 

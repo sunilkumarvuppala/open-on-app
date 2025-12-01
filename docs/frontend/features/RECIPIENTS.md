@@ -324,5 +324,5 @@ Future<void> _saveRecipient() async {
 
 ---
 
-**Last Updated**: 2024
+**Last Updated**: 2025
 

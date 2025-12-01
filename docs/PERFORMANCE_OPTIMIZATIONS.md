@@ -180,8 +180,8 @@ ListView.builder(
 ```
 
 **Applied To**:
-- Home screen tabs (Upcoming, Unlocking Soon, Opened)
-- Receiver screen tabs (Locked, Opening Soon, Opened)
+- Home screen tabs (Unfolding, Sealed, Revealed)
+- Receiver screen tabs (Sealed, Ready, Opened)
 
 **Impact**: Efficient widget recycling, smoother scrolling.
 
@@ -407,5 +407,5 @@ MaterialApp(
 
 ---
 
-**Last Updated**: 2024
+**Last Updated**: 2025
 

@@ -158,18 +158,18 @@ Feature modules organized by functionality. Each feature is self-contained.
 - `capsule_card.dart`: Capsule card widget
 
 **Tabs**:
-- Unfolding Soon: Capsules unlocking within 7 days
-- Upcoming: Capsules unlocking later
-- Opened: Already opened capsules
+- Unfolding: Capsules unlocking within 7 days (Tab 0)
+- Sealed: Capsules unlocking later (Tab 1)
+- Revealed: Already opened capsules (Tab 2)
 
 #### Receiver (`features/receiver/`)
 
 - `receiver_home_screen.dart`: Receiver's inbox screen
 
 **Tabs**:
-- Locked: Locked incoming capsules
-- Opening Soon: Unlocking within 7 days
-- Opened: Opened incoming capsules
+- Sealed: Capsules unlocking within 7 days (Tab 0)
+- Ready: Locked incoming capsules (Tab 1)
+- Opened: Opened incoming capsules (Tab 2)
 
 #### Capsule (`features/capsule/`)
 
@@ -295,10 +295,13 @@ GoRouter(
     
     // Main app with bottom nav
     ShellRoute(
-      builder: (context, state, child) => MainNavigation(child: child),
+      builder: (context, state, child) => MainNavigation(
+        location: state.matchedLocation,
+        child: child,
+      ),
       routes: [
-        GoRoute(path: Routes.home, ...),
-        GoRoute(path: Routes.receiverHome, ...),
+        GoRoute(path: Routes.receiverHome, ...), // Inbox (Tab 0 - PRIMARY)
+        GoRoute(path: Routes.home, ...),         // Outbox (Tab 1 - SECONDARY)
       ],
     ),
     
@@ -473,5 +476,5 @@ if (!Validation.isValidEmail(email)) {
 
 ---
 
-**Last Updated**: 2024
+**Last Updated**: 2025
 

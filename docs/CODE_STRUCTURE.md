@@ -175,12 +175,12 @@ Each feature is self-contained with its own screens and logic.
 - List, edit, delete drafts
 
 #### Home (`features/home/`)
-- Sender's home screen
-- Three tabs: Unfolding Soon, Upcoming, Opened
+- Sender's home screen (Outbox)
+- Three tabs: Unfolding, Sealed, Revealed
 
 #### Receiver (`features/receiver/`)
-- Receiver's inbox
-- Three tabs: Locked, Opening Soon, Opened
+- Receiver's inbox (Inbox - PRIMARY)
+- Three tabs: Sealed, Ready, Opened
 
 #### Recipients (`features/recipients/`)
 - Recipient management
@@ -251,15 +251,15 @@ Welcome Screen
 Login/Signup
     ↓
 Main Navigation (Bottom Nav)
-    ├── Home (Sender)
-    │   ├── Unfolding Soon Tab
-    │   ├── Upcoming Tab
+    ├── Inbox (Receiver) - Tab 0 (PRIMARY)
+    │   ├── Sealed Tab
+    │   ├── Ready Tab
     │   └── Opened Tab
     │
-    └── Inbox (Receiver)
-        ├── Locked Tab
-        ├── Opening Soon Tab
-        └── Opened Tab
+    └── Outbox (Sender) - Tab 1 (SECONDARY)
+        ├── Unfolding Tab
+        ├── Sealed Tab
+        └── Revealed Tab
     ↓
 Feature Screens
     ├── Create Capsule
@@ -415,5 +415,5 @@ import 'package:openon_app/features/home/home_screen.dart';
 
 ---
 
-**Last Updated**: 2024
+**Last Updated**: 2025
 

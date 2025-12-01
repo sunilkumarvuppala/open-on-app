@@ -14,15 +14,14 @@ docs/
     ├── FEATURES.md                    # Features overview
     │
     ├── QUICK_START.md                 # Getting started guide
+    ├── GETTING_STARTED.md             # Beginner-friendly guide
     ├── DEVELOPMENT_GUIDE.md           # Complete development guide
-    ├── ARCHITECTURE.md                # Architecture and design patterns
-    ├── CODE_STRUCTURE.md              # Visual code structure guide
     ├── CORE_COMPONENTS.md             # Core components documentation
     ├── THEME_SYSTEM.md                 # Theme system guide
-    ├── PERFORMANCE_OPTIMIZATIONS.md   # Performance improvements
-    ├── REFACTORING_GUIDE.md           # Code quality improvements
-    ├── API_REFERENCE.md               # API documentation
-    ├── CONTRIBUTING.md                # Contribution guidelines
+    ├── VISUAL_FLOWS.md                 # Visual flow diagrams
+    │
+    └── (Note: ARCHITECTURE.md, CODE_STRUCTURE.md, PERFORMANCE_OPTIMIZATIONS.md,
+        REFACTORING_GUIDE.md, API_REFERENCE.md, CONTRIBUTING.md are in parent docs/ folder)
     │
     └── features/                      # Feature-specific documentation
         ├── AUTH.md                    # Authentication feature
@@ -43,8 +42,8 @@ docs/
 - **New to the project?** Start with [frontend/QUICK_START.md](./frontend/QUICK_START.md)
 - **New developer?** Read [frontend/DEVELOPMENT_GUIDE.md](./frontend/DEVELOPMENT_GUIDE.md)
 - **Navigation index?** See [frontend/INDEX.md](./frontend/INDEX.md)
-- **Understanding the codebase?** Read [frontend/ARCHITECTURE.md](./frontend/ARCHITECTURE.md)
-- **Visual code structure?** See [frontend/CODE_STRUCTURE.md](./frontend/CODE_STRUCTURE.md)
+- **Understanding the codebase?** Read [ARCHITECTURE.md](./ARCHITECTURE.md)
+- **Visual code structure?** See [CODE_STRUCTURE.md](./CODE_STRUCTURE.md)
 - **Core components?** See [frontend/CORE_COMPONENTS.md](./frontend/CORE_COMPONENTS.md)
 - **Theme system?** See [frontend/THEME_SYSTEM.md](./frontend/THEME_SYSTEM.md)
 
@@ -53,10 +52,10 @@ docs/
 - **Specific feature?** See [frontend/features/](./frontend/features/) directory
 
 ### Technical
-- **Performance concerns?** Check [frontend/PERFORMANCE_OPTIMIZATIONS.md](./frontend/PERFORMANCE_OPTIMIZATIONS.md)
-- **Making changes?** Review [frontend/REFACTORING_GUIDE.md](./frontend/REFACTORING_GUIDE.md)
-- **API details?** See [frontend/API_REFERENCE.md](./frontend/API_REFERENCE.md)
-- **Contributing?** Follow [frontend/CONTRIBUTING.md](./frontend/CONTRIBUTING.md)
+- **Performance concerns?** Check [PERFORMANCE_OPTIMIZATIONS.md](./PERFORMANCE_OPTIMIZATIONS.md)
+- **Making changes?** Review [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md)
+- **API details?** See [API_REFERENCE.md](./API_REFERENCE.md)
+- **Contributing?** Follow [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## 📖 What is OpenOn?
 
@@ -80,11 +79,16 @@ frontend/lib/
 ## 🎯 Key Features
 
 1. **Time-Locked Letters**: Create letters that unlock at specific dates
-2. **Dual Home Screens**: Separate views for sent and received letters
-3. **Theme Customization**: Multiple color schemes with dynamic theming
-4. **Draft Management**: Save and edit letter drafts
-5. **Recipient Management**: Add and manage recipients
-6. **Magical Animations**: Premium animations for unlocking and revealing letters
+2. **Dual Home Screens**: 
+   - **Inbox** (Tab 0 - PRIMARY): Receive and view incoming letters
+   - **Outbox** (Tab 1 - SECONDARY): Manage sent letters
+3. **Tab Organization**:
+   - **Inbox tabs**: Sealed, Ready, Opened
+   - **Outbox tabs**: Unfolding, Sealed, Revealed
+4. **Theme Customization**: 15+ color schemes with dynamic theming
+5. **Draft Management**: Save and edit letter drafts
+6. **Recipient Management**: Add and manage recipients
+7. **Magical Animations**: Premium animations for unlocking and revealing letters
 
 ## 🛠️ Technology Stack
 
@@ -110,22 +114,22 @@ This codebase has been extensively refactored and optimized for:
 1. **Quick Start**: Follow [frontend/QUICK_START.md](./frontend/QUICK_START.md) to set up
 2. **Development Guide**: Read [frontend/DEVELOPMENT_GUIDE.md](./frontend/DEVELOPMENT_GUIDE.md) for complete workflow
 3. **Core Components**: Understand [frontend/CORE_COMPONENTS.md](./frontend/CORE_COMPONENTS.md)
-4. **Architecture**: Explore [frontend/ARCHITECTURE.md](./frontend/ARCHITECTURE.md)
+4. **Architecture**: Explore [ARCHITECTURE.md](./ARCHITECTURE.md)
 
 ### For Understanding the Codebase
 1. **Navigation**: Start with [frontend/INDEX.md](./frontend/INDEX.md)
-2. **Visual Guide**: Review [frontend/CODE_STRUCTURE.md](./frontend/CODE_STRUCTURE.md)
+2. **Visual Guide**: Review [CODE_STRUCTURE.md](./CODE_STRUCTURE.md)
 3. **Features**: Check [frontend/FEATURES.md](./frontend/FEATURES.md) and feature docs
 4. **Theme System**: Learn [frontend/THEME_SYSTEM.md](./frontend/THEME_SYSTEM.md)
 
 ### For Advanced Topics
-1. **Performance**: See [frontend/PERFORMANCE_OPTIMIZATIONS.md](./frontend/PERFORMANCE_OPTIMIZATIONS.md)
-2. **Code Quality**: Review [frontend/REFACTORING_GUIDE.md](./frontend/REFACTORING_GUIDE.md)
-3. **APIs**: Check [frontend/API_REFERENCE.md](./frontend/API_REFERENCE.md)
-4. **Contributing**: Read [frontend/CONTRIBUTING.md](./frontend/CONTRIBUTING.md)
+1. **Performance**: See [PERFORMANCE_OPTIMIZATIONS.md](./PERFORMANCE_OPTIMIZATIONS.md)
+2. **Code Quality**: Review [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md)
+3. **APIs**: Check [API_REFERENCE.md](./API_REFERENCE.md)
+4. **Contributing**: Read [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ---
 
-**Last Updated**: 2024
+**Last Updated**: 2025
 **Version**: 1.0.0
 
