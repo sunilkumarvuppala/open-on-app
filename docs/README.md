@@ -8,6 +8,7 @@ Welcome to the OpenOn App documentation! This comprehensive guide will help you 
 docs/
 ├── README.md (this file)              # Overview and navigation
 ├── CHANGELOG.md                       # Documentation changelog
+├── SEQUENCE_DIAGRAMS.md               # Detailed sequence diagrams for all user flows
 │
 ├── backend/                           # Backend documentation
 │   ├── INDEX.md                       # Navigation index
@@ -73,6 +74,7 @@ docs/
 - **Making changes?** Review [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md)
 - **Frontend API details?** See [API_REFERENCE.md](./API_REFERENCE.md) (Frontend classes/patterns)
 - **Backend API details?** See [backend/API_REFERENCE.md](./backend/API_REFERENCE.md) (REST API endpoints)
+- **Complete user flows?** See [SEQUENCE_DIAGRAMS.md](./SEQUENCE_DIAGRAMS.md) (Detailed sequence diagrams for all user actions)
 - **Contributing?** Follow [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## 📖 What is OpenOn?
