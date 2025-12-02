@@ -63,7 +63,15 @@ class CapsuleStateMachine:
         if not capsule.scheduled_unlock_at:
             return None
         
+        # Ensure unlock_time is timezone-aware (UTC)
         unlock_time = capsule.scheduled_unlock_at
+        if unlock_time.tzinfo is None:
+            # If naive, assume UTC
+            unlock_time = unlock_time.replace(tzinfo=timezone.utc)
+        else:
+            # Convert to UTC if it has a different timezone
+            unlock_time = unlock_time.astimezone(timezone.utc)
+        
         time_until_unlock = unlock_time - now
         
         # sealed → unfolding (less than 3 days)
@@ -88,6 +96,14 @@ class CapsuleStateMachine:
         Returns dict with state and timestamp.
         """
         now = datetime.now(timezone.utc)
+        
+        # Ensure scheduled_unlock_at is timezone-aware (UTC)
+        if scheduled_unlock_at.tzinfo is None:
+            # If naive, assume UTC
+            scheduled_unlock_at = scheduled_unlock_at.replace(tzinfo=timezone.utc)
+        else:
+            # Convert to UTC if it has a different timezone
+            scheduled_unlock_at = scheduled_unlock_at.astimezone(timezone.utc)
         
         # Validate unlock time
         min_future = now + timedelta(minutes=settings.min_unlock_minutes)

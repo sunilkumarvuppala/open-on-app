@@ -89,9 +89,15 @@ class ApiClient {
     final errorStr = error.toString();
     if (errorStr.contains('Connection refused') || 
         errorStr.contains('Failed host lookup') ||
-        errorStr.contains('SocketException')) {
+        errorStr.contains('SocketException') ||
+        errorStr.contains('Network is unreachable')) {
       throw NetworkException(
         'Cannot connect to backend server. Please ensure the backend is running at ${ApiConfig.baseUrl}',
+      );
+    }
+    if (errorStr.contains('TimeoutException') || errorStr.contains('timeout')) {
+      throw NetworkException(
+        'Request timed out. Please check your internet connection and try again.',
       );
     }
     throw NetworkException('Network request failed: ${error.toString()}');
@@ -123,7 +129,18 @@ class ApiClient {
         return {};
       }
 
-      return jsonDecode(response.body) as Map<String, dynamic>;
+      try {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (jsonError, jsonStackTrace) {
+        Logger.error(
+          'Failed to parse JSON response from $endpoint',
+          error: jsonError,
+          stackTrace: jsonStackTrace,
+        );
+        throw NetworkException(
+          'Invalid response format from server. Please try again later.',
+        );
+      }
     } catch (e, stackTrace) {
       Logger.error('GET request failed: $endpoint', error: e, stackTrace: stackTrace);
       if (e is AppException) {
@@ -159,7 +176,18 @@ class ApiClient {
         return [];
       }
 
-      return jsonDecode(response.body) as List<dynamic>;
+      try {
+        return jsonDecode(response.body) as List<dynamic>;
+      } catch (jsonError, jsonStackTrace) {
+        Logger.error(
+          'Failed to parse JSON response from $endpoint',
+          error: jsonError,
+          stackTrace: jsonStackTrace,
+        );
+        throw NetworkException(
+          'Invalid response format from server. Please try again later.',
+        );
+      }
     } catch (e, stackTrace) {
       Logger.error('GET list request failed: $endpoint', error: e, stackTrace: stackTrace);
       if (e is AppException) {
@@ -191,7 +219,18 @@ class ApiClient {
         return {};
       }
 
-      return jsonDecode(response.body) as Map<String, dynamic>;
+      try {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (jsonError, jsonStackTrace) {
+        Logger.error(
+          'Failed to parse JSON response from $endpoint',
+          error: jsonError,
+          stackTrace: jsonStackTrace,
+        );
+        throw NetworkException(
+          'Invalid response format from server. Please try again later.',
+        );
+      }
     } catch (e, stackTrace) {
       Logger.error('POST request failed: $endpoint', error: e, stackTrace: stackTrace);
       if (e is AppException) {
@@ -223,7 +262,18 @@ class ApiClient {
         return {};
       }
 
-      return jsonDecode(response.body) as Map<String, dynamic>;
+      try {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (jsonError, jsonStackTrace) {
+        Logger.error(
+          'Failed to parse JSON response from $endpoint',
+          error: jsonError,
+          stackTrace: jsonStackTrace,
+        );
+        throw NetworkException(
+          'Invalid response format from server. Please try again later.',
+        );
+      }
     } catch (e, stackTrace) {
       Logger.error('PUT request failed: $endpoint', error: e, stackTrace: stackTrace);
       if (e is AppException) {

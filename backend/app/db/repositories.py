@@ -130,6 +130,9 @@ class CapsuleRepository(BaseRepository[Capsule]):
         limit: int = 100  # Using default limit, can be overridden
     ) -> list[Capsule]:
         """Get capsules by receiver with optional state filter."""
+        from app.core.logging import get_logger
+        logger = get_logger(__name__)
+        
         query = select(Capsule).where(Capsule.receiver_id == receiver_id)
         
         if state:
@@ -137,7 +140,14 @@ class CapsuleRepository(BaseRepository[Capsule]):
         
         query = query.order_by(Capsule.created_at.desc()).offset(skip).limit(limit)
         result = await self.session.execute(query)
-        return list(result.scalars().all())
+        capsules = list(result.scalars().all())
+        
+        logger.info(
+            f"get_by_receiver: receiver_id={receiver_id}, state={state}, "
+            f"found {len(capsules)} capsules"
+        )
+        
+        return capsules
     
     async def count_by_sender(
         self,

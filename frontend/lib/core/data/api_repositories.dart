@@ -210,6 +210,10 @@ class ApiCapsuleRepository implements CapsuleRepository {
       }
 
       final box = asSender ? 'outbox' : 'inbox';
+      
+      // Log for debugging
+      Logger.info('Fetching capsules: userId=$userId, box=$box, asSender=$asSender');
+      
       final response = await _apiClient.get(
         ApiConfig.capsules,
         queryParams: {
@@ -220,6 +224,8 @@ class ApiCapsuleRepository implements CapsuleRepository {
       );
 
       final capsulesList = response['capsules'] as List<dynamic>? ?? [];
+      Logger.info('Received ${capsulesList.length} capsules from API');
+      
       final capsules = capsulesList
           .map((json) => _mapCapsuleFromJson(json as Map<String, dynamic>))
           .toList();
@@ -249,6 +255,9 @@ class ApiCapsuleRepository implements CapsuleRepository {
         Validation.validateLabel(capsule.label);
       }
 
+      // Log receiver_id for debugging
+      Logger.info('Creating capsule with receiver_id: ${capsule.receiverId}');
+      
       final response = await _apiClient.post(
         ApiConfig.capsules,
         {
@@ -610,12 +619,26 @@ class ApiRecipientRepository implements RecipientRepository {
   }
 
   Recipient _mapRecipientFromJson(Map<String, dynamic> json) {
+    final linkedUserId = json['user_id'] as String?;
+    
+    // Log for debugging
+    if (linkedUserId != null) {
+      Logger.info(
+        'Mapped recipient: id=${json['id']}, name=${json['name']}, linkedUserId=$linkedUserId'
+      );
+    } else {
+      Logger.warning(
+        'Mapped recipient without linkedUserId: id=${json['id']}, name=${json['name']}'
+      );
+    }
+    
     return Recipient(
       id: json['id'] as String,
       userId: json['owner_id'] as String,
       name: json['name'] as String,
-      relationship: 'Contact', // Backend doesn't have relationship field
-      avatar: '',
+      relationship: json['relationship'] as String? ?? '',
+      avatar: json['email'] as String? ?? '',
+      linkedUserId: linkedUserId,
     );
   }
 }

@@ -74,11 +74,11 @@ class Capsule(Base):
         index=True
     )
     
-    # Timestamps
+    # Timestamps (all timezone-aware UTC)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
-    sealed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    scheduled_unlock_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
-    opened_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    sealed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    scheduled_unlock_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    opened_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     
     # Permissions
     allow_early_view: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

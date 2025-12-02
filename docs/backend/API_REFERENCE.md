@@ -493,7 +493,7 @@ List all drafts for the current user.
 
 **Query Parameters:**
 - `page` (optional): Page number (default: 1, min: 1)
-- `page_size` (optional): Items per page (default: 50, min: 1, max: 100)
+- `page_size` (optional): Items per page (default: 20, min: 1, max: 100)
 
 **Response (200):**
 ```json

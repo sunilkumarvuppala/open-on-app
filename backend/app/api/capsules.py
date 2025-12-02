@@ -41,20 +41,40 @@ async def create_capsule(
     body = sanitize_text(capsule_data.body.strip(), max_length=settings.max_content_length)
     theme = sanitize_text(capsule_data.theme.strip(), max_length=settings.max_theme_length) if capsule_data.theme else None
     
-    # Validate receiver exists (basic check - could be enhanced)
+    # Validate receiver ID
     if not capsule_data.receiver_id or len(capsule_data.receiver_id.strip()) == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Receiver ID is required"
         )
     
+    receiver_id = capsule_data.receiver_id.strip()
+    
+    # Validate receiver_id format (should be UUID)
+    import uuid
+    try:
+        uuid.UUID(receiver_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid receiver ID format"
+        )
+    
+    # Verify receiver exists (basic check - could be enhanced with user lookup)
+    # Note: This is a lightweight check. Full validation would require a database query.
+    
     # Serialize media_urls to JSON string
     media_urls_json = json.dumps(capsule_data.media_urls) if capsule_data.media_urls else None
+    
+    logger.info(
+        f"Creating capsule: sender_id={current_user.id}, receiver_id={receiver_id}, "
+        f"title={title[:50]}..."
+    )
     
     # Create capsule in draft state
     capsule = await capsule_repo.create(
         sender_id=current_user.id,
-        receiver_id=capsule_data.receiver_id.strip(),
+        receiver_id=receiver_id,
         title=title,
         body=body,
         media_urls=media_urls_json,
@@ -64,7 +84,10 @@ async def create_capsule(
         allow_receiver_reply=capsule_data.allow_receiver_reply
     )
     
-    logger.info(f"Capsule {capsule.id} created by user {current_user.id}")
+    logger.info(
+        f"Capsule {capsule.id} created by user {current_user.id} "
+        f"for receiver {capsule.receiver_id}"
+    )
     
     return CapsuleResponse.model_validate(capsule)
 
@@ -89,6 +112,11 @@ async def list_capsules(
     capsule_repo = CapsuleRepository(session)
     skip = (page - 1) * page_size
     
+    logger.info(
+        f"Listing capsules: user_id={current_user.id}, box={box}, state={state}, "
+        f"page={page}, page_size={page_size}"
+    )
+    
     if box == "inbox":
         capsules = await capsule_repo.get_by_receiver(
             current_user.id,
@@ -97,6 +125,15 @@ async def list_capsules(
             limit=page_size
         )
         total = await capsule_repo.count_by_receiver(current_user.id, state=state)
+        logger.info(
+            f"Inbox query result: found {len(capsules)} capsules for receiver_id={current_user.id}, "
+            f"total={total}"
+        )
+        for cap in capsules:
+            logger.info(
+                f"  - Capsule {cap.id}: receiver_id={cap.receiver_id}, sender_id={cap.sender_id}, "
+                f"state={cap.state}"
+            )
     else:  # outbox
         capsules = await capsule_repo.get_by_sender(
             current_user.id,
@@ -105,6 +142,10 @@ async def list_capsules(
             limit=page_size
         )
         total = await capsule_repo.count_by_sender(current_user.id, state=state)
+        logger.info(
+            f"Outbox query result: found {len(capsules)} capsules for sender_id={current_user.id}, "
+            f"total={total}"
+        )
     
     return CapsuleListResponse(
         capsules=[CapsuleResponse.model_validate(c) for c in capsules],

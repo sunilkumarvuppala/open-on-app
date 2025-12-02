@@ -55,7 +55,8 @@ RecipientsScreen
 **Key Features**:
 - Name input (required)
 - Email input (optional)
-- Relationship input (optional)
+- User search (to link to registered users)
+- Relationship input (optional, stored in frontend only)
 - Photo picker (future)
 - Validation
 - Save/Cancel buttons
@@ -76,7 +77,7 @@ RecipientsScreen
    - Avatar/initial
    - Name
    - Email (if available)
-   - Relationship (if available)
+   - Relationship (if available, frontend-only field)
 4. User can tap to edit or delete
 
 ### Adding Recipient
@@ -86,7 +87,8 @@ RecipientsScreen
 3. User enters information:
    - Name (required)
    - Email (optional)
-   - Relationship (optional)
+   - Search and select registered user (optional, links recipient to user account)
+   - Relationship (optional, frontend-only field)
 4. User saves
 5. Navigate back to list
 
@@ -221,7 +223,8 @@ RecipientCard
 **Features**:
 - Name input (required)
 - Email input (optional, validated)
-- Relationship input (optional)
+- User search (to link recipient to registered user account)
+- Relationship input (optional, frontend-only field)
 - Photo picker button (future)
 - Save/Cancel buttons
 
@@ -268,7 +271,7 @@ Future<void> _saveRecipient() async {
         ? null 
         : _emailController.text.trim(),
       relationship: _relationshipController.text.trim().isEmpty
-        ? null
+        ? ''
         : _relationshipController.text.trim(),
     );
     

@@ -1,4 +1,5 @@
 import 'package:openon_app/core/constants/app_constants.dart';
+import 'package:openon_app/core/utils/logger.dart';
 import 'package:uuid/uuid.dart';
 
 const _uuid = Uuid();
@@ -142,6 +143,7 @@ class Recipient {
   final String name;
   final String relationship;
   final String avatar; // URL or asset path
+  final String? linkedUserId; // ID of the linked user (if recipient is a registered user)
   
   Recipient({
     String? id,
@@ -149,6 +151,7 @@ class Recipient {
     required this.name,
     required this.relationship,
     String? avatar,
+    this.linkedUserId,
   })  : id = id ?? _uuid.v4(),
         avatar = avatar ?? '';
   
@@ -158,6 +161,7 @@ class Recipient {
     String? name,
     String? relationship,
     String? avatar,
+    String? linkedUserId,
   }) {
     return Recipient(
       id: id ?? this.id,
@@ -165,6 +169,7 @@ class Recipient {
       name: name ?? this.name,
       relationship: relationship ?? this.relationship,
       avatar: avatar ?? this.avatar,
+      linkedUserId: linkedUserId ?? this.linkedUserId,
     );
   }
 }
@@ -262,10 +267,28 @@ class DraftCapsule {
       throw Exception('Cannot convert invalid draft to capsule');
     }
     
+    // Recipient must be linked to a registered user to receive capsules
+    if (recipient!.linkedUserId == null || recipient!.linkedUserId!.isEmpty) {
+      throw Exception(
+        'Recipient "${recipient!.name}" is not linked to a registered user. '
+        'Please select a recipient that is linked to a user account.'
+      );
+    }
+    
+    // Use linkedUserId (the actual user ID) as receiver_id
+    final receiverId = recipient!.linkedUserId!;
+    
+    // Log for debugging
+    Logger.info(
+      'Creating capsule: recipient.id=${recipient!.id}, '
+      'recipient.linkedUserId=${recipient!.linkedUserId}, '
+      'receiverId=$receiverId'
+    );
+    
     return Capsule(
       senderId: senderId,
       senderName: senderName,
-      receiverId: recipient!.id,
+      receiverId: receiverId,
       receiverName: recipient!.name,
       receiverAvatar: recipient!.avatar,
       label: label ?? 'A special letter',
