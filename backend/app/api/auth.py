@@ -1,4 +1,19 @@
-"""Authentication API routes."""
+"""
+Authentication API routes.
+
+This module handles all authentication-related endpoints:
+- User registration (signup)
+- User login
+- Current user information
+- Username availability checking
+- User search for recipient selection
+
+Security considerations:
+- All passwords are hashed using BCrypt before storage
+- JWT tokens are used for authentication
+- Input sanitization is applied to all user inputs
+- Email and username uniqueness is enforced
+"""
 from fastapi import APIRouter, HTTPException, status, Query, Depends
 from app.models.schemas import UserCreate, UserLogin, UserResponse, TokenResponse
 from app.dependencies import DatabaseSession, CurrentUser
@@ -8,6 +23,7 @@ from app.core.config import settings
 from app.utils.helpers import validate_username, validate_password, sanitize_text, validate_email
 
 
+# Router for all authentication endpoints
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
@@ -24,22 +40,29 @@ async def signup(
     """
     user_repo = UserRepository(session)
     
-    # Sanitize and validate inputs
+    # ===== Input Sanitization =====
+    # Sanitize all inputs to prevent injection attacks and ensure data consistency
+    # Lowercase email for case-insensitive uniqueness
     email = sanitize_text(user_data.email.lower().strip(), max_length=settings.max_email_length)
     username = sanitize_text(user_data.username.strip(), max_length=settings.max_username_length)
     first_name = sanitize_text(user_data.first_name.strip(), max_length=settings.max_name_length)
     last_name = sanitize_text(user_data.last_name.strip(), max_length=settings.max_name_length)
+    
     # Compute full_name from first_name and last_name
+    # This ensures consistent full name format across the application
     full_name = f"{first_name} {last_name}".strip()
     
-    # Validate email format
+    # ===== Input Validation =====
+    # Validate email format using regex pattern
+    # This prevents invalid email addresses from being stored
     if not validate_email(email):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid email format"
         )
     
-    # Validate username
+    # Validate username format and length
+    # Username must be 3-100 characters, alphanumeric with underscore/hyphen
     username_valid, username_msg = validate_username(username)
     if not username_valid:
         raise HTTPException(
@@ -47,7 +70,9 @@ async def signup(
             detail=username_msg
         )
     
-    # Validate password
+    # Validate password strength
+    # Password must be 8+ characters with uppercase, lowercase, and number
+    # BCrypt has 72-byte limit, so we validate byte length
     password_valid, password_msg = validate_password(user_data.password)
     if not password_valid:
         raise HTTPException(
@@ -55,22 +80,29 @@ async def signup(
             detail=password_msg
         )
     
-    # Check if email already exists
+    # ===== Uniqueness Checks =====
+    # Check if email already exists in database
+    # Email must be unique across all users
     if await user_repo.email_exists(email):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
     
-    # Check if username already exists
+    # Check if username already exists in database
+    # Username must be unique across all users
     if await user_repo.username_exists(username):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already taken"
         )
     
-    # Create user
+    # ===== User Creation =====
+    # Hash password using BCrypt before storage
+    # BCrypt automatically generates a salt and handles secure hashing
     hashed_password = get_password_hash(user_data.password)
+    
+    # Create user record in database
     user = await user_repo.create(
         email=email,
         username=username,
@@ -78,7 +110,10 @@ async def signup(
         hashed_password=hashed_password
     )
     
-    # Generate tokens
+    # ===== Token Generation =====
+    # Generate JWT tokens for immediate authentication
+    # Access token: short-lived (30 minutes default)
+    # Refresh token: long-lived (7 days default)
     token_data = {"sub": user.id, "username": user.username}
     access_token = create_access_token(token_data)
     refresh_token = create_refresh_token(token_data)
@@ -102,13 +137,20 @@ async def login(
     """
     user_repo = UserRepository(session)
     
+    # ===== User Lookup =====
     # Try to get user by username first, then by email
-    # This allows login with either username or email
+    # This allows flexible login: users can use either username or email
+    # This improves UX while maintaining security
     user = await user_repo.get_by_username(credentials.username)
     if not user:
         # If not found by username, try email
+        # This dual lookup supports both login methods
         user = await user_repo.get_by_email(credentials.username)
     
+    # ===== Password Verification =====
+    # Verify password using BCrypt comparison
+    # Uses constant-time comparison to prevent timing attacks
+    # Generic error message prevents user enumeration attacks
     if not user or not verify_password(credentials.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -116,13 +158,18 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    # ===== Account Status Check =====
+    # Verify user account is active
+    # Inactive accounts cannot authenticate (e.g., banned users)
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive"
         )
     
-    # Generate tokens
+    # ===== Token Generation =====
+    # Generate new JWT tokens for authenticated session
+    # Tokens include user ID and username in payload
     token_data = {"sub": user.id, "username": user.username}
     access_token = create_access_token(token_data)
     refresh_token = create_refresh_token(token_data)
@@ -162,10 +209,13 @@ async def check_username_availability(
     """
     user_repo = UserRepository(session)
     
-    # Sanitize username
+    # ===== Input Sanitization =====
+    # Sanitize username input to prevent injection and ensure consistency
     sanitized_username = sanitize_text(username.strip(), max_length=settings.max_username_length)
     
-    # Validate username format
+    # ===== Format Validation =====
+    # Validate username format before checking availability
+    # This provides immediate feedback on invalid formats
     username_valid, username_msg = validate_username(sanitized_username)
     if not username_valid:
         return {
@@ -173,7 +223,9 @@ async def check_username_availability(
             "message": username_msg
         }
     
-    # Check if username exists
+    # ===== Availability Check =====
+    # Check if username already exists in database
+    # This enables real-time validation in the frontend
     exists = await user_repo.username_exists(sanitized_username)
     
     return {
@@ -209,12 +261,20 @@ async def search_users(
     
     from app.core.config import settings
     
-    # Sanitize search query
+    # ===== Input Sanitization =====
+    # Sanitize search query to prevent injection attacks
+    # Limit query length to prevent DoS attacks
     sanitized_query = sanitize_text(query.strip(), max_length=settings.max_search_query_length)
     
+    # ===== Privacy Protection =====
     # Exclude current user from search results
+    # Users should not see themselves in recipient search
     exclude_user_id = current_user.id if current_user else None
     
+    # ===== User Search =====
+    # Search users by email, username, or full name
+    # Results are ordered by relevance (exact username matches first)
+    # Only active users are returned
     users = await user_repo.search_users(
         query=sanitized_query,
         limit=limit,

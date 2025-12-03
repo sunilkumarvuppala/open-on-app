@@ -1,4 +1,23 @@
-"""Drafts API routes."""
+"""
+Drafts API routes.
+
+This module handles draft management endpoints:
+- Creating drafts (unsent capsules)
+- Listing drafts (with pagination)
+- Getting draft details
+- Updating drafts
+- Deleting drafts
+
+Business Rules:
+- Drafts are unsent capsules that can be freely edited
+- Drafts are owned by the user who created them
+- Only owners can view/edit/delete their drafts
+- Drafts can be converted to capsules when ready to send
+
+Security:
+- All inputs are sanitized
+- Ownership is verified for all operations
+"""
 from fastapi import APIRouter, HTTPException, status, Query
 from app.models.schemas import DraftCreate, DraftUpdate, DraftResponse, MessageResponse
 from app.dependencies import DatabaseSession, CurrentUser
@@ -8,6 +27,7 @@ from app.core.config import settings
 import json
 
 
+# Router for all draft endpoints
 router = APIRouter(prefix="/drafts", tags=["Drafts"])
 logger = get_logger(__name__)
 
@@ -25,10 +45,14 @@ async def create_draft(
     """
     draft_repo = DraftRepository(session)
     
-    # Serialize media_urls to JSON string
+    # ===== Media URLs Serialization =====
+    # Serialize media_urls list to JSON string for database storage
+    # SQLite/PostgreSQL Text field stores JSON as string
     media_urls_json = json.dumps(draft_data.media_urls) if draft_data.media_urls else None
     
-    # Create draft
+    # ===== Draft Creation =====
+    # Create draft record with current user as owner
+    # Drafts can be edited and deleted freely until converted to capsules
     draft = await draft_repo.create(
         owner_id=current_user.id,
         title=draft_data.title,
@@ -81,13 +105,17 @@ async def get_draft(
     draft_repo = DraftRepository(session)
     draft = await draft_repo.get_by_id(draft_id)
     
+    # ===== Existence Check =====
     if not draft:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Draft not found"
         )
     
-    # Verify ownership
+    # ===== Ownership Verification =====
+    # Verify that current user owns this draft
+    # Users can only access their own drafts
+    # This prevents unauthorized access to draft content
     if not await draft_repo.verify_ownership(draft_id, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -125,10 +153,13 @@ async def update_draft(
             detail="You do not have permission to update this draft"
         )
     
-    # Prepare update data
+    # ===== Prepare Update Data =====
+    # Only include fields that were explicitly set (exclude_unset=True)
+    # This allows partial updates without overwriting unchanged fields
     update_dict = update_data.model_dump(exclude_unset=True)
     
-    # Serialize media_urls if provided
+    # ===== Serialize Media URLs =====
+    # Convert media_urls list to JSON string for database storage
     if "media_urls" in update_dict:
         update_dict["media_urls"] = json.dumps(update_dict["media_urls"]) if update_dict["media_urls"] else None
     

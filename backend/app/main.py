@@ -1,4 +1,22 @@
-"""Main FastAPI application."""
+"""
+Main FastAPI application.
+
+This module is the entry point for the OpenOn backend API.
+It configures the FastAPI application, middleware, routes, and lifecycle.
+
+Application Structure:
+- Lifespan management (startup/shutdown)
+- Middleware configuration (CORS, rate limiting, logging)
+- Route registration (auth, capsules, drafts, recipients)
+- Health check endpoints
+
+Key Features:
+- Async database operations
+- JWT authentication
+- Request logging
+- Rate limiting
+- Background worker for capsule state transitions
+"""
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from fastapi import FastAPI
@@ -14,7 +32,8 @@ from app.models.schemas import HealthResponse
 import logging
 
 
-# Setup logging
+# ===== Logging Configuration =====
+# Setup logging based on debug mode
 # Use INFO level in debug mode, WARNING in production
 # Request logs will still show (middleware sets its own level to INFO)
 log_level = logging.INFO if settings.debug else logging.WARNING
@@ -27,37 +46,57 @@ async def lifespan(app: FastAPI):
     """
     Application lifespan manager.
     
-    Handles startup and shutdown events:
-    - Initialize database
-    - Start background worker
-    - Cleanup on shutdown
+    Handles startup and shutdown events for the FastAPI application.
+    This ensures proper initialization and cleanup of resources.
+    
+    Startup Sequence:
+    1. Initialize database tables
+    2. Start background worker for capsule state transitions
+    
+    Shutdown Sequence:
+    1. Stop background worker
+    2. Close database connections
+    
+    Yields:
+        Control to FastAPI application
     """
-    # Startup
+    # ===== Startup =====
     logger.info("🚀 Starting OpenOn API...")
     
-    # Initialize database
+    # Initialize database tables
+    # Creates all tables defined in models if they don't exist
     await init_db()
     logger.info("✅ Database initialized")
     
     # Start background worker
+    # Worker periodically checks capsule unlock times and updates states
+    # Runs in separate thread, doesn't block main application
     start_worker()
     logger.info("✅ Background worker started")
     
+    # Yield control to FastAPI application
+    # Application runs until shutdown signal
     yield
     
-    # Shutdown
+    # ===== Shutdown =====
     logger.info("🛑 Shutting down OpenOn API...")
     
     # Stop background worker
+    # Gracefully stops worker thread and completes any in-progress tasks
     shutdown_worker()
     logger.info("✅ Background worker stopped")
     
     # Close database connections
+    # Disposes of connection pool and releases all database resources
     await close_db()
     logger.info("✅ Database connections closed")
 
 
-# Create FastAPI app
+# ===== FastAPI Application =====
+# Create FastAPI app with configuration
+# lifespan: Manages startup/shutdown events
+# docs_url: Swagger UI documentation endpoint
+# redoc_url: ReDoc documentation endpoint
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
@@ -93,32 +132,44 @@ app = FastAPI(
     - Only receivers can open capsules
     """,
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc"
+    docs_url="/docs",  # Swagger UI at /docs
+    redoc_url="/redoc"  # ReDoc at /redoc
 )
 
 
+# ===== Middleware Configuration =====
+# Middleware order matters - they execute in reverse order
+# Rate limiting first (protects against abuse)
+# Request logging second (logs all requests including rate-limited ones)
+# CORS last (handles cross-origin requests)
+
 # Rate limiting middleware (add first to protect against abuse)
+# Prevents DoS attacks and API abuse
 app.add_middleware(RateLimitingMiddleware)
 
 # Request logging middleware (add after rate limiting to log all requests)
+# Logs all API requests with timing and user context
 app.add_middleware(RequestLoggingMiddleware)
 
 # CORS middleware
+# Handles cross-origin requests from frontend
+# Only allows requests from configured origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.cors_origins,  # Allowed frontend origins
+    allow_credentials=True,  # Allow cookies/auth headers
+    allow_methods=["*"],  # Allow all HTTP methods
+    allow_headers=["*"],  # Allow all headers
 )
 
 
-# Include routers
-app.include_router(auth.router)
-app.include_router(capsules.router)
-app.include_router(drafts.router)
-app.include_router(recipients.router)
+# ===== Route Registration =====
+# Register all API routers
+# Each router handles a specific domain (auth, capsules, drafts, recipients)
+app.include_router(auth.router)  # Authentication endpoints
+app.include_router(capsules.router)  # Capsule management endpoints
+app.include_router(drafts.router)  # Draft management endpoints
+app.include_router(recipients.router)  # Recipient management endpoints
 
 
 @app.get("/", response_model=HealthResponse, tags=["Health"])
@@ -127,6 +178,10 @@ async def root() -> HealthResponse:
     Root endpoint - API health check.
     
     Returns basic information about the API status and version.
+    Useful for verifying the API is running and accessible.
+    
+    Returns:
+        HealthResponse: API status, timestamp, and version
     """
     return HealthResponse(
         status="healthy",
@@ -141,6 +196,14 @@ async def health_check() -> HealthResponse:
     Health check endpoint.
     
     Can be used by monitoring systems to verify API availability.
+    Returns API status and version information.
+    
+    Returns:
+        HealthResponse: API status, timestamp, and version
+    
+    Note:
+        This endpoint does not require authentication
+        Useful for load balancers and monitoring tools
     """
     return HealthResponse(
         status="healthy",

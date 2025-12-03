@@ -1,4 +1,21 @@
-"""Specific repositories for each model."""
+"""
+Specific repositories for each model.
+
+This module implements repository pattern for database operations.
+Each repository provides type-safe, optimized database queries for its model.
+
+Repositories:
+- UserRepository: User operations (search, lookup, existence checks)
+- CapsuleRepository: Capsule operations (by sender/receiver, state transitions)
+- DraftRepository: Draft operations (CRUD for unsent capsules)
+- RecipientRepository: Recipient operations (CRUD for saved contacts)
+
+Benefits:
+- Separation of concerns (business logic vs. data access)
+- Reusable query methods
+- Type safety with SQLAlchemy
+- Optimized queries with proper indexing
+"""
 from typing import Optional
 from datetime import datetime
 from sqlalchemy import select, and_, or_, case
@@ -112,12 +129,32 @@ class CapsuleRepository(BaseRepository[Capsule]):
         skip: int = 0,
         limit: int = 100  # Using default limit, can be overridden
     ) -> list[Capsule]:
-        """Get capsules by sender with optional state filter."""
+        """
+        Get capsules by sender with optional state filter.
+        
+        Args:
+            sender_id: ID of the user who sent the capsules
+            state: Optional state filter (e.g., only DRAFT, only READY)
+            skip: Number of records to skip (for pagination)
+            limit: Maximum number of records to return
+        
+        Returns:
+            List of capsules sent by the specified user
+        
+        Note:
+            Results are ordered by creation date (newest first)
+            Uses index on sender_id for optimal performance
+        """
+        # Build base query filtering by sender_id
         query = select(Capsule).where(Capsule.sender_id == sender_id)
         
+        # Add state filter if provided
+        # This enables filtering by state (e.g., only drafts, only ready)
         if state:
             query = query.where(Capsule.state == state)
         
+        # Order by creation date (newest first) and apply pagination
+        # Uses database indexes for efficient sorting
         query = query.order_by(Capsule.created_at.desc()).offset(skip).limit(limit)
         result = await self.session.execute(query)
         return list(result.scalars().all())
@@ -129,19 +166,42 @@ class CapsuleRepository(BaseRepository[Capsule]):
         skip: int = 0,
         limit: int = 100  # Using default limit, can be overridden
     ) -> list[Capsule]:
-        """Get capsules by receiver with optional state filter."""
+        """
+        Get capsules by receiver with optional state filter.
+        
+        Args:
+            receiver_id: ID of the user who received the capsules
+            state: Optional state filter (e.g., only READY, only OPENED)
+            skip: Number of records to skip (for pagination)
+            limit: Maximum number of records to return
+        
+        Returns:
+            List of capsules received by the specified user
+        
+        Note:
+            Results are ordered by creation date (newest first)
+            Uses index on receiver_id for optimal performance
+            This is the primary query for the inbox view
+        """
         from app.core.logging import get_logger
         logger = get_logger(__name__)
         
+        # Build base query filtering by receiver_id
+        # This is the key query for showing received capsules (inbox)
         query = select(Capsule).where(Capsule.receiver_id == receiver_id)
         
+        # Add state filter if provided
+        # Enables filtering by state (e.g., only ready capsules, only opened)
         if state:
             query = query.where(Capsule.state == state)
         
+        # Order by creation date (newest first) and apply pagination
+        # Uses database indexes for efficient sorting
         query = query.order_by(Capsule.created_at.desc()).offset(skip).limit(limit)
         result = await self.session.execute(query)
         capsules = list(result.scalars().all())
         
+        # Log query results for debugging
         logger.info(
             f"get_by_receiver: receiver_id={receiver_id}, state={state}, "
             f"found {len(capsules)} capsules"
@@ -186,17 +246,32 @@ class CapsuleRepository(BaseRepository[Capsule]):
         return result.scalar_one()
     
     async def get_capsules_for_unlock(self) -> list[Capsule]:
-        """Get all capsules that need state updates (sealed/unfolding)."""
+        """
+        Get all capsules that need state updates (sealed/unfolding).
+        
+        This method is called by the background worker to find capsules
+        that need automatic state transitions based on their unlock time.
+        
+        Returns:
+            List of capsules that may need state transitions
+        
+        Criteria:
+        - State is SEALED or UNFOLDING
+        - Has a scheduled_unlock_at time
+        - Used by background worker for automatic transitions
+        """
         from datetime import timezone
         now = datetime.now(timezone.utc)
         
+        # Query capsules that may need state transitions
+        # Only check SEALED and UNFOLDING states (others don't auto-transition)
         query = select(Capsule).where(
             and_(
                 or_(
-                    Capsule.state == CapsuleState.SEALED,
-                    Capsule.state == CapsuleState.UNFOLDING
+                    Capsule.state == CapsuleState.SEALED,  # May transition to UNFOLDING
+                    Capsule.state == CapsuleState.UNFOLDING  # May transition to READY
                 ),
-                Capsule.scheduled_unlock_at.isnot(None)
+                Capsule.scheduled_unlock_at.isnot(None)  # Must have unlock time
             )
         )
         

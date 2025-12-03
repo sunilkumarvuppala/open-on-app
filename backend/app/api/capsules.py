@@ -1,4 +1,27 @@
-"""Capsules API routes."""
+"""
+Capsules API routes.
+
+This module handles all capsule-related endpoints:
+- Creating capsules (in draft state)
+- Listing capsules (inbox/outbox with pagination)
+- Viewing capsule details
+- Updating capsules (drafts only)
+- Sealing capsules (setting unlock time)
+- Opening capsules (receiver only)
+- Deleting capsules (drafts only)
+
+Business Rules:
+- Capsules start in DRAFT state and can be edited
+- Once sealed, unlock time cannot be changed
+- Only senders can edit/delete drafts
+- Only receivers can open capsules
+- State transitions are enforced by CapsuleStateMachine
+
+Security:
+- All inputs are sanitized
+- Ownership is verified for all operations
+- State-based permissions are enforced
+"""
 from typing import Optional
 from fastapi import APIRouter, HTTPException, status, Query
 from app.models.schemas import (
@@ -19,6 +42,7 @@ from app.core.config import settings
 import json
 
 
+# Router for all capsule endpoints
 router = APIRouter(prefix="/capsules", tags=["Capsules"])
 logger = get_logger(__name__)
 
@@ -36,12 +60,15 @@ async def create_capsule(
     """
     capsule_repo = CapsuleRepository(session)
     
-    # Sanitize and validate inputs
+    # ===== Input Sanitization =====
+    # Sanitize all text inputs to prevent injection attacks
+    # Strip whitespace and enforce maximum lengths
     title = sanitize_text(capsule_data.title.strip(), max_length=settings.max_title_length)
     body = sanitize_text(capsule_data.body.strip(), max_length=settings.max_content_length)
     theme = sanitize_text(capsule_data.theme.strip(), max_length=settings.max_theme_length) if capsule_data.theme else None
     
-    # Validate receiver ID
+    # ===== Receiver ID Validation =====
+    # Validate that receiver_id is provided and not empty
     if not capsule_data.receiver_id or len(capsule_data.receiver_id.strip()) == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -50,7 +77,8 @@ async def create_capsule(
     
     receiver_id = capsule_data.receiver_id.strip()
     
-    # Validate receiver_id format (should be UUID)
+    # Validate receiver_id format (must be valid UUID)
+    # This prevents invalid IDs and potential injection attacks
     import uuid
     try:
         uuid.UUID(receiver_id)
@@ -60,10 +88,12 @@ async def create_capsule(
             detail="Invalid receiver ID format"
         )
     
-    # Verify receiver exists (basic check - could be enhanced with user lookup)
-    # Note: This is a lightweight check. Full validation would require a database query.
+    # Note: Full receiver existence validation would require a database query
+    # This is intentionally lightweight - receiver validation happens when capsule is sealed
     
-    # Serialize media_urls to JSON string
+    # ===== Media URLs Serialization =====
+    # Serialize media_urls list to JSON string for database storage
+    # SQLite/PostgreSQL Text field stores JSON as string
     media_urls_json = json.dumps(capsule_data.media_urls) if capsule_data.media_urls else None
     
     logger.info(
@@ -110,6 +140,10 @@ async def list_capsules(
     - **page_size**: Number of items per page (1-100)
     """
     capsule_repo = CapsuleRepository(session)
+    
+    # ===== Pagination Calculation =====
+    # Calculate skip value for database offset
+    # Page is 1-indexed, so page 1 = skip 0, page 2 = skip page_size, etc.
     skip = (page - 1) * page_size
     
     logger.info(
@@ -117,30 +151,38 @@ async def list_capsules(
         f"page={page}, page_size={page_size}"
     )
     
+    # ===== Query Based on Box Type =====
+    # "inbox" = capsules received by current user (receiver_id matches)
+    # "outbox" = capsules sent by current user (sender_id matches)
     if box == "inbox":
+        # Get capsules where current user is the receiver
         capsules = await capsule_repo.get_by_receiver(
             current_user.id,
             state=state,
             skip=skip,
             limit=page_size
         )
+        # Get total count for pagination metadata
         total = await capsule_repo.count_by_receiver(current_user.id, state=state)
         logger.info(
             f"Inbox query result: found {len(capsules)} capsules for receiver_id={current_user.id}, "
             f"total={total}"
         )
+        # Log each capsule for debugging
         for cap in capsules:
             logger.info(
                 f"  - Capsule {cap.id}: receiver_id={cap.receiver_id}, sender_id={cap.sender_id}, "
                 f"state={cap.state}"
             )
     else:  # outbox
+        # Get capsules where current user is the sender
         capsules = await capsule_repo.get_by_sender(
             current_user.id,
             state=state,
             skip=skip,
             limit=page_size
         )
+        # Get total count for pagination metadata
         total = await capsule_repo.count_by_sender(current_user.id, state=state)
         logger.info(
             f"Outbox query result: found {len(capsules)} capsules for sender_id={current_user.id}, "
@@ -170,13 +212,20 @@ async def get_capsule(
     capsule_repo = CapsuleRepository(session)
     capsule = await capsule_repo.get_by_id(capsule_id)
     
+    # ===== Existence Check =====
     if not capsule:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Capsule not found"
         )
     
-    # Check view permissions
+    # ===== Permission Check =====
+    # Check if user has permission to view this capsule
+    # Rules:
+    # - Sender can always view
+    # - Receiver can view if:
+    #   * Capsule is opened, OR
+    #   * allow_early_view is true and state is UNFOLDING/READY
     can_view, message = CapsuleStateMachine.can_view(capsule, current_user.id)
     if not can_view:
         raise HTTPException(
@@ -202,13 +251,19 @@ async def update_capsule(
     capsule_repo = CapsuleRepository(session)
     capsule = await capsule_repo.get_by_id(capsule_id)
     
+    # ===== Existence Check =====
     if not capsule:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Capsule not found"
         )
     
-    # Check edit permissions
+    # ===== Permission Check =====
+    # Check if user has permission to edit this capsule
+    # Rules:
+    # - Only sender can edit
+    # - Only DRAFT state can be edited
+    # - Once sealed, no edits are allowed
     can_edit, message = CapsuleStateMachine.can_edit(capsule, current_user.id)
     if not can_edit:
         raise HTTPException(
@@ -216,10 +271,14 @@ async def update_capsule(
             detail=message
         )
     
-    # Prepare update data
+    # ===== Prepare Update Data =====
+    # Only include fields that were explicitly set (exclude_unset=True)
+    # This allows partial updates without overwriting unchanged fields
     update_dict = update_data.model_dump(exclude_unset=True)
     
-    # Sanitize text fields if provided
+    # ===== Sanitize Text Fields =====
+    # Sanitize all text inputs to prevent injection attacks
+    # Only sanitize fields that are being updated
     if "title" in update_dict:
         update_dict["title"] = sanitize_text(update_dict["title"].strip(), max_length=settings.max_title_length)
     if "body" in update_dict:
@@ -227,7 +286,8 @@ async def update_capsule(
     if "theme" in update_dict and update_dict["theme"]:
         update_dict["theme"] = sanitize_text(update_dict["theme"].strip(), max_length=settings.max_theme_length)
     
-    # Serialize media_urls if provided
+    # ===== Serialize Media URLs =====
+    # Convert media_urls list to JSON string for database storage
     if "media_urls" in update_dict:
         update_dict["media_urls"] = json.dumps(update_dict["media_urls"]) if update_dict["media_urls"] else None
     
@@ -255,13 +315,19 @@ async def seal_capsule(
     capsule_repo = CapsuleRepository(session)
     capsule = await capsule_repo.get_by_id(capsule_id)
     
+    # ===== Existence Check =====
     if not capsule:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Capsule not found"
         )
     
-    # Check seal permissions
+    # ===== Permission Check =====
+    # Check if user has permission to seal this capsule
+    # Rules:
+    # - Only sender can seal
+    # - Only DRAFT state can be sealed
+    # - Once sealed, unlock time cannot be changed
     can_seal, message = CapsuleStateMachine.can_seal(capsule, current_user.id)
     if not can_seal:
         raise HTTPException(
@@ -269,7 +335,12 @@ async def seal_capsule(
             detail=message
         )
     
-    # Prepare seal data (validates unlock time)
+    # ===== Unlock Time Validation =====
+    # Validate and prepare seal data
+    # This validates:
+    # - Unlock time is in the future
+    # - Unlock time is within acceptable range (1 minute to 5 years)
+    # - Converts to UTC timezone-aware datetime
     try:
         seal_updates = CapsuleStateMachine.seal_capsule(seal_data.scheduled_unlock_at)
     except ValueError as e:
@@ -306,13 +377,19 @@ async def open_capsule(
     capsule_repo = CapsuleRepository(session)
     capsule = await capsule_repo.get_by_id(capsule_id)
     
+    # ===== Existence Check =====
     if not capsule:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Capsule not found"
         )
     
-    # Check open permissions
+    # ===== Permission Check =====
+    # Check if user has permission to open this capsule
+    # Rules:
+    # - Only receiver can open
+    # - Capsule must be in READY state
+    # - This action is irreversible (terminal state)
     can_open, message = CapsuleStateMachine.can_open(capsule, current_user.id)
     if not can_open:
         raise HTTPException(
@@ -320,7 +397,10 @@ async def open_capsule(
             detail=message
         )
     
-    # Transition to opened state
+    # ===== State Transition =====
+    # Transition capsule to OPENED state
+    # This is a terminal state - capsule cannot be reopened
+    # Record the exact UTC timestamp when capsule was opened
     updated_capsule = await capsule_repo.transition_state(
         capsule_id,
         CapsuleState.OPENED,
@@ -346,20 +426,26 @@ async def delete_capsule(
     capsule_repo = CapsuleRepository(session)
     capsule = await capsule_repo.get_by_id(capsule_id)
     
+    # ===== Existence Check =====
     if not capsule:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Capsule not found"
         )
     
-    # Only sender can delete
+    # ===== Ownership Check =====
+    # Only the sender can delete their own capsules
+    # This prevents unauthorized deletion attempts
     if capsule.sender_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only the sender can delete this capsule"
         )
     
-    # Can only delete drafts
+    # ===== State Check =====
+    # Only DRAFT state capsules can be deleted
+    # Once sealed, capsules cannot be deleted (they must be delivered)
+    # This ensures time-lock integrity
     if capsule.state != CapsuleState.DRAFT:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
