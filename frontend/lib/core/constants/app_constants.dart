@@ -18,6 +18,7 @@ class AppConstants {
   static const Duration authDelay = Duration(milliseconds: 1000);
   static const Duration signOutDelay = Duration(milliseconds: 300);
   static const Duration getCurrentUserDelay = Duration(milliseconds: 200);
+  static const Duration routerNavigationDelay = Duration(milliseconds: 200);
 
   // UI dimensions
   static const double bottomNavHeight = 60.0;
@@ -37,6 +38,8 @@ class AppConstants {
   static const Duration animationDurationShort = Duration(milliseconds: 200);
   static const Duration animationDurationMedium = Duration(milliseconds: 300);
   static const Duration animationDurationLong = Duration(milliseconds: 500);
+  static const Duration openingAnimationDuration = Duration(milliseconds: 1500);
+  static const Duration openingAnimationDelay = Duration(milliseconds: 500);
   static const Duration magicDustAnimationDuration = Duration(seconds: 8);
   static const Duration sparkleAnimationDuration = Duration(seconds: 3);
   
@@ -63,13 +66,33 @@ class AppConstants {
   static const int maxPasswordLength = 128;
   static const int maxEmailLength = 254;
   static const int maxNameLength = 100;
+  static const int minUsernameLength = 3;
+  static const int maxUsernameLength = 100;
 
+  // Search settings
+  static const int minSearchQueryLength = 2;
+  static const int searchDebounceMs = 500;
+  static const int maxSearchResults = 10;
+  static const int defaultSearchLimit = 10;
+  static const int maxSearchLimit = 50;
+  
+  // Pagination
+  static const int defaultPageSize = 20;
+  static const int maxPageSize = 100;
+  static const int defaultPage = 1;
+  
   // Default values
   static const String defaultUserId = 'current-user';
   static const String defaultUserName = 'User';
   static const String defaultAvatarPath = 'assets/images/default_avatar.png';
   static const String untitledDraftTitle = 'Untitled Draft';
   static const String noContentText = 'No content yet';
+  
+  // UI component sizes
+  static const double avatarRadius = 50.0;
+  static const double avatarIconSize = 36.0;
+  static const double searchResultsMaxHeight = 200.0;
+  static const double searchIndicatorSize = 20.0;
 
   // Asset paths
   static const String avatarPriya = 'assets/images/avatar_priya.png';

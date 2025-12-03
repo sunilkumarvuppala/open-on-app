@@ -344,7 +344,7 @@ class MockCapsuleRepository implements CapsuleRepository {
 /// Repository interface for recipient operations
 abstract class RecipientRepository {
   Future<List<Recipient>> getRecipients(String userId);
-  Future<Recipient> createRecipient(Recipient recipient);
+  Future<Recipient> createRecipient(Recipient recipient, {String? linkedUserId});
   Future<Recipient> updateRecipient(Recipient recipient);
   Future<void> deleteRecipient(String recipientId);
 }
@@ -417,7 +417,7 @@ class MockRecipientRepository implements RecipientRepository {
   }
 
   @override
-  Future<Recipient> createRecipient(Recipient recipient) async {
+  Future<Recipient> createRecipient(Recipient recipient, {String? linkedUserId}) async {
     try {
       Validation.validateRecipientName(recipient.name);
       Validation.validateRelationship(recipient.relationship);
@@ -512,7 +512,13 @@ class MockRecipientRepository implements RecipientRepository {
 
 /// Repository interface for auth operations
 abstract class AuthRepository {
-  Future<User> signUp({required String email, required String password, required String name});
+  Future<User> signUp({
+    required String email,
+    required String password,
+    required String firstName,
+    required String lastName,
+    required String username,
+  });
   Future<User> signIn({required String email, required String password});
   Future<void> signOut();
   Future<User?> getCurrentUser();
@@ -527,20 +533,25 @@ class MockAuthRepository implements AuthRepository {
   Future<User> signUp({
     required String email,
     required String password,
-    required String name,
+    required String firstName,
+    required String lastName,
+    required String username,
   }) async {
     try {
       final sanitizedEmail = Validation.sanitizeEmail(email);
       Validation.validateEmail(sanitizedEmail);
       Validation.validatePassword(password);
-      Validation.validateName(name);
+      Validation.validateName(firstName);
+      Validation.validateName(lastName);
 
       await Future.delayed(AppConstants.authDelay);
 
+      final fullName = '${Validation.sanitizeString(firstName)} ${Validation.sanitizeString(lastName)}';
       _currentUser = User(
         id: AppConstants.defaultUserId,
-        name: Validation.sanitizeString(name),
+        name: fullName,
         email: sanitizedEmail,
+        username: username.trim(),
       );
 
       Logger.info('User signed up: $sanitizedEmail');

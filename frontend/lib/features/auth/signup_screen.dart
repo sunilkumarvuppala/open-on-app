@@ -1,9 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
+import 'package:openon_app/core/utils/error_handler.dart';
+import 'package:openon_app/core/data/api_repositories.dart';
+import 'package:openon_app/core/constants/app_constants.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -14,26 +18,142 @@ class SignupScreen extends ConsumerStatefulWidget {
 
 class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   String? _errorMessage;
+  bool _passwordsMatch = false;
+  bool _showPasswordMatchFeedback = false;
+  
+  // Username validation state
+  bool _isCheckingUsername = false;
+  bool? _usernameAvailable;
+  String? _usernameMessage;
+  Timer? _usernameDebounce;
+  
+  final ApiUserService _userService = ApiUserService();
+  
+  @override
+  void initState() {
+    super.initState();
+    _passwordController.addListener(_checkPasswordMatch);
+    _confirmPasswordController.addListener(_checkPasswordMatch);
+    _usernameController.addListener(_checkUsernameAvailability);
+  }
   
   @override
   void dispose() {
-    _nameController.dispose();
+    _passwordController.removeListener(_checkPasswordMatch);
+    _confirmPasswordController.removeListener(_checkPasswordMatch);
+    _usernameController.removeListener(_checkUsernameAvailability);
+    _usernameDebounce?.cancel();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
   
+  void _checkPasswordMatch() {
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+    
+    setState(() {
+      if (confirmPassword.isNotEmpty) {
+        _showPasswordMatchFeedback = true;
+        _passwordsMatch = password == confirmPassword && password.isNotEmpty;
+      } else {
+        _showPasswordMatchFeedback = false;
+        _passwordsMatch = false;
+      }
+    });
+    
+    if (_formKey.currentState != null) {
+      _formKey.currentState!.validate();
+    }
+  }
+  
+  void _checkUsernameAvailability() {
+    _usernameDebounce?.cancel();
+    
+    final username = _usernameController.text.trim();
+    
+    if (username.isEmpty) {
+      setState(() {
+        _isCheckingUsername = false;
+        _usernameAvailable = null;
+        _usernameMessage = null;
+      });
+      return;
+    }
+    
+    if (username.length < 3) {
+      setState(() {
+        _isCheckingUsername = false;
+        _usernameAvailable = false;
+        _usernameMessage = 'Username must be at least 3 characters';
+      });
+      return;
+    }
+    
+    setState(() {
+      _isCheckingUsername = true;
+      _usernameAvailable = null;
+      _usernameMessage = null;
+    });
+    
+    _usernameDebounce = Timer(const Duration(milliseconds: AppConstants.searchDebounceMs), () async {
+      try {
+        final result = await _userService.checkUsernameAvailability(username);
+        if (mounted) {
+          setState(() {
+            _isCheckingUsername = false;
+            _usernameAvailable = result['available'] as bool;
+            _usernameMessage = result['message'] as String;
+          });
+          
+          // Trigger validation only for the username field
+          // The autovalidateMode.onUserInteraction will handle this automatically
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isCheckingUsername = false;
+            _usernameAvailable = false;
+            _usernameMessage = 'Unable to check username availability';
+          });
+        }
+      }
+    });
+  }
+  
   Future<void> _handleSignup() async {
+    // Check password match before form validation
+    if (!_passwordsMatch && _confirmPasswordController.text.isNotEmpty) {
+      setState(() {
+        _errorMessage = 'Passwords do not match';
+      });
+      return;
+    }
+    
     if (!_formKey.currentState!.validate()) return;
+    
+    // Ensure username is available before submitting
+    if (_usernameAvailable != true) {
+      setState(() {
+        _errorMessage = 'Please choose an available username';
+      });
+      return;
+    }
     
     setState(() {
       _isLoading = true;
@@ -45,23 +165,25 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       await authRepo.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
-        name: _nameController.text.trim(),
+        firstName: _firstNameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
+        username: _usernameController.text.trim(),
       );
       
-      // Invalidate auth state to trigger refresh
-      // The router will automatically redirect to home when auth state updates
       ref.invalidate(currentUserProvider);
-      
-      // Wait for provider to update and router to react
-      await Future.delayed(const Duration(milliseconds: 200));
+      await Future.delayed(AppConstants.routerNavigationDelay);
       
       if (mounted) {
-        // Router should have redirected, but navigate explicitly as fallback
         context.go(Routes.home);
       }
     } catch (e) {
+      final errorMsg = ErrorHandler.getErrorMessage(
+        e,
+        defaultMessage: ErrorHandler.getDefaultErrorMessage('create account'),
+      );
+      
       setState(() {
-        _errorMessage = 'Failed to create account. Please try again.';
+        _errorMessage = errorMsg;
       });
     } finally {
       if (mounted) {
@@ -84,6 +206,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           padding: EdgeInsets.all(AppTheme.spacingLg),
           child: Form(
             key: _formKey,
+            autovalidateMode: AutovalidateMode.disabled,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -134,22 +257,97 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   SizedBox(height: AppTheme.spacingLg),
                 ],
                 
-                // Name field
+                // First Name field
                 TextFormField(
-                  controller: _nameController,
+                  controller: _firstNameController,
                   textInputAction: TextInputAction.next,
                   textCapitalization: TextCapitalization.words,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   decoration: const InputDecoration(
-                    labelText: 'Name',
-                    hintText: 'Your name',
+                    labelText: 'First Name *',
+                    hintText: 'John',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your name';
+                      return 'Please enter your first name';
                     }
                     if (value.trim().length < 2) {
-                      return 'Name must be at least 2 characters';
+                      return 'First name must be at least 2 characters';
+                    }
+                    return null;
+                  },
+                ),
+                
+                SizedBox(height: AppTheme.spacingMd),
+                
+                // Last Name field
+                TextFormField(
+                  controller: _lastNameController,
+                  textInputAction: TextInputAction.next,
+                  textCapitalization: TextCapitalization.words,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  decoration: const InputDecoration(
+                    labelText: 'Last Name *',
+                    hintText: 'Doe',
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter your last name';
+                    }
+                    if (value.trim().length < 2) {
+                      return 'Last name must be at least 2 characters';
+                    }
+                    return null;
+                  },
+                ),
+                
+                SizedBox(height: AppTheme.spacingMd),
+                
+                // Username field with real-time validation
+                TextFormField(
+                  controller: _usernameController,
+                  textInputAction: TextInputAction.next,
+                  textCapitalization: TextCapitalization.none,
+                  autocorrect: false,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  decoration: InputDecoration(
+                    labelText: 'Username *',
+                    hintText: 'johndoe',
+                    prefixIcon: const Icon(Icons.alternate_email),
+                    suffixIcon: _isCheckingUsername
+                        ? const Padding(
+                            padding: EdgeInsets.all(12.0),
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : _usernameAvailable == true
+                            ? const Icon(Icons.check_circle, color: AppColors.success)
+                            : _usernameAvailable == false
+                                ? const Icon(Icons.cancel, color: AppColors.error)
+                                : null,
+                    helperText: _usernameMessage,
+                    helperMaxLines: 2,
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter a username';
+                    }
+                    if (value.trim().length < 3) {
+                      return 'Username must be at least 3 characters';
+                    }
+                    if (_usernameAvailable == false) {
+                      return _usernameMessage ?? 'Username is not available';
+                    }
+                    if (_isCheckingUsername) {
+                      return 'Checking username availability...';
+                    }
+                    if (_usernameAvailable != true) {
+                      return 'Please wait for username validation';
                     }
                     return null;
                   },
@@ -162,8 +360,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   decoration: const InputDecoration(
-                    labelText: 'Email',
+                    labelText: 'Email *',
                     hintText: 'your@email.com',
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
@@ -185,8 +384,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   textInputAction: TextInputAction.next,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  onChanged: (_) => _checkPasswordMatch(),
                   decoration: InputDecoration(
-                    labelText: 'Password',
+                    labelText: 'Password *',
                     hintText: 'At least 8 characters',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
@@ -202,8 +403,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     if (value == null || value.isEmpty) {
                       return 'Please enter a password';
                     }
-                    if (value.length < 8) {
-                      return 'Password must be at least 8 characters';
+                    if (value.length < AppConstants.minPasswordLength) {
+                      return 'Password must be at least ${AppConstants.minPasswordLength} characters';
                     }
                     return null;
                   },
@@ -216,30 +417,71 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   controller: _confirmPasswordController,
                   obscureText: _obscureConfirmPassword,
                   textInputAction: TextInputAction.done,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   onFieldSubmitted: (_) => _handleSignup(),
+                  onChanged: (_) => _checkPasswordMatch(),
                   decoration: InputDecoration(
-                    labelText: 'Confirm Password',
+                    labelText: 'Confirm Password *',
                     hintText: 'Re-enter your password',
                     prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
-                      ),
-                      onPressed: () {
-                        setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
-                      },
-                    ),
+                    suffixIcon: _showPasswordMatchFeedback
+                        ? Icon(
+                            _passwordsMatch ? Icons.check_circle : Icons.error,
+                            color: _passwordsMatch ? AppColors.success : AppColors.error,
+                          )
+                        : IconButton(
+                            icon: Icon(
+                              _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                            ),
+                            onPressed: () {
+                              setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
+                            },
+                          ),
+                    // Suppress error text when real-time feedback is showing to avoid duplication
+                    errorText: _showPasswordMatchFeedback && _confirmPasswordController.text.isNotEmpty
+                        ? null
+                        : null, // Will be set by validator, but we'll handle it
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please confirm your password';
                     }
+                    // Check if passwords match
                     if (value != _passwordController.text) {
+                      // If real-time feedback is showing, don't show validator error to avoid duplication
+                      // The real-time feedback below already shows "Passwords do not match"
+                      if (_showPasswordMatchFeedback && _confirmPasswordController.text.isNotEmpty) {
+                        // Return null to suppress error display, but validation will still fail
+                        // because we check _passwordsMatch in _handleSignup
+                        return null;
+                      }
                       return 'Passwords do not match';
                     }
                     return null;
                   },
                 ),
+                
+                // Real-time password match feedback
+                if (_showPasswordMatchFeedback && _confirmPasswordController.text.isNotEmpty) ...[
+                  SizedBox(height: AppTheme.spacingXs),
+                  Row(
+                    children: [
+                      Icon(
+                        _passwordsMatch ? Icons.check_circle_outline : Icons.error_outline,
+                        size: 16,
+                        color: _passwordsMatch ? AppColors.success : AppColors.error,
+                      ),
+                      SizedBox(width: AppTheme.spacingXs),
+                      Text(
+                        _passwordsMatch ? 'Passwords match' : 'Passwords do not match',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _passwordsMatch ? AppColors.success : AppColors.error,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 
                 SizedBox(height: AppTheme.spacingXl),
                 
@@ -247,7 +489,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 SizedBox(
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _handleSignup,
+                    onPressed: (_isLoading || _usernameAvailable != true) ? null : _handleSignup,
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppTheme.radiusLg),

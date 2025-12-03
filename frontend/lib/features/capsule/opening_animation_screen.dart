@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:openon_app/core/constants/app_constants.dart';
 import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
+import 'package:openon_app/core/utils/logger.dart';
 
 class OpeningAnimationScreen extends ConsumerStatefulWidget {
   final Capsule capsule;
@@ -58,7 +60,7 @@ class _OpeningAnimationScreenState extends ConsumerState<OpeningAnimationScreen>
             Center(
               child: TweenAnimationBuilder<double>(
                 tween: Tween(begin: 0.0, end: 1.0),
-                duration: const Duration(milliseconds: 1500),
+                duration: AppConstants.openingAnimationDuration,
                 builder: (context, value, child) {
                   return Opacity(
                     opacity: value,
@@ -119,13 +121,13 @@ class _OpeningAnimationScreenState extends ConsumerState<OpeningAnimationScreen>
                     repo.markAsOpened(widget.capsule.id);
                     ref.invalidate(capsulesProvider);
                   } catch (e) {
-                    debugPrint('Failed to mark as opened: $e');
+                    Logger.error('Failed to mark as opened', error: e);
                   }
                   
                   setState(() => _animationComplete = true);
                   
                   // Navigate to opened letter screen
-                  Future.delayed(const Duration(milliseconds: 500), () {
+                  Future.delayed(AppConstants.animationDurationLong, () {
                     if (mounted) {
                       context.go(
                         '/capsule/${widget.capsule.id}/opened',

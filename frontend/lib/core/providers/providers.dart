@@ -1,20 +1,33 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openon_app/core/constants/app_constants.dart';
 import 'package:openon_app/core/data/repositories.dart';
+import 'package:openon_app/core/data/api_repositories.dart';
 import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/color_scheme_service.dart';
 
+// Configuration: Set to true to use API, false to use mocks
+const bool useApiRepositories = true;
+
 // Repository providers
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  if (useApiRepositories) {
+    return ApiAuthRepository();
+  }
   return MockAuthRepository();
 });
 
 final capsuleRepositoryProvider = Provider<CapsuleRepository>((ref) {
+  if (useApiRepositories) {
+    return ApiCapsuleRepository();
+  }
   return MockCapsuleRepository();
 });
 
 final recipientRepositoryProvider = Provider<RecipientRepository>((ref) {
+  if (useApiRepositories) {
+    return ApiRecipientRepository();
+  }
   return MockRecipientRepository();
 });
 

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
+import 'package:openon_app/core/constants/app_constants.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -47,7 +48,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ref.invalidate(currentUserProvider);
       
       // Wait for provider to update and router to react
-      await Future.delayed(const Duration(milliseconds: 200));
+      await Future.delayed(AppConstants.routerNavigationDelay);
       
       if (mounted) {
         // Router should have redirected, but navigate explicitly as fallback
