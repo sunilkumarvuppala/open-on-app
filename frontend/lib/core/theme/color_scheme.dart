@@ -169,9 +169,22 @@ class AppColorScheme {
     accent: Color(0xFF9CA3AF),
   );
 
+  // 🔵 DEEP BLUE THEME (Deep blue-purple gradient, modern chat aesthetic)
+  // Dark blue dominant gradient transitioning to blue-purple with dark purple chat bubbles
+  static const deepBlue = AppColorScheme(
+    id: 'deep_blue',
+    name: 'Deep Blue',
+    primary1: Color(0xFF1D094B),      // Dark purple for AI chat bubbles
+    primary2: Color.fromARGB(255, 52, 6, 202),      // Darker purple for gradient end
+    secondary1: Color(0xFF062982),      // Very dark blue for gradient start (blue dominant)
+    secondary2: Color(0xFF192853),     // Dark blue-purple for gradient end (more blue than purple)
+    accent: Color.fromARGB(255, 48, 36, 82),         // Vibrant purple glow/accent color
+  );
+
   // -----------------------------------------------------------------------
 
   static const List<AppColorScheme> allSchemes = [
+    deepBlue,        // Default theme - placed first
     royalAmethyst,
     dreamLilac,
     velvetNights,

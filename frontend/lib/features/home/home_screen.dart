@@ -232,8 +232,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               Container(
                 margin: EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: colorScheme.id == 'deep_blue'
+                      ? Colors.white.withOpacity(0.1) // Semi-transparent white for dark theme
+                      : Colors.white,
                   borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  border: colorScheme.id == 'deep_blue'
+                      ? Border.all(color: Colors.white.withOpacity(0.2), width: 1)
+                      : null,
                 ),
                 child: _AnimatedMagicalTabBar(
                   tabController: _tabController,
@@ -386,6 +391,22 @@ class _DraftsButtonState extends State<_DraftsButton>
 
   @override
   Widget build(BuildContext context) {
+    final isDeepBlue = widget.colorScheme.id == 'deep_blue';
+    
+    // Colors for deep blue theme - use white/light colors for visibility
+    final iconColor = isDeepBlue
+        ? Colors.white.withOpacity(0.9) // Bright white for visibility
+        : widget.colorScheme.primary1;
+    final textColor = isDeepBlue
+        ? Colors.white.withOpacity(0.9) // Bright white for visibility
+        : widget.colorScheme.primary1;
+    final backgroundColor = isDeepBlue
+        ? Colors.white.withOpacity(0.15) // Semi-transparent white background
+        : widget.colorScheme.primary1.withOpacity(0.08);
+    final borderColor = isDeepBlue
+        ? Colors.white.withOpacity(0.3) // Visible white border
+        : widget.colorScheme.primary1.withOpacity(0.12);
+    
     return GestureDetector(
       onTapDown: _handleTapDown,
       onTapUp: _handleTapUp,
@@ -403,9 +424,9 @@ class _DraftsButtonState extends State<_DraftsButton>
             ),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-              color: widget.colorScheme.primary1.withOpacity(0.08),
+              color: backgroundColor,
               border: Border.all(
-                color: widget.colorScheme.primary1.withOpacity(0.12), // Reduced from 0.2 to 0.12
+                color: borderColor,
                 width: 1,
               ),
               boxShadow: [
@@ -419,7 +440,9 @@ class _DraftsButtonState extends State<_DraftsButton>
                 // Subtle glow when tapped
                 if (_isPressed || _glowController.value > 0)
                   BoxShadow(
-                    color: widget.colorScheme.primary1.withOpacity(glowOpacity),
+                    color: isDeepBlue
+                        ? Colors.white.withOpacity(glowOpacity * 0.5)
+                        : widget.colorScheme.primary1.withOpacity(glowOpacity),
                     blurRadius: 8,
                     spreadRadius: 2,
                   ),
@@ -433,13 +456,13 @@ class _DraftsButtonState extends State<_DraftsButton>
                     Icon(
                       Icons.edit_note_outlined,
                       size: 14,
-                      color: widget.colorScheme.primary1,
+                      color: iconColor,
                     ),
                     SizedBox(width: AppTheme.spacingXs),
                     Text(
                       'Drafts (${widget.draftsCount})',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: widget.colorScheme.primary1,
+                        color: textColor,
                         fontWeight: FontWeight.w500,
                         fontSize: 13,
                       ),
@@ -493,8 +516,9 @@ class _AnimatedMagicalTabBar extends StatefulWidget {
 }
 
 class _AnimatedMagicalTabBarState extends State<_AnimatedMagicalTabBar>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _sparkleController;
+  late AnimationController _breathingController;
 
   @override
   void initState() {
@@ -503,11 +527,18 @@ class _AnimatedMagicalTabBarState extends State<_AnimatedMagicalTabBar>
       vsync: this,
       duration: AppConstants.sparkleAnimationDuration,
     )..repeat();
+    
+    // Breathing glow animation - slow, gentle pulse
+    _breathingController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3), // Slow breathing cycle
+    )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
     _sparkleController.dispose();
+    _breathingController.dispose();
     super.dispose();
   }
 
@@ -515,7 +546,7 @@ class _AnimatedMagicalTabBarState extends State<_AnimatedMagicalTabBar>
   Widget build(BuildContext context) {
     return RepaintBoundary(
       child: AnimatedBuilder(
-        animation: _sparkleController,
+        animation: Listenable.merge([_sparkleController, _breathingController]),
         builder: (context, child) {
           return TabBar(
             controller: widget.tabController,
@@ -523,10 +554,13 @@ class _AnimatedMagicalTabBarState extends State<_AnimatedMagicalTabBar>
               gradient: widget.gradient,
               colorScheme: widget.colorScheme,
               animationValue: _sparkleController.value * 2 * math.pi,
+              breathingValue: _breathingController.value,
             ),
             indicatorSize: TabBarIndicatorSize.tab,
             labelColor: Colors.white,
-            unselectedLabelColor: AppTheme.textGrey,
+            unselectedLabelColor: widget.colorScheme.id == 'deep_blue'
+                ? Colors.white.withOpacity(0.6) // Semi-transparent white for visibility
+                : AppTheme.textGrey,
             dividerColor: Colors.transparent,
             isScrollable: false,
             tabAlignment: TabAlignment.fill,
@@ -539,16 +573,18 @@ class _AnimatedMagicalTabBarState extends State<_AnimatedMagicalTabBar>
   }
 }
 
-/// Custom tab indicator with magical effects: glow, sparkle animation, and glow ring
+/// Custom tab indicator with magical effects: glow, sparkle animation, breathing glow, and glow ring
 class _MagicalTabIndicator extends Decoration {
   final Gradient gradient;
   final AppColorScheme colorScheme;
   final double animationValue;
+  final double breathingValue;
 
   const _MagicalTabIndicator({
     required this.gradient,
     required this.colorScheme,
     required this.animationValue,
+    required this.breathingValue,
   });
 
   @override
@@ -557,6 +593,7 @@ class _MagicalTabIndicator extends Decoration {
       gradient: gradient,
       colorScheme: colorScheme,
       animationValue: animationValue,
+      breathingValue: breathingValue,
       onChanged: onChanged,
     );
   }
@@ -566,6 +603,7 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
   final Gradient gradient;
   final AppColorScheme colorScheme;
   final double animationValue;
+  final double breathingValue;
 
   // Reusable Paint objects to avoid allocation
   final Paint _gradientPaint = Paint()..style = PaintingStyle.fill;
@@ -575,11 +613,13 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
   final Paint _accentGlowPaint = Paint()..style = PaintingStyle.fill;
   final Paint _centerGlowPaint = Paint()..style = PaintingStyle.fill;
   final Paint _innerCirclePaint = Paint()..style = PaintingStyle.fill;
+  final Paint _breathingGlowPaint = Paint()..style = PaintingStyle.fill;
 
   _MagicalTabIndicatorPainter({
     required this.gradient,
     required this.colorScheme,
     required this.animationValue,
+    required this.breathingValue,
     VoidCallback? onChanged,
   }) : super(onChanged);
 
@@ -593,6 +633,19 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
     canvas.drawRRect(
       RRect.fromRectAndRadius(rect, Radius.circular(radius)),
       _gradientPaint,
+    );
+
+    // Breathing glow effect - pulses in and out
+    // Breathing value goes from 0 to 1, creating a smooth pulse
+    final breathingOpacity = 0.15 + (breathingValue * 0.15); // 0.15 to 0.3 opacity
+    final breathingBlur = 8 + (breathingValue * 8); // 8 to 16 blur radius
+    
+    _breathingGlowPaint
+      ..color = colorScheme.primary1.withOpacity(breathingOpacity)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, breathingBlur);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(radius)),
+      _breathingGlowPaint,
     );
 
     // Glow ring effect
@@ -838,25 +891,43 @@ class _CapsuleCard extends ConsumerWidget {
     final colorScheme = ref.watch(selectedColorSchemeProvider);
     final softGradient = DynamicTheme.softGradient(colorScheme);
     final dreamyGradient = DynamicTheme.dreamyGradient(colorScheme);
+    final isDeepBlueTheme = colorScheme.id == 'deep_blue';
 
     return RepaintBoundary(
       child: Container(
-      margin: EdgeInsets.zero,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(AppTheme.spacingMd),
-        child: Row(
-          children: [
+          margin: EdgeInsets.zero,
+          decoration: BoxDecoration(
+                  color: isDeepBlueTheme 
+                      ? Colors.white.withOpacity(0.15) // Semi-transparent white for dark theme
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  border: isDeepBlueTheme 
+                      ? Border.all(color: Colors.white.withOpacity(0.2), width: 1)
+                      : null,
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDeepBlueTheme 
+                          ? Colors.black.withOpacity(0.4)
+                          : Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      spreadRadius: 0,
+                      offset: const Offset(0, 4), // Increased offset for floating effect
+                    ),
+                    // Additional subtle shadow for depth
+                    BoxShadow(
+                      color: isDeepBlueTheme 
+                          ? Colors.black.withOpacity(0.2)
+                          : Colors.black.withOpacity(0.05),
+                      blurRadius: 4,
+                      spreadRadius: 0,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(AppTheme.spacingMd),
+                  child: Row(
+                    children: [
             // Envelope Icon
             Container(
                 width: 56,
@@ -915,7 +986,9 @@ class _CapsuleCard extends ConsumerWidget {
                               ? Icons.check_circle_outline 
                               : Icons.schedule_outlined,
                           size: 14,
-                          color: AppTheme.textGrey, // 60% opacity for visibility
+                          color: isDeepBlueTheme 
+                              ? Colors.white.withOpacity(0.7)
+                              : AppTheme.textGrey,
                         ),
                         SizedBox(width: AppTheme.spacingXs),
                         Expanded(
@@ -931,12 +1004,14 @@ class _CapsuleCard extends ConsumerWidget {
                       ],
                     ),
                     if (!capsule.isOpened && !capsule.isUnlocked) ...[
-                      SizedBox(height: AppTheme.spacingXs),
+                      SizedBox(height: 4), // Reduced spacing to move countdown up
                       CountdownDisplay(
                         duration: capsule.timeUntilUnlock,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colorScheme.accent, // Slightly brighter accent purple
-                          fontWeight: FontWeight.w600,
+                          color: isDeepBlueTheme
+                              ? Colors.white.withOpacity(1.0) // Bright white for maximum visibility
+                              : colorScheme.accent, // Accent color for other themes
+                          fontWeight: FontWeight.w700, // Increased from w600 for more prominence
                         ),
                       ),
                     ],
@@ -957,13 +1032,15 @@ class _CapsuleCard extends ConsumerWidget {
               
             Icon(
               Icons.chevron_right_outlined,
-              color: AppTheme.textGrey,
+              color: isDeepBlueTheme 
+                  ? Colors.white.withOpacity(0.7)
+                  : AppTheme.textGrey,
               size: 24,
             ),
-          ],
-        ),
-      ),
-    ),
+                    ],
+                  ),
+                ),
+              ),
     );
   }
 }

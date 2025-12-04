@@ -148,14 +148,16 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                   'When should ${recipient?.name ?? "they"} open this?',
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textDark,
+                        color: colorScheme.id == 'deep_blue' ? Colors.white : AppColors.textDark,
                       ),
                 ),
                 SizedBox(height: AppTheme.spacingSm),
                 Text(
                   'Choose the perfect moment for the reveal',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppTheme.textGrey,
+                        color: colorScheme.id == 'deep_blue' 
+                            ? Colors.white.withOpacity(0.9) 
+                            : AppTheme.textGrey,
                       ),
                 ),
                 SizedBox(height: AppTheme.spacingXl),
@@ -183,7 +185,7 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                   'Or choose a custom date and time',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textDark,
+                        color: colorScheme.id == 'deep_blue' ? Colors.white : AppColors.textDark,
                       ),
                 ),
                 
@@ -212,7 +214,9 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                                   'Date',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: AppTheme.textGrey,
+                                    color: colorScheme.id == 'deep_blue' 
+                                        ? Colors.white.withOpacity(0.8) 
+                                        : AppTheme.textGrey,
                                   ),
                                 ),
                                 SizedBox(height: AppTheme.spacingXs),
@@ -224,14 +228,21 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
                                     color: _selectedDate != null
-                                        ? AppColors.textDark
-                                        : AppTheme.textGrey,
+                                        ? (colorScheme.id == 'deep_blue' ? Colors.white : AppColors.textDark)
+                                        : (colorScheme.id == 'deep_blue' 
+                                            ? Colors.white.withOpacity(0.7) 
+                                            : AppTheme.textGrey),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          Icon(Icons.chevron_right, color: AppTheme.textGrey),
+                          Icon(
+                            Icons.chevron_right, 
+                            color: colorScheme.id == 'deep_blue' 
+                                ? Colors.white.withOpacity(0.7) 
+                                : AppTheme.textGrey,
+                          ),
                         ],
                       ),
                     ),
@@ -263,7 +274,9 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                                   'Time',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: AppTheme.textGrey,
+                                    color: colorScheme.id == 'deep_blue' 
+                                        ? Colors.white.withOpacity(0.8) 
+                                        : AppTheme.textGrey,
                                   ),
                                 ),
                                 SizedBox(height: AppTheme.spacingXs),
@@ -275,14 +288,21 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
                                     color: _selectedTime != null
-                                        ? AppColors.textDark
-                                        : AppTheme.textGrey,
+                                        ? (colorScheme.id == 'deep_blue' ? Colors.white : AppColors.textDark)
+                                        : (colorScheme.id == 'deep_blue' 
+                                            ? Colors.white.withOpacity(0.7) 
+                                            : AppTheme.textGrey),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          Icon(Icons.chevron_right, color: AppTheme.textGrey),
+                          Icon(
+                            Icons.chevron_right, 
+                            color: colorScheme.id == 'deep_blue' 
+                                ? Colors.white.withOpacity(0.7) 
+                                : AppTheme.textGrey,
+                          ),
                         ],
                       ),
                     ),

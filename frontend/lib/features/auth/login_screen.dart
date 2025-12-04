@@ -67,6 +67,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   
   @override
   Widget build(BuildContext context) {
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
+    final isDeepBlue = colorScheme.id == 'deep_blue';
+    
+    // Theme-aware text colors
+    final titleColor = isDeepBlue ? Colors.white : AppColors.textDark;
+    final bodyColor = isDeepBlue ? Colors.white.withOpacity(0.9) : AppColors.textGrey;
+    
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -89,7 +96,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   'Welcome back',
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textDark,
+                        color: titleColor,
                       ),
                 ),
                 
@@ -98,7 +105,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 Text(
                   'Log in to continue sharing special moments',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppColors.textGrey,
+                        color: bodyColor,
                       ),
                 ),
                 
@@ -230,7 +237,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   children: [
                     Text(
                       'Don\'t have an account? ',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: isDeepBlue ? Colors.white.withOpacity(0.9) : null,
+                          ),
                     ),
                     TextButton(
                       onPressed: () => context.go(Routes.signup),

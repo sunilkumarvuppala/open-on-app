@@ -27,8 +27,8 @@ class DynamicTheme {
         error: const Color(0xFFEF5350),
         onPrimary: Colors.white,
         onSecondary: scheme.primary1,
-        onSurface: const Color(0xFF4A4A4A),
-        onBackground: const Color(0xFF4A4A4A),
+        onSurface: scheme.id == 'deep_blue' ? Colors.white : const Color(0xFF4A4A4A),
+        onBackground: scheme.id == 'deep_blue' ? Colors.white : const Color(0xFF4A4A4A),
       ),
       
       scaffoldBackgroundColor: scheme.secondary2,
@@ -37,11 +37,11 @@ class DynamicTheme {
         elevation: 0,
         centerTitle: false,
         backgroundColor: Colors.transparent,
-        foregroundColor: const Color(0xFF4A4A4A),
-        titleTextStyle: const TextStyle(
+        foregroundColor: scheme.id == 'deep_blue' ? Colors.white : const Color(0xFF4A4A4A),
+        titleTextStyle: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF4A4A4A),
+          color: scheme.id == 'deep_blue' ? Colors.white : const Color(0xFF4A4A4A),
         ),
       ),
       
@@ -104,56 +104,83 @@ class DynamicTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
-        color: Colors.white,
+        color: scheme.id == 'deep_blue' 
+            ? Colors.white.withOpacity(0.1) // Semi-transparent white for deep blue
+            : Colors.white,
       ),
       
-      textTheme: const TextTheme(
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: scheme.id == 'deep_blue'
+            ? scheme.secondary2.withOpacity(0.95) // Semi-transparent dark blue
+            : Colors.white,
+        selectedItemColor: scheme.id == 'deep_blue'
+            ? Colors.white
+            : scheme.primary1,
+        unselectedItemColor: scheme.id == 'deep_blue'
+            ? Colors.white.withOpacity(0.6)
+            : const Color(0xFF9E9E9E),
+        selectedLabelStyle: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: scheme.id == 'deep_blue' ? Colors.white : scheme.primary1,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w400,
+          color: scheme.id == 'deep_blue' 
+              ? Colors.white.withOpacity(0.6)
+              : const Color(0xFF9E9E9E),
+        ),
+        elevation: 8,
+      ),
+      
+      textTheme: TextTheme(
         displayLarge: TextStyle(
           fontSize: 32,
           fontWeight: FontWeight.w700,
-          color: Color(0xFF4A4A4A),
+          color: scheme.id == 'deep_blue' ? Colors.white : const Color(0xFF4A4A4A),
         ),
         displayMedium: TextStyle(
           fontSize: 28,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF4A4A4A),
+          color: scheme.id == 'deep_blue' ? Colors.white : const Color(0xFF4A4A4A),
         ),
         displaySmall: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF4A4A4A),
+          color: scheme.id == 'deep_blue' ? Colors.white : const Color(0xFF4A4A4A),
         ),
         headlineMedium: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF4A4A4A),
+          color: scheme.id == 'deep_blue' ? Colors.white : const Color(0xFF4A4A4A),
         ),
         titleLarge: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF4A4A4A),
+          color: scheme.id == 'deep_blue' ? Colors.white : const Color(0xFF4A4A4A),
         ),
         titleMedium: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w500,
-          color: Color(0xFF4A4A4A),
+          color: scheme.id == 'deep_blue' ? Colors.white : const Color(0xFF4A4A4A),
         ),
         bodyLarge: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w400,
-          color: Color(0xFF4A4A4A),
+          color: scheme.id == 'deep_blue' ? Colors.white : const Color(0xFF4A4A4A),
           height: 1.6,
         ),
         bodyMedium: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w400,
-          color: Color(0xFF4A4A4A),
+          color: scheme.id == 'deep_blue' ? Colors.white : const Color(0xFF4A4A4A),
           height: 1.5,
         ),
         labelLarge: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF4A4A4A),
+          color: scheme.id == 'deep_blue' ? Colors.white : const Color(0xFF4A4A4A),
         ),
       ),
     );
@@ -179,6 +206,15 @@ class DynamicTheme {
   static LinearGradient dreamyGradient(AppColorScheme scheme) {
     return LinearGradient(
       colors: [scheme.primary1, scheme.primary2],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+  }
+
+  /// Background gradient for screens - uses secondary colors for dark gradient backgrounds
+  static LinearGradient backgroundGradient(AppColorScheme scheme) {
+    return LinearGradient(
+      colors: [scheme.secondary1, scheme.secondary2],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     );

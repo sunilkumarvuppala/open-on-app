@@ -5,6 +5,7 @@ import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
+import 'package:openon_app/core/widgets/magic_dust_background.dart';
 
 class WelcomeScreen extends ConsumerWidget {
   const WelcomeScreen({super.key});
@@ -15,11 +16,13 @@ class WelcomeScreen extends ConsumerWidget {
     final gradient = DynamicTheme.dreamyGradient(colorScheme);
     
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: gradient,
-        ),
-        child: SafeArea(
+      body: MagicDustBackground(
+        baseColor: colorScheme.primary1,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: gradient,
+          ),
+          child: SafeArea(
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
             child: Column(
@@ -131,6 +134,7 @@ class WelcomeScreen extends ConsumerWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }

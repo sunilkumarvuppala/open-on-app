@@ -380,8 +380,9 @@ class AnimatedUnlockingSoonBadge extends ConsumerStatefulWidget {
 
 class _AnimatedUnlockingSoonBadgeState
     extends ConsumerState<AnimatedUnlockingSoonBadge>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _sparkleController;
+  late AnimationController _shimmerController;
 
   @override
   void initState() {
@@ -391,11 +392,18 @@ class _AnimatedUnlockingSoonBadgeState
       vsync: this,
       duration: AppConstants.sparkleAnimationDuration,
     )..repeat();
+    
+    // Shimmer animation: 3 seconds for shimmer pass
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
   }
 
   @override
   void dispose() {
     _sparkleController.dispose();
+    _shimmerController.dispose();
     super.dispose();
   }
 
@@ -408,10 +416,11 @@ class _AnimatedUnlockingSoonBadgeState
     
     return RepaintBoundary(
       child: AnimatedBuilder(
-        animation: _sparkleController,
+        animation: Listenable.merge([_sparkleController, _shimmerController]),
         builder: (context, child) {
           // Calculate animation value inside builder (same as tabs)
           final animationValue = _sparkleController.value * 2 * math.pi;
+          final shimmerProgress = _shimmerController.value;
           
           return ClipRRect(
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
@@ -428,6 +437,15 @@ class _AnimatedUnlockingSoonBadgeState
                   child: CustomPaint(
                     painter: _BadgeSparklePainter(
                       animationValue: animationValue,
+                      colorScheme: colorScheme,
+                    ),
+                  ),
+                ),
+                // Shimmer overlay
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _BadgeShimmerPainter(
+                      progress: shimmerProgress,
                       colorScheme: colorScheme,
                     ),
                   ),
@@ -541,6 +559,77 @@ class _BadgeSparklePainter extends CustomPainter {
   @override
   bool shouldRepaint(_BadgeSparklePainter oldDelegate) {
     return animationValue != oldDelegate.animationValue || colorScheme != oldDelegate.colorScheme;
+  }
+}
+
+/// Shimmer painter for badge - diagonal shimmer pass
+class _BadgeShimmerPainter extends CustomPainter {
+  final double progress;
+  final AppColorScheme colorScheme;
+  
+  _BadgeShimmerPainter({
+    required this.progress,
+    required this.colorScheme,
+  });
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Calculate shimmer position (diagonal from top-right to bottom-left)
+    final diagonal = math.sqrt(size.width * size.width + size.height * size.height);
+    const shimmerWidth = 40.0;
+    final shimmerStart = -shimmerWidth;
+    final shimmerEnd = diagonal + shimmerWidth;
+    final shimmerPosition = shimmerStart + (shimmerEnd - shimmerStart) * progress;
+    
+    // Create shimmer gradient (white to transparent) - reduced brightness
+    final shimmerGradient = LinearGradient(
+      colors: [
+        Colors.transparent,
+        Colors.white.withOpacity(AppConstants.shimmerEdgeOpacity),
+        Colors.white.withOpacity(AppConstants.shimmerCenterOpacity),
+        Colors.white.withOpacity(AppConstants.shimmerEdgeOpacity),
+        Colors.transparent,
+      ],
+      stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
+    );
+    
+    // Angle for diagonal shimmer (from top-right to bottom-left)
+    const angle = -math.pi / 4;
+    
+    // Create paint with gradient shader
+    final paint = Paint()
+      ..shader = shimmerGradient.createShader(
+        Rect.fromLTWH(
+          shimmerPosition - shimmerWidth / 2,
+          -size.height,
+          shimmerWidth,
+          size.height * 3,
+        ),
+      )
+      ..blendMode = BlendMode.plus; // Additive blending for glow effect
+    
+    // Apply rotation and draw
+    canvas.save();
+    canvas.translate(size.width / 2, size.height / 2);
+    canvas.rotate(angle);
+    canvas.translate(-size.width / 2, -size.height / 2);
+    
+    canvas.drawRect(
+      Rect.fromLTWH(
+        shimmerPosition - shimmerWidth / 2,
+        -size.height,
+        shimmerWidth,
+        size.height * 3,
+      ),
+      paint,
+    );
+    
+    canvas.restore();
+  }
+  
+  @override
+  bool shouldRepaint(_BadgeShimmerPainter oldDelegate) {
+    return progress != oldDelegate.progress || colorScheme != oldDelegate.colorScheme;
   }
 }
 

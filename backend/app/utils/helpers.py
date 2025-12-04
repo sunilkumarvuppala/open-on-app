@@ -25,19 +25,27 @@ def is_future(dt: datetime) -> bool:
     return dt_utc > now_utc
 
 
-def validate_unlock_time(unlock_time: datetime, min_minutes: int = 1, max_years: int = 5) -> tuple[bool, str]:
+def validate_unlock_time(
+    unlock_time: datetime,
+    min_minutes: Optional[int] = None,
+    max_years: Optional[int] = None
+) -> tuple[bool, str]:
     """
     Validate unlock time is within acceptable range.
     
     Args:
         unlock_time: The scheduled unlock datetime
-        min_minutes: Minimum minutes in the future
-        max_years: Maximum years in the future
+        min_minutes: Minimum minutes in the future (uses settings if None)
+        max_years: Maximum years in the future (uses settings if None)
     
     Returns:
         Tuple of (is_valid, error_message)
     """
     from datetime import timedelta
+    from app.core.config import settings
+    
+    min_minutes = min_minutes if min_minutes is not None else settings.min_unlock_minutes
+    max_years = max_years if max_years is not None else settings.max_unlock_years
     
     unlock_utc = to_utc(unlock_time)
     now_utc = utcnow()
@@ -117,20 +125,23 @@ def validate_password(password: str) -> tuple[bool, str]:
     Validate password strength.
     
     Rules:
-    - 8-72 bytes (BCrypt limit is 72 bytes)
+    - Minimum length from settings
+    - BCrypt byte limit (72 bytes)
     - At least one uppercase
     - At least one lowercase
     - At least one number
     
     Note: BCrypt has a 72-byte limit, so we validate byte length, not character length.
     """
-    if len(password) < 8:
-        return False, "Password must be at least 8 characters"
+    from app.core.config import settings
+    
+    if len(password) < settings.min_password_length:
+        return False, f"Password must be at least {settings.min_password_length} characters"
     
     # BCrypt has a 72-byte limit - check byte length, not character length
     password_bytes = password.encode('utf-8')
-    if len(password_bytes) > 72:
-        return False, "Password cannot exceed 72 bytes (approximately 72 characters for ASCII, less for Unicode)"
+    if len(password_bytes) > settings.bcrypt_max_bytes:
+        return False, f"Password cannot exceed {settings.bcrypt_max_bytes} bytes (approximately {settings.bcrypt_max_bytes} characters for ASCII, less for Unicode)"
     
     if not re.search(r'[A-Z]', password):
         return False, "Password must contain at least one uppercase letter"

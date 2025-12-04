@@ -40,17 +40,58 @@ class AppConstants {
   static const Duration animationDurationLong = Duration(milliseconds: 500);
   static const Duration openingAnimationDuration = Duration(milliseconds: 1500);
   static const Duration openingAnimationDelay = Duration(milliseconds: 500);
-  static const Duration magicDustAnimationDuration = Duration(seconds: 8);
+  static const Duration magicDustAnimationDuration = Duration(seconds: 60); // Longer duration for extended sparkle movement
   static const Duration sparkleAnimationDuration = Duration(seconds: 3);
   
   // Animation particle counts (optimized for performance)
-  static const int magicDustParticleCount = 20; // Reduced from 25
-  static const int magicDustSparkleCount = 10; // Reduced from 12
+  static const int magicDustParticleCount = 20;
+  static const int magicDustSparkleCount = 10;
+  static const double magicDustSparkleCountMultiplier = 1.5; // Multiplier for full-screen coverage
   static const double magicDustHeaderAreaRatio = 0.4;
   static const double magicDustMinOpacity = 0.04;
   static const double magicDustMaxOpacity = 0.06;
   static const double sparkleMaxOpacity = 0.8;
   static const double sparkleMinVisibleOpacity = 0.05;
+  
+  // Sparkle movement constants
+  static const double sparkleBaseVelocity = 0.00001; // Base velocity multiplier for slow movement
+  static const double sparkleSizeMin = 1.5;
+  static const double sparkleSizeMax = 3.5; // 1.5 + 2.0
+  
+  // Sparkle rendering constants
+  static const double sparkleGlowOpacityMultiplier = 0.3; // Outer glow opacity relative to main sparkle
+  static const double sparkleGlowSizeMultiplier = 1.5; // Outer glow size relative to sparkle
+  static const double sparkleBlurMultiplier = 3.0; // Blur radius multiplier for outer glow
+  static const double sparkleMainBlurMultiplier = 0.5; // Blur radius multiplier for main sparkle
+  static const double sparkleCenterOpacityMultiplier = 1.2; // Center point opacity multiplier
+  static const double sparkleCenterSizeMultiplier = 0.3; // Center point size relative to sparkle
+  static const int millisecondsPerSecond = 1000; // Conversion factor
+  
+  // UI Opacity constants (for theme-aware transparency)
+  static const double opacityTransparent = 0.0;
+  static const double opacityVeryLow = 0.05;
+  static const double opacityLow = 0.1;
+  static const double opacityMedium = 0.15;
+  static const double opacityMediumHigh = 0.2;
+  static const double opacityHigh = 0.3;
+  static const double opacityVeryHigh = 0.6;
+  static const double opacityNearlyOpaque = 0.9;
+  static const double opacityOpaque = 0.95;
+  static const double opacityFull = 1.0;
+  
+  // Shimmer opacity constants
+  static const double shimmerEdgeOpacity = 0.15;
+  static const double shimmerCenterOpacity = 0.3;
+  
+  // Badge glow opacity constants
+  static const double badgeGlowBackgroundOpacity = 0.1;
+  static const double badgeGlowShadowOpacity = 0.2;
+  
+  // Navigation glow constants
+  static const double navGlowBackgroundOpacity = 0.1;
+  static const double navGlowShadowOpacity = 0.2;
+  static const double navGlowSize = 24.0;
+  static const double navGlowOffset = 2.0;
   
   // Animation performance settings
   static const int targetFPS = 60;

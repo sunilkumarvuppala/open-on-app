@@ -49,14 +49,16 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                           'Who is this letter for?',
                           style: Theme.of(context).textTheme.displaySmall?.copyWith(
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.textDark,
+                                color: colorScheme.id == 'deep_blue' ? Colors.white : AppColors.textDark,
                               ),
                         ),
                         SizedBox(height: AppTheme.spacingSm),
                         Text(
                           'Choose someone special to receive your letter',
                           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: AppTheme.textGrey,
+                                color: colorScheme.id == 'deep_blue' 
+                                    ? Colors.white.withOpacity(0.9) 
+                                    : AppTheme.textGrey,
                               ),
                         ),
                         SizedBox(height: AppTheme.spacingXl),
@@ -91,7 +93,9 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                                   ? 'No recipients yet'
                                   : 'No recipients found',
                               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: AppTheme.textGrey,
+                                    color: colorScheme.id == 'deep_blue' 
+                                        ? Colors.white.withOpacity(0.9) 
+                                        : AppTheme.textGrey,
                                   ),
                             ),
                           ),
@@ -146,14 +150,18 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                                                 style: TextStyle(
                                                   fontSize: 16,
                                                   fontWeight: FontWeight.w600,
-                                                  color: AppColors.textDark,
+                                                  color: colorScheme.id == 'deep_blue' 
+                                                      ? Colors.white 
+                                                      : AppColors.textDark,
                                                 ),
                                               ),
                                               SizedBox(height: AppTheme.spacingXs),
                                               Text(
                                                 recipient.relationship,
                                                 style: TextStyle(
-                                                  color: AppTheme.textGrey,
+                                                  color: colorScheme.id == 'deep_blue' 
+                                                      ? Colors.white.withOpacity(0.8) 
+                                                      : AppTheme.textGrey,
                                                   fontSize: 14,
                                                 ),
                                               ),
@@ -206,7 +214,7 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                                     ),
                                   ),
                                   const SizedBox(width: 16),
-                                  const Expanded(
+                                  Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
@@ -215,14 +223,18 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                                           style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w600,
-                                            color: AppColors.textDark,
+                                            color: colorScheme.id == 'deep_blue' 
+                                                ? Colors.white 
+                                                : AppColors.textDark,
                                           ),
                                         ),
                                         SizedBox(height: AppTheme.spacingXs),
                                         Text(
                                           'Create a new person to send letters to',
                                           style: TextStyle(
-                                            color: AppTheme.textGrey,
+                                            color: colorScheme.id == 'deep_blue' 
+                                                ? Colors.white.withOpacity(0.8) 
+                                                : AppTheme.textGrey,
                                             fontSize: 14,
                                           ),
                                         ),
@@ -231,7 +243,9 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                                   ),
                                   Icon(
                                     Icons.chevron_right,
-                                    color: AppTheme.textGrey,
+                                    color: colorScheme.id == 'deep_blue' 
+                                        ? Colors.white.withOpacity(0.7) 
+                                        : AppTheme.textGrey,
                                   ),
                                 ],
                               ),

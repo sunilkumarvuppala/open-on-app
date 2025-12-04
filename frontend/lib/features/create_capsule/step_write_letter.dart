@@ -81,6 +81,12 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
     final photoPath = draft.photoPath;
     final characterCount = _contentController.text.length;
     final isValid = _contentController.text.trim().isNotEmpty;
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
+    final isDeepBlue = colorScheme.id == 'deep_blue';
+    
+    // Theme-aware text colors
+    final titleColor = isDeepBlue ? Colors.white : AppColors.textDark;
+    final bodyColor = isDeepBlue ? Colors.white.withOpacity(0.9) : AppTheme.textGrey;
     
     return Column(
       children: [
@@ -94,14 +100,14 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
                   'Write your letter to ${recipient?.name ?? "them"}',
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textDark,
+                        color: titleColor,
                       ),
                 ),
                 SizedBox(height: AppTheme.spacingSm),
                 Text(
                   'Share what\'s in your heart ♥',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppTheme.textGrey,
+                        color: bodyColor,
                       ),
                 ),
                 SizedBox(height: AppTheme.spacingXl),

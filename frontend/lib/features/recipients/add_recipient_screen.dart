@@ -184,6 +184,10 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
   Widget build(BuildContext context) {
     final isEditing = widget.recipient != null;
     final colorScheme = ref.watch(selectedColorSchemeProvider);
+    final isDeepBlue = colorScheme.id == 'deep_blue';
+    
+    // Theme-aware text colors
+    final bodyColor = isDeepBlue ? Colors.white.withOpacity(0.9) : AppTheme.textGrey;
     
     return Scaffold(
       appBar: AppBar(
@@ -312,11 +316,18 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
                       Container(
                         margin: const EdgeInsets.only(top: 4),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: isDeepBlue 
+                              ? Colors.white.withOpacity(0.15) 
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(8),
+                          border: isDeepBlue 
+                              ? Border.all(color: Colors.white.withOpacity(0.2), width: 1)
+                              : null,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: isDeepBlue 
+                                  ? Colors.black.withOpacity(0.3)
+                                  : Colors.black.withOpacity(0.1),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
@@ -330,14 +341,46 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
                             final user = _searchResults[index];
                             return ListTile(
                               leading: CircleAvatar(
-                                child: Text(user.name[0].toUpperCase()),
+                                backgroundColor: isDeepBlue 
+                                    ? Colors.white.withOpacity(0.2) 
+                                    : colorScheme.primary1.withOpacity(0.1),
+                                child: Text(
+                                  user.name[0].toUpperCase(),
+                                  style: TextStyle(
+                                    color: isDeepBlue 
+                                        ? Colors.white 
+                                        : colorScheme.primary1,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
-                              title: Text(user.name),
+                              title: Text(
+                                user.name,
+                                style: TextStyle(
+                                  color: isDeepBlue ? Colors.white : AppColors.textDark,
+                                ),
+                              ),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('@${user.username}', style: const TextStyle(fontWeight: FontWeight.w500)),
-                                  Text(user.email, style: TextStyle(fontSize: 12, color: AppColors.textGrey)),
+                                  Text(
+                                    '@${user.username}', 
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      color: isDeepBlue 
+                                          ? Colors.white.withOpacity(0.9) 
+                                          : AppColors.textDark,
+                                    ),
+                                  ),
+                                  Text(
+                                    user.email, 
+                                    style: TextStyle(
+                                      fontSize: 12, 
+                                      color: isDeepBlue 
+                                          ? Colors.white.withOpacity(0.7) 
+                                          : AppColors.textGrey,
+                                    ),
+                                  ),
                                 ],
                               ),
                               onTap: () => _selectUser(user),
@@ -412,7 +455,7 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
                 Text(
                   '* Required fields',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textGrey,
+                        color: bodyColor,
                       ),
                 ),
                 
