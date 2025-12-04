@@ -48,9 +48,13 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to share'),
+          SnackBar(
+            content: const Text('Failed to share'),
             backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
           ),
         );
       }
@@ -66,11 +70,21 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
       );
     } else {
       // Show tooltip
+      final colorScheme = ref.read(selectedColorSchemeProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Not yet… come back in ${widget.capsule.countdownText} ♥'),
+          content: Text(
+            'Not yet… come back in ${widget.capsule.countdownText} ♥',
+            style: TextStyle(
+              color: DynamicTheme.getSnackBarTextColor(colorScheme),
+            ),
+          ),
           duration: const Duration(seconds: 2),
+          backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
           behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          ),
         ),
       );
     }
@@ -97,13 +111,23 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, color: AppColors.white),
+                      icon: Icon(
+                        Icons.arrow_back, 
+                        color: DynamicTheme.getPrimaryIconColor(
+                          ref.read(selectedColorSchemeProvider),
+                        ),
+                      ),
                       onPressed: () => context.pop(),
                     ),
                     const Spacer(),
                     if (!canOpen)
                       IconButton(
-                        icon: const Icon(Icons.share, color: AppColors.white),
+                        icon: Icon(
+                          Icons.share, 
+                          color: DynamicTheme.getPrimaryIconColor(
+                            ref.read(selectedColorSchemeProvider),
+                          ),
+                        ),
                         onPressed: _handleShare,
                       ),
                   ],
@@ -242,6 +266,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
                           backgroundColor: AppColors.white,
                           foregroundColor: colorScheme.primary1,
                           padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                          side: DynamicTheme.getButtonBorderSide(colorScheme),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                           ),

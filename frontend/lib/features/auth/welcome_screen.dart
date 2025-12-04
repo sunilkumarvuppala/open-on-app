@@ -91,6 +91,7 @@ class WelcomeScreen extends ConsumerWidget {
                       backgroundColor: AppColors.white,
                       foregroundColor: colorScheme.primary1,
                       padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                      side: DynamicTheme.getButtonBorderSide(colorScheme),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                       ),

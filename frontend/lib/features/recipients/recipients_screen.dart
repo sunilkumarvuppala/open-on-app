@@ -5,7 +5,11 @@ import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
+import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
+
+// Import AppColors for error color
+import 'package:openon_app/core/theme/app_theme.dart' show AppColors;
 
 class RecipientsScreen extends ConsumerWidget {
   const RecipientsScreen({super.key});
@@ -28,7 +32,12 @@ class RecipientsScreen extends ConsumerWidget {
           appBar: AppBar(
             title: const Text('Recipients'),
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
+              icon: Icon(
+                Icons.arrow_back,
+                color: DynamicTheme.getPrimaryIconColor(
+                  ref.watch(selectedColorSchemeProvider),
+                ),
+              ),
               onPressed: () => context.pop(),
             ),
           ),
@@ -96,6 +105,7 @@ class RecipientsScreen extends ConsumerWidget {
     return Card(
       margin: EdgeInsets.zero,
       elevation: 2,
+      color: DynamicTheme.getCardBackgroundColor(colorScheme),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
       ),
@@ -125,12 +135,13 @@ class RecipientsScreen extends ConsumerWidget {
           recipient.name,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
+                color: DynamicTheme.getPrimaryTextColor(colorScheme),
               ),
         ),
         subtitle: Text(
           recipient.relationship,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textGrey,
+                color: DynamicTheme.getSecondaryTextColor(colorScheme),
               ),
         ),
         trailing: Row(
@@ -138,7 +149,7 @@ class RecipientsScreen extends ConsumerWidget {
           children: [
             IconButton(
               icon: const Icon(Icons.edit_outlined),
-              color: colorScheme.primary1,
+              color: DynamicTheme.getPrimaryIconColor(colorScheme),
               onPressed: () => context.push(
                 Routes.addRecipient,
                 extra: recipient,
@@ -160,15 +171,37 @@ class RecipientsScreen extends ConsumerWidget {
     WidgetRef ref,
     Recipient recipient,
   ) {
+    final colorScheme = ref.read(selectedColorSchemeProvider);
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Recipient'),
-        content: Text('Are you sure you want to delete ${recipient.name}?'),
+        backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        ),
+        title: Text(
+          'Delete Recipient',
+          style: TextStyle(
+            color: DynamicTheme.getPrimaryTextColor(colorScheme),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to delete ${recipient.name}?',
+          style: TextStyle(
+            color: DynamicTheme.getSecondaryTextColor(colorScheme),
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: DynamicTheme.getPrimaryTextColor(colorScheme),
+              ),
+            ),
           ),
           TextButton(
             onPressed: () async {
@@ -189,11 +222,21 @@ class RecipientsScreen extends ConsumerWidget {
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: AppColors.error,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      ),
+                    ),
                   );
                 }
               }
             },
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.error,
+            ),
             child: const Text('Delete'),
           ),
         ],

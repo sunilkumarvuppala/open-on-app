@@ -59,6 +59,39 @@ class AppTheme {
   static const radiusMd = 12.0;
   static const radiusLg = 16.0;
   
+  // Opacity constants for consistent theming
+  static const opacityLow = 0.1;
+  static const opacityMedium = 0.15;
+  static const opacityMediumHigh = 0.2;
+  static const opacityHigh = 0.3;
+  static const opacityVeryHigh = 0.6;
+  static const opacityAlmostFull = 0.7;
+  static const opacityAlmostFull2 = 0.8;
+  static const opacityFull = 0.9;
+  static const opacitySemiTransparent = 0.95;
+  
+  // Chip spacing constants
+  static const chipSpacing = 6.0;
+  
+  // Border width constants
+  static const borderWidthThin = 0.5;
+  static const borderWidthStandard = 1.0;
+  static const borderWidthThick = 2.0;
+  
+  // Shadow/glow constants
+  static const shadowOpacityVerySubtle = 0.005;
+  static const shadowOpacitySubtle = 0.08;
+  static const shadowOpacityMedium = 0.1;
+  static const shadowOpacityHigh = 0.2;
+  static const shadowOpacityVeryHigh = 0.3;
+  
+  // Glow blur/spread constants
+  static const glowBlurRadiusSmall = 8.0;
+  static const glowBlurRadiusMedium = 12.0;
+  static const glowBlurRadiusLarge = 16.0;
+  static const glowSpreadRadiusSmall = 0.5;
+  static const glowSpreadRadiusMedium = 1.5;
+  
   // Color shortcuts
   static const deepPurple = AppColors.forestGreen;
   static const softPink = AppColors.warmBeige;

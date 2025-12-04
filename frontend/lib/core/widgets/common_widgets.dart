@@ -92,10 +92,21 @@ class UserAvatar extends ConsumerWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: gradient,
+        border: Border.all(
+          color: colorScheme.accent.withOpacity(0.8),
+          width: 1.0,
+        ),
         boxShadow: [
+          // Reduced glow
           BoxShadow(
-            color: colorScheme.primary1.withOpacity(0.3),
-            blurRadius: 8,
+            color: colorScheme.accent.withOpacity(0.2),
+            blurRadius: 12,
+            spreadRadius: 1,
+          ),
+          // Subtle shadow
+          BoxShadow(
+            color: colorScheme.primary1.withOpacity(0.2),
+            blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],

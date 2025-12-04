@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/color_scheme.dart';
+import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/providers/providers.dart';
 
 /// Main navigation shell with bottom navigation bar
@@ -69,17 +70,10 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
   @override
   Widget build(BuildContext context) {
     final colorScheme = ref.watch(selectedColorSchemeProvider);
-    final isDeepBlue = colorScheme.id == 'deep_blue';
     
-    // Background color for bottom nav - semi-transparent dark for deep blue, white for others
-    final navBackgroundColor = isDeepBlue
-        ? colorScheme.secondary2.withOpacity(0.95) // Semi-transparent dark blue
-        : Colors.white;
-    
-    // Shadow color - subtle for dark theme, more visible for light
-    final shadowColor = isDeepBlue
-        ? Colors.black.withOpacity(0.3)
-        : Colors.black.withOpacity(0.05);
+    // Use theme-aware colors for navigation bar
+    final navBackgroundColor = DynamicTheme.getNavBarBackgroundColor(colorScheme);
+    final shadowColor = DynamicTheme.getNavBarShadowColor(colorScheme);
 
     return Scaffold(
       body: widget.child,
@@ -137,7 +131,6 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
     required AnimationController animationController,
   }) {
     final isSelected = index == _currentIndex;
-    final isDeepBlue = colorScheme.id == 'deep_blue';
     
     // Rising animation - moves up when this tab is selected
     final risingAnimation = Tween<double>(
@@ -148,19 +141,12 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
       curve: Curves.easeOut,
     ));
 
-    // Icon colors - bright white when selected, semi-transparent when unselected
-    final selectedIconColor = Colors.white; // Bright white for selected
-    final unselectedIconColor = isDeepBlue
-        ? Colors.white.withOpacity(0.6) // Semi-transparent white for visibility
-        : AppTheme.textGrey;
-    
-    // Text colors - bright white when selected for deep blue theme
-    final selectedTextColor = isDeepBlue
-        ? Colors.white // Bright white for deep blue theme
-        : colorScheme.primary1;
-    final unselectedTextColor = isDeepBlue
-        ? Colors.white.withOpacity(0.6) // Semi-transparent white
-        : AppTheme.textGrey;
+    // Use theme-aware colors for maximum visibility
+    final selectedIconColor = DynamicTheme.getNavBarSelectedIconColor(colorScheme);
+    final unselectedIconColor = DynamicTheme.getNavBarUnselectedIconColor(colorScheme);
+    final selectedTextColor = DynamicTheme.getNavBarSelectedTextColor(colorScheme);
+    final unselectedTextColor = DynamicTheme.getNavBarUnselectedTextColor(colorScheme);
+    final glowColor = DynamicTheme.getNavBarGlowColor(colorScheme);
 
     return Expanded(
       child: InkWell(
@@ -199,10 +185,10 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
                                   child: Container(
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: Colors.white.withOpacity(0.1),
+                                      color: glowColor,
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.white.withOpacity(0.2),
+                                          color: glowColor,
                                           blurRadius: 4,
                                           spreadRadius: 1,
                                         ),

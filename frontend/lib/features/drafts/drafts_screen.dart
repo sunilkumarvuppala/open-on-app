@@ -35,7 +35,7 @@ class DraftsScreen extends ConsumerWidget {
                     IconButton(
                       icon: Icon(
                         Icons.arrow_back,
-                        color: colorScheme.primary1,
+                        color: DynamicTheme.getPrimaryIconColor(colorScheme),
                       ),
                       onPressed: () => context.pop(),
                     ),
@@ -255,19 +255,22 @@ class DraftsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: DynamicTheme.getDialogBackgroundColor(colorScheme),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         ),
         title: Text(
           'Delete Draft?',
           style: TextStyle(
-            color: colorScheme.primary1,
+            color: DynamicTheme.getDialogTitleColor(colorScheme),
             fontWeight: FontWeight.w600,
           ),
         ),
         content: Text(
           'This draft will be permanently deleted.',
-          style: Theme.of(context).textTheme.bodyMedium,
+          style: TextStyle(
+            color: DynamicTheme.getDialogContentColor(colorScheme),
+          ),
         ),
         actions: [
           TextButton(
@@ -275,7 +278,7 @@ class DraftsScreen extends ConsumerWidget {
             child: Text(
               'Cancel',
               style: TextStyle(
-                color: AppTheme.textGrey,
+                color: DynamicTheme.getDialogButtonColor(colorScheme),
               ),
             ),
           ),
@@ -287,6 +290,7 @@ class DraftsScreen extends ConsumerWidget {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: const Text('Draft deleted'),
+                  backgroundColor: AppColors.success,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMd),

@@ -21,156 +21,19 @@ class AppColorScheme {
     required this.accent,
   });
 
-  // EXISTING TOP THEMES (kept same)
-  static const royalAmethyst = AppColorScheme(
-    id: 'royal_amethyst',
-    name: 'Royal Amethyst',
-    primary1: Color(0xFF6B46C1),
-    primary2: Color(0xFF553C9A),
-    secondary1: Color(0xFFE9D5FF),
-    secondary2: Color(0xFFF3E8FF),
-    accent: Color(0xFFFBBF24),
-  );
+  /// Determines if this color scheme is a dark theme based on background brightness
+  /// Uses the secondary2 color (background) to calculate luminance
+  /// A theme is considered dark if the background luminance is less than 0.5
+  bool get isDarkTheme {
+    // Use Flutter's built-in luminance calculation
+    final luminance = secondary2.computeLuminance();
+    // If luminance is less than 0.5, it's considered a dark theme
+    return luminance < 0.5;
+  }
 
-  static const dreamLilac = AppColorScheme(
-    id: 'dream_lilac',
-    name: 'Dream Lilac',
-    primary1: Color(0xFFCDB4DB),
-    primary2: Color(0xFFB89BC9),
-    secondary1: Color(0xFFFFC8DD),
-    secondary2: Color(0xFFFFD9E8),
-    accent: Color(0xFFB9FBC0),
-  );
-
-  static const velvetNights = AppColorScheme(
-    id: 'velvet_nights',
-    name: 'Velvet Nights',
-    primary1: Color(0xFF1A1A2E),
-    primary2: Color(0xFF0F0F1E),
-    secondary1: Color(0xFFE8E3F0),
-    secondary2: Color(0xFFF5F2F8),
-    accent: Color(0xFFC9A9DD),
-  );
-
-  static const amethystTwilight = AppColorScheme(
-    id: 'amethyst_twilight',
-    name: 'Amethyst Twilight',
-    primary1: Color(0xFF581C87),
-    primary2: Color(0xFF6B21A8),
-    secondary1: Color(0xFFF3E8FF),
-    secondary2: Color(0xFFFAF5FF),
-    accent: Color(0xFFA855F7),
-  );
-
-  static const emeraldElegance = AppColorScheme(
-    id: 'emerald_elegance',
-    name: 'Emerald Elegance',
-    primary1: Color(0xFF0D4A3C),
-    primary2: Color(0xFF0A3A2F),
-    secondary1: Color(0xFFE8F4F1),
-    secondary2: Color(0xFFF0F8F6),
-    accent: Color(0xFF2ECC71),
-  );
-
-  static const midnightBlue = AppColorScheme(
-    id: 'midnight_blue',
-    name: 'Midnight Blue',
-    primary1: Color(0xFF111827),
-    primary2: Color(0xFF1F2937),
-    secondary1: Color(0xFFE5E7EB),
-    secondary2: Color(0xFFF3F4F6),
-    accent: Color(0xFFFBBF24),
-  );
-
-  static const royalSapphire = AppColorScheme(
-    id: 'royal_sapphire',
-    name: 'Royal Sapphire',
-    primary1: Color(0xFF1E3A8A),
-    primary2: Color(0xFF1E40AF),
-    secondary1: Color(0xFFE0E7FF),
-    secondary2: Color(0xFFEEF2FF),
-    accent: Color(0xFFF59E0B),
-  );
-
-  static const oceanDepth = AppColorScheme(
-    id: 'ocean_depth',
-    name: 'Ocean Depth',
-    primary1: Color(0xFF0F4C75),
-    primary2: Color(0xFF0A3A5C),
-    secondary1: Color(0xFFB8E6E6),
-    secondary2: Color(0xFFD4F1F1),
-    accent: Color(0xFFFFD93D),
-  );
-
-  static const glacialNavy = AppColorScheme(
-    id: 'glacial_navy',
-    name: 'Glacial Navy',
-    primary1: Color(0xFF1B2A41),
-    primary2: Color(0xFF141D2E),
-    secondary1: Color(0xFFD0E8F2),
-    secondary2: Color(0xFFE5F2F8),
-    accent: Color(0xFFD9C5A7),
-  );
-
-  static const softBlush = AppColorScheme(
-    id: 'soft_blush',
-    name: 'Soft Blush',
-    primary1: Color(0xFFFADADD),
-    primary2: Color(0xFFF5C5CA),
-    secondary1: Color(0xFFE8D9C5),
-    secondary2: Color(0xFFF2E5D3),
-    accent: Color(0xFFD3B683),
-  );
-
-  // ⭐ GALAXY THEME
-  static const galaxyAurora = AppColorScheme(
-    id: 'galaxy_aurora',
-    name: 'Galaxy Aurora',
-    primary1: Color(0xFF1C164E),
-    primary2: Color(0xFF2A1D6F),
-    secondary1: Color(0xFF8EC5FF),
-    secondary2: Color(0xFFC0FFD8),
-    accent: Color(0xFFF8D57E),
-  );
-
-  // ⭐ NEW SHADE FAMILIES --------------------------------------------------
-
-  // 🔵 SHADES OF BLUE (Modern, premium)
-  static const blueHorizon = AppColorScheme(
-    id: 'blue_horizon',
-    name: 'Blue Horizon',
-    primary1: Color(0xFF0A1A3F),
-    primary2: Color(0xFF102A59),
-    secondary1: Color(0xFFE0ECFF),
-    secondary2: Color(0xFFF2F6FF),
-    accent: Color(0xFF5EA3FF),
-  );
-
-
-  // 🔴 SHADES OF RED / MAROON (Emotional, warm, premium)
-  static const crimsonVelvet = AppColorScheme(
-    id: 'crimson_velvet',
-    name: 'Crimson Velvet',
-    primary1: Color(0xFF5A0E0E),
-    primary2: Color(0xFF7A1B1B),
-    secondary1: Color(0xFFF8EAEA),
-    secondary2: Color(0xFFFFF5F5),
-    accent: Color(0xFFE57373),
-  );
-
-  // ⚪ SHADES OF GREY (Luxury, neutral, minimal)
-  static const silverMist = AppColorScheme(
-    id: 'silver_mist',
-    name: 'Silver Mist',
-    primary1: Color(0xFF2E2E2E),
-    primary2: Color(0xFF1F1F1F),
-    secondary1: Color(0xFFF3F3F3),
-    secondary2: Color(0xFFFAFAFA),
-    accent: Color(0xFF9CA3AF),
-  );
-
+  // ⭐ DARK VIBRANT THEMES - Similar to Deep Blue and Galaxy Aurora
+  
   // 🔵 DEEP BLUE THEME (Deep blue-purple gradient, modern chat aesthetic)
-  // Dark blue dominant gradient transitioning to blue-purple with dark purple chat bubbles
   static const deepBlue = AppColorScheme(
     id: 'deep_blue',
     name: 'Deep Blue',
@@ -181,28 +44,118 @@ class AppColorScheme {
     accent: Color.fromARGB(255, 48, 36, 82),         // Vibrant purple glow/accent color
   );
 
+  // ⭐ GALAXY AURORA THEME - Dark purple-blue with cyan/teal aurora colors
+  static const galaxyAurora = AppColorScheme(
+    id: 'galaxy_aurora',
+    name: 'Galaxy Aurora',
+    primary1: Color(0xFF1C164E),      // Deep purple-blue
+    primary2: Color(0xFF2A1D6F),       // Darker purple
+    secondary1: Color(0xFF0A1B3A),    // Very dark blue (gradient start)
+    secondary2: Color(0xFF1A2D5A),     // Dark blue-purple (gradient end)
+    accent: Color(0xFF8EC5FF),        // Bright cyan accent (aurora)
+  );
+
+  // ⭐ GALAXY AURORA CLASSIC - Previous version with lighter secondary colors and golden accent
+  static const galaxyAuroraClassic = AppColorScheme(
+    id: 'galaxy_aurora_classic',
+    name: 'Galaxy Aurora Classic',
+    primary1: Color(0xFF1C164E),      // Deep purple-blue
+    primary2: Color(0xFF2A1D6F),       // Darker purple
+    secondary1: Color(0xFF8EC5FF),    // Light cyan-blue (previous gradient start)
+    secondary2: Color(0xFFD4E8F5),     // Light blue-aqua - more bluish, soft cyan-blue that complements the purple and cyan-blue
+    accent: Color(0xFFF8D57E),        // Golden/peachy accent (previous aurora)
+  );
+
+  // 🌌 COSMIC VOID - Deep black with vibrant purple/blue accents
+  static const cosmicVoid = AppColorScheme(
+    id: 'cosmic_void',
+    name: 'Cosmic Void',
+    primary1: Color(0xFF1A0D2E),      // Deep purple-black
+    primary2: Color(0xFF2D1B3D),       // Dark purple
+    secondary1: Color(0xFF0A0A1A),     // Almost black (gradient start)
+    secondary2: Color(0xFF1A1A2E),     // Dark navy (gradient end)
+    accent: Color(0xFF9D4EDD),         // Vibrant purple accent
+  );
+
+  // 🌠 NEBULA DREAMS - Dark purple with pink/cyan nebula colors
+  static const nebulaDreams = AppColorScheme(
+    id: 'nebula_dreams',
+    name: 'Nebula Dreams',
+    primary1: Color(0xFF2D1B4E),      // Rich purple
+    primary2: Color(0xFF3D2B5E),       // Darker purple
+    secondary1: Color(0xFF1A0D3A),     // Very dark purple (gradient start)
+    secondary2: Color(0xFF2A1D4A),     // Dark purple-blue (gradient end)
+    accent: Color(0xFFFF6B9D),         // Vibrant pink accent
+  );
+
+  // ⭐ STELLAR NIGHT - Dark blue with gold/cyan star colors
+  static const stellarNight = AppColorScheme(
+    id: 'stellar_night',
+    name: 'Stellar Night',
+    primary1: Color(0xFF0F1B3A),       // Deep navy
+    primary2: Color(0xFF1A2B4A),       // Darker navy
+    secondary1: Color(0xFF050A1A),     // Almost black blue (gradient start)
+    secondary2: Color(0xFF0F1A2E),     // Dark blue (gradient end)
+    accent: Color(0xFFFFD700),          // Gold accent (stars)
+  );
+
+  // 🌊 ABYSSAL DEPTHS - Very dark blue-green with teal accents
+  static const abyssalDepths = AppColorScheme(
+    id: 'abyssal_depths',
+    name: 'Abyssal Depths',
+    primary1: Color(0xFF0A1F2E),       // Deep teal-blue
+    primary2: Color(0xFF0F2A3A),       // Darker teal
+    secondary1: Color(0xFF050F1A),     // Very dark blue-green (gradient start)
+    secondary2: Color(0xFF0A1A2A),    // Dark teal-blue (gradient end)
+    accent: Color(0xFF00D4AA),          // Bright teal accent
+  );
+
+  // ⚡ MIDNIGHT STORM - Dark grey-blue with electric blue accents
+  static const midnightStorm = AppColorScheme(
+    id: 'midnight_storm',
+    name: 'Midnight Storm',
+    primary1: Color(0xFF1A2332),       // Dark grey-blue
+    primary2: Color(0xFF2A3342),       // Darker grey-blue
+    secondary1: Color(0xFF0F1419),     // Almost black (gradient start)
+    secondary2: Color(0xFF1A1F2A),     // Dark grey-blue (gradient end)
+    accent: Color(0xFF00BFFF),         // Electric blue accent
+  );
+
+  // 🌸 CELESTIAL PURPLE - Dark purple with magenta/cyan cosmic colors
+  static const celestialPurple = AppColorScheme(
+    id: 'celestial_purple',
+    name: 'Celestial Purple',
+    primary1: Color(0xFF2D1B4E),       // Deep purple
+    primary2: Color(0xFF3D2B5E),       // Darker purple
+    secondary1: Color(0xFF1A0D3A),     // Very dark purple (gradient start)
+    secondary2: Color(0xFF2A1D4A),     // Dark purple-blue (gradient end)
+    accent: Color(0xFFFF00FF),         // Magenta accent
+  );
+
+  // 🔮 MYSTIC SHADOWS - Dark indigo with violet/cyan mystical colors
+  static const mysticShadows = AppColorScheme(
+    id: 'mystic_shadows',
+    name: 'Mystic Shadows',
+    primary1: Color(0xFF1E1B3E),       // Deep indigo
+    primary2: Color(0xFF2E2B4E),       // Darker indigo
+    secondary1: Color(0xFF0F0A2A),     // Very dark indigo (gradient start)
+    secondary2: Color(0xFF1A153A),     // Dark indigo-purple (gradient end)
+    accent: Color(0xFF8A2BE2),         // Blue-violet accent
+  );
+
   // -----------------------------------------------------------------------
 
   static const List<AppColorScheme> allSchemes = [
     deepBlue,        // Default theme - placed first
-    royalAmethyst,
-    dreamLilac,
-    velvetNights,
-    amethystTwilight,
-    emeraldElegance,
-    midnightBlue,
-    royalSapphire,
-    oceanDepth,
-    glacialNavy,
-    softBlush,
     galaxyAurora,
-
-    // New Shade families
-    blueHorizon,    
-
-    crimsonVelvet,    
-
-    silverMist
+    galaxyAuroraClassic,  // Previous version with golden accent
+    cosmicVoid,
+    nebulaDreams,
+    stellarNight,
+    abyssalDepths,
+    midnightStorm,
+    celestialPurple,
+    mysticShadows,
   ];
 
   Map<String, dynamic> toJson() => {

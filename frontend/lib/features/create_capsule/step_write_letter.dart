@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
+import 'package:openon_app/core/theme/dynamic_theme.dart';
 
 class StepWriteLetter extends ConsumerStatefulWidget {
   final VoidCallback onNext;
@@ -55,9 +56,13 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to pick image'),
+          SnackBar(
+            content: const Text('Failed to pick image'),
             backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
           ),
         );
       }
@@ -82,11 +87,10 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
     final characterCount = _contentController.text.length;
     final isValid = _contentController.text.trim().isNotEmpty;
     final colorScheme = ref.watch(selectedColorSchemeProvider);
-    final isDeepBlue = colorScheme.id == 'deep_blue';
     
     // Theme-aware text colors
-    final titleColor = isDeepBlue ? Colors.white : AppColors.textDark;
-    final bodyColor = isDeepBlue ? Colors.white.withOpacity(0.9) : AppTheme.textGrey;
+    final titleColor = DynamicTheme.getPrimaryTextColor(colorScheme);
+    final bodyColor = DynamicTheme.getSecondaryTextColor(colorScheme);
     
     return Column(
       children: [
@@ -115,10 +119,16 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
                 // Label/title field
                 TextField(
                   controller: _labelController,
-                  decoration: const InputDecoration(
+                  style: TextStyle(
+                    color: DynamicTheme.getInputTextColor(colorScheme),
+                  ),
+                  decoration: InputDecoration(
                     labelText: 'Letter Title (optional)',
                     hintText: 'e.g., "Open on your birthday 🎂"',
-                    prefixIcon: Icon(Icons.label_outline),
+                    prefixIcon: Icon(
+                      Icons.label_outline,
+                      color: DynamicTheme.getInputHintColor(colorScheme),
+                    ),
                   ),
                   textCapitalization: TextCapitalization.sentences,
                 ),
@@ -131,11 +141,17 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
                   maxLines: null,
                   minLines: 10,
                   maxLength: _maxCharacters,
+                  style: TextStyle(
+                    color: DynamicTheme.getInputTextColor(colorScheme),
+                  ),
                   decoration: InputDecoration(
                     labelText: 'Your Letter *',
                     hintText: 'Write from the heart...',
                     alignLabelWithHint: true,
                     counterText: '$characterCount / $_maxCharacters',
+                    counterStyle: TextStyle(
+                      color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                    ),
                   ),
                   textCapitalization: TextCapitalization.sentences,
                   onChanged: (value) {
@@ -153,6 +169,7 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
                         'Attached Photo',
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w600,
+                              color: DynamicTheme.getInputTextColor(colorScheme),
                             ),
                       ),
                       const Spacer(),
@@ -180,11 +197,21 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
                 ] else ...[
                   OutlinedButton.icon(
                     onPressed: _pickImage,
-                    icon: const Icon(Icons.add_photo_alternate_outlined),
-                    label: const Text('Add Photo (Optional)'),
+                    icon: Icon(
+                      Icons.add_photo_alternate_outlined,
+                      color: DynamicTheme.getOutlinedButtonTextColor(colorScheme),
+                    ),
+                    label: Text(
+                      'Add Photo (Optional)',
+                      style: TextStyle(
+                        color: DynamicTheme.getOutlinedButtonTextColor(colorScheme),
+                      ),
+                    ),
                     style: OutlinedButton.styleFrom(
                       padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
-                      side: BorderSide(color: AppColors.lightGray),
+                      side: BorderSide(
+                        color: DynamicTheme.getOutlinedButtonBorderColor(colorScheme),
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                       ),
@@ -197,17 +224,38 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
                 OutlinedButton.icon(
                   onPressed: () {
                     // TODO: Implement AI writing assistance
+                    final colorScheme = ref.read(selectedColorSchemeProvider);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('AI writing assistance coming soon'),
+                      SnackBar(
+                        content: Text(
+                          'AI writing assistance coming soon',
+                          style: TextStyle(
+                            color: DynamicTheme.getSnackBarTextColor(colorScheme),
+                          ),
+                        ),
+                        backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                        ),
                       ),
                     );
                   },
-                  icon: const Icon(Icons.auto_awesome),
-                  label: const Text('Improve with AI'),
+                  icon: Icon(
+                    Icons.auto_awesome,
+                    color: DynamicTheme.getButtonTextColor(colorScheme),
+                  ),
+                  label: Text(
+                    'Improve with AI',
+                    style: TextStyle(
+                      color: DynamicTheme.getButtonTextColor(colorScheme),
+                    ),
+                  ),
                   style: OutlinedButton.styleFrom(
                     padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
-                    side: BorderSide(color: ref.watch(selectedColorSchemeProvider).primary1.withOpacity(0.3)),
+                    side: BorderSide(
+                        color: DynamicTheme.getButtonBorderColor(colorScheme),
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                     ),
@@ -222,10 +270,10 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
         Container(
           padding: EdgeInsets.all(AppTheme.spacingLg),
           decoration: BoxDecoration(
-            color: AppColors.white,
+            color: DynamicTheme.getNavBarBackgroundColor(colorScheme),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: DynamicTheme.getNavBarShadowColor(colorScheme),
                 blurRadius: 10,
                 offset: const Offset(0, -5),
               ),
@@ -238,6 +286,10 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
                   onPressed: widget.onBack,
                   style: OutlinedButton.styleFrom(
                     padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                    side: BorderSide(
+                      color: DynamicTheme.getOutlinedButtonBorderColor(colorScheme),
+                    ),
+                    foregroundColor: DynamicTheme.getOutlinedButtonTextColor(colorScheme),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                     ),
@@ -251,9 +303,10 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
                 child: ElevatedButton(
                   onPressed: isValid ? _saveAndContinue : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: ref.watch(selectedColorSchemeProvider).primary1,
+                    backgroundColor: colorScheme.primary1,
                     foregroundColor: Colors.white,
                     padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                    side: DynamicTheme.getButtonBorderSide(colorScheme),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                     ),

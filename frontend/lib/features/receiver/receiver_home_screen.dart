@@ -102,9 +102,20 @@ class _ReceiverHomeScreenState extends ConsumerState<ReceiverHomeScreen>
                     IconButton(
                       icon: const Icon(Icons.notifications_outlined),
                       onPressed: () {
+                        final colorScheme = ref.read(selectedColorSchemeProvider);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Notifications coming soon!'),
+                          SnackBar(
+                            content: Text(
+                              'Notifications coming soon!',
+                              style: TextStyle(
+                                color: DynamicTheme.getSnackBarTextColor(colorScheme),
+                              ),
+                            ),
+                            backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                            ),
                           ),
                         );
                       },
@@ -137,13 +148,11 @@ class _ReceiverHomeScreenState extends ConsumerState<ReceiverHomeScreen>
               Container(
                 margin: EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
                 decoration: BoxDecoration(
-                  color: colorScheme.id == 'deep_blue'
-                      ? Colors.white.withOpacity(0.1) // Semi-transparent white for dark theme
+                  color: colorScheme.isDarkTheme
+                      ? Colors.white.withOpacity(AppTheme.opacityLow) // Semi-transparent white for dark theme
                       : Colors.white,
                   borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                  border: colorScheme.id == 'deep_blue'
-                      ? Border.all(color: Colors.white.withOpacity(0.2), width: 1)
-                      : null,
+                  border: DynamicTheme.getTabContainerBorder(colorScheme),
                 ),
                 child: _AnimatedMagicalTabBar(
                   tabController: _tabController,
@@ -287,8 +296,8 @@ class _AnimatedMagicalTabBarState extends State<_AnimatedMagicalTabBar>
           ),
           indicatorSize: TabBarIndicatorSize.tab,
           labelColor: Colors.white,
-          unselectedLabelColor: widget.colorScheme.id == 'deep_blue'
-              ? Colors.white.withOpacity(0.6) // Semi-transparent white for visibility
+            unselectedLabelColor: widget.colorScheme.isDarkTheme
+                ? Colors.white.withOpacity(AppTheme.opacityVeryHigh) // Semi-transparent white for visibility
               : AppTheme.textGrey,
           dividerColor: Colors.transparent,
           isScrollable: false,
@@ -371,7 +380,7 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
 
     // Glow ring effect
     final Paint glowPaint = Paint()
-      ..color = colorScheme.primary1.withOpacity(0.3)
+      ..color = colorScheme.primary1.withOpacity(AppTheme.opacityHigh)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
@@ -382,7 +391,7 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
 
     // Shadow/glow effect
     final Paint shadowPaint = Paint()
-      ..color = colorScheme.primary1.withOpacity(0.2)
+      ..color = colorScheme.primary1.withOpacity(AppTheme.opacityMediumHigh)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12)
       ..style = PaintingStyle.fill;
     canvas.drawRRect(
@@ -489,9 +498,20 @@ class _LockedTab extends ConsumerWidget {
               text: 'Share your link to receive capsules',
               onPressed: () {
                 // TODO: Implement share link functionality
+                final colorScheme = ref.read(selectedColorSchemeProvider);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Share link feature coming soon!'),
+                  SnackBar(
+                    content: Text(
+                      'Share link feature coming soon!',
+                      style: TextStyle(
+                        color: DynamicTheme.getSnackBarTextColor(colorScheme),
+                      ),
+                    ),
+                    backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    ),
                   ),
                 );
               },
@@ -645,31 +665,27 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
     final colorScheme = ref.watch(selectedColorSchemeProvider);
     final softGradient = DynamicTheme.softGradient(colorScheme);
     final dreamyGradient = DynamicTheme.dreamyGradient(colorScheme);
-    final isDeepBlueTheme = colorScheme.id == 'deep_blue';
 
     return Container(
       margin: EdgeInsets.zero,
       decoration: BoxDecoration(
-        color: isDeepBlueTheme 
-            ? Colors.white.withOpacity(0.15) // Semi-transparent white for dark theme
-            : Colors.white,
+        color: DynamicTheme.getCardBackgroundColor(colorScheme),
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: isDeepBlueTheme 
-            ? Border.all(color: Colors.white.withOpacity(0.2), width: 1)
-            : null,
+        border: Border.all(
+          color: DynamicTheme.getBorderColor(colorScheme, opacity: AppTheme.opacityMediumHigh),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: isDeepBlueTheme 
-                ? Colors.black.withOpacity(0.4)
-                : Colors.black.withOpacity(0.1),
+            color: DynamicTheme.getNavBarShadowColor(colorScheme),
             blurRadius: 8,
             spreadRadius: 0,
             offset: const Offset(0, 4), // Increased offset for floating effect
           ),
           // Additional subtle shadow for depth
           BoxShadow(
-            color: isDeepBlueTheme 
-                ? Colors.black.withOpacity(0.2)
+            color: colorScheme.isDarkTheme
+                ? Colors.black.withOpacity(AppTheme.opacityMediumHigh)
                 : Colors.black.withOpacity(0.05),
             blurRadius: 4,
             spreadRadius: 0,
@@ -734,7 +750,9 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             'From ${capsule.senderName} ❤️',
-                            style: Theme.of(context).textTheme.titleMedium,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                                ),
                           ),
                         ),
                         if (capsule.isOpened)
@@ -752,6 +770,7 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
                       capsule.label,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600, // Semi-bold for title
+                        color: DynamicTheme.getPrimaryTextColor(colorScheme),
                       ),
                     ),
                     SizedBox(height: AppTheme.spacingXs),
@@ -762,9 +781,7 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
                               ? Icons.check_circle_outline 
                               : Icons.schedule_outlined,
                           size: 14,
-                          color: isDeepBlueTheme 
-                              ? Colors.white.withOpacity(0.7)
-                              : AppTheme.textGrey,
+                          color: DynamicTheme.getSecondaryIconColor(colorScheme),
                         ),
                         SizedBox(width: AppTheme.spacingXs),
                         Expanded(
@@ -773,9 +790,7 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
                                 ? 'Opened ${_dateFormat.format(capsule.openedAt!)}'
                                 : 'Unlocks ${_dateFormat.format(capsule.unlockTime)} at ${_timeFormat.format(capsule.unlockTime)}',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: isDeepBlueTheme 
-                                  ? Colors.white.withOpacity(0.7)
-                                  : AppTheme.textGrey,
+                              color: DynamicTheme.getSecondaryTextColor(colorScheme),
                             ),
                           ),
                         ),
@@ -786,9 +801,9 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
                       CountdownDisplay(
                         duration: capsule.timeUntilUnlock,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: isDeepBlueTheme
-                              ? Colors.white.withOpacity(1.0) // Bright white for maximum visibility
-                              : colorScheme.accent, // Accent color for other themes
+                          color: colorScheme.isDarkTheme
+                              ? Colors.white // Bright white for maximum visibility on dark themes
+                              : colorScheme.accent, // Accent color for light themes
                           fontWeight: FontWeight.w700, // Increased from w600 for more prominence
                         ),
                       ),
@@ -799,9 +814,7 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
             
             Icon(
               Icons.chevron_right_outlined,
-              color: isDeepBlueTheme 
-                  ? Colors.white.withOpacity(0.7)
-                  : AppTheme.textGrey,
+              color: DynamicTheme.getSecondaryIconColor(colorScheme),
               size: 24,
             ),
           ],

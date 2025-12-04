@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
+import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/data/api_repositories.dart';
 import 'package:openon_app/core/utils/error_handler.dart';
 import 'package:openon_app/features/create_capsule/step_choose_recipient.dart';
@@ -67,9 +68,13 @@ class _CreateCapsuleScreenState extends ConsumerState<CreateCapsuleScreen> {
     
     if (user == null || !draft.isValid) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please complete all required fields'),
+        SnackBar(
+          content: const Text('Please complete all required fields'),
           backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          ),
         ),
       );
       return;
@@ -107,9 +112,13 @@ class _CreateCapsuleScreenState extends ConsumerState<CreateCapsuleScreen> {
         Navigator.pop(context); // Close loading dialog
         
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Letter created successfully! 💌'),
+          SnackBar(
+            content: const Text('Letter created successfully! 💌'),
             backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
           ),
         );
         
@@ -128,6 +137,10 @@ class _CreateCapsuleScreenState extends ConsumerState<CreateCapsuleScreen> {
           SnackBar(
             content: Text(errorMsg),
             backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
           ),
         );
       }
@@ -142,19 +155,42 @@ class _CreateCapsuleScreenState extends ConsumerState<CreateCapsuleScreen> {
       appBar: AppBar(
         title: const Text('Create Letter'),
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: Icon(
+            Icons.close,
+            color: DynamicTheme.getPrimaryIconColor(colorScheme),
+          ),
           onPressed: () async {
+            final colorScheme = ref.read(selectedColorSchemeProvider);
+            
             final confirmed = await showDialog<bool>(
               context: context,
               builder: (context) => AlertDialog(
-                title: const Text('Discard letter?'),
-                content: const Text(
+                backgroundColor: DynamicTheme.getDialogBackgroundColor(colorScheme),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                ),
+                title: Text(
+                  'Discard letter?',
+                  style: TextStyle(
+                    color: DynamicTheme.getDialogTitleColor(colorScheme),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                content: Text(
                   'Are you sure you want to discard this letter?',
+                  style: TextStyle(
+                    color: DynamicTheme.getDialogContentColor(colorScheme),
+                  ),
                 ),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context, false),
-                    child: const Text('Cancel'),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                        color: DynamicTheme.getDialogButtonColor(colorScheme),
+                      ),
+                    ),
                   ),
                   TextButton(
                     onPressed: () => Navigator.pop(context, true),

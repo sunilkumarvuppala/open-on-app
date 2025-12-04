@@ -40,16 +40,14 @@ class StepPreview extends ConsumerWidget {
                   'Preview your letter',
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: colorScheme.id == 'deep_blue' ? Colors.white : AppColors.textDark,
+                        color: DynamicTheme.getPrimaryTextColor(colorScheme),
                       ),
                 ),
                 SizedBox(height: AppTheme.spacingSm),
                 Text(
                   'Everything looks good? Let\'s send it!',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: colorScheme.id == 'deep_blue' 
-                            ? Colors.white.withOpacity(0.9) 
-                            : AppTheme.textGrey,
+                        color: DynamicTheme.getSecondaryTextColor(colorScheme),
                       ),
                 ),
                 SizedBox(height: AppTheme.spacingXl),
@@ -175,7 +173,7 @@ class StepPreview extends ConsumerWidget {
                   'Letter Preview',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: colorScheme.id == 'deep_blue' ? Colors.white : AppColors.textDark,
+                        color: DynamicTheme.getPrimaryTextColor(colorScheme),
                       ),
                 ),
                 SizedBox(height: AppTheme.spacingSm),
@@ -183,23 +181,17 @@ class StepPreview extends ConsumerWidget {
                   width: double.infinity,
                   padding: EdgeInsets.all(AppTheme.spacingMd),
                   decoration: BoxDecoration(
-                    color: colorScheme.id == 'deep_blue' 
-                        ? Colors.white.withOpacity(0.1) 
-                        : AppColors.white,
+                    color: DynamicTheme.getCardBackgroundColor(colorScheme),
                     borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                     border: Border.all(
-                      color: colorScheme.id == 'deep_blue' 
-                          ? Colors.white.withOpacity(0.2) 
-                          : AppColors.lightGray,
+                      color: DynamicTheme.getBorderColor(colorScheme),
                     ),
                   ),
                   child: Text(
                     draft.content ?? '',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           height: 1.6,
-                          color: colorScheme.id == 'deep_blue' 
-                              ? Colors.white.withOpacity(0.9) 
-                              : null,
+                        color: DynamicTheme.getSecondaryTextColor(colorScheme),
                         ),
                   ),
                 ),
@@ -224,10 +216,10 @@ class StepPreview extends ConsumerWidget {
         Container(
           padding: EdgeInsets.all(AppTheme.spacingLg),
           decoration: BoxDecoration(
-            color: AppColors.white,
+            color: DynamicTheme.getNavBarBackgroundColor(colorScheme),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: DynamicTheme.getNavBarShadowColor(colorScheme),
                 blurRadius: 10,
                 offset: const Offset(0, -5),
               ),
@@ -240,6 +232,10 @@ class StepPreview extends ConsumerWidget {
                   onPressed: onBack,
                   style: OutlinedButton.styleFrom(
                     padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                    side: BorderSide(
+                      color: DynamicTheme.getOutlinedButtonBorderColor(colorScheme),
+                    ),
+                    foregroundColor: DynamicTheme.getOutlinedButtonTextColor(colorScheme),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                     ),
@@ -258,6 +254,7 @@ class StepPreview extends ConsumerWidget {
                     backgroundColor: colorScheme.primary1,
                     foregroundColor: Colors.white,
                     padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                    side: DynamicTheme.getButtonBorderSide(colorScheme),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                     ),
@@ -292,9 +289,7 @@ class StepPreview extends ConsumerWidget {
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: colorScheme.id == 'deep_blue' 
-                      ? Colors.white.withOpacity(0.8) 
-                      : AppTheme.textGrey,
+                  color: DynamicTheme.getSecondaryTextColor(colorScheme),
                 ),
               ),
               SizedBox(height: AppTheme.spacingXs),
@@ -303,7 +298,7 @@ class StepPreview extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: colorScheme.id == 'deep_blue' ? Colors.white : AppColors.textDark,
+                  color: DynamicTheme.getPrimaryTextColor(colorScheme),
                 ),
               ),
             ],

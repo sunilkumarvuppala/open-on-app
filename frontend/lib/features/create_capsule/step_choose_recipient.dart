@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
+import 'package:openon_app/core/theme/dynamic_theme.dart';
 
 class StepChooseRecipient extends ConsumerStatefulWidget {
   final VoidCallback onNext;
@@ -49,28 +50,35 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                           'Who is this letter for?',
                           style: Theme.of(context).textTheme.displaySmall?.copyWith(
                                 fontWeight: FontWeight.w700,
-                                color: colorScheme.id == 'deep_blue' ? Colors.white : AppColors.textDark,
+                                color: DynamicTheme.getPrimaryTextColor(colorScheme),
                               ),
                         ),
                         SizedBox(height: AppTheme.spacingSm),
                         Text(
                           'Choose someone special to receive your letter',
                           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: colorScheme.id == 'deep_blue' 
-                                    ? Colors.white.withOpacity(0.9) 
-                                    : AppTheme.textGrey,
+                                color: DynamicTheme.getSecondaryTextColor(colorScheme),
                               ),
                         ),
                         SizedBox(height: AppTheme.spacingXl),
                         
                         // Search field
                         TextField(
+                          style: TextStyle(
+                            color: DynamicTheme.getInputTextColor(colorScheme),
+                          ),
                           decoration: InputDecoration(
                             hintText: 'Search recipients...',
-                            prefixIcon: const Icon(Icons.search),
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: DynamicTheme.getInputHintColor(colorScheme),
+                            ),
                             suffixIcon: _searchQuery.isNotEmpty
                                 ? IconButton(
-                                    icon: const Icon(Icons.clear),
+                                    icon: Icon(
+                                      Icons.clear,
+                                      color: DynamicTheme.getInputHintColor(colorScheme),
+                                    ),
                                     onPressed: () {
                                       setState(() => _searchQuery = '');
                                     },
@@ -93,9 +101,7 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                                   ? 'No recipients yet'
                                   : 'No recipients found',
                               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: colorScheme.id == 'deep_blue' 
-                                        ? Colors.white.withOpacity(0.9) 
-                                        : AppTheme.textGrey,
+                                    color: DynamicTheme.getSecondaryTextColor(colorScheme),
                                   ),
                             ),
                           ),
@@ -112,8 +118,8 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                                   borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                                 ),
                                 color: isSelected
-                                    ? colorScheme.primary1.withOpacity(0.1)
-                                    : null,
+                                    ? DynamicTheme.getButtonBackgroundColor(colorScheme, opacity: 0.2)
+                                    : DynamicTheme.getCardBackgroundColor(colorScheme),
                                 child: InkWell(
                                   onTap: () {
                                     ref.read(draftCapsuleProvider.notifier)
@@ -127,14 +133,14 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                                         CircleAvatar(
                                           radius: 28,
                                           backgroundColor: isSelected
-                                              ? colorScheme.primary1
-                                              : colorScheme.primary1.withOpacity(0.1),
+                                              ? DynamicTheme.getButtonBackgroundColor(colorScheme, opacity: 0.3)
+                                              : DynamicTheme.getButtonBackgroundColor(colorScheme, opacity: 0.2),
                                           child: Text(
                                             recipient.name[0].toUpperCase(),
                                             style: TextStyle(
                                               color: isSelected
-                                                  ? AppColors.white
-                                                  : colorScheme.primary1,
+                                                  ? DynamicTheme.getButtonTextColor(colorScheme)
+                                                  : DynamicTheme.getButtonTextColor(colorScheme),
                                               fontSize: 20,
                                               fontWeight: FontWeight.w600,
                                             ),
@@ -150,18 +156,14 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                                                 style: TextStyle(
                                                   fontSize: 16,
                                                   fontWeight: FontWeight.w600,
-                                                  color: colorScheme.id == 'deep_blue' 
-                                                      ? Colors.white 
-                                                      : AppColors.textDark,
+                                                  color: DynamicTheme.getPrimaryTextColor(colorScheme),
                                                 ),
                                               ),
                                               SizedBox(height: AppTheme.spacingXs),
                                               Text(
                                                 recipient.relationship,
                                                 style: TextStyle(
-                                                  color: colorScheme.id == 'deep_blue' 
-                                                      ? Colors.white.withOpacity(0.8) 
-                                                      : AppTheme.textGrey,
+                                                  color: DynamicTheme.getSecondaryTextColor(colorScheme),
                                                   fontSize: 14,
                                                 ),
                                               ),
@@ -171,7 +173,7 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                                         if (isSelected)
                                           Icon(
                                             Icons.check_circle,
-                                            color: colorScheme.primary1,
+                                            color: DynamicTheme.getButtonTextColor(colorScheme),
                                             size: 28,
                                           ),
                                       ],
@@ -187,6 +189,7 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                         // Add new recipient button at bottom
                         Card(
                           elevation: 2,
+                          color: DynamicTheme.getCardBackgroundColor(colorScheme),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                           ),
@@ -204,12 +207,12 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                                     width: 56,
                                     height: 56,
                                     decoration: BoxDecoration(
-                                      color: colorScheme.primary1.withOpacity(0.1),
+                                      color: DynamicTheme.getButtonBackgroundColor(colorScheme, opacity: 0.2),
                                       shape: BoxShape.circle,
                                     ),
                                     child: Icon(
                                       Icons.add,
-                                      color: colorScheme.primary1,
+                                      color: DynamicTheme.getButtonTextColor(colorScheme),
                                       size: 28,
                                     ),
                                   ),
@@ -223,18 +226,14 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                                           style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w600,
-                                            color: colorScheme.id == 'deep_blue' 
-                                                ? Colors.white 
-                                                : AppColors.textDark,
+                                            color: DynamicTheme.getPrimaryTextColor(colorScheme),
                                           ),
                                         ),
                                         SizedBox(height: AppTheme.spacingXs),
                                         Text(
                                           'Create a new person to send letters to',
                                           style: TextStyle(
-                                            color: colorScheme.id == 'deep_blue' 
-                                                ? Colors.white.withOpacity(0.8) 
-                                                : AppTheme.textGrey,
+                                            color: DynamicTheme.getSecondaryTextColor(colorScheme),
                                             fontSize: 14,
                                           ),
                                         ),
@@ -243,9 +242,7 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                                   ),
                                   Icon(
                                     Icons.chevron_right,
-                                    color: colorScheme.id == 'deep_blue' 
-                                        ? Colors.white.withOpacity(0.7) 
-                                        : AppTheme.textGrey,
+                                    color: DynamicTheme.getSecondaryIconColor(colorScheme),
                                   ),
                                 ],
                               ),
@@ -261,10 +258,10 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                 Container(
                   padding: EdgeInsets.all(AppTheme.spacingLg),
                   decoration: BoxDecoration(
-                    color: AppColors.white,
+                    color: DynamicTheme.getNavBarBackgroundColor(colorScheme),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: DynamicTheme.getNavBarShadowColor(colorScheme),
                         blurRadius: 10,
                         offset: const Offset(0, -5),
                       ),
@@ -278,6 +275,7 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colorScheme.primary1,
                         foregroundColor: Colors.white,
+                        side: DynamicTheme.getButtonBorderSide(colorScheme),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                         ),

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
+import 'package:openon_app/core/theme/dynamic_theme.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -24,10 +25,13 @@ class ProfileScreen extends ConsumerWidget {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Profile'),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => context.pop(),
-            ),
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back,
+            color: DynamicTheme.getPrimaryIconColor(colorScheme),
+          ),
+          onPressed: () => context.pop(),
+        ),
           ),
           body: ListView(
             padding: EdgeInsets.all(AppTheme.spacingLg),
@@ -36,15 +40,38 @@ class ProfileScreen extends ConsumerWidget {
               Center(
                 child: Column(
                   children: [
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundColor: colorScheme.primary1,
-                      child: Text(
-                        user.name[0].toUpperCase(),
-                        style: const TextStyle(
-                          color: AppColors.white,
-                          fontSize: 36,
-                          fontWeight: FontWeight.w600,
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: colorScheme.accent.withOpacity(AppTheme.opacityAlmostFull2),
+                          width: AppTheme.borderWidthStandard,
+                        ),
+                        boxShadow: [
+                          // Reduced glow
+                          BoxShadow(
+                            color: colorScheme.accent.withOpacity(AppTheme.opacityMediumHigh),
+                            blurRadius: AppTheme.glowBlurRadiusMedium,
+                            spreadRadius: AppTheme.glowSpreadRadiusSmall,
+                          ),
+                          // Subtle shadow
+                          BoxShadow(
+                            color: colorScheme.primary1.withOpacity(AppTheme.opacityMediumHigh),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundColor: colorScheme.primary1,
+                        child: Text(
+                          user.name[0].toUpperCase(),
+                          style: const TextStyle(
+                            color: AppColors.white,
+                            fontSize: 36,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
@@ -53,29 +80,53 @@ class ProfileScreen extends ConsumerWidget {
                       user.name,
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: AppColors.textDark,
+                            color: DynamicTheme.getPrimaryTextColor(colorScheme),
                           ),
                     ),
                     SizedBox(height: AppTheme.spacingXs),
                     Text(
                       user.email,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppTheme.textGrey,
+                            color: DynamicTheme.getSecondaryTextColor(colorScheme),
                           ),
                     ),
                     SizedBox(height: AppTheme.spacingMd),
                     OutlinedButton.icon(
                       onPressed: () {
                         // TODO: Implement edit profile
+                        final colorScheme = ref.read(selectedColorSchemeProvider);
+                        
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Edit profile feature coming soon'),
+                          SnackBar(
+                            content: Text(
+                              'Edit profile feature coming soon',
+                              style: TextStyle(
+                                color: colorScheme.isDarkTheme ? Colors.white : Colors.black,
+                              ),
+                            ),
+                            backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                            ),
                           ),
                         );
                       },
-                      icon: const Icon(Icons.edit, size: 18),
-                      label: const Text('Edit Profile'),
+                      icon: Icon(
+                        Icons.edit, 
+                        size: 18,
+                        color: DynamicTheme.getOutlinedButtonTextColor(colorScheme),
+                      ),
+                      label: Text(
+                        'Edit Profile',
+                        style: TextStyle(
+                          color: DynamicTheme.getOutlinedButtonTextColor(colorScheme),
+                        ),
+                      ),
                       style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                          color: DynamicTheme.getOutlinedButtonBorderColor(colorScheme),
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                         ),
@@ -88,7 +139,7 @@ class ProfileScreen extends ConsumerWidget {
               SizedBox(height: AppTheme.spacingXl),
               
               // Settings sections
-              _buildSectionTitle(context, 'Account'),
+              _buildSectionTitle(context, 'Account', ref),
               _buildSettingsTile(
                 context,
                 ref,
@@ -109,9 +160,21 @@ class ProfileScreen extends ConsumerWidget {
                 icon: Icons.notifications_outlined,
                 title: 'Notifications',
                 onTap: () {
+                  final colorScheme = ref.read(selectedColorSchemeProvider);
+                  
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Notification settings coming soon'),
+                    SnackBar(
+                      content: Text(
+                        'Notification settings coming soon',
+                        style: TextStyle(
+                          color: colorScheme.isDarkTheme ? Colors.white : Colors.black,
+                        ),
+                      ),
+                      backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      ),
                     ),
                   );
                 },
@@ -119,16 +182,28 @@ class ProfileScreen extends ConsumerWidget {
               
               SizedBox(height: AppTheme.spacingLg),
               
-              _buildSectionTitle(context, 'Support'),
+              _buildSectionTitle(context, 'Support', ref),
               _buildSettingsTile(
                 context,
                 ref,
                 icon: Icons.help_outline,
                 title: 'Help & Support',
                 onTap: () {
+                  final colorScheme = ref.read(selectedColorSchemeProvider);
+                  
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Help center coming soon'),
+                    SnackBar(
+                      content: Text(
+                        'Help center coming soon',
+                        style: TextStyle(
+                          color: DynamicTheme.getSnackBarTextColor(colorScheme),
+                        ),
+                      ),
+                      backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      ),
                     ),
                   );
                 },
@@ -154,7 +229,7 @@ class ProfileScreen extends ConsumerWidget {
               
               SizedBox(height: AppTheme.spacingLg),
               
-              _buildSectionTitle(context, 'About'),
+              _buildSectionTitle(context, 'About', ref),
               _buildSettingsTile(
                 context,
                 ref,
@@ -178,15 +253,37 @@ class ProfileScreen extends ConsumerWidget {
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: () async {
+                    final colorScheme = ref.read(selectedColorSchemeProvider);
+                    
                     final confirmed = await showDialog<bool>(
                       context: context,
                       builder: (context) => AlertDialog(
-                        title: const Text('Log out'),
-                        content: const Text('Are you sure you want to log out?'),
+                        backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                        ),
+                        title: Text(
+                          'Log out',
+                          style: TextStyle(
+                            color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        content: Text(
+                          'Are you sure you want to log out?',
+                          style: TextStyle(
+                            color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                          ),
+                        ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Cancel'),
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                              ),
+                            ),
                           ),
                           TextButton(
                             onPressed: () => Navigator.pop(context, true),
@@ -213,9 +310,13 @@ class ProfileScreen extends ConsumerWidget {
                       } catch (e) {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Failed to log out'),
+                            SnackBar(
+                              content: const Text('Failed to log out'),
                               backgroundColor: AppColors.error,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                              ),
                             ),
                           );
                         }
@@ -248,14 +349,15 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
   
-  Widget _buildSectionTitle(BuildContext context, String title) {
+  Widget _buildSectionTitle(BuildContext context, String title, WidgetRef ref) {
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
     return Padding(
       padding: EdgeInsets.only(bottom: AppTheme.spacingSm),
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
-              color: AppTheme.textGrey,
+              color: DynamicTheme.getLabelTextColor(colorScheme),
             ),
       ),
     );
@@ -282,21 +384,29 @@ class ProfileScreen extends ConsumerWidget {
           horizontal: AppTheme.spacingMd,
           vertical: AppTheme.spacingSm,
         ),
-        leading: Icon(icon, color: colorScheme.primary1),
+        leading: Icon(
+          icon, 
+          color: DynamicTheme.getPrimaryIconColor(colorScheme),
+        ),
         title: Text(
           title,
           style: TextStyle(
-            color: AppColors.textDark,
+            color: DynamicTheme.getPrimaryTextColor(colorScheme),
             fontWeight: FontWeight.w500,
           ),
         ),
         subtitle: subtitle != null
             ? Text(
                 subtitle,
-                style: TextStyle(color: AppTheme.textGrey),
+                style: TextStyle(
+                  color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                ),
               )
             : null,
-        trailing: Icon(Icons.chevron_right, color: AppTheme.textGrey),
+        trailing: Icon(
+          Icons.chevron_right, 
+          color: DynamicTheme.getSecondaryIconColor(colorScheme),
+        ),
         onTap: onTap,
       ),
     );
