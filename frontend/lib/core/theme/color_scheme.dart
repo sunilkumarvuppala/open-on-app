@@ -38,10 +38,10 @@ class AppColorScheme {
     id: 'deep_blue',
     name: 'Deep Blue',
     primary1: Color(0xFF1D094B),      // Dark purple for AI chat bubbles
-    primary2: Color.fromARGB(255, 52, 6, 202),      // Darker purple for gradient end
+    primary2: Color(0xFF3406CA),      // Darker purple for gradient end
     secondary1: Color(0xFF062982),      // Very dark blue for gradient start (blue dominant)
     secondary2: Color(0xFF192853),     // Dark blue-purple for gradient end (more blue than purple)
-    accent: Color.fromARGB(255, 48, 36, 82),         // Vibrant purple glow/accent color
+    accent: Color(0xFF302452),         // Vibrant purple glow/accent color
   );
 
   // ⭐ GALAXY AURORA THEME - Dark purple-blue with cyan/teal aurora colors
@@ -55,15 +55,15 @@ class AppColorScheme {
     accent: Color(0xFF8EC5FF),        // Bright cyan accent (aurora)
   );
 
-  // ⭐ GALAXY AURORA CLASSIC - Previous version with lighter secondary colors and golden accent
+  // ⭐ GALAXY AURORA CLASSIC - Light theme version with lighter secondary colors and golden accent
   static const galaxyAuroraClassic = AppColorScheme(
     id: 'galaxy_aurora_classic',
     name: 'Galaxy Aurora Classic',
     primary1: Color(0xFF1C164E),      // Deep purple-blue
     primary2: Color(0xFF2A1D6F),       // Darker purple
-    secondary1: Color(0xFF8EC5FF),    // Light cyan-blue (previous gradient start)
-    secondary2: Color(0xFFD4E8F5),     // Light blue-aqua - more bluish, soft cyan-blue that complements the purple and cyan-blue
-    accent: Color(0xFFF8D57E),        // Golden/peachy accent (previous aurora)
+    secondary1: Color(0xFF8EC5FF),    // Light cyan-blue
+    secondary2: Color(0xFFD4E8F5),     // Light blue-aqua - soft cyan-blue that complements the purple and cyan-blue
+    accent: Color(0xFFF8D57E),        // Golden/peachy accent
   );
 
   // 🌌 COSMIC VOID - Deep black with vibrant purple/blue accents
@@ -161,11 +161,11 @@ class AppColorScheme {
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
-        'primary1': primary1.value,
-        'primary2': primary2.value,
-        'secondary1': secondary1.value,
-        'secondary2': secondary2.value,
-        'accent': accent.value,
+        'primary1': primary1.toARGB32(),
+        'primary2': primary2.toARGB32(),
+        'secondary1': secondary1.toARGB32(),
+        'secondary2': secondary2.toARGB32(),
+        'accent': accent.toARGB32(),
       };
 
   factory AppColorScheme.fromJson(Map<String, dynamic> json) {
