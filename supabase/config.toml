@@ -1,0 +1,75 @@
+# Supabase Local Development Configuration
+# This file configures Supabase CLI for local development
+
+[project]
+# Project ID (auto-generated for local)
+id = "local"
+
+[auth]
+# Enable email auth
+enable_signup = true
+# Email template settings
+external_email_enabled = true
+# JWT expiry time (in seconds)
+jwt_expiry = 3600
+# Refresh token expiry (in seconds)
+refresh_token_ttl = 604800
+
+[auth.email]
+# Enable email provider
+enable_signup = true
+# Double confirm email changes
+double_confirm_changes = true
+# Enable confirmations
+enable_confirmations = false
+
+[api]
+# API port
+port = 54321
+# Enable REST API
+enabled = true
+# Enable GraphQL API
+graphql_enabled = false
+# Enable Realtime
+realtime_enabled = true
+
+[db]
+# Database port
+port = 54322
+# Major version
+major_version = 15
+# Database name
+db_name = "postgres"
+# Database user
+db_user = "postgres"
+# Database password (for local development)
+db_password = "postgres"
+# Database host
+db_host = "127.0.0.1"
+
+[studio]
+# Studio port
+port = 54323
+# Enable Studio
+enabled = true
+
+[inbucket]
+# Inbucket port (for email testing)
+port = 54324
+# Enable Inbucket
+enabled = true
+
+[storage]
+# Storage file size limit (in bytes)
+file_size_limit = 52428800  # 50MB
+# Storage enabled
+enabled = true
+
+[functions]
+# Edge Functions enabled
+enabled = true
+
+[analytics]
+# Analytics enabled
+enabled = false
+
