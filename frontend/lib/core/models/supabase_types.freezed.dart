@@ -347,6 +347,7 @@ mixin _$Recipient {
   String get name => throw _privateConstructorUsedError;
   String? get email => throw _privateConstructorUsedError;
   String? get avatarUrl => throw _privateConstructorUsedError;
+  RecipientRelationship? get relationship => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
   DateTime get updatedAt => throw _privateConstructorUsedError;
 
@@ -371,6 +372,7 @@ abstract class $RecipientCopyWith<$Res> {
       String name,
       String? email,
       String? avatarUrl,
+      RecipientRelationship? relationship,
       DateTime createdAt,
       DateTime updatedAt});
 }
@@ -395,6 +397,7 @@ class _$RecipientCopyWithImpl<$Res, $Val extends Recipient>
     Object? name = null,
     Object? email = freezed,
     Object? avatarUrl = freezed,
+    Object? relationship = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -419,6 +422,10 @@ class _$RecipientCopyWithImpl<$Res, $Val extends Recipient>
           ? _value.avatarUrl
           : avatarUrl // ignore: cast_nullable_to_non_nullable
               as String?,
+      relationship: freezed == relationship
+          ? _value.relationship
+          : relationship // ignore: cast_nullable_to_non_nullable
+              as RecipientRelationship?,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -445,6 +452,7 @@ abstract class _$$RecipientImplCopyWith<$Res>
       String name,
       String? email,
       String? avatarUrl,
+      RecipientRelationship? relationship,
       DateTime createdAt,
       DateTime updatedAt});
 }
@@ -467,6 +475,7 @@ class __$$RecipientImplCopyWithImpl<$Res>
     Object? name = null,
     Object? email = freezed,
     Object? avatarUrl = freezed,
+    Object? relationship = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -491,6 +500,10 @@ class __$$RecipientImplCopyWithImpl<$Res>
           ? _value.avatarUrl
           : avatarUrl // ignore: cast_nullable_to_non_nullable
               as String?,
+      relationship: freezed == relationship
+          ? _value.relationship
+          : relationship // ignore: cast_nullable_to_non_nullable
+              as RecipientRelationship?,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -512,6 +525,7 @@ class _$RecipientImpl implements _Recipient {
       required this.name,
       this.email,
       this.avatarUrl,
+      this.relationship = RecipientRelationship.friend,
       required this.createdAt,
       required this.updatedAt});
 
@@ -529,13 +543,16 @@ class _$RecipientImpl implements _Recipient {
   @override
   final String? avatarUrl;
   @override
+  @JsonKey()
+  final RecipientRelationship? relationship;
+  @override
   final DateTime createdAt;
   @override
   final DateTime updatedAt;
 
   @override
   String toString() {
-    return 'Recipient(id: $id, ownerId: $ownerId, name: $name, email: $email, avatarUrl: $avatarUrl, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Recipient(id: $id, ownerId: $ownerId, name: $name, email: $email, avatarUrl: $avatarUrl, relationship: $relationship, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -549,6 +566,8 @@ class _$RecipientImpl implements _Recipient {
             (identical(other.email, email) || other.email == email) &&
             (identical(other.avatarUrl, avatarUrl) ||
                 other.avatarUrl == avatarUrl) &&
+            (identical(other.relationship, relationship) ||
+                other.relationship == relationship) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
@@ -557,8 +576,8 @@ class _$RecipientImpl implements _Recipient {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
-      runtimeType, id, ownerId, name, email, avatarUrl, createdAt, updatedAt);
+  int get hashCode => Object.hash(runtimeType, id, ownerId, name, email,
+      avatarUrl, relationship, createdAt, updatedAt);
 
   /// Create a copy of Recipient
   /// with the given fields replaced by the non-null parameter values.
@@ -583,6 +602,7 @@ abstract class _Recipient implements Recipient {
       required final String name,
       final String? email,
       final String? avatarUrl,
+      final RecipientRelationship? relationship,
       required final DateTime createdAt,
       required final DateTime updatedAt}) = _$RecipientImpl;
 
@@ -599,6 +619,8 @@ abstract class _Recipient implements Recipient {
   String? get email;
   @override
   String? get avatarUrl;
+  @override
+  RecipientRelationship? get relationship;
   @override
   DateTime get createdAt;
   @override
@@ -3406,6 +3428,7 @@ mixin _$CreateRecipientRequest {
   String get name => throw _privateConstructorUsedError;
   String? get email => throw _privateConstructorUsedError;
   String? get avatarUrl => throw _privateConstructorUsedError;
+  RecipientRelationship? get relationship => throw _privateConstructorUsedError;
 
   /// Serializes this CreateRecipientRequest to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -3423,7 +3446,11 @@ abstract class $CreateRecipientRequestCopyWith<$Res> {
           $Res Function(CreateRecipientRequest) then) =
       _$CreateRecipientRequestCopyWithImpl<$Res, CreateRecipientRequest>;
   @useResult
-  $Res call({String name, String? email, String? avatarUrl});
+  $Res call(
+      {String name,
+      String? email,
+      String? avatarUrl,
+      RecipientRelationship? relationship});
 }
 
 /// @nodoc
@@ -3445,6 +3472,7 @@ class _$CreateRecipientRequestCopyWithImpl<$Res,
     Object? name = null,
     Object? email = freezed,
     Object? avatarUrl = freezed,
+    Object? relationship = freezed,
   }) {
     return _then(_value.copyWith(
       name: null == name
@@ -3459,6 +3487,10 @@ class _$CreateRecipientRequestCopyWithImpl<$Res,
           ? _value.avatarUrl
           : avatarUrl // ignore: cast_nullable_to_non_nullable
               as String?,
+      relationship: freezed == relationship
+          ? _value.relationship
+          : relationship // ignore: cast_nullable_to_non_nullable
+              as RecipientRelationship?,
     ) as $Val);
   }
 }
@@ -3472,7 +3504,11 @@ abstract class _$$CreateRecipientRequestImplCopyWith<$Res>
       __$$CreateRecipientRequestImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({String name, String? email, String? avatarUrl});
+  $Res call(
+      {String name,
+      String? email,
+      String? avatarUrl,
+      RecipientRelationship? relationship});
 }
 
 /// @nodoc
@@ -3493,6 +3529,7 @@ class __$$CreateRecipientRequestImplCopyWithImpl<$Res>
     Object? name = null,
     Object? email = freezed,
     Object? avatarUrl = freezed,
+    Object? relationship = freezed,
   }) {
     return _then(_$CreateRecipientRequestImpl(
       name: null == name
@@ -3507,6 +3544,10 @@ class __$$CreateRecipientRequestImplCopyWithImpl<$Res>
           ? _value.avatarUrl
           : avatarUrl // ignore: cast_nullable_to_non_nullable
               as String?,
+      relationship: freezed == relationship
+          ? _value.relationship
+          : relationship // ignore: cast_nullable_to_non_nullable
+              as RecipientRelationship?,
     ));
   }
 }
@@ -3515,7 +3556,10 @@ class __$$CreateRecipientRequestImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$CreateRecipientRequestImpl implements _CreateRecipientRequest {
   const _$CreateRecipientRequestImpl(
-      {required this.name, this.email, this.avatarUrl});
+      {required this.name,
+      this.email,
+      this.avatarUrl,
+      this.relationship = RecipientRelationship.friend});
 
   factory _$CreateRecipientRequestImpl.fromJson(Map<String, dynamic> json) =>
       _$$CreateRecipientRequestImplFromJson(json);
@@ -3526,10 +3570,13 @@ class _$CreateRecipientRequestImpl implements _CreateRecipientRequest {
   final String? email;
   @override
   final String? avatarUrl;
+  @override
+  @JsonKey()
+  final RecipientRelationship? relationship;
 
   @override
   String toString() {
-    return 'CreateRecipientRequest(name: $name, email: $email, avatarUrl: $avatarUrl)';
+    return 'CreateRecipientRequest(name: $name, email: $email, avatarUrl: $avatarUrl, relationship: $relationship)';
   }
 
   @override
@@ -3540,12 +3587,15 @@ class _$CreateRecipientRequestImpl implements _CreateRecipientRequest {
             (identical(other.name, name) || other.name == name) &&
             (identical(other.email, email) || other.email == email) &&
             (identical(other.avatarUrl, avatarUrl) ||
-                other.avatarUrl == avatarUrl));
+                other.avatarUrl == avatarUrl) &&
+            (identical(other.relationship, relationship) ||
+                other.relationship == relationship));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, name, email, avatarUrl);
+  int get hashCode =>
+      Object.hash(runtimeType, name, email, avatarUrl, relationship);
 
   /// Create a copy of CreateRecipientRequest
   /// with the given fields replaced by the non-null parameter values.
@@ -3566,9 +3616,11 @@ class _$CreateRecipientRequestImpl implements _CreateRecipientRequest {
 
 abstract class _CreateRecipientRequest implements CreateRecipientRequest {
   const factory _CreateRecipientRequest(
-      {required final String name,
-      final String? email,
-      final String? avatarUrl}) = _$CreateRecipientRequestImpl;
+          {required final String name,
+          final String? email,
+          final String? avatarUrl,
+          final RecipientRelationship? relationship}) =
+      _$CreateRecipientRequestImpl;
 
   factory _CreateRecipientRequest.fromJson(Map<String, dynamic> json) =
       _$CreateRecipientRequestImpl.fromJson;
@@ -3579,6 +3631,8 @@ abstract class _CreateRecipientRequest implements CreateRecipientRequest {
   String? get email;
   @override
   String? get avatarUrl;
+  @override
+  RecipientRelationship? get relationship;
 
   /// Create a copy of CreateRecipientRequest
   /// with the given fields replaced by the non-null parameter values.

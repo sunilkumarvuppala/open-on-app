@@ -53,6 +53,21 @@ enum SubscriptionStatus {
   incompleteExpired,
 }
 
+enum RecipientRelationship {
+  @JsonValue('friend')
+  friend,
+  @JsonValue('family')
+  family,
+  @JsonValue('partner')
+  partner,
+  @JsonValue('colleague')
+  colleague,
+  @JsonValue('acquaintance')
+  acquaintance,
+  @JsonValue('other')
+  other,
+}
+
 // ============================================================================
 // MODELS
 // ============================================================================
@@ -83,6 +98,7 @@ class Recipient with _$Recipient {
     required String name,
     String? email,
     String? avatarUrl,
+    @Default(RecipientRelationship.friend) RecipientRelationship? relationship,
     required DateTime createdAt,
     required DateTime updatedAt,
   }) = _Recipient;
@@ -250,6 +266,7 @@ class CreateRecipientRequest with _$CreateRecipientRequest {
     required String name,
     String? email,
     String? avatarUrl,
+    @Default(RecipientRelationship.friend) RecipientRelationship? relationship,
   }) = _CreateRecipientRequest;
 
   factory CreateRecipientRequest.fromJson(Map<String, dynamic> json) =>
@@ -303,6 +320,25 @@ extension NotificationTypeExtension on NotificationType {
         return 'Subscription Expiring';
       case NotificationType.subscriptionExpired:
         return 'Subscription Expired';
+    }
+  }
+}
+
+extension RecipientRelationshipExtension on RecipientRelationship {
+  String get displayName {
+    switch (this) {
+      case RecipientRelationship.friend:
+        return 'Friend';
+      case RecipientRelationship.family:
+        return 'Family';
+      case RecipientRelationship.partner:
+        return 'Partner';
+      case RecipientRelationship.colleague:
+        return 'Colleague';
+      case RecipientRelationship.acquaintance:
+        return 'Acquaintance';
+      case RecipientRelationship.other:
+        return 'Other';
     }
   }
 }

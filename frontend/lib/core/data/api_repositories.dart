@@ -562,6 +562,7 @@ class ApiRecipientRepository implements RecipientRepository {
       // Build request body
       final requestBody = <String, dynamic>{
         'name': recipient.name,
+        'relationship': recipient.relationship,
       };
       
       // If a linked user ID is provided (from user search), include it

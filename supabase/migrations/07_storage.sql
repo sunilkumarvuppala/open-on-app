@@ -3,7 +3,7 @@
 -- Storage bucket configuration with RLS policies
 -- ============================================================================
 
--- AVATARS BUCKET
+-- Avatars bucket (public)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'avatars',
@@ -54,7 +54,7 @@ CREATE POLICY "Anyone can view avatars"
   FOR SELECT
   USING (bucket_id = 'avatars');
 
--- CAPSULE ASSETS BUCKET
+-- Capsule assets bucket (private)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'capsule_assets',
@@ -116,7 +116,7 @@ CREATE POLICY "Users can delete own capsule assets"
     AND (storage.foldername(name))[1] = auth.uid()::text
   );
 
--- ANIMATIONS BUCKET
+-- Animations bucket (public, admins can upload)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'animations',
@@ -145,7 +145,7 @@ CREATE POLICY "Admins can upload animations"
     AND EXISTS (
       SELECT 1 FROM public.user_profiles
       WHERE user_id = auth.uid()
-        AND premium_status = TRUE
+        AND is_admin = TRUE
     )
   );
 
@@ -158,7 +158,7 @@ CREATE POLICY "Admins can update animations"
     AND EXISTS (
       SELECT 1 FROM public.user_profiles
       WHERE user_id = auth.uid()
-        AND premium_status = TRUE
+        AND is_admin = TRUE
     )
   );
 
@@ -171,11 +171,11 @@ CREATE POLICY "Admins can delete animations"
     AND EXISTS (
       SELECT 1 FROM public.user_profiles
       WHERE user_id = auth.uid()
-        AND premium_status = TRUE
+        AND is_admin = TRUE
     )
   );
 
--- THEMES BUCKET
+-- Themes bucket (public, admins can upload)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'themes',
@@ -204,7 +204,7 @@ CREATE POLICY "Admins can upload themes"
     AND EXISTS (
       SELECT 1 FROM public.user_profiles
       WHERE user_id = auth.uid()
-        AND premium_status = TRUE
+        AND is_admin = TRUE
     )
   );
 
@@ -217,7 +217,7 @@ CREATE POLICY "Admins can update themes"
     AND EXISTS (
       SELECT 1 FROM public.user_profiles
       WHERE user_id = auth.uid()
-        AND premium_status = TRUE
+        AND is_admin = TRUE
     )
   );
 
@@ -230,7 +230,7 @@ CREATE POLICY "Admins can delete themes"
     AND EXISTS (
       SELECT 1 FROM public.user_profiles
       WHERE user_id = auth.uid()
-        AND premium_status = TRUE
+        AND is_admin = TRUE
     )
   );
 

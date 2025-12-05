@@ -4,7 +4,7 @@ A production-ready Flutter application for creating and sending time-locked emot
 
 ## 🚀 Quick Start
 
-### Backend
+### Backend (Python/FastAPI)
 ```bash
 cd backend
 python -m venv venv
@@ -13,12 +13,31 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
+### Supabase (Database)
+```bash
+# Install Supabase CLI (macOS)
+brew install supabase/tap/supabase
+
+# Start Supabase locally
+cd supabase
+supabase init      # First time only
+supabase start     # Start local Supabase
+```
+
+**Access:**
+- **Studio (Web UI)**: http://localhost:54323
+- **API**: http://localhost:54321
+
+See [supabase/LOCAL_SETUP.md](./supabase/LOCAL_SETUP.md) for detailed setup.
+
 ### Frontend
 ```bash
 cd frontend
 flutter pub get
 flutter run
 ```
+
+**Note**: See [DEVELOPMENT_SETUP.md](./DEVELOPMENT_SETUP.md) for complete setup guide.
 
 ## 📚 Documentation
 

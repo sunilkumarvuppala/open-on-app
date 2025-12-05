@@ -41,6 +41,9 @@ _$RecipientImpl _$$RecipientImplFromJson(Map<String, dynamic> json) =>
       name: json['name'] as String,
       email: json['email'] as String?,
       avatarUrl: json['avatarUrl'] as String?,
+      relationship: $enumDecodeNullable(
+              _$RecipientRelationshipEnumMap, json['relationship']) ??
+          RecipientRelationship.friend,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
@@ -52,9 +55,19 @@ Map<String, dynamic> _$$RecipientImplToJson(_$RecipientImpl instance) =>
       'name': instance.name,
       'email': instance.email,
       'avatarUrl': instance.avatarUrl,
+      'relationship': _$RecipientRelationshipEnumMap[instance.relationship],
       'createdAt': instance.createdAt.toIso8601String(),
       'updatedAt': instance.updatedAt.toIso8601String(),
     };
+
+const _$RecipientRelationshipEnumMap = {
+  RecipientRelationship.friend: 'friend',
+  RecipientRelationship.family: 'family',
+  RecipientRelationship.partner: 'partner',
+  RecipientRelationship.colleague: 'colleague',
+  RecipientRelationship.acquaintance: 'acquaintance',
+  RecipientRelationship.other: 'other',
+};
 
 _$ThemeImpl _$$ThemeImplFromJson(Map<String, dynamic> json) => _$ThemeImpl(
       id: json['id'] as String,
@@ -323,6 +336,9 @@ _$CreateRecipientRequestImpl _$$CreateRecipientRequestImplFromJson(
       name: json['name'] as String,
       email: json['email'] as String?,
       avatarUrl: json['avatarUrl'] as String?,
+      relationship: $enumDecodeNullable(
+              _$RecipientRelationshipEnumMap, json['relationship']) ??
+          RecipientRelationship.friend,
     );
 
 Map<String, dynamic> _$$CreateRecipientRequestImplToJson(
@@ -331,6 +347,7 @@ Map<String, dynamic> _$$CreateRecipientRequestImplToJson(
       'name': instance.name,
       'email': instance.email,
       'avatarUrl': instance.avatarUrl,
+      'relationship': _$RecipientRelationshipEnumMap[instance.relationship],
     };
 
 _$UpdateUserProfileRequestImpl _$$UpdateUserProfileRequestImplFromJson(
