@@ -55,7 +55,7 @@ class UserRepository(BaseRepository[User]):
     async def search_users(
         self, 
         query: str, 
-        limit: int = 10,
+        limit: Optional[int] = None,
         exclude_user_id: Optional[str] = None
     ) -> list[User]:
         """
@@ -66,14 +66,17 @@ class UserRepository(BaseRepository[User]):
         
         Args:
             query: Search query string
-            limit: Maximum number of results to return
+            limit: Maximum number of results to return (uses settings default if None)
             exclude_user_id: User ID to exclude from results (e.g., current user)
         
         Returns:
             List of matching users, ordered by relevance (exact username matches first)
         """
+        from app.core.config import settings
+        
         query_lower = query.lower().strip()
         search_term = f"%{query_lower}%"
+        search_limit = limit if limit is not None else settings.default_search_limit
         
         # Build query to search across email, username, and full_name
         search_conditions = or_(
@@ -111,7 +114,7 @@ class UserRepository(BaseRepository[User]):
                 User.full_name.nulls_last(),
                 User.username
             )
-            .limit(limit)
+            .limit(search_limit)
         )
         return list(result.scalars().all())
 
@@ -127,7 +130,7 @@ class CapsuleRepository(BaseRepository[Capsule]):
         sender_id: str,
         state: Optional[CapsuleState] = None,
         skip: int = 0,
-        limit: int = 100  # Using default limit, can be overridden
+        limit: Optional[int] = None
     ) -> list[Capsule]:
         """
         Get capsules by sender with optional state filter.
@@ -136,7 +139,7 @@ class CapsuleRepository(BaseRepository[Capsule]):
             sender_id: ID of the user who sent the capsules
             state: Optional state filter (e.g., only DRAFT, only READY)
             skip: Number of records to skip (for pagination)
-            limit: Maximum number of records to return
+            limit: Maximum number of records to return (uses settings default if None)
         
         Returns:
             List of capsules sent by the specified user
@@ -145,6 +148,8 @@ class CapsuleRepository(BaseRepository[Capsule]):
             Results are ordered by creation date (newest first)
             Uses index on sender_id for optimal performance
         """
+        from app.core.config import settings
+        
         # Build base query filtering by sender_id
         query = select(Capsule).where(Capsule.sender_id == sender_id)
         
@@ -155,7 +160,11 @@ class CapsuleRepository(BaseRepository[Capsule]):
         
         # Order by creation date (newest first) and apply pagination
         # Uses database indexes for efficient sorting
-        query = query.order_by(Capsule.created_at.desc()).offset(skip).limit(limit)
+        query = query.order_by(Capsule.created_at.desc()).offset(skip)
+        if limit is not None:
+            query = query.limit(limit)
+        else:
+            query = query.limit(settings.default_page_size)
         result = await self.session.execute(query)
         return list(result.scalars().all())
     
@@ -164,7 +173,7 @@ class CapsuleRepository(BaseRepository[Capsule]):
         receiver_id: str,
         state: Optional[CapsuleState] = None,
         skip: int = 0,
-        limit: int = 100  # Using default limit, can be overridden
+        limit: Optional[int] = None
     ) -> list[Capsule]:
         """
         Get capsules by receiver with optional state filter.
@@ -173,7 +182,7 @@ class CapsuleRepository(BaseRepository[Capsule]):
             receiver_id: ID of the user who received the capsules
             state: Optional state filter (e.g., only READY, only OPENED)
             skip: Number of records to skip (for pagination)
-            limit: Maximum number of records to return
+            limit: Maximum number of records to return (uses settings default if None)
         
         Returns:
             List of capsules received by the specified user
@@ -184,6 +193,8 @@ class CapsuleRepository(BaseRepository[Capsule]):
             This is the primary query for the inbox view
         """
         from app.core.logging import get_logger
+        from app.core.config import settings
+        
         logger = get_logger(__name__)
         
         # Build base query filtering by receiver_id
@@ -197,7 +208,11 @@ class CapsuleRepository(BaseRepository[Capsule]):
         
         # Order by creation date (newest first) and apply pagination
         # Uses database indexes for efficient sorting
-        query = query.order_by(Capsule.created_at.desc()).offset(skip).limit(limit)
+        query = query.order_by(Capsule.created_at.desc()).offset(skip)
+        if limit is not None:
+            query = query.limit(limit)
+        else:
+            query = query.limit(settings.default_page_size)
         result = await self.session.execute(query)
         capsules = list(result.scalars().all())
         
@@ -323,16 +338,21 @@ class DraftRepository(BaseRepository[Draft]):
         self,
         owner_id: str,
         skip: int = 0,
-        limit: int = 100
+        limit: Optional[int] = None
     ) -> list[Draft]:
         """Get all drafts by owner."""
+        from app.core.config import settings
+        
         query = (
             select(Draft)
             .where(Draft.owner_id == owner_id)
             .order_by(Draft.updated_at.desc())
             .offset(skip)
-            .limit(limit)
         )
+        if limit is not None:
+            query = query.limit(limit)
+        else:
+            query = query.limit(settings.default_page_size)
         result = await self.session.execute(query)
         return list(result.scalars().all())
     
@@ -364,16 +384,21 @@ class RecipientRepository(BaseRepository[Recipient]):
         self,
         owner_id: str,
         skip: int = 0,
-        limit: int = 100  # Using default limit, can be overridden
+        limit: Optional[int] = None
     ) -> list[Recipient]:
         """Get all recipients by owner."""
+        from app.core.config import settings
+        
         query = (
             select(Recipient)
             .where(Recipient.owner_id == owner_id)
             .order_by(Recipient.created_at.desc())
             .offset(skip)
-            .limit(limit)
         )
+        if limit is not None:
+            query = query.limit(limit)
+        else:
+            query = query.limit(settings.default_page_size)
         result = await self.session.execute(query)
         return list(result.scalars().all())
     

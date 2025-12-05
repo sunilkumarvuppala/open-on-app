@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
+import 'package:openon_app/core/theme/dynamic_theme.dart';
 
 class StepChooseTime extends ConsumerStatefulWidget {
   final VoidCallback onNext;
@@ -148,22 +149,22 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                   'When should ${recipient?.name ?? "they"} open this?',
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textDark,
+                        color: DynamicTheme.getPrimaryTextColor(colorScheme),
                       ),
                 ),
                 SizedBox(height: AppTheme.spacingSm),
                 Text(
                   'Choose the perfect moment for the reveal',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppTheme.textGrey,
+                        color: DynamicTheme.getSecondaryTextColor(colorScheme),
                       ),
                 ),
                 SizedBox(height: AppTheme.spacingXl),
                 
                 // Quick selection chips
                 Wrap(
-                  spacing: AppTheme.spacingSm,
-                  runSpacing: AppTheme.spacingSm,
+                  spacing: AppTheme.chipSpacing,
+                  runSpacing: AppTheme.chipSpacing,
                   children: [
                     _quickSelectChip('Tomorrow, 9 AM', 1),
                     _quickSelectChip('In 1 week', 7),
@@ -175,7 +176,9 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                 
                 SizedBox(height: AppTheme.spacingXl),
                 
-                const Divider(),
+                Divider(
+                  color: DynamicTheme.getDividerColor(colorScheme),
+                ),
                 
                 SizedBox(height: AppTheme.spacingXl),
                 
@@ -183,7 +186,7 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                   'Or choose a custom date and time',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textDark,
+                        color: DynamicTheme.getPrimaryTextColor(colorScheme),
                       ),
                 ),
                 
@@ -192,6 +195,7 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                 // Date picker
                 Card(
                   elevation: 2,
+                  color: DynamicTheme.getCardBackgroundColor(colorScheme),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                   ),
@@ -202,7 +206,10 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                       padding: EdgeInsets.all(AppTheme.spacingMd),
                       child: Row(
                         children: [
-                          Icon(Icons.calendar_today, color: colorScheme.primary1),
+                          Icon(
+                            Icons.calendar_today, 
+                            color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                          ),
                           SizedBox(width: AppTheme.spacingMd),
                           Expanded(
                             child: Column(
@@ -212,7 +219,7 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                                   'Date',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: AppTheme.textGrey,
+                                    color: DynamicTheme.getLabelTextColor(colorScheme),
                                   ),
                                 ),
                                 SizedBox(height: AppTheme.spacingXs),
@@ -224,14 +231,17 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
                                     color: _selectedDate != null
-                                        ? AppColors.textDark
-                                        : AppTheme.textGrey,
+                                        ? DynamicTheme.getPrimaryTextColor(colorScheme)
+                                        : DynamicTheme.getDisabledTextColor(colorScheme),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          Icon(Icons.chevron_right, color: AppTheme.textGrey),
+                          Icon(
+                            Icons.chevron_right, 
+                            color: DynamicTheme.getSecondaryIconColor(colorScheme),
+                          ),
                         ],
                       ),
                     ),
@@ -243,6 +253,7 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                 // Time picker
                 Card(
                   elevation: 2,
+                  color: DynamicTheme.getCardBackgroundColor(colorScheme),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                   ),
@@ -253,7 +264,10 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                       padding: EdgeInsets.all(AppTheme.spacingMd),
                       child: Row(
                         children: [
-                          Icon(Icons.access_time, color: colorScheme.primary1),
+                          Icon(
+                            Icons.access_time, 
+                            color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                          ),
                           SizedBox(width: AppTheme.spacingMd),
                           Expanded(
                             child: Column(
@@ -263,7 +277,7 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                                   'Time',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: AppTheme.textGrey,
+                                    color: DynamicTheme.getLabelTextColor(colorScheme),
                                   ),
                                 ),
                                 SizedBox(height: AppTheme.spacingXs),
@@ -275,14 +289,17 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
                                     color: _selectedTime != null
-                                        ? AppColors.textDark
-                                        : AppTheme.textGrey,
+                                        ? DynamicTheme.getPrimaryTextColor(colorScheme)
+                                        : DynamicTheme.getDisabledTextColor(colorScheme),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          Icon(Icons.chevron_right, color: AppTheme.textGrey),
+                          Icon(
+                            Icons.chevron_right, 
+                            color: DynamicTheme.getSecondaryIconColor(colorScheme),
+                          ),
                         ],
                       ),
                     ),
@@ -290,25 +307,28 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                 ),
                 
                 if (_combinedDateTime != null) ...[
-                  SizedBox(height: AppTheme.spacingXl),
+                  SizedBox(height: AppTheme.spacingMd),
                   Container(
                     padding: EdgeInsets.all(AppTheme.spacingMd),
                     decoration: BoxDecoration(
-                      color: colorScheme.primary1.withOpacity(0.1),
+                      color: DynamicTheme.getInfoBackgroundColor(colorScheme),
                       borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                       border: Border.all(
-                        color: colorScheme.primary1.withOpacity(0.2),
+                        color: DynamicTheme.getInfoBorderColor(colorScheme),
                       ),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.info_outline, color: colorScheme.primary1),
+                        Icon(
+                          Icons.info_outline, 
+                          color: DynamicTheme.getInfoTextColor(colorScheme),
+                        ),
                         SizedBox(width: AppTheme.spacingSm),
                         Expanded(
                           child: Text(
                             'This letter will unlock on ${DateFormat('MMMM d, y').format(_combinedDateTime!)} at ${_selectedTime!.format(context)}',
                             style: TextStyle(
-                              color: colorScheme.primary1,
+                              color: DynamicTheme.getInfoTextColor(colorScheme),
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -323,9 +343,9 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                   Container(
                     padding: EdgeInsets.all(AppTheme.spacingSm),
                     decoration: BoxDecoration(
-                      color: AppColors.error.withOpacity(0.1),
+                      color: AppColors.error.withOpacity(AppTheme.opacityLow),
                       borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                      border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                      border: Border.all(color: AppColors.error.withOpacity(AppTheme.opacityHigh)),
                     ),
                     child: Row(
                       children: [
@@ -350,10 +370,10 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
         Container(
           padding: EdgeInsets.all(AppTheme.spacingLg),
           decoration: BoxDecoration(
-            color: AppColors.white,
+            color: DynamicTheme.getNavBarBackgroundColor(colorScheme),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: DynamicTheme.getNavBarShadowColor(colorScheme),
                 blurRadius: 10,
                 offset: const Offset(0, -5),
               ),
@@ -366,6 +386,10 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                   onPressed: widget.onBack,
                   style: OutlinedButton.styleFrom(
                     padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                    side: BorderSide(
+                      color: DynamicTheme.getOutlinedButtonBorderColor(colorScheme),
+                    ),
+                    foregroundColor: DynamicTheme.getOutlinedButtonTextColor(colorScheme),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                     ),
@@ -382,6 +406,7 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                     backgroundColor: colorScheme.primary1,
                     foregroundColor: Colors.white,
                     padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                    side: DynamicTheme.getButtonBorderSide(colorScheme),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                     ),
@@ -398,27 +423,46 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
   
   Widget _quickSelectChip(String label, int days) {
     final colorScheme = ref.read(selectedColorSchemeProvider);
+    
+    // Check if this chip's time matches the currently selected date/time
+    final now = DateTime.now();
+    final targetDate = now.add(Duration(days: days));
+    final chipDate = DateTime(
+      targetDate.year,
+      targetDate.month,
+      targetDate.day,
+    );
+    final isSelected = _selectedDate != null &&
+        _selectedDate!.year == chipDate.year &&
+        _selectedDate!.month == chipDate.month &&
+        _selectedDate!.day == chipDate.day &&
+        _selectedTime != null &&
+        _selectedTime!.hour == 9 &&
+        _selectedTime!.minute == 0;
+    
     return ActionChip(
-      label: Text(label),
+      label: Text(
+        label,
+        style: TextStyle(
+          color: DynamicTheme.getChipLabelColor(colorScheme, isSelected),
+          fontSize: 13,
+        ),
+      ),
       onPressed: () {
-        final now = DateTime.now();
-        final targetDate = now.add(Duration(days: days));
-        
         setState(() {
-          _selectedDate = DateTime(
-            targetDate.year,
-            targetDate.month,
-            targetDate.day,
-          );
+          _selectedDate = chipDate;
           _selectedTime = const TimeOfDay(hour: 9, minute: 0);
           _errorMessage = null;
         });
       },
-      backgroundColor: colorScheme.primary1.withOpacity(0.1),
-      labelStyle: TextStyle(
-        color: colorScheme.primary1,
-        fontWeight: FontWeight.w500,
+      backgroundColor: DynamicTheme.getChipBackgroundColor(colorScheme, isSelected),
+      side: BorderSide(
+        color: DynamicTheme.getChipBorderColor(colorScheme, isSelected),
+        width: DynamicTheme.getChipBorderWidth(isSelected),
       ),
+      elevation: DynamicTheme.getChipElevation(isSelected),
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
 }

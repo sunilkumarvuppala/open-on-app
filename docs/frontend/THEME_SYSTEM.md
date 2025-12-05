@@ -104,67 +104,77 @@ class AppColorScheme {
 
 ### Available Color Schemes
 
-#### 1. Galaxy Aurora (Default)
-- **Primary**: Deep purple to violet gradient
-- **Secondary**: Soft lavender tones
-- **Accent**: Golden yellow
-- **Mood**: Mystical, dreamy
+The app includes 10 vibrant dark themes optimized for a modern, immersive experience:
 
-#### 2. Royal Amethyst
-- **Primary**: Rich purple tones
-- **Secondary**: Light purple
-- **Accent**: Amber gold
-- **Mood**: Regal, elegant
+#### 1. Deep Blue (Default)
+- **Primary**: Deep purple-blue gradient
+- **Secondary**: Dark blue-purple tones
+- **Accent**: Vibrant purple glow
+- **Mood**: Modern, professional
+- **Type**: Dark theme
 
-#### 3. Dream Lilac
-- **Primary**: Soft lilac
-- **Secondary**: Pink tones
-- **Accent**: Mint green
-- **Mood**: Gentle, romantic
+#### 2. Galaxy Aurora
+- **Primary**: Deep purple-blue
+- **Secondary**: Dark blue-purple
+- **Accent**: Bright cyan (aurora effect)
+- **Mood**: Mystical, cosmic
+- **Type**: Dark theme
 
-#### 4. Velvet Nights
-- **Primary**: Deep dark blue/black
-- **Secondary**: Light gray
-- **Accent**: Purple
-- **Mood**: Sophisticated, mysterious
+#### 3. Galaxy Aurora Classic
+- **Primary**: Deep purple-blue
+- **Secondary**: Light cyan-blue and soft blue-aqua
+- **Accent**: Golden/peachy
+- **Mood**: Dreamy, aurora-inspired
+- **Type**: Light theme variant
 
-#### 5. Emerald Elegance
-- **Primary**: Deep green
-- **Secondary**: Light green
-- **Accent**: Bright green
-- **Mood**: Natural, fresh
+#### 4. Cosmic Void
+- **Primary**: Deep purple-black
+- **Secondary**: Almost black to dark navy
+- **Accent**: Vibrant purple
+- **Mood**: Deep, mysterious
+- **Type**: Dark theme
 
-#### 6. Midnight Blue
-- **Primary**: Dark blue-gray
-- **Secondary**: Light gray
-- **Accent**: Blue
-- **Mood**: Calm, professional
+#### 5. Nebula Dreams
+- **Primary**: Rich purple
+- **Secondary**: Very dark purple tones
+- **Accent**: Vibrant pink
+- **Mood**: Dreamy, ethereal
+- **Type**: Dark theme
 
-#### 7. Forest Green
-- **Primary**: Deep forest green
-- **Secondary**: Light beige
-- **Accent**: Amber
-- **Mood**: Earthy, warm
+#### 6. Stellar Night
+- **Primary**: Deep navy
+- **Secondary**: Almost black blue
+- **Accent**: Gold (stars)
+- **Mood**: Celestial, elegant
+- **Type**: Dark theme
 
-#### 8. Sunset Dreams
-- **Primary**: Orange to pink gradient
-- **Secondary**: Peach tones
-- **Accent**: Coral
-- **Mood**: Warm, vibrant
+#### 7. Abyssal Depths
+- **Primary**: Deep teal-blue
+- **Secondary**: Very dark blue-green
+- **Accent**: Bright teal
+- **Mood**: Oceanic, deep
+- **Type**: Dark theme
 
-#### 9. Ocean Breeze
-- **Primary**: Blue to cyan gradient
-- **Secondary**: Light blue
-- **Accent**: Turquoise
-- **Mood**: Fresh, calming
+#### 8. Midnight Storm
+- **Primary**: Dark grey-blue
+- **Secondary**: Almost black
+- **Accent**: Electric blue
+- **Mood**: Stormy, dynamic
+- **Type**: Dark theme
 
-#### 10. Rose Gold
-- **Primary**: Rose pink
-- **Secondary**: Gold tones
-- **Accent**: Peach
-- **Mood**: Elegant, luxurious
+#### 9. Celestial Purple
+- **Primary**: Deep purple
+- **Secondary**: Very dark purple
+- **Accent**: Magenta
+- **Mood**: Cosmic, vibrant
+- **Type**: Dark theme
 
-*... and 5 more schemes*
+#### 10. Mystic Shadows
+- **Primary**: Deep indigo
+- **Secondary**: Very dark indigo
+- **Accent**: Blue-violet
+- **Mood**: Mystical, shadowy
+- **Type**: Dark theme
 
 ### Color Scheme Properties
 
@@ -184,7 +194,7 @@ Each color has a specific purpose:
 
 ### Purpose
 
-Builds a complete `ThemeData` object from a color scheme, applying colors consistently across all Material components.
+Builds a complete `ThemeData` object from a color scheme, applying colors consistently across all Material components. Also provides helper methods for theme-aware colors and styles.
 
 ### Method Signature
 
@@ -198,10 +208,54 @@ The builder configures:
 
 1. **Color Scheme**: Material 3 color scheme
 2. **App Bar**: Transparent with theme colors
-3. **Buttons**: Elevated and text button themes
+3. **Buttons**: Elevated and text button themes (with borders)
 4. **Input Fields**: Text field decoration
 5. **Cards**: Card theme with elevation
 6. **Text Theme**: Typography with theme colors
+7. **Bottom Navigation**: Theme-aware navigation bar
+
+### Helper Methods
+
+`DynamicTheme` provides numerous helper methods for consistent theming:
+
+#### Text Colors
+- `getPrimaryTextColor()` - Headings, titles
+- `getSecondaryTextColor()` - Body text, descriptions
+- `getDisabledTextColor()` - Placeholder text
+- `getLabelTextColor()` - Form labels, small text
+
+#### Icon Colors
+- `getPrimaryIconColor()` - Main icons
+- `getSecondaryIconColor()` - Chevrons, less important icons
+
+#### Background Colors
+- `getCardBackgroundColor()` - Cards, containers
+- `getInfoBackgroundColor()` - Info/alert containers
+- `getInputBackgroundColor()` - Input fields
+
+#### Border Colors
+- `getBorderColor()` - Cards/containers
+- `getInfoBorderColor()` - Info/alert borders
+- `getInputBorderColor()` - Input field borders
+- `getButtonBorderColor()` - Button borders
+- `getButtonBorderSide()` - Complete BorderSide for buttons
+- `getSubtleButtonBorderSide()` - Subtle border for special cases
+- `getTabContainerBorder()` - Tab container borders
+
+#### Button Helpers
+- `getButtonBackgroundColor()` - Custom button backgrounds
+- `getButtonTextColor()` - Button text/icon color
+- `getButtonGlowColor()` - Pressed/tapped state glow
+- `getButtonGlowShadows()` - Complete glow shadow list
+
+#### Navigation Bar
+- `getNavBarBackgroundColor()` - Navigation bar background
+- `getNavBarShadowColor()` - Navigation bar shadow
+- `getNavBarSelectedIconColor()` - Selected icon color
+- `getNavBarUnselectedIconColor()` - Unselected icon color
+- `getNavBarGlowColor()` - Selected item glow
+
+All helpers use `AppTheme` constants and automatically adapt to dark/light themes.
 
 ### Example Output
 
@@ -325,7 +379,7 @@ static Future<AppColorScheme> getCurrentScheme() async {
     if (scheme != null) return scheme;
   }
   
-  return AppColorScheme.galaxyAurora; // Default
+  return AppColorScheme.deepBlue; // Default
 }
 ```
 
@@ -341,7 +395,7 @@ final colorSchemeProvider = FutureProvider<AppColorScheme>((ref) async {
 final selectedColorSchemeProvider = StateNotifierProvider<ColorSchemeNotifier, AppColorScheme>(
   (ref) {
     final currentSchemeAsync = ref.watch(colorSchemeProvider);
-    final initialScheme = currentSchemeAsync.asData?.value ?? AppColorScheme.galaxyAurora;
+    final initialScheme = currentSchemeAsync.asData?.value ?? AppColorScheme.deepBlue;
     return ColorSchemeNotifier(initialScheme);
   },
 );
@@ -415,26 +469,33 @@ Theme.of(context).textTheme.bodyLarge?.color
 
 ### Step 1: Define Color Scheme
 
-Add to `core/theme/color_scheme.dart`:
+Add to `core/theme/color_scheme.dart` using consistent hex format:
 
 ```dart
+// ⭐ MY NEW THEME - Description
 static const myNewTheme = AppColorScheme(
   id: 'my_new_theme',
   name: 'My New Theme',
-  primary1: Color(0xFF123456),
-  primary2: Color(0xFF0A2B3C),
-  secondary1: Color(0xFFE8F4F1),
-  secondary2: Color(0xFFF0F8F6),
-  accent: Color(0xFF2ECC71),
+  primary1: Color(0xFF1C164E),      // Main primary color
+  primary2: Color(0xFF2A1D6F),       // Darker primary variant
+  secondary1: Color(0xFF8EC5FF),    // Main secondary color
+  secondary2: Color(0xFFD4E8F5),     // Light secondary (background)
+  accent: Color(0xFFF8D57E),        // Accent color
 );
 ```
+
+**Important**: 
+- Use hex format `Color(0xFF...)` consistently
+- `secondary2` determines if theme is dark/light (luminance < 0.5 = dark)
+- Ensure colors work well together in gradients
 
 ### Step 2: Add to All Schemes List
 
 ```dart
-static List<AppColorScheme> get allSchemes => [
+static const List<AppColorScheme> allSchemes = [
+  deepBlue,        // Default theme - placed first
   galaxyAurora,
-  royalAmethyst,
+  galaxyAuroraClassic,
   // ... existing schemes
   myNewTheme,  // Add here
 ];
@@ -446,16 +507,88 @@ static List<AppColorScheme> get allSchemes => [
 2. Go to Profile → Color Theme
 3. Select your new theme
 4. Verify all screens look correct
+5. Test with both dark and light variants if applicable
 
 ### Color Selection Tips
 
-1. **Contrast**: Ensure text is readable on backgrounds
-2. **Harmony**: Colors should work well together
+1. **Contrast**: Ensure text is readable on backgrounds (use `DynamicTheme` helpers)
+2. **Harmony**: Colors should work well together in gradients
 3. **Accessibility**: Check WCAG contrast ratios
 4. **Mood**: Match color psychology to intended mood
-5. **Gradients**: Test gradients look smooth
+5. **Dark/Light Detection**: `secondary2` luminance determines theme type automatically
+6. **Format Consistency**: Always use hex format `Color(0xFF...)`
 
 ---
+
+## Production Optimizations
+
+### Constants System
+
+All spacing, opacity, border widths, and other design values are centralized in `AppTheme` for consistency:
+
+```dart
+// Spacing
+AppTheme.spacingXs    // 4.0
+AppTheme.spacingSm    // 8.0
+AppTheme.spacingMd    // 16.0
+AppTheme.spacingLg    // 24.0
+AppTheme.spacingXl    // 32.0
+
+// Opacity
+AppTheme.opacityLow           // 0.1
+AppTheme.opacityMedium        // 0.15
+AppTheme.opacityMediumHigh    // 0.2
+AppTheme.opacityHigh          // 0.3
+AppTheme.opacityVeryHigh      // 0.6
+AppTheme.opacityFull          // 0.9
+
+// Border Widths
+AppTheme.borderWidthThin      // 0.5
+AppTheme.borderWidthStandard  // 1.0
+AppTheme.borderWidthThick     // 2.0
+```
+
+**Never use hardcoded values** - always use `AppTheme` constants.
+
+### DynamicTheme Helper Methods
+
+Use `DynamicTheme` helper methods instead of hardcoded color logic:
+
+```dart
+// ✅ Good - Theme-aware helpers
+DynamicTheme.getPrimaryTextColor(colorScheme)
+DynamicTheme.getSecondaryTextColor(colorScheme)
+DynamicTheme.getButtonBorderSide(colorScheme)
+DynamicTheme.getCardBackgroundColor(colorScheme)
+DynamicTheme.getTabContainerBorder(colorScheme)
+
+// ❌ Bad - Hardcoded logic
+colorScheme.isDarkTheme ? Colors.white : Colors.black
+```
+
+### Color Format Standards
+
+All colors use consistent hex format:
+
+```dart
+// ✅ Good
+Color(0xFF1C164E)
+
+// ❌ Bad - Inconsistent
+Color.fromARGB(255, 28, 22, 78)
+```
+
+### JSON Serialization
+
+Uses non-deprecated APIs:
+
+```dart
+// ✅ Good
+primary1.toARGB32()
+
+// ❌ Bad - Deprecated
+primary1.value
+```
 
 ## Best Practices
 
@@ -469,7 +602,41 @@ Container(color: colorScheme.primary1)
 Container(color: Colors.blue)
 ```
 
-### 2. Use Gradients from DynamicTheme
+### 2. Use DynamicTheme Helpers
+
+```dart
+// ✅ Good - Theme-aware, no hardcoded logic
+Text(
+  'Hello',
+  style: TextStyle(
+    color: DynamicTheme.getPrimaryTextColor(colorScheme),
+  ),
+)
+
+// ❌ Bad - Hardcoded theme checks
+Text(
+  'Hello',
+  style: TextStyle(
+    color: colorScheme.isDarkTheme ? Colors.white : Colors.black,
+  ),
+)
+```
+
+### 3. Use Constants, Not Magic Numbers
+
+```dart
+// ✅ Good
+padding: EdgeInsets.all(AppTheme.spacingMd)
+borderRadius: BorderRadius.circular(AppTheme.radiusLg)
+opacity: AppTheme.opacityHigh
+
+// ❌ Bad
+padding: EdgeInsets.all(16.0)
+borderRadius: BorderRadius.circular(16.0)
+opacity: 0.3
+```
+
+### 4. Use Gradients from DynamicTheme
 
 ```dart
 // ✅ Good
@@ -479,36 +646,37 @@ final gradient = DynamicTheme.dreamyGradient(colorScheme);
 final gradient = LinearGradient(colors: [Colors.purple, Colors.blue]);
 ```
 
-### 3. Watch Theme Provider
+### 5. Watch Theme Provider
 
 ```dart
 // ✅ Good - Reactive
 final colorScheme = ref.watch(selectedColorSchemeProvider);
 
 // ❌ Bad - Not reactive
-final colorScheme = AppColorScheme.galaxyAurora;
+final colorScheme = AppColorScheme.deepBlue;
 ```
 
-### 4. Test All Themes
-
-When adding new UI, test with multiple color schemes to ensure consistency.
-
-### 5. Use Theme-Aware Text Colors
+### 6. Use Helper Methods for Borders
 
 ```dart
 // ✅ Good
-Text(
-  'Hello',
-  style: TextStyle(
-    color: Theme.of(context).textTheme.bodyLarge?.color,
-  ),
-)
+side: DynamicTheme.getButtonBorderSide(colorScheme)
+border: DynamicTheme.getTabContainerBorder(colorScheme)
 
 // ❌ Bad
-Text('Hello', style: TextStyle(color: Colors.black))
+side: BorderSide(
+  color: colorScheme.isDarkTheme 
+    ? Colors.white.withOpacity(0.3) 
+    : colorScheme.primary1.withOpacity(0.2),
+  width: 1,
+)
 ```
 
-### 6. Gradient Consistency
+### 7. Test All Themes
+
+When adding new UI, test with multiple color schemes to ensure consistency and visibility.
+
+### 8. Gradient Consistency
 
 Use the same gradient type for similar elements:
 - Buttons: `dreamyGradient`
@@ -551,5 +719,23 @@ final colorScheme = ref.watch(selectedColorSchemeProvider);
 
 ---
 
-**Last Updated**: 2025
+---
+
+## Recent Updates (2025)
+
+### Production Optimizations
+- **Constants System**: All spacing, opacity, and border values centralized in `AppTheme`
+- **Helper Methods**: Comprehensive `DynamicTheme` helpers replace hardcoded theme logic
+- **Color Format**: Standardized to hex format `Color(0xFF...)` throughout
+- **API Updates**: Replaced deprecated `Color.value` with `Color.toARGB32()`
+- **No Hardcoded Values**: All theme logic uses constants and helpers
+
+### Theme Updates
+- **Galaxy Aurora Classic**: Updated `secondary2` to light blue-aqua (`#D4E8F5`) for better visual appeal
+- **Theme Detection**: Automatic dark/light detection based on `secondary2` luminance
+- **Button Borders**: Global button border styling via `ElevatedButtonThemeData`
+
+---
+
+**Last Updated**: January 2025
 

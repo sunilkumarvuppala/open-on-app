@@ -184,7 +184,7 @@ final colorSchemeProvider = FutureProvider<AppColorScheme>((ref) async {
 // Selected color scheme - reactive to changes
 final selectedColorSchemeProvider = StateNotifierProvider<ColorSchemeNotifier, AppColorScheme>((ref) {
   final currentSchemeAsync = ref.watch(colorSchemeProvider);
-  final initialScheme = currentSchemeAsync.asData?.value ?? AppColorScheme.galaxyAurora;
+  final initialScheme = currentSchemeAsync.asData?.value ?? AppColorScheme.deepBlue;
   return ColorSchemeNotifier(initialScheme);
 });
 

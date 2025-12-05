@@ -70,15 +70,19 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
   @override
   Widget build(BuildContext context) {
     final colorScheme = ref.watch(selectedColorSchemeProvider);
+    
+    // Use theme-aware colors for navigation bar
+    final navBackgroundColor = DynamicTheme.getNavBarBackgroundColor(colorScheme);
+    final shadowColor = DynamicTheme.getNavBarShadowColor(colorScheme);
 
     return Scaffold(
       body: widget.child,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: navBackgroundColor,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: shadowColor,
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -137,6 +141,13 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
       curve: Curves.easeOut,
     ));
 
+    // Use theme-aware colors for maximum visibility
+    final selectedIconColor = DynamicTheme.getNavBarSelectedIconColor(colorScheme);
+    final unselectedIconColor = DynamicTheme.getNavBarUnselectedIconColor(colorScheme);
+    final selectedTextColor = DynamicTheme.getNavBarSelectedTextColor(colorScheme);
+    final unselectedTextColor = DynamicTheme.getNavBarUnselectedTextColor(colorScheme);
+    final glowColor = DynamicTheme.getNavBarGlowColor(colorScheme);
+
     return Expanded(
       child: InkWell(
         onTap: () => _onTabTapped(index),
@@ -158,21 +169,46 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
                   return Transform.translate(
                     offset: Offset(0, translateY),
                     child: isSelected
-                        ? ShaderMask(
-                            shaderCallback: (bounds) {
-                              final gradient = DynamicTheme.dreamyGradient(colorScheme);
-                              return gradient.createShader(bounds);
-                            },
-                            child: Icon(
-                              activeIcon,
-                              color: Colors.white, // White is required for ShaderMask
-                              size: 21, // Reduced from 24 to 21 (3px reduction)
+                        ? SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              clipBehavior: Clip.none,
+                              children: [
+                                // Soft glow effect behind the icon (positioned, doesn't affect layout)
+                                Positioned(
+                                  left: -2,
+                                  right: -2,
+                                  top: -2,
+                                  bottom: -2,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: glowColor,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: glowColor,
+                                          blurRadius: 4,
+                                          spreadRadius: 1,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                // Icon on top
+                                Icon(
+                                  activeIcon,
+                                  color: selectedIconColor,
+                                  size: 21,
+                                ),
+                              ],
                             ),
                           )
                         : Icon(
                             icon,
-                            color: AppTheme.textGrey,
-                            size: 21, // Reduced from 24 to 21 (3px reduction)
+                            color: unselectedIconColor,
+                            size: 21,
                           ),
                   );
                 },
@@ -182,8 +218,8 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
                 label,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: isSelected
-                          ? colorScheme.primary1
-                          : AppTheme.textGrey,
+                          ? selectedTextColor
+                          : unselectedTextColor,
                       fontWeight: isSelected
                           ? FontWeight.w600
                           : FontWeight.w400,

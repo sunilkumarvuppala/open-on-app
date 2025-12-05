@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
+import 'package:openon_app/core/theme/color_scheme.dart';
 
 class StepPreview extends ConsumerWidget {
   final VoidCallback onBack;
@@ -39,14 +40,14 @@ class StepPreview extends ConsumerWidget {
                   'Preview your letter',
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textDark,
+                        color: DynamicTheme.getPrimaryTextColor(colorScheme),
                       ),
                 ),
                 SizedBox(height: AppTheme.spacingSm),
                 Text(
                   'Everything looks good? Let\'s send it!',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppTheme.textGrey,
+                        color: DynamicTheme.getSecondaryTextColor(colorScheme),
                       ),
                 ),
                 SizedBox(height: AppTheme.spacingXl),
@@ -129,6 +130,7 @@ class StepPreview extends ConsumerWidget {
                           label: 'Recipient',
                           value: '${recipient.name} (${recipient.relationship})',
                           primaryColor: colorScheme.primary1,
+                          colorScheme: colorScheme,
                         ),
                         Divider(height: AppTheme.spacingXl),
                         _buildDetailRow(
@@ -137,6 +139,7 @@ class StepPreview extends ConsumerWidget {
                           label: 'Unlocks On',
                           value: DateFormat('EEEE, MMMM d, y \'at\' h:mm a').format(unlockAt),
                           primaryColor: colorScheme.primary1,
+                          colorScheme: colorScheme,
                         ),
                         Divider(height: AppTheme.spacingXl),
                         _buildDetailRow(
@@ -145,6 +148,7 @@ class StepPreview extends ConsumerWidget {
                           label: 'Letter Length',
                           value: '${draft.content?.length ?? 0} characters',
                           primaryColor: colorScheme.primary1,
+                          colorScheme: colorScheme,
                         ),
                         if (draft.photoPath != null) ...[
                           Divider(height: AppTheme.spacingXl),
@@ -154,6 +158,7 @@ class StepPreview extends ConsumerWidget {
                             label: 'Photo',
                             value: 'Included',
                             primaryColor: colorScheme.primary1,
+                            colorScheme: colorScheme,
                           ),
                         ],
                       ],
@@ -168,7 +173,7 @@ class StepPreview extends ConsumerWidget {
                   'Letter Preview',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textDark,
+                        color: DynamicTheme.getPrimaryTextColor(colorScheme),
                       ),
                 ),
                 SizedBox(height: AppTheme.spacingSm),
@@ -176,14 +181,17 @@ class StepPreview extends ConsumerWidget {
                   width: double.infinity,
                   padding: EdgeInsets.all(AppTheme.spacingMd),
                   decoration: BoxDecoration(
-                    color: AppColors.white,
+                    color: DynamicTheme.getCardBackgroundColor(colorScheme),
                     borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                    border: Border.all(color: AppColors.lightGray),
+                    border: Border.all(
+                      color: DynamicTheme.getBorderColor(colorScheme),
+                    ),
                   ),
                   child: Text(
                     draft.content ?? '',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           height: 1.6,
+                        color: DynamicTheme.getSecondaryTextColor(colorScheme),
                         ),
                   ),
                 ),
@@ -208,10 +216,10 @@ class StepPreview extends ConsumerWidget {
         Container(
           padding: EdgeInsets.all(AppTheme.spacingLg),
           decoration: BoxDecoration(
-            color: AppColors.white,
+            color: DynamicTheme.getNavBarBackgroundColor(colorScheme),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: DynamicTheme.getNavBarShadowColor(colorScheme),
                 blurRadius: 10,
                 offset: const Offset(0, -5),
               ),
@@ -224,6 +232,10 @@ class StepPreview extends ConsumerWidget {
                   onPressed: onBack,
                   style: OutlinedButton.styleFrom(
                     padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                    side: BorderSide(
+                      color: DynamicTheme.getOutlinedButtonBorderColor(colorScheme),
+                    ),
+                    foregroundColor: DynamicTheme.getOutlinedButtonTextColor(colorScheme),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                     ),
@@ -242,6 +254,7 @@ class StepPreview extends ConsumerWidget {
                     backgroundColor: colorScheme.primary1,
                     foregroundColor: Colors.white,
                     padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                    side: DynamicTheme.getButtonBorderSide(colorScheme),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                     ),
@@ -261,6 +274,7 @@ class StepPreview extends ConsumerWidget {
     required String label,
     required String value,
     required Color primaryColor,
+    required AppColorScheme colorScheme,
   }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -275,7 +289,7 @@ class StepPreview extends ConsumerWidget {
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: AppTheme.textGrey,
+                  color: DynamicTheme.getSecondaryTextColor(colorScheme),
                 ),
               ),
               SizedBox(height: AppTheme.spacingXs),
@@ -284,7 +298,7 @@ class StepPreview extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textDark,
+                  color: DynamicTheme.getPrimaryTextColor(colorScheme),
                 ),
               ),
             ],

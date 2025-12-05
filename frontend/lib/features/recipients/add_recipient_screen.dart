@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
+import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/data/api_repositories.dart';
 import 'package:openon_app/core/constants/app_constants.dart';
 import 'package:openon_app/core/utils/error_handler.dart';
@@ -117,9 +118,13 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
       
       if (_selectedUser == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please select a registered user'),
+          SnackBar(
+            content: const Text('Please select a registered user'),
             backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
           ),
         );
         setState(() => _isLoading = false);
@@ -155,6 +160,10 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
                   : 'Recipient added successfully',
             ),
             backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
           ),
         );
         context.pop();
@@ -170,6 +179,10 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
                 SnackBar(
                   content: Text(errorMsg),
                   backgroundColor: AppColors.error,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  ),
                 ),
               );
             }
@@ -184,12 +197,19 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
   Widget build(BuildContext context) {
     final isEditing = widget.recipient != null;
     final colorScheme = ref.watch(selectedColorSchemeProvider);
+    // Theme-aware text colors
+    final bodyColor = DynamicTheme.getSecondaryTextColor(colorScheme);
     
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? 'Edit Recipient' : 'Add Recipient'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(
+            Icons.arrow_back,
+            color: DynamicTheme.getPrimaryIconColor(
+              ref.watch(selectedColorSchemeProvider),
+            ),
+          ),
           onPressed: () => context.pop(),
         ),
       ),
@@ -209,7 +229,7 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
                     children: [
                       CircleAvatar(
                         radius: AppConstants.avatarRadius,
-                        backgroundColor: colorScheme.primary1.withOpacity(0.1),
+                        backgroundColor: DynamicTheme.getButtonBackgroundColor(colorScheme, opacity: AppTheme.opacityMediumHigh),
                         child: Text(
                           _selectedUser != null
                               ? _selectedUser!.name[0].toUpperCase()
@@ -217,7 +237,7 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
                                   ? _searchController.text[0].toUpperCase()
                                   : '?',
                           style: TextStyle(
-                            color: colorScheme.primary1,
+                            color: DynamicTheme.getDialogTitleColor(colorScheme),
                             fontSize: AppConstants.avatarIconSize,
                             fontWeight: FontWeight.w600,
                           ),
@@ -253,9 +273,20 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
                   child: TextButton(
                     onPressed: () {
                       // TODO: Implement photo picker
+                      final colorScheme = ref.read(selectedColorSchemeProvider);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Photo picker coming soon'),
+                        SnackBar(
+                          content: Text(
+                            'Photo picker coming soon',
+                            style: TextStyle(
+                              color: DynamicTheme.getSnackBarTextColor(colorScheme),
+                            ),
+                          ),
+                          backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                          ),
                         ),
                       );
                     },
@@ -272,18 +303,29 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
                     TextFormField(
                       controller: _searchController,
                       textInputAction: TextInputAction.next,
+                      style: TextStyle(
+                        color: DynamicTheme.getInputTextColor(colorScheme),
+                      ),
                       decoration: InputDecoration(
                         labelText: 'Search Registered User *',
                         hintText: 'Search by username, name, or email',
                         helperText: 'Only registered users can be added as recipients',
-                        prefixIcon: const Icon(Icons.search),
+                        prefixIcon: Icon(
+                          Icons.search,
+                          color: DynamicTheme.getInputHintColor(colorScheme),
+                        ),
                         suffixIcon: _isSearching
-                            ? const Padding(
-                                padding: EdgeInsets.all(12.0),
+                            ? Padding(
+                                padding: const EdgeInsets.all(12.0),
                                 child: SizedBox(
                                   width: AppConstants.searchIndicatorSize,
                                   height: AppConstants.searchIndicatorSize,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      DynamicTheme.getButtonTextColor(colorScheme),
+                                    ),
+                                  ),
                                 ),
                               )
                             : _selectedUser != null
@@ -312,11 +354,15 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
                       Container(
                         margin: const EdgeInsets.only(top: 4),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: DynamicTheme.getCardBackgroundColor(colorScheme),
                           borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: DynamicTheme.getBorderColor(colorScheme),
+                            width: 1,
+                          ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: DynamicTheme.getNavBarShadowColor(colorScheme),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
@@ -330,14 +376,38 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
                             final user = _searchResults[index];
                             return ListTile(
                               leading: CircleAvatar(
-                                child: Text(user.name[0].toUpperCase()),
+                                backgroundColor: DynamicTheme.getButtonBackgroundColor(colorScheme, opacity: 0.2),
+                                child: Text(
+                                  user.name[0].toUpperCase(),
+                                  style: TextStyle(
+                                    color: DynamicTheme.getButtonTextColor(colorScheme),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
-                              title: Text(user.name),
+                              title: Text(
+                                user.name,
+                                style: TextStyle(
+                                  color: DynamicTheme.getInputTextColor(colorScheme),
+                                ),
+                              ),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('@${user.username}', style: const TextStyle(fontWeight: FontWeight.w500)),
-                                  Text(user.email, style: TextStyle(fontSize: 12, color: AppColors.textGrey)),
+                                  Text(
+                                    '@${user.username}', 
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                                    ),
+                                  ),
+                                  Text(
+                                    user.email, 
+                                    style: TextStyle(
+                                      fontSize: 12, 
+                                      color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                                    ),
+                                  ),
                                 ],
                               ),
                               onTap: () => _selectUser(user),
@@ -393,10 +463,16 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
                   controller: _relationshipController,
                   textInputAction: TextInputAction.done,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
+                  style: TextStyle(
+                    color: DynamicTheme.getInputTextColor(colorScheme),
+                  ),
+                  decoration: InputDecoration(
                     labelText: 'Relationship *',
                     hintText: 'e.g., Partner, Daughter, Best Friend',
-                    prefixIcon: Icon(Icons.favorite_outline),
+                    prefixIcon: Icon(
+                      Icons.favorite_outline,
+                                    color: DynamicTheme.getInputHintColor(colorScheme),
+                    ),
                   ),
                   onFieldSubmitted: (_) => _handleSave(),
                   validator: (value) {
@@ -412,7 +488,7 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
                 Text(
                   '* Required fields',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textGrey,
+                        color: bodyColor,
                       ),
                 ),
                 
@@ -424,6 +500,7 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleSave,
                     style: ElevatedButton.styleFrom(
+                      side: DynamicTheme.getButtonBorderSide(colorScheme),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                       ),

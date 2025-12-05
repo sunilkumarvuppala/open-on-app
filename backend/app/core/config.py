@@ -91,7 +91,8 @@ class Settings(BaseSettings):
     # ===== Password Constraints =====
     min_password_length: int = 8  # Minimum password length
     max_password_length: int = 128  # Maximum password length
-    # Note: BCrypt has 72-byte limit, but we allow longer for hashing truncation
+    bcrypt_max_bytes: int = 72  # BCrypt has a 72-byte limit for password hashing
+    bcrypt_rounds: int = 12  # BCrypt hashing rounds (cost factor)
     
     # ===== Content Constraints =====
     min_content_length: int = 1  # Minimum capsule content length

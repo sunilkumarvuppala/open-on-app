@@ -102,9 +102,20 @@ class _ReceiverHomeScreenState extends ConsumerState<ReceiverHomeScreen>
                     IconButton(
                       icon: const Icon(Icons.notifications_outlined),
                       onPressed: () {
+                        final colorScheme = ref.read(selectedColorSchemeProvider);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Notifications coming soon!'),
+                          SnackBar(
+                            content: Text(
+                              'Notifications coming soon!',
+                              style: TextStyle(
+                                color: DynamicTheme.getSnackBarTextColor(colorScheme),
+                              ),
+                            ),
+                            backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                            ),
                           ),
                         );
                       },
@@ -137,8 +148,11 @@ class _ReceiverHomeScreenState extends ConsumerState<ReceiverHomeScreen>
               Container(
                 margin: EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: colorScheme.isDarkTheme
+                      ? Colors.white.withOpacity(AppTheme.opacityLow) // Semi-transparent white for dark theme
+                      : Colors.white,
                   borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  border: DynamicTheme.getTabContainerBorder(colorScheme),
                 ),
                 child: _AnimatedMagicalTabBar(
                   tabController: _tabController,
@@ -241,8 +255,9 @@ class _AnimatedMagicalTabBar extends StatefulWidget {
 }
 
 class _AnimatedMagicalTabBarState extends State<_AnimatedMagicalTabBar>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _sparkleController;
+  late AnimationController _breathingController;
 
   @override
   void initState() {
@@ -251,18 +266,25 @@ class _AnimatedMagicalTabBarState extends State<_AnimatedMagicalTabBar>
       vsync: this,
       duration: const Duration(seconds: 3),
     )..repeat();
+    
+    // Breathing glow animation - slow, gentle pulse
+    _breathingController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3), // Slow breathing cycle
+    )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
     _sparkleController.dispose();
+    _breathingController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _sparkleController,
+      animation: Listenable.merge([_sparkleController, _breathingController]),
       builder: (context, child) {
         return TabBar(
           controller: widget.tabController,
@@ -270,10 +292,13 @@ class _AnimatedMagicalTabBarState extends State<_AnimatedMagicalTabBar>
             gradient: widget.gradient,
             colorScheme: widget.colorScheme,
             animationValue: _sparkleController.value * 2 * math.pi,
+            breathingValue: _breathingController.value,
           ),
           indicatorSize: TabBarIndicatorSize.tab,
           labelColor: Colors.white,
-          unselectedLabelColor: AppTheme.textGrey,
+            unselectedLabelColor: widget.colorScheme.isDarkTheme
+                ? Colors.white.withOpacity(AppTheme.opacityVeryHigh) // Semi-transparent white for visibility
+              : AppTheme.textGrey,
           dividerColor: Colors.transparent,
           isScrollable: false,
           tabAlignment: TabAlignment.fill,
@@ -285,16 +310,18 @@ class _AnimatedMagicalTabBarState extends State<_AnimatedMagicalTabBar>
   }
 }
 
-/// Custom tab indicator with magical effects: glow, sparkle animation, and glow ring
+/// Custom tab indicator with magical effects: glow, sparkle animation, breathing glow, and glow ring
 class _MagicalTabIndicator extends Decoration {
   final Gradient gradient;
   final AppColorScheme colorScheme;
   final double animationValue;
+  final double breathingValue;
 
   const _MagicalTabIndicator({
     required this.gradient,
     required this.colorScheme,
     required this.animationValue,
+    required this.breathingValue,
   });
 
   @override
@@ -303,6 +330,7 @@ class _MagicalTabIndicator extends Decoration {
       gradient: gradient,
       colorScheme: colorScheme,
       animationValue: animationValue,
+      breathingValue: breathingValue,
       onChanged: onChanged,
     );
   }
@@ -312,11 +340,13 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
   final Gradient gradient;
   final AppColorScheme colorScheme;
   final double animationValue;
+  final double breathingValue;
 
   _MagicalTabIndicatorPainter({
     required this.gradient,
     required this.colorScheme,
     required this.animationValue,
+    required this.breathingValue,
     VoidCallback? onChanged,
   }) : super(onChanged);
 
@@ -334,9 +364,23 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
       gradientPaint,
     );
 
+    // Breathing glow effect - pulses in and out
+    // Breathing value goes from 0 to 1, creating a smooth pulse
+    final breathingOpacity = 0.15 + (breathingValue * 0.15); // 0.15 to 0.3 opacity
+    final breathingBlur = 8 + (breathingValue * 8); // 8 to 16 blur radius
+    
+    final Paint breathingGlowPaint = Paint()
+      ..color = colorScheme.primary1.withOpacity(breathingOpacity)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, breathingBlur)
+      ..style = PaintingStyle.fill;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(radius)),
+      breathingGlowPaint,
+    );
+
     // Glow ring effect
     final Paint glowPaint = Paint()
-      ..color = colorScheme.primary1.withOpacity(0.3)
+      ..color = colorScheme.primary1.withOpacity(AppTheme.opacityHigh)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
@@ -347,7 +391,7 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
 
     // Shadow/glow effect
     final Paint shadowPaint = Paint()
-      ..color = colorScheme.primary1.withOpacity(0.2)
+      ..color = colorScheme.primary1.withOpacity(AppTheme.opacityMediumHigh)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12)
       ..style = PaintingStyle.fill;
     canvas.drawRRect(
@@ -454,9 +498,20 @@ class _LockedTab extends ConsumerWidget {
               text: 'Share your link to receive capsules',
               onPressed: () {
                 // TODO: Implement share link functionality
+                final colorScheme = ref.read(selectedColorSchemeProvider);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Share link feature coming soon!'),
+                  SnackBar(
+                    content: Text(
+                      'Share link feature coming soon!',
+                      style: TextStyle(
+                        color: DynamicTheme.getSnackBarTextColor(colorScheme),
+                      ),
+                    ),
+                    backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    ),
                   ),
                 );
               },
@@ -614,12 +669,26 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
     return Container(
       margin: EdgeInsets.zero,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: DynamicTheme.getCardBackgroundColor(colorScheme),
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(
+          color: DynamicTheme.getBorderColor(colorScheme, opacity: AppTheme.opacityMediumHigh),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: DynamicTheme.getNavBarShadowColor(colorScheme),
+            blurRadius: 8,
+            spreadRadius: 0,
+            offset: const Offset(0, 4), // Increased offset for floating effect
+          ),
+          // Additional subtle shadow for depth
+          BoxShadow(
+            color: colorScheme.isDarkTheme
+                ? Colors.black.withOpacity(AppTheme.opacityMediumHigh)
+                : Colors.black.withOpacity(0.05),
             blurRadius: 4,
+            spreadRadius: 0,
             offset: const Offset(0, 2),
           ),
         ],
@@ -681,7 +750,9 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             'From ${capsule.senderName} ❤️',
-                            style: Theme.of(context).textTheme.titleMedium,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                                ),
                           ),
                         ),
                         if (capsule.isOpened)
@@ -699,6 +770,7 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
                       capsule.label,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600, // Semi-bold for title
+                        color: DynamicTheme.getPrimaryTextColor(colorScheme),
                       ),
                     ),
                     SizedBox(height: AppTheme.spacingXs),
@@ -709,7 +781,7 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
                               ? Icons.check_circle_outline 
                               : Icons.schedule_outlined,
                           size: 14,
-                          color: AppTheme.textGrey, // 60% opacity for visibility
+                          color: DynamicTheme.getSecondaryIconColor(colorScheme),
                         ),
                         SizedBox(width: AppTheme.spacingXs),
                         Expanded(
@@ -718,19 +790,21 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
                                 ? 'Opened ${_dateFormat.format(capsule.openedAt!)}'
                                 : 'Unlocks ${_dateFormat.format(capsule.unlockTime)} at ${_timeFormat.format(capsule.unlockTime)}',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppTheme.textGrey, // 60% opacity for visibility
+                              color: DynamicTheme.getSecondaryTextColor(colorScheme),
                             ),
                           ),
                         ),
                       ],
                     ),
                     if (!capsule.isOpened && !capsule.isUnlocked) ...[
-                      SizedBox(height: AppTheme.spacingXs),
+                      SizedBox(height: 4), // Reduced spacing to move countdown up
                       CountdownDisplay(
                         duration: capsule.timeUntilUnlock,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colorScheme.accent, // Slightly brighter accent purple
-                          fontWeight: FontWeight.w600,
+                          color: colorScheme.isDarkTheme
+                              ? Colors.white // Bright white for maximum visibility on dark themes
+                              : colorScheme.accent, // Accent color for light themes
+                          fontWeight: FontWeight.w700, // Increased from w600 for more prominence
                         ),
                       ),
                     ],
@@ -740,7 +814,7 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
             
             Icon(
               Icons.chevron_right_outlined,
-              color: AppTheme.textGrey,
+              color: DynamicTheme.getSecondaryIconColor(colorScheme),
               size: 24,
             ),
           ],

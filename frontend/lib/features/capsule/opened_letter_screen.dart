@@ -40,15 +40,22 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
             backgroundColor: AppColors.success,
             duration: const Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to send reaction'),
+          SnackBar(
+            content: const Text('Failed to send reaction'),
             backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
           ),
         );
       }
@@ -73,7 +80,10 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back),
+                    icon: Icon(
+                      Icons.arrow_back,
+                      color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                    ),
                     onPressed: () => context.pop(),
                   ),
                   const Spacer(),
@@ -81,9 +91,20 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
                     icon: const Icon(Icons.share),
                     onPressed: () {
                       // TODO: Share opened letter
+                      final colorScheme = ref.read(selectedColorSchemeProvider);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Share feature coming soon'),
+                        SnackBar(
+                          content: Text(
+                            'Share feature coming soon',
+                            style: TextStyle(
+                              color: DynamicTheme.getSnackBarTextColor(colorScheme),
+                            ),
+                          ),
+                          backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                          ),
                         ),
                       );
                     },
@@ -122,7 +143,7 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
                       capsule.label,
                       style: Theme.of(context).textTheme.displaySmall?.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: colorScheme.primary1,
+                            color: DynamicTheme.getPrimaryTextColor(colorScheme),
                           ),
                       textAlign: TextAlign.center,
                     ),

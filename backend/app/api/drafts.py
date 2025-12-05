@@ -72,7 +72,7 @@ async def list_drafts(
     current_user: CurrentUser,
     session: DatabaseSession,
     page: int = Query(settings.default_page, ge=1),
-    page_size: int = Query(50, ge=1, le=100)
+    page_size: int = Query(settings.default_page_size, ge=settings.min_page_size, le=settings.max_page_size)
 ) -> list[DraftResponse]:
     """
     List all drafts for the current user.

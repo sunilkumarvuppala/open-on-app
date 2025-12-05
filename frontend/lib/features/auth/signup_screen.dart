@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
+import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/utils/error_handler.dart';
 import 'package:openon_app/core/data/api_repositories.dart';
 import 'package:openon_app/core/constants/app_constants.dart';
@@ -194,10 +195,22 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   
   @override
   Widget build(BuildContext context) {
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
+    final isDeepBlue = colorScheme.id == 'deep_blue';
+    
+    // Theme-aware text colors
+    final titleColor = isDeepBlue ? Colors.white : AppColors.textDark;
+    final bodyColor = isDeepBlue ? Colors.white.withOpacity(0.9) : AppColors.textGrey;
+    
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(
+            Icons.arrow_back,
+            color: DynamicTheme.getPrimaryIconColor(
+              ref.watch(selectedColorSchemeProvider),
+            ),
+          ),
           onPressed: () => context.pop(),
         ),
       ),
@@ -217,7 +230,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   'Create account',
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textDark,
+                        color: titleColor,
                       ),
                 ),
                 
@@ -226,7 +239,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 Text(
                   'Start creating meaningful moments',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppColors.textGrey,
+                        color: bodyColor,
                       ),
                 ),
                 
@@ -263,10 +276,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   textInputAction: TextInputAction.next,
                   textCapitalization: TextCapitalization.words,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
-                  decoration: const InputDecoration(
+                  style: TextStyle(
+                    color: isDeepBlue ? Colors.white : AppColors.textDark,
+                  ),
+                  decoration: InputDecoration(
                     labelText: 'First Name *',
                     hintText: 'John',
-                    prefixIcon: Icon(Icons.person_outline),
+                    prefixIcon: Icon(
+                      Icons.person_outline,
+                      color: isDeepBlue ? Colors.white.withOpacity(0.7) : null,
+                    ),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -287,10 +306,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   textInputAction: TextInputAction.next,
                   textCapitalization: TextCapitalization.words,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
-                  decoration: const InputDecoration(
+                  style: TextStyle(
+                    color: isDeepBlue ? Colors.white : AppColors.textDark,
+                  ),
+                  decoration: InputDecoration(
                     labelText: 'Last Name *',
                     hintText: 'Doe',
-                    prefixIcon: Icon(Icons.person_outline),
+                    prefixIcon: Icon(
+                      Icons.person_outline,
+                      color: isDeepBlue ? Colors.white.withOpacity(0.7) : null,
+                    ),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -312,17 +337,28 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   textCapitalization: TextCapitalization.none,
                   autocorrect: false,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
+                  style: TextStyle(
+                    color: isDeepBlue ? Colors.white : AppColors.textDark,
+                  ),
                   decoration: InputDecoration(
                     labelText: 'Username *',
                     hintText: 'johndoe',
-                    prefixIcon: const Icon(Icons.alternate_email),
+                    prefixIcon: Icon(
+                      Icons.alternate_email,
+                      color: isDeepBlue ? Colors.white.withOpacity(0.7) : null,
+                    ),
                     suffixIcon: _isCheckingUsername
-                        ? const Padding(
-                            padding: EdgeInsets.all(12.0),
+                        ? Padding(
+                            padding: const EdgeInsets.all(12.0),
                             child: SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  isDeepBlue ? Colors.white : colorScheme.primary1,
+                                ),
+                              ),
                             ),
                           )
                         : _usernameAvailable == true
@@ -361,10 +397,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
-                  decoration: const InputDecoration(
+                  style: TextStyle(
+                    color: isDeepBlue ? Colors.white : AppColors.textDark,
+                  ),
+                  decoration: InputDecoration(
                     labelText: 'Email *',
                     hintText: 'your@email.com',
-                    prefixIcon: Icon(Icons.email_outlined),
+                    prefixIcon: Icon(
+                      Icons.email_outlined,
+                      color: isDeepBlue ? Colors.white.withOpacity(0.7) : null,
+                    ),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -386,13 +428,20 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   textInputAction: TextInputAction.next,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   onChanged: (_) => _checkPasswordMatch(),
+                  style: TextStyle(
+                    color: isDeepBlue ? Colors.white : AppColors.textDark,
+                  ),
                   decoration: InputDecoration(
                     labelText: 'Password *',
                     hintText: 'At least 8 characters',
-                    prefixIcon: const Icon(Icons.lock_outline),
+                    prefixIcon: Icon(
+                      Icons.lock_outline,
+                      color: isDeepBlue ? Colors.white.withOpacity(0.7) : null,
+                    ),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        color: isDeepBlue ? Colors.white.withOpacity(0.7) : null,
                       ),
                       onPressed: () {
                         setState(() => _obscurePassword = !_obscurePassword);
@@ -420,10 +469,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   onFieldSubmitted: (_) => _handleSignup(),
                   onChanged: (_) => _checkPasswordMatch(),
+                  style: TextStyle(
+                    color: isDeepBlue ? Colors.white : AppColors.textDark,
+                  ),
                   decoration: InputDecoration(
                     labelText: 'Confirm Password *',
                     hintText: 'Re-enter your password',
-                    prefixIcon: const Icon(Icons.lock_outline),
+                    prefixIcon: Icon(
+                      Icons.lock_outline,
+                      color: isDeepBlue ? Colors.white.withOpacity(0.7) : null,
+                    ),
                     suffixIcon: _showPasswordMatchFeedback
                         ? Icon(
                             _passwordsMatch ? Icons.check_circle : Icons.error,
@@ -432,6 +487,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         : IconButton(
                             icon: Icon(
                               _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                              color: isDeepBlue ? Colors.white.withOpacity(0.7) : null,
                             ),
                             onPressed: () {
                               setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
@@ -491,6 +547,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   child: ElevatedButton(
                     onPressed: (_isLoading || _usernameAvailable != true) ? null : _handleSignup,
                     style: ElevatedButton.styleFrom(
+                      side: DynamicTheme.getButtonBorderSide(colorScheme),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                       ),
@@ -516,11 +573,21 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   children: [
                     Text(
                       'Already have an account? ',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: isDeepBlue ? Colors.white.withOpacity(0.9) : null,
+                          ),
                     ),
                     TextButton(
                       onPressed: () => context.go(Routes.login),
-                      child: const Text('Log In'),
+                      child: Text(
+                        'Log In',
+                        style: TextStyle(
+                          color: isDeepBlue 
+                              ? Colors.white 
+                              : colorScheme.primary1,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -532,7 +599,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   'By creating an account, you agree to our Terms of Service and Privacy Policy',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textGrey,
+                        color: bodyColor,
                         fontSize: 12,
                       ),
                 ),

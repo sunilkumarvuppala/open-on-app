@@ -45,8 +45,6 @@ async def create_recipient(
     """
     recipient_repo = RecipientRepository(session)
     
-    from app.core.config import settings
-    
     # ===== Name Validation =====
     # Sanitize and validate recipient name
     # Name is required and must not be empty after sanitization
@@ -56,8 +54,6 @@ async def create_recipient(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Recipient name is required"
         )
-    
-    from app.core.config import settings
     
     # ===== Email Validation =====
     # Email is optional but must be valid format if provided

@@ -4,9 +4,14 @@ Welcome to the OpenOn App documentation! This comprehensive guide will help you 
 
 ## 📚 Documentation Structure
 
+> **Quick Navigation**: See [DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md) for complete documentation index organized by category and role.
+
 ```
 docs/
 ├── README.md (this file)              # Overview and navigation
+├── ONBOARDING.md                      # Complete onboarding guide for new developers
+├── QUICK_REFERENCE.md                 # Quick reference for common tasks
+├── REFACTORING_2025.md                # Comprehensive refactoring documentation
 ├── CHANGELOG.md                       # Documentation changelog
 ├── SEQUENCE_DIAGRAMS.md               # Detailed sequence diagrams for all user flows
 │
@@ -18,7 +23,7 @@ docs/
 │   ├── API_REFERENCE.md               # Complete API documentation
 │   ├── SECURITY.md                    # Security practices
 │   ├── CONFIGURATION.md               # Configuration guide
-│   ├── REFACTORING_CHANGES.md         # Recent refactoring documentation
+│   ├── REFACTORING_CHANGES.md         # Backend-specific refactoring (see REFACTORING_2025.md for full)
 │   └── DEVELOPMENT.md                 # Development guide
 │
 └── frontend/                          # Frontend documentation
@@ -71,11 +76,15 @@ docs/
 
 ### Technical
 - **Performance concerns?** Check [PERFORMANCE_OPTIMIZATIONS.md](./PERFORMANCE_OPTIMIZATIONS.md)
-- **Making changes?** Review [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md)
+- **Recent refactoring?** See [REFACTORING_2025.md](./REFACTORING_2025.md) (Comprehensive refactoring documentation)
+- **Refactoring patterns?** Review [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md) (Best practices guide)
 - **Frontend API details?** See [API_REFERENCE.md](./API_REFERENCE.md) (Frontend classes/patterns)
 - **Backend API details?** See [backend/API_REFERENCE.md](./backend/API_REFERENCE.md) (REST API endpoints)
 - **Complete user flows?** See [SEQUENCE_DIAGRAMS.md](./SEQUENCE_DIAGRAMS.md) (Detailed sequence diagrams for all user actions)
 - **Contributing?** Follow [CONTRIBUTING.md](./CONTRIBUTING.md)
+
+### New Developers
+- **Getting started?** Read [ONBOARDING.md](./ONBOARDING.md) (Complete onboarding guide)
 
 ## 📖 What is OpenOn?
 
@@ -128,13 +137,18 @@ This codebase has been extensively refactored and optimized for:
 - ✅ Code maintainability
 - ✅ Best practices compliance
 
+**For detailed information**, see [REFACTORING_2025.md](./REFACTORING_2025.md) and [PRODUCTION_READINESS.md](../PRODUCTION_READINESS.md)
+
 ## 🔗 Next Steps
 
 ### For New Developers
-1. **Quick Start**: Follow [frontend/QUICK_START.md](./frontend/QUICK_START.md) to set up
-2. **Development Guide**: Read [frontend/DEVELOPMENT_GUIDE.md](./frontend/DEVELOPMENT_GUIDE.md) for complete workflow
-3. **Core Components**: Understand [frontend/CORE_COMPONENTS.md](./frontend/CORE_COMPONENTS.md)
-4. **Architecture**: Explore [ARCHITECTURE.md](./ARCHITECTURE.md)
+1. **Onboarding**: Start with [ONBOARDING.md](./ONBOARDING.md) - Complete guide for new team members
+2. **Quick Reference**: Bookmark [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) for common tasks
+3. **Quick Start**: Follow [frontend/QUICK_START.md](./frontend/QUICK_START.md) to set up
+4. **Development Guide**: Read [frontend/DEVELOPMENT_GUIDE.md](./frontend/DEVELOPMENT_GUIDE.md) for complete workflow
+5. **Core Components**: Understand [frontend/CORE_COMPONENTS.md](./frontend/CORE_COMPONENTS.md)
+6. **Architecture**: Explore [ARCHITECTURE.md](./ARCHITECTURE.md)
+7. **Refactoring**: Review [REFACTORING_2025.md](./REFACTORING_2025.md) to understand recent changes
 
 ### For Understanding the Codebase
 1. **Navigation**: Start with [frontend/INDEX.md](./frontend/INDEX.md)
@@ -144,9 +158,10 @@ This codebase has been extensively refactored and optimized for:
 
 ### For Advanced Topics
 1. **Performance**: See [PERFORMANCE_OPTIMIZATIONS.md](./PERFORMANCE_OPTIMIZATIONS.md)
-2. **Code Quality**: Review [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md)
-3. **APIs**: Check [API_REFERENCE.md](./API_REFERENCE.md)
-4. **Contributing**: Read [CONTRIBUTING.md](./CONTRIBUTING.md)
+2. **Refactoring Patterns**: Review [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md)
+3. **Recent Refactoring**: See [REFACTORING_2025.md](./REFACTORING_2025.md) (when needed)
+4. **APIs**: Check [API_REFERENCE.md](./API_REFERENCE.md)
+5. **Contributing**: Read [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ---
 

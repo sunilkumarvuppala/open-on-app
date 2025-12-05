@@ -15,8 +15,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
         # BCrypt has a 72-byte limit - truncate if necessary
         password_bytes = plain_password.encode('utf-8')
-        if len(password_bytes) > 72:
-            password_bytes = password_bytes[:72]
+        if len(password_bytes) > settings.bcrypt_max_bytes:
+            password_bytes = password_bytes[:settings.bcrypt_max_bytes]
         
         # Verify password
         return bcrypt.checkpw(password_bytes, hashed_password.encode('utf-8'))
@@ -33,12 +33,12 @@ def get_password_hash(password: str) -> str:
     """
     # BCrypt has a 72-byte limit - ensure we don't exceed it
     password_bytes = password.encode('utf-8')
-    if len(password_bytes) > 72:
-        # Truncate to 72 bytes (BCrypt's limit)
-        password_bytes = password_bytes[:72]
+    if len(password_bytes) > settings.bcrypt_max_bytes:
+        # Truncate to BCrypt's limit
+        password_bytes = password_bytes[:settings.bcrypt_max_bytes]
     
     # Generate salt and hash password
-    salt = bcrypt.gensalt(rounds=12)
+    salt = bcrypt.gensalt(rounds=settings.bcrypt_rounds)
     hashed = bcrypt.hashpw(password_bytes, salt)
     
     # Return as string

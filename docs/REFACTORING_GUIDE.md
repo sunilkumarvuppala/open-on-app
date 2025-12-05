@@ -1,6 +1,8 @@
 # Refactoring Guide
 
-This document describes the comprehensive refactoring that was performed to make the codebase production-ready, maintainable, and following best practices.
+> **Note**: This guide covers refactoring patterns and best practices. For information about the 2025 refactoring, see [REFACTORING_2025.md](./REFACTORING_2025.md).
+
+This document describes refactoring patterns and best practices to follow when making changes to the codebase.
 
 ## Table of Contents
 
@@ -227,28 +229,7 @@ Created centralized logging system in `core/utils/logger.dart`.
 
 ### Implementation
 
-```dart
-class Logger {
-  static void debug(String message, {Object? error, StackTrace? stackTrace}) { ... }
-  static void info(String message, {Object? error, StackTrace? stackTrace}) { ... }
-  static void warning(String message, {Object? error, StackTrace? stackTrace}) { ... }
-  static void error(String message, {Object? error, StackTrace? stackTrace}) { ... }
-}
-```
-
-### Usage
-
-**Before**:
-```dart
-print('Error occurred');
-print('User logged in');
-```
-
-**After**:
-```dart
-Logger.error('Error occurred', error: e);
-Logger.info('User logged in');
-```
+Use `Logger` from `core/utils/logger.dart` instead of `print()` statements.
 
 ### Log Levels
 
@@ -279,34 +260,10 @@ Refactored repositories with proper error handling and validation.
 1. **Error Handling**: All methods use try-catch with custom exceptions
 2. **Input Validation**: Validate all inputs before processing
 3. **Logging**: Use Logger instead of print
-4. **Constants**: Use AppConstants for thresholds
+4. **Constants**: Use AppConstants (frontend) or settings (backend) for thresholds
 5. **Consistency**: Unified error handling patterns
 
-### Example
-
-```dart
-Future<Capsule> getCapsule(String id) async {
-  try {
-    if (id.isEmpty) {
-      throw ValidationException('Capsule ID cannot be empty');
-    }
-    
-    Logger.debug('Fetching capsule: $id');
-    // ... fetch logic
-    
-    if (capsule == null) {
-      throw NotFoundException('Capsule not found: $id');
-    }
-    
-    return capsule;
-  } on AppException {
-    rethrow;
-  } catch (e) {
-    Logger.error('Failed to get capsule', error: e);
-    throw AppException('Failed to get capsule: ${e.toString()}');
-  }
-}
-```
+> **See [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) for error handling patterns**
 
 ## Code Quality Improvements
 

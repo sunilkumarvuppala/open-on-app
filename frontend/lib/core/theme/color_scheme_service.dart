@@ -27,7 +27,7 @@ class ColorSchemeService {
     }
   }
 
-  /// Get the current color scheme (defaults to galaxy aurora)
+  /// Get the current color scheme (defaults to deep blue theme)
   static Future<AppColorScheme> getCurrentScheme() async {
     try {
       final schemeId = await getSavedSchemeId();
@@ -38,7 +38,7 @@ class ColorSchemeService {
     } catch (e) {
       Logger.error('Error getting current scheme', error: e);
     }
-    return AppColorScheme.galaxyAurora; // Default
+    return AppColorScheme.deepBlue; // Default - dark blue-purple gradient theme
   }
 }
 

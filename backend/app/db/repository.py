@@ -91,7 +91,7 @@ class BaseRepository(Generic[ModelType]):
     async def get_all(
         self,
         skip: int = 0,
-        limit: int = 100,  # Default limit, can be overridden
+        limit: Optional[int] = None,
         **filters: Any
     ) -> list[ModelType]:
         """
@@ -99,7 +99,7 @@ class BaseRepository(Generic[ModelType]):
         
         Args:
             skip: Number of records to skip (for pagination)
-            limit: Maximum number of records to return
+            limit: Maximum number of records to return (uses settings default if None)
             **filters: Field filters (e.g., status="active")
         
         Returns:
@@ -109,6 +109,8 @@ class BaseRepository(Generic[ModelType]):
             Filters are applied as equality checks
             Only filters that match model attributes are applied
         """
+        from app.core.config import settings
+        
         query = select(self.model)
         
         # Apply filters dynamically
@@ -117,8 +119,12 @@ class BaseRepository(Generic[ModelType]):
             if hasattr(self.model, key):
                 query = query.where(getattr(self.model, key) == value)
         
-        # Apply pagination
-        query = query.offset(skip).limit(limit)
+        # Apply pagination with default from settings
+        query = query.offset(skip)
+        if limit is not None:
+            query = query.limit(limit)
+        else:
+            query = query.limit(settings.default_page_size)
         result = await self.session.execute(query)
         return list(result.scalars().all())
     

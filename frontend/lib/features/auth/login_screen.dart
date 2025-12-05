@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
+import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/constants/app_constants.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -67,10 +68,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   
   @override
   Widget build(BuildContext context) {
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
+    
+    // Theme-aware text colors
+    final titleColor = DynamicTheme.getPrimaryTextColor(colorScheme);
+    final bodyColor = DynamicTheme.getSecondaryTextColor(colorScheme);
+    
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(
+            Icons.arrow_back,
+            color: DynamicTheme.getPrimaryIconColor(
+              ref.watch(selectedColorSchemeProvider),
+            ),
+          ),
           onPressed: () => context.pop(),
         ),
       ),
@@ -89,7 +101,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   'Welcome back',
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textDark,
+                        color: titleColor,
                       ),
                 ),
                 
@@ -98,7 +110,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 Text(
                   'Log in to continue sharing special moments',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppColors.textGrey,
+                        color: bodyColor,
                       ),
                 ),
                 
@@ -134,10 +146,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
+                  style: TextStyle(
+                    color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                  ),
+                  decoration: InputDecoration(
                     labelText: 'Email',
                     hintText: 'your@email.com',
-                    prefixIcon: Icon(Icons.email_outlined),
+                    prefixIcon: Icon(
+                      Icons.email_outlined,
+                      color: DynamicTheme.getInputHintColor(colorScheme),
+                    ),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -158,13 +176,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   obscureText: _obscurePassword,
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _handleLogin(),
+                  style: TextStyle(
+                    color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                  ),
                   decoration: InputDecoration(
                     labelText: 'Password',
                     hintText: 'Enter your password',
-                    prefixIcon: const Icon(Icons.lock_outline),
+                    prefixIcon: Icon(
+                      Icons.lock_outline,
+                      color: DynamicTheme.getInputHintColor(colorScheme),
+                    ),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        color: DynamicTheme.getInputHintColor(colorScheme),
                       ),
                       onPressed: () {
                         setState(() => _obscurePassword = !_obscurePassword);
@@ -187,13 +212,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: TextButton(
                     onPressed: () {
                       // TODO: Implement forgot password flow
+                      final colorScheme = ref.read(selectedColorSchemeProvider);
+                      
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Forgot password feature coming soon'),
+                        SnackBar(
+                          content: Text(
+                            'Forgot password feature coming soon',
+                            style: TextStyle(
+                              color: DynamicTheme.getSnackBarTextColor(colorScheme),
+                            ),
+                          ),
+                          backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                          ),
                         ),
                       );
                     },
-                    child: const Text('Forgot password?'),
+                    child: Text(
+                      'Forgot password?',
+                      style: TextStyle(
+                        color: DynamicTheme.getButtonTextColor(colorScheme),
+                      ),
+                    ),
                   ),
                 ),
                 
@@ -205,6 +247,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
+                      side: DynamicTheme.getButtonBorderSide(colorScheme),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                       ),
@@ -230,11 +273,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   children: [
                     Text(
                       'Don\'t have an account? ',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                          ),
                     ),
                     TextButton(
                       onPressed: () => context.go(Routes.signup),
-                      child: const Text('Sign Up'),
+                      child: Text(
+                        'Sign Up',
+                        style: TextStyle(
+                          color: DynamicTheme.getButtonTextColor(colorScheme),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ],
                 ),

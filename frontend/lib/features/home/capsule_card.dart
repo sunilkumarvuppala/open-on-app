@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
+import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:intl/intl.dart';
 
@@ -57,14 +58,14 @@ class CapsuleCard extends ConsumerWidget {
                       capsule.receiverName,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: AppColors.textDark,
+                            color: DynamicTheme.getPrimaryTextColor(colorScheme),
                           ),
                     ),
                     SizedBox(height: AppTheme.spacingXs),
                     Text(
                       capsule.label,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppTheme.textGrey,
+                            color: DynamicTheme.getSecondaryTextColor(colorScheme),
                           ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -116,7 +117,7 @@ class CapsuleCard extends ConsumerWidget {
                   SizedBox(height: AppTheme.spacingSm),
                   Icon(
                     Icons.chevron_right,
-                    color: AppTheme.textGrey,
+                    color: DynamicTheme.getSecondaryIconColor(colorScheme),
                     size: 24,
                   ),
                 ],
