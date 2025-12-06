@@ -1,59 +1,66 @@
-# OpenOn App Documentation
+# OpenOn Documentation
 
 Welcome to the OpenOn App documentation! This comprehensive guide will help you understand the codebase structure, architecture, and how to work with it.
 
 ## 📚 Documentation Structure
 
-> **Quick Navigation**: See [DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md) for complete documentation index organized by category and role.
+> **Quick Navigation**: See [INDEX.md](./INDEX.md) for complete documentation index organized by category and role.
 
 ```
 docs/
 ├── README.md (this file)              # Overview and navigation
+├── INDEX.md                           # Master documentation index
 ├── ONBOARDING.md                      # Complete onboarding guide for new developers
 ├── QUICK_REFERENCE.md                 # Quick reference for common tasks
-├── REFACTORING_2025.md                # Comprehensive refactoring documentation
-├── CHANGELOG.md                       # Documentation changelog
+├── QUICK_START.md                     # Quick setup guide
+├── ARCHITECTURE.md                    # System architecture overview
+├── CODE_STRUCTURE.md                  # Code organization
 ├── SEQUENCE_DIAGRAMS.md               # Detailed sequence diagrams for all user flows
+├── REFACTORING_2025.md                # Comprehensive refactoring documentation
+├── PERFORMANCE_OPTIMIZATIONS.md       # Performance best practices
+├── CONTRIBUTING.md                    # Contribution guidelines
+├── CHANGELOG.md                       # Documentation changelog
 │
 ├── backend/                           # Backend documentation
 │   ├── INDEX.md                       # Navigation index
 │   ├── GETTING_STARTED.md             # Quick start guide
 │   ├── ARCHITECTURE.md                # Architecture overview
-│   ├── CODE_STRUCTURE.md              # Code organization
-│   ├── API_REFERENCE.md               # Complete API documentation
+│   ├── CODE_STRUCTURE.md             # Code organization
+│   ├── API_REFERENCE.md              # Complete API documentation
 │   ├── SECURITY.md                    # Security practices
-│   ├── CONFIGURATION.md               # Configuration guide
-│   ├── REFACTORING_CHANGES.md         # Backend-specific refactoring (see REFACTORING_2025.md for full)
-│   └── DEVELOPMENT.md                 # Development guide
+│   ├── CONFIGURATION.md              # Configuration guide
+│   ├── REFACTORING_CHANGES.md        # Backend-specific refactoring
+│   └── DEVELOPMENT.md                # Development guide
 │
-└── frontend/                          # Frontend documentation
-    ├── INDEX.md                       # Navigation index
-    ├── FEATURES.md                    # Features overview
-    │
-    ├── QUICK_START.md                 # Getting started guide
-    ├── GETTING_STARTED.md             # Beginner-friendly guide
-    ├── DEVELOPMENT_GUIDE.md           # Complete development guide
-    ├── CORE_COMPONENTS.md             # Core components documentation
-    ├── THEME_SYSTEM.md                 # Theme system guide
-    ├── VISUAL_FLOWS.md                 # Visual flow diagrams
-    │
-    └── (Note: ARCHITECTURE.md, CODE_STRUCTURE.md, PERFORMANCE_OPTIMIZATIONS.md,
-        REFACTORING_GUIDE.md, API_REFERENCE.md, CONTRIBUTING.md are in parent docs/ folder)
-    │
-    └── features/                      # Feature-specific documentation
-        ├── AUTH.md                    # Authentication feature
-        ├── HOME.md                    # Home screen (sender)
-        ├── RECEIVER.md                # Receiver screen (inbox)
-        ├── CREATE_CAPSULE.md          # Letter creation
-        ├── CAPSULE.md                 # Capsule viewing
-        ├── DRAFTS.md                  # Draft management
-        ├── RECIPIENTS.md              # Recipient management
-        ├── PROFILE.md                 # Profile and settings
-        ├── NAVIGATION.md              # Navigation system
-        └── ANIMATIONS.md              # Animation system
+├── frontend/                          # Frontend documentation
+│   ├── INDEX.md                       # Navigation index
+│   ├── FEATURES.md                    # Features overview
+│   ├── GETTING_STARTED.md             # Beginner-friendly guide
+│   ├── DEVELOPMENT_GUIDE.md          # Complete development guide
+│   ├── CORE_COMPONENTS.md            # Core components documentation
+│   ├── THEME_SYSTEM.md               # Theme system guide
+│   ├── VISUAL_FLOWS.md               # Visual flow diagrams
+│   └── features/                      # Feature-specific documentation
+│       ├── AUTH.md                   # Authentication feature
+│       ├── HOME.md                    # Home screen (sender)
+│       ├── RECEIVER.md                # Receiver screen (inbox)
+│       ├── CREATE_CAPSULE.md         # Letter creation
+│       ├── CAPSULE.md                # Capsule viewing
+│       ├── RECIPIENTS.md             # Recipient management
+│       ├── PROFILE.md                # Profile and settings
+│       ├── NAVIGATION.md             # Navigation system
+│       └── ANIMATIONS.md             # Animation system
+│
+└── supabase/                         # Supabase documentation
+    ├── README.md                     # Documentation overview
+    ├── GETTING_STARTED.md            # Quick start guide
+    ├── LOCAL_SETUP.md                # Complete local development guide
+    └── DATABASE_SCHEMA.md            # Complete database schema reference
 ```
 
 ## 🚀 Quick Navigation
+
+> **For complete navigation, see [INDEX.md](./INDEX.md)**
 
 ### Backend
 - **New to backend?** Start with [backend/GETTING_STARTED.md](./backend/GETTING_STARTED.md)
@@ -62,13 +69,16 @@ docs/
 - **Backend navigation?** See [backend/INDEX.md](./backend/INDEX.md)
 
 ### Frontend
-- **New to the project?** Start with [frontend/QUICK_START.md](./frontend/QUICK_START.md)
+- **New to the project?** Start with [frontend/GETTING_STARTED.md](./frontend/GETTING_STARTED.md)
 - **New developer?** Read [frontend/DEVELOPMENT_GUIDE.md](./frontend/DEVELOPMENT_GUIDE.md)
 - **Navigation index?** See [frontend/INDEX.md](./frontend/INDEX.md)
-- **Understanding the codebase?** Read [ARCHITECTURE.md](./ARCHITECTURE.md)
-- **Visual code structure?** See [CODE_STRUCTURE.md](./CODE_STRUCTURE.md)
 - **Core components?** See [frontend/CORE_COMPONENTS.md](./frontend/CORE_COMPONENTS.md)
 - **Theme system?** See [frontend/THEME_SYSTEM.md](./frontend/THEME_SYSTEM.md)
+
+### Supabase (Database)
+- **New to Supabase?** Start with [supabase/GETTING_STARTED.md](./supabase/GETTING_STARTED.md)
+- **Local setup?** See [supabase/LOCAL_SETUP.md](./supabase/LOCAL_SETUP.md)
+- **Database schema?** See [supabase/DATABASE_SCHEMA.md](./supabase/DATABASE_SCHEMA.md)
 
 ### Features
 - **All features overview?** Check [frontend/FEATURES.md](./frontend/FEATURES.md)
@@ -76,15 +86,17 @@ docs/
 
 ### Technical
 - **Performance concerns?** Check [PERFORMANCE_OPTIMIZATIONS.md](./PERFORMANCE_OPTIMIZATIONS.md)
-- **Recent refactoring?** See [REFACTORING_2025.md](./REFACTORING_2025.md) (Comprehensive refactoring documentation)
-- **Refactoring patterns?** Review [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md) (Best practices guide)
+- **Recent refactoring?** See [REFACTORING_2025.md](./REFACTORING_2025.md)
 - **Frontend API details?** See [API_REFERENCE.md](./API_REFERENCE.md) (Frontend classes/patterns)
 - **Backend API details?** See [backend/API_REFERENCE.md](./backend/API_REFERENCE.md) (REST API endpoints)
-- **Complete user flows?** See [SEQUENCE_DIAGRAMS.md](./SEQUENCE_DIAGRAMS.md) (Detailed sequence diagrams for all user actions)
+- **Complete user flows?** See [SEQUENCE_DIAGRAMS.md](./SEQUENCE_DIAGRAMS.md) (Detailed sequence diagrams for all user actions with method-level detail)
+- **System architecture?** See [ARCHITECTURE.md](./ARCHITECTURE.md)
+- **Code structure?** See [CODE_STRUCTURE.md](./CODE_STRUCTURE.md)
 - **Contributing?** Follow [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ### New Developers
 - **Getting started?** Read [ONBOARDING.md](./ONBOARDING.md) (Complete onboarding guide)
+- **Master index?** See [INDEX.md](./INDEX.md) (Complete documentation index)
 
 ## 📖 What is OpenOn?
 
@@ -93,7 +105,7 @@ OpenOn is a Flutter-based time-locked letters application that allows users to:
 - Send letters to recipients
 - Receive and open incoming letters
 - Customize themes and color schemes
-- Save drafts for later editing
+- Manage recipients with relationships
 
 ## 🏗️ Project Structure
 
@@ -113,17 +125,18 @@ frontend/lib/
    - **Outbox** (Tab 1 - SECONDARY): Manage sent letters
 3. **Tab Organization**:
    - **Inbox tabs**: Sealed, Ready, Opened
-   - **Outbox tabs**: Unfolding, Sealed, Revealed
-4. **Theme Customization**: 15+ color schemes with dynamic theming
-5. **Draft Management**: Save and edit letter drafts
-6. **Recipient Management**: Add and manage recipients
-7. **Magical Animations**: Premium animations for unlocking and revealing letters
+   - **Outbox tabs**: Sealed, Ready, Opened
+4. **Theme Customization**: 10+ color schemes with dynamic theming
+5. **Recipient Management**: Add and manage recipients with relationships
+6. **Magical Animations**: Premium animations for unlocking and revealing letters
 
 ## 🛠️ Technology Stack
 
 - **Framework**: Flutter 3.0+
 - **State Management**: Riverpod 2.4.9
 - **Navigation**: GoRouter 13.0.0
+- **Backend**: Python + FastAPI
+- **Database**: Supabase (PostgreSQL)
 - **Animations**: Custom painters and animation controllers
 - **Architecture**: Feature-based modular architecture
 
@@ -137,14 +150,14 @@ This codebase has been extensively refactored and optimized for:
 - ✅ Code maintainability
 - ✅ Best practices compliance
 
-**For detailed information**, see [REFACTORING_2025.md](./REFACTORING_2025.md) and [PRODUCTION_READINESS.md](../PRODUCTION_READINESS.md)
+**For detailed information**, see [REFACTORING_2025.md](./REFACTORING_2025.md)
 
 ## 🔗 Next Steps
 
 ### For New Developers
 1. **Onboarding**: Start with [ONBOARDING.md](./ONBOARDING.md) - Complete guide for new team members
 2. **Quick Reference**: Bookmark [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) for common tasks
-3. **Quick Start**: Follow [frontend/QUICK_START.md](./frontend/QUICK_START.md) to set up
+3. **Quick Start**: Follow [QUICK_START.md](./QUICK_START.md) to set up
 4. **Development Guide**: Read [frontend/DEVELOPMENT_GUIDE.md](./frontend/DEVELOPMENT_GUIDE.md) for complete workflow
 5. **Core Components**: Understand [frontend/CORE_COMPONENTS.md](./frontend/CORE_COMPONENTS.md)
 6. **Architecture**: Explore [ARCHITECTURE.md](./ARCHITECTURE.md)
@@ -155,16 +168,15 @@ This codebase has been extensively refactored and optimized for:
 2. **Visual Guide**: Review [CODE_STRUCTURE.md](./CODE_STRUCTURE.md)
 3. **Features**: Check [frontend/FEATURES.md](./frontend/FEATURES.md) and feature docs
 4. **Theme System**: Learn [frontend/THEME_SYSTEM.md](./frontend/THEME_SYSTEM.md)
+5. **User Flows**: Study [SEQUENCE_DIAGRAMS.md](./SEQUENCE_DIAGRAMS.md) for complete flow understanding
 
 ### For Advanced Topics
 1. **Performance**: See [PERFORMANCE_OPTIMIZATIONS.md](./PERFORMANCE_OPTIMIZATIONS.md)
-2. **Refactoring Patterns**: Review [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md)
-3. **Recent Refactoring**: See [REFACTORING_2025.md](./REFACTORING_2025.md) (when needed)
-4. **APIs**: Check [API_REFERENCE.md](./API_REFERENCE.md)
-5. **Contributing**: Read [CONTRIBUTING.md](./CONTRIBUTING.md)
+2. **Refactoring Patterns**: Review [REFACTORING_2025.md](./REFACTORING_2025.md)
+3. **APIs**: Check [API_REFERENCE.md](./API_REFERENCE.md) and [backend/API_REFERENCE.md](./backend/API_REFERENCE.md)
+4. **Contributing**: Read [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ---
 
-**Last Updated**: 2025
+**Last Updated**: January 2025  
 **Version**: 1.0.0
-

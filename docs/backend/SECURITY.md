@@ -293,7 +293,7 @@ if capsule.sender_id != current_user.id:
 
 - [ ] Use strong secret key
 - [ ] Enable debug mode only in development
-- [ ] Use SQLite for development
+- [ ] Use Supabase for development (local PostgreSQL)
 - [ ] Test authentication flows
 - [ ] Verify input validation
 

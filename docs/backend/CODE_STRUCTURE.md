@@ -13,9 +13,8 @@ backend/
 │   │
 │   ├── api/                     # API endpoints (REST routes)
 │   │   ├── __init__.py
-│   │   ├── auth.py             # Authentication endpoints
+│   │   ├── auth.py             # User profile endpoints (Supabase handles signup/login)
 │   │   ├── capsules.py          # Capsule management endpoints
-│   │   ├── drafts.py           # Draft management endpoints
 │   │   └── recipients.py       # Recipient management endpoints
 │   │
 │   ├── core/                    # Core configuration and utilities
@@ -71,9 +70,8 @@ backend/
 **Purpose**: HTTP endpoints, request handling
 
 **Files**:
-- `auth.py` - User authentication (signup, login, user info)
+- `auth.py` - User profile management (Supabase handles signup/login)
 - `capsules.py` - Capsule CRUD operations
-- `drafts.py` - Draft management
 - `recipients.py` - Recipient management
 
 **Conventions**:
@@ -86,8 +84,8 @@ backend/
 **Purpose**: Application-wide configuration and security
 
 **Files**:
-- `config.py` - Settings from environment variables
-- `security.py` - JWT tokens, password hashing
+- `config.py` - Settings from environment variables (includes Supabase JWT secret)
+- `security.py` - Supabase JWT verification, password hashing
 - `logging.py` - Logging setup
 
 **Conventions**:
@@ -205,8 +203,8 @@ from sqlalchemy import select
 
 # Local imports
 from app.core.config import settings
-from app.db.models import User
-from app.models.schemas import UserResponse
+from app.db.models import UserProfile
+from app.models.schemas import UserProfileResponse
 ```
 
 ### Import Order
@@ -324,8 +322,8 @@ async def create_capsule(
 ```python
 async def get_by_sender(
     self,
-    sender_id: str,
-    state: Optional[CapsuleState] = None,
+    sender_id: UUID,
+    status: Optional[CapsuleStatus] = None,
     skip: int = 0,
     limit: int = 100
 ) -> list[Capsule]:
@@ -338,10 +336,10 @@ async def get_by_sender(
 
 ```python
 @classmethod
-def can_edit(cls, capsule: Capsule, user_id: str) -> tuple[bool, str]:
+def can_edit(cls, capsule: Capsule, user_id: UUID) -> tuple[bool, str]:
     """Check if user can edit capsule."""
-    if capsule.state != CapsuleState.DRAFT:
-        return False, f"Cannot edit capsule in {capsule.state} state"
+    if capsule.status != CapsuleStatus.SEALED:
+        return False, f"Cannot edit capsule in {capsule.status} status"
     ...
 ```
 
@@ -358,5 +356,5 @@ def can_edit(cls, capsule: Capsule, user_id: str) -> tuple[bool, str]:
 
 ---
 
-**Last Updated**: 2025
+**Last Updated**: 2025-01-XX (Post Supabase Migration)
 

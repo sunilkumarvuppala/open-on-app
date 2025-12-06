@@ -42,9 +42,11 @@ Welcome to the OpenOn project! This guide will help you get started quickly and 
 
 1. **[README.md](../README.md)** - Project overview
 2. **[docs/README.md](./README.md)** - Documentation navigation
-3. **[docs/ARCHITECTURE.md](./ARCHITECTURE.md)** - System architecture
-4. **[docs/CODE_STRUCTURE.md](./CODE_STRUCTURE.md)** - Code organization
-5. **[docs/QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Quick reference for common tasks
+3. **[docs/INDEX.md](./INDEX.md)** - Master documentation index
+4. **[docs/ARCHITECTURE.md](./ARCHITECTURE.md)** - System architecture
+5. **[docs/CODE_STRUCTURE.md](./CODE_STRUCTURE.md)** - Code organization
+6. **[docs/SEQUENCE_DIAGRAMS.md](./SEQUENCE_DIAGRAMS.md)** - Complete user flow diagrams
+7. **[docs/QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Quick reference for common tasks
 
 ### Backend Developers
 
@@ -71,7 +73,6 @@ backend/app/
 ├── api/              # FastAPI routes
 │   ├── auth.py       # Authentication endpoints
 │   ├── capsules.py   # Capsule management
-│   ├── drafts.py     # Draft management
 │   └── recipients.py # Recipient management
 ├── core/             # Core functionality
 │   ├── config.py     # Configuration (settings)
@@ -108,7 +109,6 @@ frontend/lib/
 │   ├── home/         # Home screen
 │   ├── capsule/      # Capsule viewing
 │   ├── create_capsule/ # Letter creation
-│   ├── drafts/       # Draft management
 │   ├── recipients/   # Recipient management
 │   ├── profile/      # Profile & settings
 │   └── receiver/     # Receiver inbox
@@ -312,8 +312,11 @@ frontend/lib/
 
 3. **Database inspection**
    ```bash
-   # SQLite database
-   sqlite3 backend/openon.db
+   # Supabase Studio (Web UI)
+   # Open: http://localhost:54323
+   # Or connect via psql:
+   cd supabase
+   supabase db connect
    ```
 
 ### Frontend Debugging

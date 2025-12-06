@@ -15,6 +15,7 @@ Usage:
     domain-specific query methods (e.g., get_by_email, get_by_username).
 """
 from typing import TypeVar, Generic, Type, Optional, Any
+from uuid import UUID
 from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.base import Base
@@ -73,12 +74,12 @@ class BaseRepository(Generic[ModelType]):
         await self.session.refresh(instance)  # Refresh to get all fields
         return instance
     
-    async def get_by_id(self, id: str) -> Optional[ModelType]:
+    async def get_by_id(self, id: str | UUID) -> Optional[ModelType]:
         """
         Get a record by ID.
         
         Args:
-            id: Primary key value
+            id: Primary key value (string or UUID)
         
         Returns:
             Model instance if found, None otherwise
@@ -153,12 +154,12 @@ class BaseRepository(Generic[ModelType]):
         result = await self.session.execute(query)
         return result.scalar_one()
     
-    async def update(self, id: str, **kwargs: Any) -> Optional[ModelType]:
+    async def update(self, id: str | UUID, **kwargs: Any) -> Optional[ModelType]:
         """
         Update a record by ID.
         
         Args:
-            id: Primary key value
+            id: Primary key value (string or UUID)
             **kwargs: Field values to update
         
         Returns:
@@ -178,12 +179,12 @@ class BaseRepository(Generic[ModelType]):
         await self.session.flush()  # Flush changes
         return result.scalar_one_or_none()
     
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: str | UUID) -> bool:
         """
         Delete a record by ID.
         
         Args:
-            id: Primary key value
+            id: Primary key value (string or UUID)
         
         Returns:
             True if record was deleted, False if not found

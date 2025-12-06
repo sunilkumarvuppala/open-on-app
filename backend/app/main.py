@@ -7,7 +7,7 @@ It configures the FastAPI application, middleware, routes, and lifecycle.
 Application Structure:
 - Lifespan management (startup/shutdown)
 - Middleware configuration (CORS, rate limiting, logging)
-- Route registration (auth, capsules, drafts, recipients)
+- Route registration (auth, capsules, recipients)
 - Health check endpoints
 
 Key Features:
@@ -25,7 +25,9 @@ from app.core.config import settings
 from app.core.logging import setup_logging
 from app.db.base import init_db, close_db
 from app.workers.scheduler import start_worker, shutdown_worker
-from app.api import auth, capsules, drafts, recipients
+from app.api import auth, capsules, recipients
+# Note: Drafts API removed - Supabase schema doesn't include drafts table
+# Capsules are created directly in 'sealed' status with unlocks_at set
 from app.middleware.request_logging import RequestLoggingMiddleware
 from app.middleware.rate_limiting import RateLimitingMiddleware
 from app.models.schemas import HealthResponse
@@ -109,27 +111,25 @@ app = FastAPI(
     
     - 🔐 **Secure Authentication**: JWT-based auth with access and refresh tokens
     - 📬 **Time-Locked Capsules**: Send messages that unlock at a specific future date
-    - 🔄 **State Machine**: Capsules follow strict state transitions (draft → sealed → unfolding → ready → opened)
+    - 🔄 **State Machine**: Capsules follow strict state transitions (sealed → ready → opened → expired)
     - ⏰ **Automated Unlocking**: Background worker automatically updates capsule states
-    - 📝 **Drafts**: Save and edit messages before sending
     - 👥 **Recipients**: Manage saved contacts
     - 🔔 **Notifications**: Push and email notifications (coming soon)
     
     ### Capsule States
     
-    - **draft**: Capsule is being created and can be edited
-    - **sealed**: Unlock time is set, no further edits allowed
-    - **unfolding**: Less than 3 days until unlock (teaser state)
-    - **ready**: Unlock time has arrived, receiver can open
-    - **opened**: Receiver has opened the capsule (terminal state)
+    - **sealed**: Capsule is created with unlock time set, can be edited before opening
+    - **ready**: Unlock time has arrived, recipient can open
+    - **opened**: Recipient has opened the capsule (terminal state)
+    - **expired**: Capsule has expired or been soft-deleted (disappearing messages)
     
     ### Security Rules
     
-    - Unlock times cannot be changed after sealing
-    - States cannot be reversed
-    - Users cannot cheat by changing clocks (UTC timestamps)
-    - Only senders can edit drafts
-    - Only receivers can open capsules
+    - Capsules are created in 'sealed' status with unlocks_at set
+    - Status automatically transitions to 'ready' when unlocks_at passes
+    - Only recipients can open capsules (when status is 'ready')
+    - Anonymous capsules hide sender identity from recipient
+    - Disappearing messages are soft-deleted after opening
     """,
     lifespan=lifespan,
     docs_url="/docs",  # Swagger UI at /docs
@@ -165,11 +165,11 @@ app.add_middleware(
 
 # ===== Route Registration =====
 # Register all API routers
-# Each router handles a specific domain (auth, capsules, drafts, recipients)
+# Each router handles a specific domain (auth, capsules, recipients)
 app.include_router(auth.router)  # Authentication endpoints
 app.include_router(capsules.router)  # Capsule management endpoints
-app.include_router(drafts.router)  # Draft management endpoints
 app.include_router(recipients.router)  # Recipient management endpoints
+# Note: Drafts API removed - not in Supabase schema
 
 
 @app.get("/", response_model=HealthResponse, tags=["Health"])

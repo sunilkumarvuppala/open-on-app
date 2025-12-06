@@ -4,12 +4,11 @@ A production-ready FastAPI backend for managing time-locked emotional letters (c
 
 ## 🚀 Features
 
-- **🔐 Secure Authentication**: JWT-based auth with access and refresh tokens
+- **🔐 Secure Authentication**: JWT-based auth with Supabase Auth integration
 - **📬 Time-Locked Capsules**: Send messages that unlock at a specific future date
 - **🔄 State Machine**: Capsules follow strict state transitions
 - **⏰ Automated Unlocking**: Background worker automatically updates capsule states
-- **📝 Drafts**: Save and edit messages before sending
-- **👥 Recipients**: Manage saved contacts
+- **👥 Recipients**: Manage saved contacts with relationships
 - **🔔 Notifications**: Push and email notifications (extensible)
 - **✅ Full Test Coverage**: Unit tests for critical business logic
 
@@ -17,7 +16,7 @@ A production-ready FastAPI backend for managing time-locked emotional letters (c
 
 - Python 3.11+
 - Poetry (or pip)
-- SQLite (default) or PostgreSQL
+- Supabase (PostgreSQL) - See [docs/supabase/LOCAL_SETUP.md](../docs/supabase/LOCAL_SETUP.md) for setup
 
 ## 🛠️ Installation
 
@@ -43,14 +42,17 @@ Create a `.env` file in the `backend/` directory:
 # App
 DEBUG=true
 
-# Database (SQLite default)
-DATABASE_URL=sqlite+aiosqlite:///./openon.db
-
-# Or use PostgreSQL
-# DATABASE_URL=postgresql+asyncpg://user:password@localhost/openon
+# Database (Supabase PostgreSQL)
+# Get connection string from: supabase status
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:54322/postgres
 
 # Security (CHANGE THIS IN PRODUCTION!)
 SECRET_KEY=your-super-secret-key-here-change-in-production
+
+# Supabase Configuration
+SUPABASE_URL=http://localhost:54321
+SUPABASE_SERVICE_KEY=your-service-role-key-from-supabase-status
+SUPABASE_JWT_SECRET=your-jwt-secret-from-supabase-status
 
 # CORS
 CORS_ORIGINS=["http://localhost:3000","http://localhost:8000"]
@@ -58,7 +60,6 @@ CORS_ORIGINS=["http://localhost:3000","http://localhost:8000"]
 # Capsule Settings
 MIN_UNLOCK_MINUTES=1
 MAX_UNLOCK_YEARS=5
-EARLY_VIEW_THRESHOLD_DAYS=3
 
 # Worker
 WORKER_CHECK_INTERVAL_SECONDS=60
@@ -105,6 +106,10 @@ poetry run pytest --cov=app --cov-report=html
 poetry run pytest tests/test_state_machine.py -v
 ```
 
+## 📚 Documentation
+
+> **📖 Complete Backend Documentation**: See [docs/backend/INDEX.md](../docs/backend/INDEX.md) for full documentation index
+
 ## 📚 API Documentation
 
 ### Authentication
@@ -118,7 +123,8 @@ Content-Type: application/json
   "email": "user@example.com",
   "username": "username",
   "password": "SecurePass123",
-  "full_name": "John Doe"
+  "first_name": "John",
+  "last_name": "Doe"
 }
 ```
 
@@ -148,30 +154,18 @@ Authorization: Bearer <access_token>
 Content-Type: application/json
 
 {
-  "receiver_id": "uuid",
+  "recipient_id": "uuid",
   "title": "Happy Birthday!",
-  "body": "This is your birthday message...",
-  "media_urls": ["https://example.com/image.jpg"],
-  "theme": "birthday",
-  "allow_early_view": false,
-  "allow_receiver_reply": true
-}
-```
-
-#### Seal Capsule
-```http
-POST /capsules/{capsule_id}/seal
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "scheduled_unlock_at": "2025-12-25T00:00:00Z"
+  "body_text": "This is your birthday message...",
+  "unlocks_at": "2025-12-25T00:00:00Z",
+  "is_anonymous": false,
+  "is_disappearing": false
 }
 ```
 
 #### List Capsules
 ```http
-GET /capsules?box=inbox&state=ready&page=1&page_size=20
+GET /capsules?box=inbox&status=ready&page=1&page_size=20
 Authorization: Bearer <access_token>
 ```
 
@@ -181,39 +175,9 @@ POST /capsules/{capsule_id}/open
 Authorization: Bearer <access_token>
 ```
 
-### Drafts
-
-#### Create Draft
-```http
-POST /drafts
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "title": "Draft Title",
-  "body": "Draft content...",
-  "recipient_id": "uuid"
-}
-```
-
-#### List Drafts
-```http
-GET /drafts
-Authorization: Bearer <access_token>
-```
-
-#### Update Draft
-```http
-PUT /drafts/{draft_id}
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "title": "Updated Title"
-}
-```
-
 ### Recipients
+
+**Note**: Drafts feature has been removed. Capsules are created directly in 'sealed' status with an unlock time.
 
 #### Add Recipient
 ```http
@@ -224,7 +188,8 @@ Content-Type: application/json
 {
   "name": "Jane Doe",
   "email": "jane@example.com",
-  "user_id": "uuid"
+  "relationship": "friend",
+  "avatar_url": "https://example.com/avatar.jpg"
 }
 ```
 
@@ -233,25 +198,25 @@ Content-Type: application/json
 Capsules follow strict state transitions:
 
 ```
-draft → sealed → unfolding → ready → opened
+sealed → ready → opened
 ```
 
 ### State Descriptions
 
 | State | Description | Can Edit? | Can View? |
 |-------|-------------|-----------|-----------|
-| **draft** | Being created | ✅ Sender | ✅ Sender |
-| **sealed** | Unlock time set, waiting | ❌ None | ✅ Sender |
-| **unfolding** | < 3 days until unlock | ❌ None | ✅ Sender, 🔓 Receiver (if early_view) |
-| **ready** | Time has arrived | ❌ None | ✅ Sender, 🔓 Receiver (if early_view) |
-| **opened** | Receiver has opened | ❌ None | ✅ Both |
+| **sealed** | Created with unlock time set, waiting | ✅ Sender (only if sealed) | ✅ Sender |
+| **ready** | Unlock time has passed, ready to open | ❌ None | ✅ Sender, 🔓 Recipient |
+| **opened** | Recipient has opened | ❌ None | ✅ Both |
+| **expired** | Past expiration or soft-deleted | ❌ None | ❌ None |
 
 ### Rules
 
-- **States cannot be reversed** - Once sealed, you can't go back to draft
-- **Unlock times are immutable** - Cannot change after sealing
+- **Capsules are created in 'sealed' status** - No draft state
+- **Unlock times are immutable** - Cannot change after creation
 - **UTC-only timestamps** - Prevents timezone manipulation
 - **Automatic transitions** - Background worker updates states every minute
+- **Can only edit if sealed** - Once ready or opened, cannot modify
 
 ## 🤖 Background Worker
 
@@ -259,8 +224,8 @@ The background worker runs automatically when the API starts:
 
 - **Frequency**: Every 60 seconds (configurable)
 - **Tasks**:
-  - Check all sealed/unfolding capsules
-  - Update states based on unlock times
+  - Check all sealed capsules
+  - Update states from 'sealed' to 'ready' when unlock time arrives
   - Trigger notifications when capsules become ready
   - Log all state transitions
 
@@ -272,7 +237,6 @@ backend/
 │   ├── api/              # API route handlers
 │   │   ├── auth.py       # Authentication endpoints
 │   │   ├── capsules.py   # Capsule CRUD + state ops
-│   │   ├── drafts.py     # Draft management
 │   │   └── recipients.py # Recipient management
 │   ├── core/             # Core configuration
 │   │   ├── config.py     # Settings management
@@ -305,26 +269,23 @@ backend/
 
 ## 🔒 Security Features
 
-- **JWT Authentication**: Access and refresh tokens
+- **JWT Authentication**: Supabase Auth integration
 - **Password Hashing**: BCrypt with salt
 - **Input Validation**: Pydantic models with strict validation
 - **SQL Injection Protection**: SQLAlchemy ORM
 - **CORS**: Configurable allowed origins
 - **Rate Limiting**: Ready to integrate (placeholder)
 
-## 🔌 Database Abstraction
+## 🔌 Database Configuration
 
-The repository pattern allows easy database switching:
+The backend uses Supabase (PostgreSQL) for all environments:
 
 ```python
-# Current: SQLite
-DATABASE_URL=sqlite+aiosqlite:///./openon.db
+# Local Supabase (default)
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:54322/postgres
 
-# Switch to PostgreSQL
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost/openon
-
-# Or Supabase (PostgreSQL)
-DATABASE_URL=postgresql+asyncpg://[YOUR_SUPABASE_URL]
+# Production Supabase
+DATABASE_URL=postgresql+asyncpg://postgres:[PASSWORD]@[HOST]:5432/postgres
 ```
 
 ## 📊 Performance Optimizations
@@ -399,11 +360,14 @@ poetry run mypy app/
 
 ## 🐛 Troubleshooting
 
-### Database Locked Error
+### Database Connection Error
 ```bash
-# SQLite is locked - check for other running instances
-pkill -f uvicorn
-rm openon.db-wal openon.db-shm
+# Check if Supabase is running
+cd ../supabase
+supabase status
+
+# If not running, start it
+supabase start
 ```
 
 ### Worker Not Running
@@ -414,8 +378,8 @@ rm openon.db-wal openon.db-shm
 
 ### JWT Token Issues
 ```bash
-# Regenerate secret key
-python -c "import secrets; print(secrets.token_urlsafe(32))"
+# Check SUPABASE_JWT_SECRET matches Supabase project
+# Get from: supabase status
 ```
 
 ## 📄 License
@@ -428,9 +392,9 @@ Contributions are welcome! Please:
 
 1. Fork the repository
 2. Create a feature branch
-3. Write tests for new features
-4. Ensure all tests pass
-5. Submit a pull request
+2. Write tests for new features
+3. Ensure all tests pass
+4. Submit a pull request
 
 ## 📧 Support
 

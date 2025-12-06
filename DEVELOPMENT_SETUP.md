@@ -192,6 +192,6 @@ supabase start
 ## 📚 Additional Resources
 
 - **Backend**: See `backend/README.md`
-- **Supabase**: See `supabase/LOCAL_SETUP.md`
+- **Supabase**: See `docs/supabase/LOCAL_SETUP.md`
 - **Frontend**: See `docs/frontend/GETTING_STARTED.md`
 

@@ -43,11 +43,7 @@ class ApiConfig {
 
   static const String capsules = '/capsules';
   static String capsuleById(String id) => '/capsules/$id';
-  static String sealCapsule(String id) => '/capsules/$id/seal';
   static String openCapsule(String id) => '/capsules/$id/open';
-
-  static const String drafts = '/drafts';
-  static String draftById(String id) => '/drafts/$id';
 
   static const String recipients = '/recipients';
   static String recipientById(String id) => '/recipients/$id';

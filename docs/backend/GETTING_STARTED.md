@@ -6,7 +6,7 @@ Get the OpenOn backend up and running in 5 minutes!
 
 - **Python 3.11+** - Check with `python3 --version`
 - **pip** or **Poetry** - Package manager
-- **SQLite** (default) or **PostgreSQL** - Database
+- **Supabase** (PostgreSQL) - Database (see [../supabase/LOCAL_SETUP.md](../supabase/LOCAL_SETUP.md))
 
 ## 🚀 Quick Setup
 
@@ -50,14 +50,13 @@ DEBUG=true
 APP_NAME=OpenOn API
 APP_VERSION=1.0.0
 
-# Database (SQLite default - no setup needed)
-DATABASE_URL=sqlite+aiosqlite:///./openon.db
-
-# Or use PostgreSQL
-# DATABASE_URL=postgresql+asyncpg://user:password@localhost/openon
+# Database (Supabase PostgreSQL)
+# Get connection string from: cd ../supabase && supabase status
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:54322/postgres
 
 # Security (CHANGE THIS IN PRODUCTION!)
 SECRET_KEY=your-super-secret-key-here-change-in-production
+SUPABASE_JWT_SECRET=your-supabase-jwt-secret-here  # Get from Supabase Dashboard > Settings > API
 
 # CORS (allow frontend to connect)
 CORS_ORIGINS=["http://localhost:3000","http://localhost:8000"]
@@ -114,58 +113,53 @@ Open http://localhost:8000/docs in your browser. You should see the interactive 
 
 ## 🎯 First API Calls
 
-### 1. Create a User
+**Note**: User signup and login are handled by Supabase Auth (frontend). This backend only provides profile management.
+
+### 1. Get Current User Profile
+
+After authenticating via Supabase Auth, use the JWT token to get your profile:
 
 ```bash
-curl -X POST "http://localhost:8000/auth/signup" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "test@example.com",
-    "username": "testuser",
-    "password": "SecurePass123",
-    "first_name": "Test",
-    "last_name": "User"
-  }'
+curl -X GET "http://localhost:8000/auth/me" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN"
 ```
 
 **Response:**
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "token_type": "bearer"
+  "user_id": "550e8400-e29b-41d4-a716-446655440000",
+  "full_name": "Test User",
+  "avatar_url": null,
+  "premium_status": false,
+  "is_admin": false,
+  ...
 }
 ```
 
-### 2. Login
+### 2. Create a Recipient
 
 ```bash
-curl -X POST "http://localhost:8000/auth/login" \
+curl -X POST "http://localhost:8000/recipients" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN" \
   -d '{
-    "username": "testuser",
-    "password": "SecurePass123"
+    "name": "John Doe",
+    "email": "john@example.com",
+    "relationship": "friend"
   }'
 ```
 
-### 3. Get Current User Info
-
-```bash
-curl -X GET "http://localhost:8000/auth/me" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
-```
-
-### 4. Create a Capsule
+### 3. Create a Capsule
 
 ```bash
 curl -X POST "http://localhost:8000/capsules" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN" \
   -d '{
-    "receiver_id": "USER_ID",
+    "recipient_id": "RECIPIENT_ID",
     "title": "My First Capsule",
-    "body": "This is a time capsule!",
-    "theme": "birthday"
+    "body_text": "This is a time capsule!",
+    "unlocks_at": "2026-01-01T00:00:00Z"
   }'
 ```
 
@@ -222,10 +216,11 @@ uvicorn app.main:app --reload --log-level debug
 ### Database
 
 ```bash
-# Delete database (for fresh start)
-rm openon.db
+# Reset Supabase database (for fresh start)
+cd ../supabase
+supabase db reset
 
-# Database will be automatically created on first run
+# This will re-run all migrations and start fresh
 ```
 
 ### Testing
@@ -243,14 +238,48 @@ pytest --cov=app --cov-report=html
 
 ## 🐛 Troubleshooting
 
+### Connection Refused Error
+
+**Symptom:** Frontend shows "Connection refused" error
+
+**Solutions:**
+
+1. **Check if backend is running:**
+   ```bash
+   # Check if port 8000 is in use
+   lsof -i :8000
+   # OR
+   netstat -an | grep 8000
+   ```
+
+2. **Start the backend server** (see Step 4 above)
+
+3. **Check API URL in frontend:**
+   - iOS Simulator / Desktop: `http://localhost:8000`
+   - Android Emulator: `http://10.0.2.2:8000` (automatically detected)
+   - Physical Device: Use your computer's IP address
+     ```bash
+     # Find your IP address
+     ifconfig | grep "inet " | grep -v 127.0.0.1
+     # Then use: http://YOUR_IP:8000
+     ```
+
+4. **Check firewall settings:**
+   - Ensure port 8000 is not blocked
+   - On macOS: System Settings > Network > Firewall
+
 ### Port Already in Use
 
-```bash
-# Find process using port 8000
-lsof -i :8000
+**Error:** `Address already in use`
 
-# Kill the process or use different port
-uvicorn app.main:app --reload --port 8001
+**Solution:**
+```bash
+# Find and kill the process using port 8000
+lsof -ti:8000 | xargs kill -9
+
+# OR use a different port
+python -m uvicorn app.main:app --reload --port 8001
+# Then update frontend API config to use port 8001
 ```
 
 ### Import Errors
@@ -267,10 +296,18 @@ pip install -r requirements.txt
 ### Database Errors
 
 ```bash
-# Delete and recreate database
-rm openon.db
+# Check if Supabase is running
+cd ../supabase
+supabase status
 
-# Restart server (database auto-creates)
+# If not running, start it
+supabase start
+
+# Reset database if needed
+supabase db reset
+
+# Restart server
+cd ../backend
 uvicorn app.main:app --reload
 ```
 
@@ -289,9 +326,10 @@ pip install -e .
 
 ### Authentication Errors
 
-- Check that `SECRET_KEY` is set in `.env`
-- Verify token is included in `Authorization` header
-- Ensure token hasn't expired (default: 30 minutes)
+- Check that `SUPABASE_JWT_SECRET` is set in `.env` (get from Supabase Dashboard or `supabase status`)
+- Verify Supabase JWT token is included in `Authorization` header
+- Ensure token is valid (Supabase handles token refresh automatically)
+- Verify `SUPABASE_SERVICE_KEY` is set for signup/login endpoints
 
 ## 📚 Next Steps
 
@@ -309,5 +347,5 @@ Your OpenOn backend is now running! The background worker automatically checks f
 
 ---
 
-**Last Updated**: 2025
+**Last Updated**: 2025-01-XX (Post Supabase Migration)
 

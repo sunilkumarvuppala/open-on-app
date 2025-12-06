@@ -35,19 +35,34 @@ class Settings(BaseSettings):
     
     # ===== Database Configuration =====
     database_url: str = Field(
-        default="sqlite+aiosqlite:///./openon.db",
-        description="Database connection string"
+        default="postgresql+asyncpg://postgres:postgres@localhost:54322/postgres",
+        description="Supabase PostgreSQL connection string. Format: postgresql+asyncpg://user:password@host:port/dbname"
     )
     db_echo: bool = False  # Echo SQL queries to console (useful for debugging)
     
     # ===== Security Settings =====
+    # Supabase JWT secret for verifying Supabase Auth tokens
+    # Get from: Supabase Dashboard > Project Settings > API > JWT Secret
+    supabase_jwt_secret: str = Field(
+        default="your-supabase-jwt-secret-here",
+        description="Supabase JWT secret for verifying Supabase Auth tokens. Get from Supabase Dashboard > Project Settings > API"
+    )
+    # Supabase URL and service key for Admin API operations (user creation)
+    # Get from: Supabase Dashboard > Project Settings > API
+    supabase_url: str = Field(
+        default="http://localhost:54321",
+        description="Supabase project URL. Local: http://localhost:54321, Production: https://your-project.supabase.co"
+    )
+    supabase_service_key: str = Field(
+        default="your-supabase-service-key-here",
+        description="Supabase service role key (Admin API). For local: Get from 'cd supabase && supabase status' (look for 'service_role key'). For production: Get from Supabase Dashboard > Project Settings > API > service_role key. WARNING: Keep this secret!"
+    )
+    # Legacy secret key (kept for backward compatibility, but Supabase JWT is primary)
     secret_key: str = Field(
         default="CHANGE_THIS_IN_PRODUCTION_USE_RANDOM_SECRET_KEY_HERE",
-        description="Secret key for JWT encoding"
+        description="Legacy secret key (not used with Supabase Auth)"
     )
     algorithm: str = "HS256"  # JWT signing algorithm
-    access_token_expire_minutes: int = 30  # Access token lifetime (short-lived)
-    refresh_token_expire_days: int = 7  # Refresh token lifetime (long-lived)
     
     # ===== CORS Configuration =====
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]

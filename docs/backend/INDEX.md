@@ -13,7 +13,8 @@ docs/backend/
 ├── API_REFERENCE.md                  # Complete API documentation
 ├── SECURITY.md                       # Security practices
 ├── CONFIGURATION.md                  # Configuration guide
-├── REFACTORING_CHANGES.md            # Recent refactoring documentation
+├── REFACTORING_CHANGES.md            # Backend-specific refactoring details
+├── CLEARING_DATABASE.md              # Guide for clearing database data
 └── DEVELOPMENT.md                    # Development guide
 ```
 
@@ -81,11 +82,16 @@ docs/backend/
 - Production setup
 
 ### [REFACTORING_CHANGES.md](./REFACTORING_CHANGES.md)
-- Recent refactoring improvements
+- Backend-specific refactoring details
 - Code quality enhancements
 - Performance optimizations
 - Security improvements
-- Breaking changes (if any)
+- **Note**: For comprehensive refactoring (backend + frontend), see [../REFACTORING_2025.md](../REFACTORING_2025.md)
+
+### [CLEARING_DATABASE.md](./CLEARING_DATABASE.md)
+- Guide for clearing database data
+- Supabase database reset methods
+- Safety notes and troubleshooting
 
 ### [DEVELOPMENT.md](./DEVELOPMENT.md)
 - Development workflow

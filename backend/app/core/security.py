@@ -82,3 +82,38 @@ def decode_token(token: str) -> dict[str, Any]:
 def verify_token_type(payload: dict[str, Any], expected_type: str) -> bool:
     """Verify the token type matches expected type."""
     return payload.get("type") == expected_type
+
+
+def verify_supabase_token(token: str) -> dict[str, Any]:
+    """
+    Verify and decode a Supabase JWT token.
+    
+    Supabase Auth issues JWT tokens signed with the Supabase JWT secret.
+    This function verifies the token signature and extracts the payload.
+    
+    Args:
+        token: Supabase JWT token from Authorization header
+        
+    Returns:
+        dict: Decoded token payload containing user information
+        
+    Raises:
+        ValueError: If token is invalid, expired, or signature verification fails
+        
+    Note:
+        Supabase JWT tokens contain:
+        - sub: User ID (UUID)
+        - aud: Audience (should be "authenticated" for access tokens)
+        - role: User role (usually "authenticated")
+        - exp: Expiration timestamp
+    """
+    try:
+        payload = jwt.decode(
+            token,
+            settings.supabase_jwt_secret,
+            algorithms=[settings.algorithm],
+            audience="authenticated"  # Supabase access tokens have aud="authenticated"
+        )
+        return payload
+    except JWTError as e:
+        raise ValueError(f"Invalid Supabase token: {str(e)}")

@@ -75,7 +75,6 @@ Data models representing business entities:
 - `Capsule`: Time-locked letter
 - `Recipient`: Letter recipient
 - `User`: Application user
-- `Draft`: Saved letter draft
 
 #### Providers (`core/providers/`)
 
@@ -87,7 +86,6 @@ Riverpod providers for state management:
 - `upcomingCapsulesProvider`: Capsules unlocking later
 - `unlockingSoonCapsulesProvider`: Capsules unlocking within 7 days
 - `openedCapsulesProvider`: Already opened capsules
-- `draftsProvider`: Saved drafts
 - `selectedColorSchemeProvider`: Current theme
 
 #### Repositories (`core/data/`)
@@ -98,7 +96,6 @@ Data access layer with repository pattern:
 - `CapsuleRepository`: Capsule CRUD operations
 - `RecipientRepository`: Recipient management
 - `UserRepository`: User operations
-- `DraftRepository`: Draft management
 
 **Note**: Currently uses mock implementations. Replace with actual backend when ready.
 
@@ -185,10 +182,6 @@ Multi-step letter creation flow:
 - `step_write_letter.dart`: Write letter content
 - `step_choose_time.dart`: Set unlock time
 - `step_preview.dart`: Preview before sending
-
-#### Drafts (`features/drafts/`)
-
-- `drafts_screen.dart`: List and manage drafts
 
 #### Recipients (`features/recipients/`)
 

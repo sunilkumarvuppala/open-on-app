@@ -1,6 +1,6 @@
 # Backend API Reference
 
-Complete API endpoint documentation for the OpenOn backend.
+Complete API endpoint documentation for the OpenOn backend, matching Supabase schema.
 
 ## 📋 Base URL
 
@@ -11,203 +11,100 @@ Production: https://api.openon.com
 
 ## 🔐 Authentication
 
-All endpoints (except signup and login) require authentication via JWT Bearer token.
+**Important**: User signup and login are handled by Supabase Auth. This backend only provides profile management endpoints.
+
+All endpoints require authentication via Supabase JWT Bearer token.
 
 ### Headers
 
 ```http
-Authorization: Bearer <access_token>
+Authorization: Bearer <supabase_jwt_token>
 Content-Type: application/json
 ```
 
+### Getting a Token
+
+1. User signs up/logs in via Supabase Auth (frontend)
+2. Supabase returns JWT token
+3. Include token in `Authorization` header for all API requests
+
 ## 📚 Table of Contents
 
-1. [Authentication](#authentication-endpoints)
+1. [Authentication & Profile](#authentication--profile-endpoints)
 2. [Capsules](#capsules-endpoints)
-3. [Drafts](#drafts-endpoints)
-4. [Recipients](#recipients-endpoints)
-5. [User Search](#user-search)
-6. [Error Handling](#error-handling)
+3. [Recipients](#recipients-endpoints)
+4. [Error Handling](#error-handling)
 
 ---
 
-## Authentication Endpoints
-
-### POST /auth/signup
-
-Register a new user account.
-
-**Request Body:**
-```json
-{
-  "email": "user@example.com",
-  "username": "username",
-  "password": "SecurePass123",
-  "first_name": "John",
-  "last_name": "Doe"
-}
-```
-
-**Response (201):**
-```json
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "token_type": "bearer"
-}
-```
-
-**Validation:**
-- Email: Valid email format, unique
-- Username: 3-100 characters, alphanumeric + underscore/hyphen, unique
-- Password: 8-128 characters
-- First Name: 1-100 characters
-- Last Name: 1-100 characters
-
-**Example:**
-```bash
-curl -X POST "http://localhost:8000/auth/signup" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "alice@example.com",
-    "username": "alice",
-    "password": "SecurePass123",
-    "first_name": "Alice",
-    "last_name": "Johnson"
-  }'
-```
-
-### POST /auth/login
-
-Authenticate user and get tokens.
-
-**Request Body:**
-```json
-{
-  "username": "username",
-  "password": "password"
-}
-```
-
-**Note**: Can use either `username` or `email` for login.
-
-**Response (200):**
-```json
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "token_type": "bearer"
-}
-```
-
-**Example:**
-```bash
-curl -X POST "http://localhost:8000/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "alice",
-    "password": "SecurePass123"
-  }'
-```
+## Authentication & Profile Endpoints
 
 ### GET /auth/me
 
-Get current authenticated user information.
+Get current authenticated user profile information.
 
 **Headers:**
 ```http
-Authorization: Bearer <access_token>
+Authorization: Bearer <supabase_jwt_token>
 ```
 
 **Response (200):**
 ```json
 {
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "email": "alice@example.com",
-  "username": "alice",
-  "first_name": "Alice",
-  "last_name": "Johnson",
+  "user_id": "550e8400-e29b-41d4-a716-446655440000",
   "full_name": "Alice Johnson",
-  "is_active": true,
-  "created_at": "2025-01-15T10:30:00Z"
+  "avatar_url": "https://example.com/avatar.jpg",
+  "premium_status": false,
+  "premium_until": null,
+  "is_admin": false,
+  "country": "US",
+  "device_token": null,
+  "created_at": "2025-01-15T10:30:00Z",
+  "updated_at": "2025-01-15T10:30:00Z"
 }
 ```
 
 **Example:**
 ```bash
 curl -X GET "http://localhost:8000/auth/me" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN"
 ```
 
-### GET /auth/username/check
+### PUT /auth/me
 
-Check if a username is available (for real-time validation).
+Update current user profile.
 
-**Query Parameters:**
-- `username` (required): Username to check (3-100 characters)
+**Request Body:**
+```json
+{
+  "full_name": "Alice Smith",
+  "avatar_url": "https://example.com/new-avatar.jpg",
+  "country": "CA",
+  "device_token": "fcm-token-here"
+}
+```
 
 **Response (200):**
 ```json
 {
-  "available": true,
-  "message": "Username is available"
+  "user_id": "550e8400-e29b-41d4-a716-446655440000",
+  "full_name": "Alice Smith",
+  "avatar_url": "https://example.com/new-avatar.jpg",
+  ...
 }
 ```
 
-**When username is taken:**
-```json
-{
-  "available": false,
-  "message": "Username already taken"
-}
-```
-
-**When username format is invalid:**
-```json
-{
-  "available": false,
-  "message": "Username validation error message"
-}
-```
+**Note**: All fields are optional. Only provided fields will be updated.
 
 **Example:**
 ```bash
-curl -X GET "http://localhost:8000/auth/username/check?username=alice"
-```
-
-### GET /auth/users/search
-
-Search for registered users (for adding recipients).
-
-**Query Parameters:**
-- `query` (required): Search query (min 2 characters)
-- `limit` (optional): Maximum results (default: 10, max: 50)
-
-**Headers:**
-```http
-Authorization: Bearer <access_token>
-```
-
-**Response (200):**
-```json
-[
-  {
-    "id": "user-id-1",
-    "email": "user1@example.com",
-    "username": "user1",
-    "first_name": "User",
-    "last_name": "One",
-    "full_name": "User One",
-    "is_active": true,
-    "created_at": "2025-01-15T10:30:00Z"
-  }
-]
-```
-
-**Example:**
-```bash
-curl -X GET "http://localhost:8000/auth/users/search?query=alice&limit=10" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+curl -X PUT "http://localhost:8000/auth/me" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN" \
+  -d '{
+    "full_name": "Alice Smith",
+    "country": "CA"
+  }'
 ```
 
 ---
@@ -216,51 +113,65 @@ curl -X GET "http://localhost:8000/auth/users/search?query=alice&limit=10" \
 
 ### POST /capsules
 
-Create a new capsule (initially in draft state).
+Create a new capsule (in sealed status with unlock time).
 
 **Request Body:**
 ```json
 {
-  "receiver_id": "user-id",
+  "recipient_id": "550e8400-e29b-41d4-a716-446655440000",
   "title": "Capsule Title",
-  "body": "Capsule content...",
-  "media_urls": ["https://example.com/image.jpg"],
-  "theme": "birthday",
-  "allow_early_view": false,
-  "allow_receiver_reply": true
+  "body_text": "Capsule content...",
+  "body_rich_text": null,
+  "is_anonymous": false,
+  "is_disappearing": false,
+  "disappearing_after_open_seconds": null,
+  "unlocks_at": "2026-01-01T00:00:00Z",
+  "expires_at": null,
+  "theme_id": "550e8400-e29b-41d4-a716-446655440001",
+  "animation_id": "550e8400-e29b-41d4-a716-446655440002"
 }
 ```
 
 **Response (201):**
 ```json
 {
-  "id": "capsule-id",
+  "id": "550e8400-e29b-41d4-a716-446655440003",
   "sender_id": "your-user-id",
-  "receiver_id": "receiver-user-id",
+  "recipient_id": "550e8400-e29b-41d4-a716-446655440000",
   "title": "Capsule Title",
-  "body": "Capsule content...",
-  "media_urls": ["https://example.com/image.jpg"],
-  "theme": "birthday",
-  "state": "draft",
-  "created_at": "2025-01-15T10:30:00Z",
-  "sealed_at": null,
-  "scheduled_unlock_at": null,
+  "body_text": "Capsule content...",
+  "body_rich_text": null,
+  "is_anonymous": false,
+  "is_disappearing": false,
+  "disappearing_after_open_seconds": null,
+  "status": "sealed",
+  "unlocks_at": "2026-01-01T00:00:00Z",
   "opened_at": null,
-  "allow_early_view": false,
-  "allow_receiver_reply": true
+  "deleted_at": null,
+  "expires_at": null,
+  "theme_id": "550e8400-e29b-41d4-a716-446655440001",
+  "animation_id": "550e8400-e29b-41d4-a716-446655440002",
+  "created_at": "2025-01-15T10:30:00Z",
+  "updated_at": "2025-01-15T10:30:00Z"
 }
 ```
+
+**Validation:**
+- `recipient_id`: Required, must be a valid UUID of a recipient owned by current user
+- `unlocks_at`: Required, must be in the future
+- Either `body_text` OR `body_rich_text` is required (not both empty)
+- If `is_disappearing` is true, `disappearing_after_open_seconds` is required
 
 **Example:**
 ```bash
 curl -X POST "http://localhost:8000/capsules" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN" \
   -d '{
-    "receiver_id": "receiver-id",
+    "recipient_id": "550e8400-e29b-41d4-a716-446655440000",
     "title": "My First Capsule",
-    "body": "This is a time capsule!",
-    "theme": "birthday"
+    "body_text": "This is a time capsule!",
+    "unlocks_at": "2026-01-01T00:00:00Z"
   }'
 ```
 
@@ -270,7 +181,7 @@ List capsules for the current user.
 
 **Query Parameters:**
 - `box` (optional): "inbox" or "outbox" (default: "inbox")
-- `state` (optional): Filter by state (draft, sealed, unfolding, ready, opened)
+- `status` (optional): Filter by status (sealed, ready, opened, expired)
 - `page` (optional): Page number (default: 1, min: 1)
 - `page_size` (optional): Items per page (default: 20, min: 1, max: 100)
 
@@ -279,13 +190,14 @@ List capsules for the current user.
 {
   "capsules": [
     {
-      "id": "capsule-id",
+      "id": "550e8400-e29b-41d4-a716-446655440003",
       "sender_id": "sender-id",
-      "receiver_id": "receiver-id",
+      "recipient_id": "recipient-id",
       "title": "Capsule Title",
-      "body": "Capsule content...",
-      "state": "ready",
-      "scheduled_unlock_at": "2026-01-01T00:00:00Z",
+      "body_text": "Capsule content...",
+      "status": "ready",
+      "unlocks_at": "2026-01-01T00:00:00Z",
+      "opened_at": null,
       ...
     }
   ],
@@ -295,15 +207,19 @@ List capsules for the current user.
 }
 ```
 
+**Note**: 
+- `inbox`: Shows capsules where current user owns the recipient
+- `outbox`: Shows capsules sent by current user
+
 **Example:**
 ```bash
 # Get inbox capsules
 curl -X GET "http://localhost:8000/capsules?box=inbox" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN"
 
 # Get ready capsules only
-curl -X GET "http://localhost:8000/capsules?box=inbox&state=ready" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+curl -X GET "http://localhost:8000/capsules?box=inbox&status=ready" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN"
 ```
 
 ### GET /capsules/{capsule_id}
@@ -313,134 +229,103 @@ Get details of a specific capsule.
 **Response (200):**
 ```json
 {
-  "id": "capsule-id",
+  "id": "550e8400-e29b-41d4-a716-446655440003",
   "sender_id": "sender-id",
-  "receiver_id": "receiver-id",
+  "recipient_id": "recipient-id",
   "title": "Capsule Title",
-  "body": "Capsule content...",
-  "state": "ready",
-  "scheduled_unlock_at": "2026-01-01T00:00:00Z",
+  "body_text": "Capsule content...",
+  "status": "ready",
+  "unlocks_at": "2026-01-01T00:00:00Z",
+  "opened_at": null,
   ...
 }
 ```
 
 **Permissions:**
 - Sender: Can always view
-- Receiver: Can view if `opened` or if `allow_early_view` is true and state is `unfolding`/`ready`
+- Recipient owner: Can view if status is `ready` or `opened`
+- Anonymous capsules: Sender info hidden from recipient
 
 **Example:**
 ```bash
-curl -X GET "http://localhost:8000/capsules/capsule-id" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+curl -X GET "http://localhost:8000/capsules/550e8400-e29b-41d4-a716-446655440003" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN"
 ```
 
 ### PUT /capsules/{capsule_id}
 
-Update a capsule (only works for drafts).
+Update a capsule (only before opening).
 
 **Request Body:**
 ```json
 {
   "title": "Updated Title",
-  "body": "Updated content...",
-  "media_urls": ["https://example.com/new-image.jpg"],
-  "theme": "anniversary",
-  "receiver_id": "new-receiver-id",
-  "allow_early_view": true,
-  "allow_receiver_reply": false
+  "body_text": "Updated content...",
+  "body_rich_text": null,
+  "is_anonymous": true,
+  "is_disappearing": true,
+  "disappearing_after_open_seconds": 3600,
+  "theme_id": "new-theme-id",
+  "animation_id": "new-animation-id",
+  "expires_at": "2027-01-01T00:00:00Z"
 }
 ```
 
 **Response (200):**
 ```json
 {
-  "id": "capsule-id",
+  "id": "550e8400-e29b-41d4-a716-446655440003",
   "title": "Updated Title",
-  "body": "Updated content...",
   ...
 }
 ```
 
-**Note**: Only sender can edit, and only if capsule is in `draft` state.
+**Note**: 
+- Only sender can edit
+- Cannot edit if status is `opened` or `expired`
+- `unlocks_at` cannot be changed after creation
+- All fields are optional (partial update)
 
 **Example:**
 ```bash
-curl -X PUT "http://localhost:8000/capsules/capsule-id" \
+curl -X PUT "http://localhost:8000/capsules/550e8400-e29b-41d4-a716-446655440003" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN" \
   -d '{
     "title": "Updated Title",
-    "body": "Updated content..."
-  }'
-```
-
-### POST /capsules/{capsule_id}/seal
-
-Seal a capsule and set unlock time.
-
-**Request Body:**
-```json
-{
-  "scheduled_unlock_at": "2026-01-01T00:00:00Z"
-}
-```
-
-**Response (200):**
-```json
-{
-  "id": "capsule-id",
-  "state": "sealed",
-  "sealed_at": "2025-01-15T10:35:00Z",
-  "scheduled_unlock_at": "2026-01-01T00:00:00Z",
-  ...
-}
-```
-
-**Validation:**
-- Unlock time must be at least 1 minute in the future
-- Unlock time cannot be more than 5 years in the future
-- Capsule must be in `draft` state
-
-**⚠️ Important**: After sealing, capsule cannot be edited or cancelled.
-
-**Example:**
-```bash
-curl -X POST "http://localhost:8000/capsules/capsule-id/seal" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -d '{
-    "scheduled_unlock_at": "2026-01-01T00:00:00Z"
+    "body_text": "Updated content..."
   }'
 ```
 
 ### POST /capsules/{capsule_id}/open
 
-Open a ready capsule (receiver only).
+Open a ready capsule (recipient owner only).
 
 **Response (200):**
 ```json
 {
-  "id": "capsule-id",
-  "state": "opened",
+  "id": "550e8400-e29b-41d4-a716-446655440003",
+  "status": "opened",
   "opened_at": "2025-01-15T10:40:00Z",
   ...
 }
 ```
 
 **Requirements:**
-- Must be the receiver
-- Capsule must be in `ready` state
+- Must be the recipient owner (user who owns the recipient)
+- Capsule must be in `ready` status
 - Action is irreversible
+- For disappearing messages, `deleted_at` is automatically set
 
 **Example:**
 ```bash
-curl -X POST "http://localhost:8000/capsules/capsule-id/open" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+curl -X POST "http://localhost:8000/capsules/550e8400-e29b-41d4-a716-446655440003/open" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN"
 ```
 
 ### DELETE /capsules/{capsule_id}
 
-Delete a capsule (only drafts).
+Soft delete a capsule (for disappearing messages or sender deletion).
 
 **Response (200):**
 ```json
@@ -449,47 +334,70 @@ Delete a capsule (only drafts).
 }
 ```
 
-**Note**: Only sender can delete, and only if capsule is in `draft` state.
+**Note**: 
+- Only sender can delete
+- Sets `deleted_at` timestamp (soft delete)
+- Capsule is filtered out from queries
 
 **Example:**
 ```bash
-curl -X DELETE "http://localhost:8000/capsules/capsule-id" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+curl -X DELETE "http://localhost:8000/capsules/550e8400-e29b-41d4-a716-446655440003" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN"
 ```
 
 ---
 
-## Drafts Endpoints
+## Recipients Endpoints
 
-### POST /drafts
+### POST /recipients
 
-Create a new draft.
+Add a new recipient to saved contacts.
 
 **Request Body:**
 ```json
 {
-  "title": "Draft Title",
-  "body": "Draft content...",
-  "recipient_id": "recipient-id"
+  "name": "John Doe",
+  "email": "john@example.com",
+  "avatar_url": "https://example.com/avatar.jpg",
+  "relationship": "friend"
 }
 ```
 
 **Response (201):**
 ```json
 {
-  "id": "draft-id",
+  "id": "550e8400-e29b-41d4-a716-446655440004",
   "owner_id": "your-user-id",
-  "title": "Draft Title",
-  "body": "Draft content...",
-  "recipient_id": "recipient-id",
+  "name": "John Doe",
+  "email": "john@example.com",
+  "avatar_url": "https://example.com/avatar.jpg",
+  "relationship": "friend",
   "created_at": "2025-01-15T10:30:00Z",
   "updated_at": "2025-01-15T10:30:00Z"
 }
 ```
 
-### GET /drafts
+**Validation:**
+- `name`: Required, 1-255 characters
+- `email`: Optional, validated if provided
+- `avatar_url`: Optional
+- `relationship`: Optional, defaults to "friend" (friend, family, partner, colleague, acquaintance, other)
 
-List all drafts for the current user.
+**Example:**
+```bash
+curl -X POST "http://localhost:8000/recipients" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN" \
+  -d '{
+    "name": "John Doe",
+    "email": "john@example.com",
+    "relationship": "friend"
+  }'
+```
+
+### GET /recipients
+
+List all recipients for the current user.
 
 **Query Parameters:**
 - `page` (optional): Page number (default: 1, min: 1)
@@ -499,112 +407,82 @@ List all drafts for the current user.
 ```json
 [
   {
-    "id": "draft-id",
-    "title": "Draft Title",
-    "body": "Draft content...",
-    ...
+    "id": "550e8400-e29b-41d4-a716-446655440004",
+    "owner_id": "your-user-id",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "avatar_url": "https://example.com/avatar.jpg",
+    "relationship": "friend",
+    "created_at": "2025-01-15T10:30:00Z",
+    "updated_at": "2025-01-15T10:30:00Z"
   }
 ]
 ```
 
-### GET /drafts/{draft_id}
-
-Get a specific draft.
-
-**Response (200):**
-```json
-{
-  "id": "draft-id",
-  "title": "Draft Title",
-  "body": "Draft content...",
-  ...
-}
-```
-
-### PUT /drafts/{draft_id}
-
-Update a draft.
-
-**Request Body:**
-```json
-{
-  "title": "Updated Title",
-  "body": "Updated content...",
-  "recipient_id": "new-recipient-id"
-}
-```
-
-### DELETE /drafts/{draft_id}
-
-Delete a draft.
-
-**Response (200):**
-```json
-{
-  "message": "Draft deleted successfully"
-}
-```
-
----
-
-## Recipients Endpoints
-
-### POST /recipients
-
-Add a recipient.
-
-**Request Body:**
-```json
-{
-  "name": "Recipient Name",
-  "email": "recipient@example.com",
-  "user_id": "user-id"
-}
-```
-
-**Response (201):**
-```json
-{
-  "id": "recipient-id",
-  "owner_id": "your-user-id",
-  "name": "Recipient Name",
-  "email": "recipient@example.com",
-  "user_id": "user-id",
-  "created_at": "2025-01-15T10:30:00Z"
-}
-```
-
-**Note**: `user_id` is optional - use when recipient is a registered user.
-
-### GET /recipients
-
-List all recipients for the current user.
-
-**Response (200):**
-```json
-[
-  {
-    "id": "recipient-id",
-    "name": "Recipient Name",
-    "email": "recipient@example.com",
-    "user_id": "user-id",
-    ...
-  }
-]
+**Example:**
+```bash
+curl -X GET "http://localhost:8000/recipients" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN"
 ```
 
 ### GET /recipients/{recipient_id}
 
-Get a specific recipient.
+Get details of a specific recipient.
 
 **Response (200):**
 ```json
 {
-  "id": "recipient-id",
-  "name": "Recipient Name",
-  "email": "recipient@example.com",
+  "id": "550e8400-e29b-41d4-a716-446655440004",
+  "owner_id": "your-user-id",
+  "name": "John Doe",
+  "email": "john@example.com",
+  "avatar_url": "https://example.com/avatar.jpg",
+  "relationship": "friend",
+  "created_at": "2025-01-15T10:30:00Z",
+  "updated_at": "2025-01-15T10:30:00Z"
+}
+```
+
+**Example:**
+```bash
+curl -X GET "http://localhost:8000/recipients/550e8400-e29b-41d4-a716-446655440004" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN"
+```
+
+### PUT /recipients/{recipient_id}
+
+Update a recipient.
+
+**Request Body:**
+```json
+{
+  "name": "John Smith",
+  "email": "john.smith@example.com",
+  "avatar_url": "https://example.com/new-avatar.jpg",
+  "relationship": "family"
+}
+```
+
+**Response (200):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440004",
+  "name": "John Smith",
   ...
 }
+```
+
+**Note**: All fields are optional. Only provided fields will be updated.
+
+**Example:**
+```bash
+curl -X PUT "http://localhost:8000/recipients/550e8400-e29b-41d4-a716-446655440004" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN" \
+  -d '{
+    "name": "John Smith",
+    "relationship": "family"
+  }'
 ```
 
 ### DELETE /recipients/{recipient_id}
@@ -618,41 +496,39 @@ Delete a recipient.
 }
 ```
 
+**Example:**
+```bash
+curl -X DELETE "http://localhost:8000/recipients/550e8400-e29b-41d4-a716-446655440004" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN"
+```
+
 ---
 
 ## Error Handling
 
-### HTTP Status Codes
-
-- **200 OK**: Request successful
-- **201 Created**: Resource created successfully
-- **400 Bad Request**: Invalid input data
-- **401 Unauthorized**: Missing or invalid token
-- **403 Forbidden**: Insufficient permissions
-- **404 Not Found**: Resource doesn't exist
-- **422 Unprocessable Entity**: Validation error
-- **429 Too Many Requests**: Rate limit exceeded
-- **500 Internal Server Error**: Server error
-
 ### Error Response Format
 
-```json
-{
-  "detail": "Error message here"
-}
-```
-
-### Common Errors
-
-#### Validation Error (400)
+All errors follow this format:
 
 ```json
 {
-  "detail": "Invalid email format"
+  "detail": "Error message describing what went wrong"
 }
 ```
 
-#### Authentication Error (401)
+### HTTP Status Codes
+
+- `200 OK`: Successful request
+- `201 Created`: Resource created successfully
+- `400 Bad Request`: Invalid request data
+- `401 Unauthorized`: Missing or invalid authentication token
+- `403 Forbidden`: Authenticated but not authorized
+- `404 Not Found`: Resource not found
+- `500 Internal Server Error`: Server error
+
+### Common Error Scenarios
+
+#### 401 Unauthorized
 
 ```json
 {
@@ -660,15 +536,23 @@ Delete a recipient.
 }
 ```
 
-#### Permission Error (403)
+**Cause**: Missing or invalid Supabase JWT token.
+
+**Solution**: Ensure token is included in `Authorization` header and is valid.
+
+#### 403 Forbidden
 
 ```json
 {
-  "detail": "Cannot edit capsule in sealed state"
+  "detail": "You don't have permission to view this capsule"
 }
 ```
 
-#### Not Found (404)
+**Cause**: User doesn't have permission to access the resource.
+
+**Solution**: Ensure user owns the resource or has appropriate permissions.
+
+#### 404 Not Found
 
 ```json
 {
@@ -676,25 +560,58 @@ Delete a recipient.
 }
 ```
 
----
+**Cause**: Resource doesn't exist or user doesn't have access.
 
-## Rate Limiting
+**Solution**: Verify resource ID and user permissions.
 
-- **Default**: 60 requests per minute per IP
-- **Configurable**: Via `RATE_LIMIT_PER_MINUTE` environment variable
-- **Response**: 429 Too Many Requests when limit exceeded
+#### 400 Bad Request
 
----
+```json
+{
+  "detail": "Either body_text or body_rich_text is required"
+}
+```
 
-## Interactive Documentation
+**Cause**: Invalid request data or validation failure.
 
-Visit http://localhost:8000/docs for interactive API documentation with:
-- Try-it-out functionality
-- Request/response examples
-- Schema definitions
-- Authentication testing
+**Solution**: Check request body against API documentation.
 
 ---
 
-**Last Updated**: 2025
+## Status Values
 
+### Capsule Status
+
+- `sealed`: Capsule created with unlock time set (can be edited)
+- `ready`: Unlock time has passed, recipient can open
+- `opened`: Recipient has opened the capsule (terminal state)
+- `expired`: Soft-deleted or expired (disappearing messages)
+
+### Relationship Types
+
+- `friend`: Friend relationship (default)
+- `family`: Family member
+- `partner`: Romantic partner
+- `colleague`: Work colleague
+- `acquaintance`: Acquaintance
+- `other`: Other relationship
+
+---
+
+## Notes
+
+1. **Authentication**: Signup and login are handled by Supabase Auth. This backend only provides profile management.
+
+2. **Drafts**: Drafts feature has been removed. Capsules are created directly in 'sealed' status with `unlocks_at` set.
+
+3. **UUIDs**: All IDs are UUIDs (not strings).
+
+4. **Timezones**: All timestamps are in UTC and timezone-aware.
+
+5. **Anonymous Capsules**: When `is_anonymous` is true, sender info is hidden from recipient via Supabase views.
+
+6. **Disappearing Messages**: When `is_disappearing` is true, capsule is soft-deleted after opening (via Supabase triggers).
+
+---
+
+**Last Updated**: 2025-01-XX (Post Supabase Migration)

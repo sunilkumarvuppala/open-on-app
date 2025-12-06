@@ -1,5 +1,8 @@
 # Quick Start Guide
 
+> **📖 For complete onboarding**: See [ONBOARDING.md](./ONBOARDING.md)  
+> **📋 For quick reference**: See [QUICK_REFERENCE.md](./QUICK_REFERENCE.md)
+
 This guide will help you get started with the OpenOn app codebase quickly.
 
 ## Prerequisites

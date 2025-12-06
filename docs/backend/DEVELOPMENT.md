@@ -67,13 +67,13 @@ pytest tests/test_state_machine.py::test_valid_transitions
 ```python
 import pytest
 from app.services.state_machine import CapsuleStateMachine
-from app.db.models import Capsule, CapsuleState
+from app.db.models import Capsule, CapsuleStatus
 
 def test_valid_transition():
     """Test valid state transition."""
-    capsule = Capsule(state=CapsuleState.DRAFT)
+    capsule = Capsule(status=CapsuleStatus.SEALED)
     can_transition, message = CapsuleStateMachine.can_transition(
-        capsule, CapsuleState.SEALED
+        capsule, CapsuleStatus.READY
     )
     assert can_transition is True
 ```
@@ -248,8 +248,9 @@ pip install -r requirements.txt
 #### Database Errors
 
 ```bash
-# Delete and recreate database
-rm openon.db
+# Reset Supabase database
+cd ../supabase
+supabase db reset
 
 # Restart server
 uvicorn app.main:app --reload

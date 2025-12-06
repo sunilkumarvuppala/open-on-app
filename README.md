@@ -28,7 +28,7 @@ supabase start     # Start local Supabase
 - **Studio (Web UI)**: http://localhost:54323
 - **API**: http://localhost:54321
 
-See [supabase/LOCAL_SETUP.md](./supabase/LOCAL_SETUP.md) for detailed setup.
+See [docs/supabase/LOCAL_SETUP.md](./docs/supabase/LOCAL_SETUP.md) for detailed setup.
 
 ### Frontend
 ```bash
@@ -41,11 +41,16 @@ flutter run
 
 ## 📚 Documentation
 
-**For new developers**: Start with [docs/ONBOARDING.md](./docs/ONBOARDING.md)
+**📖 Complete Documentation**: See [docs/README.md](./docs/README.md) for overview or [docs/INDEX.md](./docs/INDEX.md) for master index
 
-**Complete documentation**: See [docs/README.md](./docs/README.md)
+**🚀 Quick Start**:
+- **New developers**: Start with [docs/ONBOARDING.md](./docs/ONBOARDING.md)
+- **Quick setup**: See [docs/QUICK_START.md](./docs/QUICK_START.md)
+- **Quick reference**: See [docs/QUICK_REFERENCE.md](./docs/QUICK_REFERENCE.md)
 
-**Quick reference**: See [docs/QUICK_REFERENCE.md](./docs/QUICK_REFERENCE.md)
+**📊 User Flows**: See [docs/SEQUENCE_DIAGRAMS.md](./docs/SEQUENCE_DIAGRAMS.md) for detailed sequence diagrams with method-level detail
+
+**🏗️ Architecture**: See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for system architecture
 
 ## 🏗️ Architecture
 
@@ -57,9 +62,9 @@ flutter run
 
 - Time-locked letters (capsules) that unlock at future dates
 - Dual home screens (Inbox/Outbox)
-- Theme customization (15+ color schemes)
-- Draft management
-- Recipient management
+- Theme customization (10+ color schemes)
+- Recipient management with relationships
+- Anonymous and disappearing messages
 - Magical animations
 
 ## 🔒 Security
@@ -82,7 +87,7 @@ flutter run
 
 - **Backend**: Python 3.11+, FastAPI, SQLAlchemy, Pydantic
 - **Frontend**: Flutter 3.0+, Dart 3.0+, Riverpod, GoRouter
-- **Database**: SQLite (development), PostgreSQL (production-ready)
+- **Database**: Supabase (PostgreSQL) - Production-ready with local development support
 
 ## 📝 Status
 

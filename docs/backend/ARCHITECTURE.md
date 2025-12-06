@@ -1,6 +1,6 @@
 # Backend Architecture
 
-This document describes the architecture and design patterns used in the OpenOn backend.
+This document describes the architecture and design patterns used in the OpenOn backend, matching the Supabase schema.
 
 ## 🏗️ System Architecture
 
@@ -26,8 +26,9 @@ This document describes the architecture and design patterns used in the OpenOn 
 └──────────────────────────────────────────────────────────┘
                             │
                     ┌───────▼───────┐
-                    │   Database    │
-                    │ (SQLite/PostgreSQL) │
+                    │   Supabase    │
+                    │  PostgreSQL   │
+                    │  + Auth       │
                     └───────────────┘
 ```
 
@@ -38,25 +39,26 @@ This document describes the architecture and design patterns used in the OpenOn 
 **Responsibility**: HTTP request handling, validation, response formatting
 
 **Components**:
-- `auth.py` - Authentication endpoints
+- `auth.py` - User profile endpoints (Supabase handles signup/login)
 - `capsules.py` - Capsule management endpoints
-- `drafts.py` - Draft management endpoints
 - `recipients.py` - Recipient management endpoints
 
 **Pattern**: RESTful API with FastAPI routers
 
 **Key Features**:
 - Request validation using Pydantic schemas
-- Authentication via dependency injection
+- Authentication via Supabase JWT tokens
 - Error handling with HTTP exceptions
 - Input sanitization
+
+**Note**: Drafts feature removed - not in Supabase schema. Capsules are created directly in 'sealed' status with an unlock time.
 
 ### 2. Service Layer (`app/services/`)
 
 **Responsibility**: Business logic, state management, orchestration
 
 **Components**:
-- `state_machine.py` - Capsule state transition logic
+- `state_machine.py` - Capsule status transition logic
 - `unlock_service.py` - Automated unlock checking
 
 **Pattern**: Service-oriented architecture
@@ -71,7 +73,7 @@ This document describes the architecture and design patterns used in the OpenOn 
 **Responsibility**: Data persistence, database operations
 
 **Components**:
-- `models.py` - SQLAlchemy ORM models
+- `models.py` - SQLAlchemy ORM models (matching Supabase schema)
 - `repository.py` - Base repository pattern
 - `repositories.py` - Specific repositories
 - `base.py` - Database connection and session management
@@ -83,20 +85,22 @@ This document describes the architecture and design patterns used in the OpenOn 
 - Repository abstraction
 - Connection pooling
 - Optimized queries
+- Matches Supabase PostgreSQL schema exactly
 
 ### 4. Core Layer (`app/core/`)
 
 **Responsibility**: Configuration, security, logging
 
 **Components**:
-- `config.py` - Application settings
-- `security.py` - JWT authentication, password hashing
+- `config.py` - Application settings (includes Supabase JWT secret)
+- `security.py` - Supabase JWT verification, password hashing
 - `logging.py` - Structured logging
 
 **Pattern**: Configuration as code
 
 **Key Features**:
 - Environment-based configuration
+- Supabase JWT token verification
 - Centralized security utilities
 
 ### 5. Middleware Layer (`app/middleware/`)
@@ -115,7 +119,7 @@ This document describes the architecture and design patterns used in the OpenOn 
 - Security audit trail
 - Structured logging
 
-### 5. Utilities Layer (`app/utils/`)
+### 6. Utilities Layer (`app/utils/`)
 
 **Responsibility**: Helper functions, validators
 
@@ -138,7 +142,7 @@ This document describes the architecture and design patterns used in the OpenOn 
    ↓
 2. FastAPI Router (app/api/*)
    ↓
-3. Dependency Injection (auth, database session)
+3. Dependency Injection (Supabase JWT auth, database session)
    ↓
 4. Request Validation (Pydantic schemas)
    ↓
@@ -146,24 +150,28 @@ This document describes the architecture and design patterns used in the OpenOn 
    ↓
 6. Repository Layer (data access)
    ↓
-7. Database (SQLAlchemy ORM)
+7. Supabase PostgreSQL (SQLAlchemy ORM)
    ↓
 8. Response (Pydantic schemas)
    ↓
 9. HTTP Response
 ```
 
-### Capsule State Flow
+### Capsule Status Flow (Supabase)
 
 ```
-DRAFT → SEALED → UNFOLDING → READY → OPENED
-  │        │         │         │        │
-  │        │         │         │        └─ Final state
-  │        │         │         └─ Can be opened
-  │        │         └─ < 3 days until unlock
-  │        └─ Unlock time set
-  └─ Editable
+SEALED → READY → OPENED
+  │        │        │
+  │        │        └─ Terminal state
+  │        └─ Can be opened
+  └─ Unlock time set (can be edited before opening)
 ```
+
+**Status Values**:
+- `sealed`: Capsule created with unlock time set
+- `ready`: Unlock time has passed, recipient can open
+- `opened`: Recipient has opened the capsule (terminal)
+- `expired`: Soft-deleted or expired (disappearing messages)
 
 ## 🎨 Design Patterns
 
@@ -173,7 +181,7 @@ DRAFT → SEALED → UNFOLDING → READY → OPENED
 
 **Implementation**:
 - `BaseRepository` - Generic CRUD operations
-- Specific repositories (`UserRepository`, `CapsuleRepository`, etc.)
+- Specific repositories (`UserProfileRepository`, `CapsuleRepository`, `RecipientRepository`, etc.)
 
 **Benefits**:
 - Testability (easy to mock)
@@ -186,7 +194,7 @@ DRAFT → SEALED → UNFOLDING → READY → OPENED
 
 **Implementation**:
 - FastAPI's `Depends()` for dependencies
-- `CurrentUser` - Authenticated user injection
+- `CurrentUser` - Authenticated user from Supabase JWT
 - `DatabaseSession` - Database session injection
 
 **Benefits**:
@@ -196,17 +204,17 @@ DRAFT → SEALED → UNFOLDING → READY → OPENED
 
 ### 3. State Machine Pattern
 
-**Purpose**: Enforce valid state transitions
+**Purpose**: Enforce valid status transitions
 
 **Implementation**:
 - `CapsuleStateMachine` class
 - Valid transition definitions
-- Permission checks per state
+- Permission checks per status
 
 **Benefits**:
 - Prevents invalid states
 - Clear business rules
-- Type-safe state management
+- Type-safe status management
 
 ### 4. Service Layer Pattern
 
@@ -223,31 +231,29 @@ DRAFT → SEALED → UNFOLDING → READY → OPENED
 
 ## 🔐 Security Architecture
 
-### Authentication Flow
+### Authentication Flow (Supabase)
 
 ```
-1. User provides credentials
+1. User signs up/logs in via Supabase Auth
    ↓
-2. Validate credentials
+2. Supabase returns JWT token
    ↓
-3. Generate JWT tokens (access + refresh)
+3. Client includes token in requests
    ↓
-4. Return tokens to client
+4. FastAPI validates Supabase JWT token
    ↓
-5. Client includes token in requests
+5. Extract user_id from token (sub claim)
    ↓
-6. FastAPI validates token
+6. Look up UserProfile in database
    ↓
-7. Extract user from token
-   ↓
-8. Inject user into endpoint
+7. Inject UserProfile into endpoint
 ```
 
 ### Authorization
 
 - **Owner-based**: Users can only access their own resources
-- **State-based**: Operations depend on capsule state
-- **Role-based**: Ready for future role expansion
+- **Status-based**: Operations depend on capsule status
+- **Role-based**: Admin flag in UserProfile for elevated permissions
 
 ### Input Validation
 
@@ -260,20 +266,21 @@ DRAFT → SEALED → UNFOLDING → READY → OPENED
 ### Async Operations
 
 - **Async/await**: All I/O operations are async
-- **Database**: Async SQLAlchemy
+- **Database**: Async SQLAlchemy with PostgreSQL
 - **HTTP**: Async FastAPI
 
 ### Database Optimization
 
-- **Indexes**: On frequently queried fields
+- **Indexes**: On frequently queried fields (see Supabase migrations)
 - **Connection pooling**: Reuse database connections
 - **Query optimization**: Efficient queries, no N+1 problems
+- **Partial indexes**: For filtered queries (e.g., premium users)
 
 ### Background Processing
 
 - **APScheduler**: Background job scheduling
 - **Worker process**: Independent from API server
-- **Scheduled tasks**: Automatic state updates
+- **Scheduled tasks**: Automatic status updates (sealed → ready)
 
 ## 🔄 Background Worker Architecture
 
@@ -297,42 +304,57 @@ DRAFT → SEALED → UNFOLDING → READY → OPENED
 │  (app/db/repositories.py)            │
 └─────────────────────────────────────┘
               │
-              │ Update states
+              │ Update status (sealed → ready)
               ▼
 ┌─────────────────────────────────────┐
-│    Notification Service              │
-│  (app/notifications/service.py)      │
+│    Supabase PostgreSQL               │
+│  (Triggers handle opened status)     │
 └─────────────────────────────────────┘
 ```
 
-## 📊 Database Schema
+## 📊 Database Schema (Supabase)
 
 ### Entity Relationships
 
 ```
-User
+UserProfile (extends Supabase Auth)
  ├── sent_capsules (Capsule[])
- ├── received_capsules (Capsule[])
- ├── drafts (Draft[])
  └── recipients (Recipient[])
 
 Capsule
- ├── sender (User)
- └── receiver (User)
-
-Draft
- └── owner (User)
+ ├── sender_profile (UserProfile)
+ ├── recipient (Recipient)
+ ├── theme (Theme, optional)
+ └── animation (Animation, optional)
 
 Recipient
- └── owner (User)
+ └── owner_profile (UserProfile)
+
+Theme
+ └── capsules (Capsule[])
+
+Animation
+ └── capsules (Capsule[])
 ```
+
+### Key Tables
+
+- **user_profiles**: Extends Supabase Auth with app-specific data
+- **capsules**: Time-locked letters with status tracking
+- **recipients**: Saved contacts with relationship types
+- **themes**: Visual themes for letters
+- **animations**: Reveal animations
+- **notifications**: User notifications
+- **user_subscriptions**: Premium subscription tracking
+- **audit_logs**: Action logging for security
 
 ### Key Constraints
 
-- **Foreign Keys**: Enforced at database level
-- **Unique Constraints**: Email, username
-- **Indexes**: On frequently queried fields
+- **Foreign Keys**: Enforced at database level (references auth.users)
+- **Indexes**: On frequently queried fields (see migrations)
 - **Timezone-aware**: All timestamps in UTC
+- **Soft Deletes**: `deleted_at` for disappearing messages
+- **RLS Policies**: Row-level security for data access
 
 ## 🧪 Testing Architecture
 
@@ -368,7 +390,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
 ### Background Worker
 
 ```
-python -m app.workers.scheduler
+# Runs automatically with main app (via lifespan)
 ```
 
 ## 📈 Scalability Considerations
@@ -376,15 +398,16 @@ python -m app.workers.scheduler
 ### Current Design
 
 - **Stateless API**: Can scale horizontally
-- **Database**: Can switch to PostgreSQL
+- **Database**: Supabase PostgreSQL (scalable)
 - **Async**: Handles concurrent requests efficiently
+- **Connection Pooling**: Efficient database connections
 
 ### Future Enhancements
 
 - **Caching**: Redis for frequently accessed data
 - **Message Queue**: For background job processing
 - **Load Balancing**: Multiple API instances
-- **Database Replication**: Read replicas
+- **Database Replication**: Read replicas via Supabase
 
 ## 🔗 Integration Points
 
@@ -392,12 +415,13 @@ python -m app.workers.scheduler
 
 - **REST API**: Standard HTTP/JSON
 - **CORS**: Configured for frontend origins
-- **Authentication**: JWT tokens
+- **Authentication**: Supabase JWT tokens
 
 ### External Services
 
+- **Supabase Auth**: User authentication and management
+- **Supabase Storage**: Media file storage
 - **Notifications**: Extensible provider system
-- **Storage**: Ready for media storage integration
 - **Email**: SMTP configuration ready
 
 ## 📝 Key Architectural Decisions
@@ -410,8 +434,27 @@ python -m app.workers.scheduler
 6. **Async Everything**: Better performance
 7. **UTC Timestamps**: Avoid timezone issues
 8. **Configuration as Code**: Environment-based settings
+9. **Supabase Integration**: Auth, Database, Storage
+10. **JWT Authentication**: Stateless, scalable
+
+## 🔄 Migration from Old Schema
+
+### Key Changes
+
+1. **Authentication**: Now uses Supabase Auth (no custom user table)
+2. **User Model**: Replaced with `UserProfile` (extends Supabase Auth)
+3. **Capsules**: `receiver_id` → `recipient_id`, `state` → `status`, `scheduled_unlock_at` → `unlocks_at`
+4. **Status Flow**: Simplified from 5 states to 4 (removed `draft` and `unfolding`)
+5. **Drafts**: Removed (not in Supabase schema)
+6. **Recipients**: Added `relationship` enum and `avatar_url`
+7. **New Models**: Theme, Animation, Notification, UserSubscription, AuditLog
+
+### Backward Compatibility
+
+- Legacy Pydantic models kept for reference (not used)
+- Old API endpoints removed (signup/login handled by Supabase)
+- Frontend needs updates to match new API structure
 
 ---
 
-**Last Updated**: 2025
-
+**Last Updated**: 2025-01-XX (Post Supabase Migration)

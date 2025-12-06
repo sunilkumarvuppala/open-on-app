@@ -24,14 +24,15 @@ DEBUG=false
 ### Database Configuration
 
 ```env
-# Database
-DATABASE_URL=sqlite+aiosqlite:///./openon.db
+# Database (Supabase PostgreSQL)
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:54322/postgres
 DB_ECHO=false
 ```
 
-- **DATABASE_URL**: Database connection string
-  - SQLite (default): `sqlite+aiosqlite:///./openon.db`
-  - PostgreSQL: `postgresql+asyncpg://user:password@localhost/openon`
+- **DATABASE_URL**: Supabase PostgreSQL connection string
+  - Local Supabase: `postgresql+asyncpg://postgres:postgres@localhost:54322/postgres`
+  - Production Supabase: `postgresql+asyncpg://postgres:[PASSWORD]@[HOST]:5432/postgres`
+  - Get connection string: `cd ../supabase && supabase status | grep DB_URL`
 - **DB_ECHO**: Echo SQL queries to console (default: false)
 
 ### Security Settings
@@ -39,15 +40,15 @@ DB_ECHO=false
 ```env
 # Security
 SECRET_KEY=your-super-secret-key-here-change-in-production
+SUPABASE_JWT_SECRET=your-supabase-jwt-secret-here  # Get from Supabase Dashboard > Settings > API
 ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-REFRESH_TOKEN_EXPIRE_DAYS=7
 ```
 
-- **SECRET_KEY**: JWT secret key (**CHANGE IN PRODUCTION!**)
+- **SECRET_KEY**: General secret key for other operations (**CHANGE IN PRODUCTION!**)
+- **SUPABASE_JWT_SECRET**: Supabase JWT secret for verifying tokens (get from Supabase Dashboard)
 - **ALGORITHM**: JWT algorithm (default: "HS256")
-- **ACCESS_TOKEN_EXPIRE_MINUTES**: Access token expiration (default: 30)
-- **REFRESH_TOKEN_EXPIRE_DAYS**: Refresh token expiration (default: 7)
+
+**Note**: User authentication (signup/login) is handled by Supabase Auth. This backend only verifies Supabase JWT tokens.
 
 ### CORS Configuration
 
@@ -162,15 +163,14 @@ DEBUG=true
 APP_NAME=OpenOn API
 APP_VERSION=1.0.0
 
-# Database
-DATABASE_URL=sqlite+aiosqlite:///./openon.db
+# Database (Supabase PostgreSQL)
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:54322/postgres
 DB_ECHO=false
 
 # Security (CHANGE IN PRODUCTION!)
 SECRET_KEY=CHANGE_THIS_IN_PRODUCTION_USE_RANDOM_SECRET_KEY_HERE
+SUPABASE_JWT_SECRET=your-supabase-jwt-secret-here  # Get from Supabase Dashboard > Settings > API
 ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-REFRESH_TOKEN_EXPIRE_DAYS=7
 
 # CORS
 CORS_ORIGINS=["http://localhost:3000","http://localhost:8000"]
@@ -196,11 +196,13 @@ WORKER_CHECK_INTERVAL_SECONDS=60
    python -c "import secrets; print(secrets.token_urlsafe(32))"
    ```
 
-2. **Set DEBUG=false**: Disable debug mode
+2. **Set SUPABASE_JWT_SECRET**: Get from Supabase Dashboard > Settings > API > JWT Secret
 
-3. **Use PostgreSQL**: Switch from SQLite to PostgreSQL
+3. **Set DEBUG=false**: Disable debug mode
+
+4. **Use Production Supabase**: Update connection string for production
    ```env
-   DATABASE_URL=postgresql+asyncpg://user:password@localhost/openon
+   DATABASE_URL=postgresql+asyncpg://postgres:[PASSWORD]@[HOST]:5432/postgres
    ```
 
 4. **Configure CORS**: Set allowed origins
@@ -219,7 +221,7 @@ WORKER_CHECK_INTERVAL_SECONDS=60
 
 ```env
 DEBUG=true
-DATABASE_URL=sqlite+aiosqlite:///./openon.db
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:54322/postgres
 CORS_ORIGINS=["http://localhost:3000","http://localhost:8000"]
 ```
 
@@ -333,5 +335,5 @@ def validate_secret_key(cls, v: str) -> str:
 
 ---
 
-**Last Updated**: 2025
+**Last Updated**: 2025-01-XX (Post Supabase Migration)
 
