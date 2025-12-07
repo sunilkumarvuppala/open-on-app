@@ -1,0 +1,135 @@
+# ============================================================================
+# Supabase Local Development Configuration
+# ============================================================================
+# This file configures your local Supabase instance when running `supabase start`.
+# It defines ports, service settings, and behavior for all Supabase services.
+#
+# When to modify:
+# - Port conflicts: Change ports if they're already in use
+# - Custom settings: Adjust limits, timeouts, or feature flags
+# - Development needs: Enable/disable services you don't need
+#
+# Default values work for most development scenarios. Only change if needed.
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Authentication Service Configuration
+# ----------------------------------------------------------------------------
+[auth]
+# Enable/disable the authentication service
+enabled = true
+
+# Base URL of your application (for redirects after auth)
+site_url = "http://localhost:3000"
+
+# Additional URLs allowed for auth redirects
+additional_redirect_urls = ["https://localhost:3000"]
+
+# JWT token expiration time (in seconds)
+jwt_expiry = 3600
+
+# Allow new user signups
+enable_signup = true
+
+# ----------------------------------------------------------------------------
+# Email Authentication Settings
+# ----------------------------------------------------------------------------
+[auth.email]
+# Allow email/password signups
+enable_signup = true
+
+# Require email confirmation before allowing changes
+double_confirm_changes = true
+
+# Require email confirmation for new signups
+# Set to false for local dev to skip email confirmation step
+enable_confirmations = false
+
+# ----------------------------------------------------------------------------
+# REST API Configuration
+# ----------------------------------------------------------------------------
+[api]
+# Enable/disable the REST API service
+enabled = true
+
+# Port for the REST API endpoint
+# Your Flutter app connects to: http://localhost:54321
+# For Android emulator: http://10.0.2.2:54321
+port = 54321
+
+# Database schemas exposed via API
+schemas = ["public", "storage", "graphql_public"]
+
+# Additional PostgreSQL search paths
+extra_search_path = ["public", "extensions"]
+
+# Maximum number of rows returned per query
+max_rows = 1000
+
+# ----------------------------------------------------------------------------
+# PostgreSQL Database Configuration
+# ----------------------------------------------------------------------------
+[db]
+# Port for direct PostgreSQL connections
+# Connection string: postgresql://postgres:postgres@localhost:54322/postgres
+port = 54322
+
+# Port for shadow database (used for migrations)
+shadow_port = 54320
+
+# PostgreSQL major version
+major_version = 15
+
+# ----------------------------------------------------------------------------
+# Supabase Studio (Web UI) Configuration
+# ----------------------------------------------------------------------------
+[studio]
+# Enable/disable Supabase Studio
+enabled = true
+
+# Port for Supabase Studio
+# Access Studio at: http://localhost:54323
+port = 54323
+
+# ----------------------------------------------------------------------------
+# Inbucket (Email Testing) Configuration
+# ----------------------------------------------------------------------------
+[inbucket]
+# Enable/disable Inbucket email testing service
+enabled = true
+
+# Port for Inbucket web UI
+# Access email inbox at: http://localhost:54324
+port = 54324
+
+# Port for SMTP server (sending emails)
+smtp_port = 54325
+
+# Port for POP3 server (receiving emails - not used by Supabase)
+pop3_port = 54326
+
+# ----------------------------------------------------------------------------
+# Storage Service Configuration
+# ----------------------------------------------------------------------------
+[storage]
+# Enable/disable file storage service
+enabled = true
+
+# Maximum file size for uploads
+file_size_limit = "50MiB"
+
+# ----------------------------------------------------------------------------
+# Edge Functions Runtime Configuration
+# ----------------------------------------------------------------------------
+[edge_runtime]
+# Enable/disable Edge Functions runtime
+enabled = true
+
+# ============================================================================
+# Quick Reference: Service URLs (when running `supabase start`)
+# ============================================================================
+# - API URL:        http://localhost:54321
+# - Database:       postgresql://postgres:postgres@localhost:54322/postgres
+# - Studio (UI):    http://localhost:54323
+# - Email Testing:  http://localhost:54324
+# ============================================================================

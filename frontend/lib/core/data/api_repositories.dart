@@ -1,8 +1,10 @@
-import 'dart:convert';
 import 'package:openon_app/core/data/api_client.dart';
 import 'package:openon_app/core/data/api_config.dart';
 import 'package:openon_app/core/data/repositories.dart';
 import 'package:openon_app/core/data/token_storage.dart';
+import 'package:openon_app/core/data/user_mapper.dart';
+import 'package:openon_app/core/data/capsule_mapper.dart';
+import 'package:openon_app/core/data/recipient_mapper.dart';
 import 'package:openon_app/core/errors/app_exceptions.dart';
 import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/utils/logger.dart';
@@ -42,14 +44,29 @@ class ApiAuthRepository implements AuthRepository {
         includeAuth: false,
       );
 
-      // Save tokens
-      final accessToken = response['access_token'] as String;
-      final refreshToken = response['refresh_token'] as String;
-      await _tokenStorage.saveTokens(accessToken, refreshToken);
+      // Check if response has tokens (success case) or just a message (user created, needs to sign in)
+      final accessTokenValue = response['access_token'];
+      if (accessTokenValue != null && accessTokenValue is String && accessTokenValue.isNotEmpty) {
+        // Save tokens - safely extract values (we've already verified accessTokenValue is String)
+        final accessToken = accessTokenValue;
+        final refreshTokenValue = response['refresh_token'];
+        final refreshToken = (refreshTokenValue is String) ? refreshTokenValue : '';
+        await _tokenStorage.saveTokens(accessToken, refreshToken);
 
-      // Get user info
-      final userResponse = await _apiClient.get(ApiConfig.authMe);
-      _cachedUser = _mapUserFromJson(userResponse);
+        // Get user info
+        final userResponse = await _apiClient.get(ApiConfig.authMe);
+        _cachedUser = UserMapper.fromJson(userResponse);
+      } else if (response.containsKey('message')) {
+        // User was created but tokens weren't returned - user needs to sign in
+        final messageValue = response['message'];
+        final message = (messageValue is String) ? messageValue : 'User created successfully. Please sign in.';
+        throw AuthenticationException(message);
+      } else {
+        // Unexpected response format
+        throw AuthenticationException(
+          'Unexpected response from server. Please try signing in.',
+        );
+      }
 
       Logger.info('User signed up: $sanitizedEmail');
       return _cachedUser!;
@@ -86,14 +103,19 @@ class ApiAuthRepository implements AuthRepository {
         includeAuth: false,
       );
 
-      // Save tokens
-      final accessToken = response['access_token'] as String;
-      final refreshToken = response['refresh_token'] as String;
+      // Save tokens (handle null values)
+      final accessToken = response['access_token'] as String?;
+      final refreshToken = response['refresh_token'] as String? ?? '';
+      
+      if (accessToken == null) {
+        throw AuthenticationException('No access token received from server');
+      }
+      
       await _tokenStorage.saveTokens(accessToken, refreshToken);
 
       // Get user info
       final userResponse = await _apiClient.get(ApiConfig.authMe);
-      _cachedUser = _mapUserFromJson(userResponse);
+      _cachedUser = UserMapper.fromJson(userResponse);
 
       Logger.info('User signed in: $sanitizedEmail');
       return _cachedUser!;
@@ -139,7 +161,7 @@ class ApiAuthRepository implements AuthRepository {
       }
 
       final userResponse = await _apiClient.get(ApiConfig.authMe);
-      _cachedUser = _mapUserFromJson(userResponse);
+      _cachedUser = UserMapper.fromJson(userResponse);
       return _cachedUser;
     } catch (e, stackTrace) {
       Logger.error('Failed to get current user', error: e, stackTrace: stackTrace);
@@ -184,15 +206,6 @@ class ApiAuthRepository implements AuthRepository {
     }
   }
 
-  User _mapUserFromJson(Map<String, dynamic> json) {
-    return User(
-      id: json['id'] as String,
-      name: json['full_name'] as String? ?? json['username'] as String,
-      email: json['email'] as String,
-      username: json['username'] as String,
-      avatar: json['avatar'] as String? ?? '',
-    );
-  }
 }
 
 /// API-based Capsule Repository
@@ -227,7 +240,7 @@ class ApiCapsuleRepository implements CapsuleRepository {
       Logger.info('Received ${capsulesList.length} capsules from API');
       
       final capsules = capsulesList
-          .map((json) => _mapCapsuleFromJson(json as Map<String, dynamic>))
+          .map((json) => CapsuleMapper.fromJson(json as Map<String, dynamic>))
           .toList();
 
       // Sort by unlock time
@@ -254,23 +267,25 @@ class ApiCapsuleRepository implements CapsuleRepository {
       if (capsule.label.isNotEmpty) {
         Validation.validateLabel(capsule.label);
       }
+      Validation.validateUnlockDate(capsule.unlockAt);
 
-      // Log receiver_id for debugging
-      Logger.info('Creating capsule with receiver_id: ${capsule.receiverId}');
+      // Backend expects recipient_id (UUID of recipient record), not receiver_id (user ID)
+      // The capsule.receiverId should be the recipient.id, not a user ID
+      Logger.info('Creating capsule with recipient_id: ${capsule.receiverId}, unlocks_at: ${capsule.unlockAt}');
       
       final response = await _apiClient.post(
         ApiConfig.capsules,
         {
-          'receiver_id': capsule.receiverId,
-          'title': capsule.label,
-          'body': capsule.content,
-          'media_urls': capsule.photoUrl != null ? [capsule.photoUrl] : null,
-          'allow_early_view': false,
-          'allow_receiver_reply': true,
+          'recipient_id': capsule.receiverId, // This should be recipient.id (UUID)
+          'title': capsule.label.isNotEmpty ? capsule.label : null,
+          'body_text': capsule.content, // Backend uses body_text, not body
+          'unlocks_at': capsule.unlockAt.toUtc().toIso8601String(), // Backend expects unlocks_at
+          'is_anonymous': false, // Default to non-anonymous
+          'is_disappearing': false, // Default to non-disappearing
         },
       );
 
-      final createdCapsule = _mapCapsuleFromJson(response);
+      final createdCapsule = CapsuleMapper.fromJson(response);
       Logger.info('Capsule created: ${createdCapsule.id}');
       return createdCapsule;
     } catch (e, stackTrace) {
@@ -298,13 +313,12 @@ class ApiCapsuleRepository implements CapsuleRepository {
       final response = await _apiClient.put(
         ApiConfig.capsuleById(capsule.id),
         {
-          'title': capsule.label,
-          'body': capsule.content,
-          'media_urls': capsule.photoUrl != null ? [capsule.photoUrl] : null,
+          'title': capsule.label.isNotEmpty ? capsule.label : null,
+          'body_text': capsule.content,
         },
       );
 
-      final updatedCapsule = _mapCapsuleFromJson(response);
+      final updatedCapsule = CapsuleMapper.fromJson(response);
       Logger.info('Capsule updated: ${updatedCapsule.id}');
       return updatedCapsule;
     } catch (e, stackTrace) {
@@ -376,70 +390,16 @@ class ApiCapsuleRepository implements CapsuleRepository {
   }
 
   /// Seal a capsule with unlock time
+  /// 
+  /// DEPRECATED: Capsules are now created directly with unlocks_at set.
+  /// This method is kept for backward compatibility but should not be used.
+  @Deprecated('Capsules are created with unlocks_at directly. Use createCapsule instead.')
   Future<Capsule> sealCapsule(String capsuleId, DateTime unlockAt) async {
-    try {
-      if (capsuleId.isEmpty) {
-        throw const ValidationException('Capsule ID cannot be empty');
-      }
-
-      final response = await _apiClient.post(
-        ApiConfig.sealCapsule(capsuleId),
-        {
-          'scheduled_unlock_at': unlockAt.toUtc().toIso8601String(),
-        },
-      );
-
-      final sealedCapsule = _mapCapsuleFromJson(response);
-      Logger.info('Capsule sealed: $capsuleId');
-      return sealedCapsule;
-    } catch (e, stackTrace) {
-      Logger.error('Failed to seal capsule', error: e, stackTrace: stackTrace);
-      if (e is ValidationException || e is NotFoundException) {
-        rethrow;
-      }
-      throw RepositoryException(
-        'Failed to seal capsule: ${e.toString()}',
-        originalError: e,
-        stackTrace: stackTrace,
-      );
-    }
-  }
-
-  Capsule _mapCapsuleFromJson(Map<String, dynamic> json) {
-    // Parse media URLs
-    List<String>? mediaUrls;
-    if (json['media_urls'] != null) {
-      if (json['media_urls'] is String) {
-        try {
-          mediaUrls = List<String>.from(jsonDecode(json['media_urls'] as String));
-        } catch (_) {
-          mediaUrls = null;
-        }
-      } else if (json['media_urls'] is List) {
-        mediaUrls = List<String>.from(json['media_urls'] as List);
-      }
-    }
-
-    final scheduledUnlockAt = json['scheduled_unlock_at'] as String?;
-    final openedAt = json['opened_at'] as String?;
-
-    return Capsule(
-      id: json['id'] as String,
-      senderId: json['sender_id'] as String,
-      senderName: 'Sender', // Backend doesn't return sender name, would need to fetch
-      receiverId: json['receiver_id'] as String,
-      receiverName: 'Recipient', // Backend doesn't return receiver name, would need to fetch
-      receiverAvatar: '',
-      label: json['title'] as String? ?? '',
-      content: json['body'] as String,
-      photoUrl: mediaUrls?.isNotEmpty == true ? mediaUrls!.first : null,
-      unlockAt: scheduledUnlockAt != null
-          ? DateTime.parse(scheduledUnlockAt).toLocal()
-          : DateTime.now().add(const Duration(days: 1)),
-      createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
-      openedAt: openedAt != null ? DateTime.parse(openedAt).toLocal() : null,
+    throw RepositoryException(
+      'sealCapsule is deprecated. Capsules are created with unlocks_at directly.',
     );
   }
+
 }
 
 /// API-based User Service (for searching users)
@@ -477,7 +437,7 @@ class ApiUserService {
       // For network errors, assume unavailable to be safe
       return {
         'available': false,
-        'message': 'Unable to check username availability. Please try again.',
+        'message': 'Unable to check. Please try again.',
       };
     }
   }
@@ -494,7 +454,7 @@ class ApiUserService {
       );
 
       return response
-          .map((json) => _mapUserFromJson(json as Map<String, dynamic>))
+          .map((json) => UserMapper.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e, stackTrace) {
       Logger.error('Failed to search users', error: e, stackTrace: stackTrace);
@@ -509,16 +469,6 @@ class ApiUserService {
     }
   }
 
-  /// Map user JSON to User model (same as ApiAuthRepository)
-  User _mapUserFromJson(Map<String, dynamic> json) {
-    return User(
-      id: json['id'] as String,
-      name: json['full_name'] as String? ?? json['username'] as String,
-      email: json['email'] as String,
-      username: json['username'] as String,
-      avatar: json['avatar'] as String? ?? '',
-    );
-  }
 }
 
 /// API-based Recipient Repository
@@ -534,11 +484,14 @@ class ApiRecipientRepository implements RecipientRepository {
 
       final response = await _apiClient.getList(
         ApiConfig.recipients,
-        queryParams: {'page': '1', 'page_size': '100'},
+        queryParams: {
+          'page': AppConstants.defaultPage.toString(),
+          'page_size': AppConstants.maxPageSize.toString(),
+        },
       );
 
       return response
-          .map((json) => _mapRecipientFromJson(json as Map<String, dynamic>))
+          .map((json) => RecipientMapper.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e, stackTrace) {
       Logger.error('Failed to get recipients', error: e, stackTrace: stackTrace);
@@ -562,6 +515,7 @@ class ApiRecipientRepository implements RecipientRepository {
       // Build request body
       final requestBody = <String, dynamic>{
         'name': recipient.name,
+        'relationship': recipient.relationship,
       };
       
       // If a linked user ID is provided (from user search), include it
@@ -574,7 +528,7 @@ class ApiRecipientRepository implements RecipientRepository {
         requestBody,
       );
 
-      final createdRecipient = _mapRecipientFromJson(response);
+      final createdRecipient = RecipientMapper.fromJson(response);
       Logger.info('Recipient created: ${createdRecipient.id}');
       return createdRecipient;
     } catch (e, stackTrace) {
@@ -618,34 +572,5 @@ class ApiRecipientRepository implements RecipientRepository {
     }
   }
 
-  Recipient _mapRecipientFromJson(Map<String, dynamic> json) {
-    final linkedUserId = json['user_id'] as String?;
-    
-    // Log for debugging
-    if (linkedUserId != null) {
-      Logger.info(
-        'Mapped recipient: id=${json['id']}, name=${json['name']}, linkedUserId=$linkedUserId'
-      );
-    } else {
-      Logger.warning(
-        'Mapped recipient without linkedUserId: id=${json['id']}, name=${json['name']}'
-      );
-    }
-    
-    return Recipient(
-      id: json['id'] as String,
-      userId: json['owner_id'] as String,
-      name: json['name'] as String,
-      relationship: json['relationship'] as String? ?? '',
-      avatar: json['email'] as String? ?? '',
-      linkedUserId: linkedUserId,
-    );
-  }
-}
-
-/// API-based Draft Repository (placeholder for future implementation)
-class ApiDraftRepository {
-  // TODO: Implement draft repository when backend draft endpoints are ready
-  // Will use ApiClient for draft CRUD operations
 }
 

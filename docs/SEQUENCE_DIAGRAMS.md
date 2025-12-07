@@ -1,8 +1,10 @@
 # OpenOn Application Sequence Diagrams
 
-This document provides detailed sequence diagrams for every user action in the OpenOn application. These diagrams show the complete flow from user interaction to database operations, including all internal method calls, JWT handling, and state management.
+**Complete user flow diagrams with method-level detail for every action in the OpenOn application.**
 
-**Target Audience**: These diagrams are designed to be understandable by both technical and non-technical stakeholders, providing a complete picture of how the application works.
+This document shows the complete flow from user interaction to database operations, including all internal method calls, JWT handling, Supabase Auth integration, and state management.
+
+**Target Audience**: Designed to be understandable by both technical and non-technical stakeholders.
 
 ---
 
@@ -15,27 +17,21 @@ This document provides detailed sequence diagrams for every user action in the O
    - [Get Current User Info](#4-get-current-user-info)
 
 2. [Capsule Management Flows](#capsule-management-flows)
-   - [Create Capsule (Draft)](#5-create-capsule-draft)
-   - [Seal Capsule](#6-seal-capsule)
-   - [List Capsules (Inbox/Outbox)](#7-list-capsules-inboxoutbox)
-   - [Open Capsule](#8-open-capsule)
-   - [Update Capsule](#9-update-capsule)
-   - [Delete Capsule](#10-delete-capsule)
+   - [Create Capsule](#5-create-capsule)
+   - [List Capsules (Inbox/Outbox)](#6-list-capsules-inboxoutbox)
+   - [Open Capsule](#7-open-capsule)
+   - [Update Capsule](#8-update-capsule)
+   - [Delete Capsule](#9-delete-capsule)
 
 3. [Recipient Management Flows](#recipient-management-flows)
-   - [Search Users for Recipients](#11-search-users-for-recipients)
-   - [Add Recipient](#12-add-recipient)
-   - [List Recipients](#13-list-recipients)
+   - [Search Users for Recipients](#10-search-users-for-recipients)
+   - [Add Recipient](#11-add-recipient)
+   - [List Recipients](#12-list-recipients)
+   - [Update Recipient](#13-update-recipient)
    - [Delete Recipient](#14-delete-recipient)
 
-4. [Draft Management Flows](#draft-management-flows)
-   - [Create Draft](#15-create-draft)
-   - [List Drafts](#16-list-drafts)
-   - [Update Draft](#17-update-draft)
-   - [Delete Draft](#18-delete-draft)
-
-5. [Background Processes](#background-processes)
-   - [Capsule State Automation](#19-capsule-state-automation)
+4. [Background Processes](#background-processes)
+   - [Capsule State Automation](#15-capsule-state-automation)
 
 ---
 
@@ -43,29 +39,34 @@ This document provides detailed sequence diagrams for every user action in the O
 
 ### 1. User Signup
 
-**Description**: A new user creates an account by providing email, username, first name, last name, and password.
+**Description**: A new user creates an account. The backend uses Supabase Auth Admin API to create the user, then creates a user profile in the database.
+
+**Key Steps**:
+1. User fills signup form (email, username, first_name, last_name, password)
+2. Frontend validates input
+3. Frontend calls backend `/auth/signup` endpoint
+4. Backend creates user in Supabase Auth via Admin API
+5. Backend creates user profile in database
+6. Backend signs in user to get JWT tokens
+7. Frontend saves tokens and fetches user info
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant SignupScreen as Signup Screen<br/>(Flutter)
-    participant Validation as Validation Utils<br/>(Flutter)
+    participant SignupScreen as SignupScreen<br/>(Flutter)
+    participant Validation as Validation<br/>(Flutter)
     participant ApiAuthRepo as ApiAuthRepository<br/>(Flutter)
     participant ApiClient as ApiClient<br/>(Flutter)
     participant TokenStorage as TokenStorage<br/>(Flutter)
-    participant AuthAPI as /auth/signup<br/>(FastAPI)
-    participant Security as Security Utils<br/>(Python)
-    participant UserRepo as UserRepository<br/>(Python)
-    participant DB as Database<br/>(SQLite/PostgreSQL)
+    participant AuthAPI as POST /auth/signup<br/>(FastAPI)
+    participant SupabaseAuth as Supabase Auth<br/>(Admin API)
+    participant UserProfileRepo as UserProfileRepository<br/>(Python)
+    participant DB as Supabase PostgreSQL
 
-    User->>SignupScreen: Enter email, username, first_name,<br/>last_name, password, confirm_password
-    SignupScreen->>SignupScreen: Validate form fields<br/>(_formKey.currentState.validate())
-    
-    alt Password mismatch
-        SignupScreen->>User: Show "Passwords do not match"
-    end
-    
+    User->>SignupScreen: Enter email, username,<br/>first_name, last_name, password
     User->>SignupScreen: Click "Sign Up" button
+    
+    SignupScreen->>SignupScreen: _formKey.currentState.validate()
     SignupScreen->>Validation: validateEmail(email)
     Validation-->>SignupScreen: true/false
     SignupScreen->>Validation: validatePassword(password)
@@ -79,6 +80,7 @@ sequenceDiagram
         SignupScreen->>User: Show validation errors
     else Validation passes
         SignupScreen->>ApiAuthRepo: signUp(email, username,<br/>firstName, lastName, password)
+        
         ApiAuthRepo->>Validation: sanitizeEmail(email)
         Validation-->>ApiAuthRepo: sanitized_email
         ApiAuthRepo->>Validation: validateEmail(sanitized_email)
@@ -91,115 +93,92 @@ sequenceDiagram
         Validation-->>ApiAuthRepo: true/false
         
         ApiAuthRepo->>ApiClient: post(ApiConfig.authSignup,<br/>{email, username, first_name,<br/>last_name, password})
-        ApiClient->>ApiClient: Build request URL<br/>(baseUrl + endpoint)
-        ApiClient->>ApiClient: Set headers<br/>(Content-Type: application/json)
+        ApiClient->>ApiClient: Build URL: baseUrl + "/auth/signup"
+        ApiClient->>ApiClient: Set headers:<br/>Content-Type: application/json
         ApiClient->>ApiClient: Convert body to JSON
-        ApiClient->>AuthAPI: HTTP POST /auth/signup<br/>(with JSON body)
+        ApiClient->>AuthAPI: HTTP POST /auth/signup<br/>(no auth header needed)
         
         AuthAPI->>AuthAPI: Receive UserCreate schema<br/>(Pydantic validation)
-        AuthAPI->>AuthAPI: Validate schema fields<br/>(email, username, first_name,<br/>last_name, password)
+        AuthAPI->>AuthAPI: validate_username(username)
         
-        alt Validation fails
-            AuthAPI-->>ApiClient: HTTP 422 (Validation Error)
+        alt Username invalid
+            AuthAPI-->>ApiClient: HTTP 400<br/>("Invalid username format")
             ApiClient-->>ApiAuthRepo: ValidationException
             ApiAuthRepo-->>SignupScreen: Error message
-            SignupScreen->>User: Show error
-        else Validation passes
-            AuthAPI->>AuthAPI: sanitize_text(email.lower().strip())
-            AuthAPI->>AuthAPI: sanitize_text(username.strip())
-            AuthAPI->>AuthAPI: sanitize_text(first_name.strip())
-            AuthAPI->>AuthAPI: sanitize_text(last_name.strip())
-            AuthAPI->>AuthAPI: validate_email(email)
-            AuthAPI->>AuthAPI: validate_username(username)
-            AuthAPI->>AuthAPI: validate_password(password)
+            SignupScreen->>User: Show "Invalid username"
+        else Username valid
+            AuthAPI->>AuthAPI: Check SUPABASE_SERVICE_KEY configured
             
-            AuthAPI->>UserRepo: username_exists(username)
-            UserRepo->>DB: SELECT * FROM users<br/>WHERE username = ?
-            DB-->>UserRepo: user or None
-            UserRepo-->>AuthAPI: exists (true/false)
-            
-            alt Username exists
-                AuthAPI-->>ApiClient: HTTP 400<br/>("Username already taken")
-                ApiClient-->>ApiAuthRepo: ValidationException
+            alt Service key not configured
+                AuthAPI-->>ApiClient: HTTP 500<br/>("SUPABASE_SERVICE_KEY not configured")
+                ApiClient-->>ApiAuthRepo: HTTPException
                 ApiAuthRepo-->>SignupScreen: Error message
-                SignupScreen->>User: Show "Username already taken"
-            else Username available
-                AuthAPI->>UserRepo: email_exists(email)
-                UserRepo->>DB: SELECT * FROM users<br/>WHERE email = ?
-                DB-->>UserRepo: user or None
-                UserRepo-->>AuthAPI: exists (true/false)
+                SignupScreen->>User: Show "Server configuration error"
+            else Service key configured
+                AuthAPI->>SupabaseAuth: POST /auth/v1/admin/users<br/>(with service_role key)<br/>{email, password, email_confirm: true,<br/>user_metadata: {username, first_name,<br/>last_name, full_name}}
                 
-                alt Email exists
+                alt Email already exists
+                    SupabaseAuth-->>AuthAPI: HTTP 400/409<br/>("Email already registered")
                     AuthAPI-->>ApiClient: HTTP 400<br/>("Email already registered")
-                    ApiClient-->>ApiAuthRepo: ValidationException
+                    ApiClient-->>ApiAuthRepo: HTTPException
                     ApiAuthRepo-->>SignupScreen: Error message
                     SignupScreen->>User: Show "Email already registered"
-                else Email available
-                    AuthAPI->>AuthAPI: full_name = f"{first_name} {last_name}"
-                    AuthAPI->>Security: get_password_hash(password)
-                    Security->>Security: password.encode('utf-8')
-                    Security->>Security: Truncate to 72 bytes if needed<br/>(BCrypt limit)
-                    Security->>Security: bcrypt.gensalt(rounds=12)
-                    Security->>Security: bcrypt.hashpw(password_bytes, salt)
-                    Security-->>AuthAPI: hashed_password (string)
+                else User created successfully
+                    SupabaseAuth-->>AuthAPI: HTTP 201<br/>{id: user_id, email, ...}
                     
-                    AuthAPI->>UserRepo: create(email, username,<br/>first_name, last_name,<br/>full_name, hashed_password)
-                    UserRepo->>DB: INSERT INTO users<br/>(id, email, username, hashed_password,<br/>full_name, is_active, created_at)<br/>VALUES (?, ?, ?, ?, ?, ?, ?)
-                    DB-->>UserRepo: user_id
-                    UserRepo->>DB: SELECT * FROM users<br/>WHERE id = ?
-                    DB-->>UserRepo: User object
-                    UserRepo-->>AuthAPI: User model
+                    AuthAPI->>AuthAPI: Extract user_id from response
+                    AuthAPI->>UserProfileRepo: create(user_id, full_name)
+                    UserProfileRepo->>DB: INSERT INTO user_profiles<br/>(user_id, full_name, created_at, updated_at)<br/>VALUES (?, ?, NOW(), NOW())
+                    DB-->>UserProfileRepo: Success
+                    UserProfileRepo->>DB: SELECT * FROM user_profiles<br/>WHERE user_id = ?
+                    DB-->>UserProfileRepo: UserProfile object
+                    UserProfileRepo-->>AuthAPI: UserProfile model
                     
-                    AuthAPI->>Security: create_access_token({sub: user_id,<br/>username: username})
-                    Security->>Security: datetime.now(timezone.utc)
-                    Security->>Security: expire = now + 30 minutes
-                    Security->>Security: jwt.encode({sub, username, exp, type: "access"},<br/>secret_key, algorithm="HS256")
-                    Security-->>AuthAPI: access_token (JWT string)
+                    AuthAPI->>SupabaseAuth: POST /auth/v1/token?grant_type=password<br/>(sign in to get tokens)<br/>{email, password}
                     
-                    AuthAPI->>Security: create_refresh_token({sub: user_id,<br/>username: username})
-                    Security->>Security: datetime.now(timezone.utc)
-                    Security->>Security: expire = now + 7 days
-                    Security->>Security: jwt.encode({sub, username, exp, type: "refresh"},<br/>secret_key, algorithm="HS256")
-                    Security-->>AuthAPI: refresh_token (JWT string)
-                    
-                    AuthAPI->>AuthAPI: UserResponse.from_user_model(user)
-                    AuthAPI->>AuthAPI: Parse full_name into first_name, last_name
-                    AuthAPI-->>ApiClient: HTTP 201<br/>{access_token, refresh_token, token_type: "bearer"}
-                    
-                    ApiClient->>ApiClient: Parse JSON response
-                    ApiClient-->>ApiAuthRepo: {access_token, refresh_token}
+                    alt Sign in fails
+                        SupabaseAuth-->>AuthAPI: HTTP 401
+                        AuthAPI-->>ApiClient: HTTP 200<br/>{message: "User created. Please sign in."}
+                        ApiClient-->>ApiAuthRepo: {message: "..."}
+                        ApiAuthRepo-->>SignupScreen: AuthenticationException
+                        SignupScreen->>User: Show "User created. Please sign in."
+                    else Sign in succeeds
+                        SupabaseAuth-->>AuthAPI: HTTP 200<br/>{access_token, refresh_token, user}
+                        
+                        AuthAPI->>AuthAPI: UserProfileResponse.from_user_profile(profile)
+                        AuthAPI-->>ApiClient: HTTP 200<br/>{access_token, refresh_token,<br/>token_type: "bearer", user}
+                        
+                        ApiClient-->>ApiAuthRepo: {access_token, refresh_token, user}
                     ApiAuthRepo->>TokenStorage: saveTokens(access_token, refresh_token)
                     TokenStorage->>TokenStorage: SharedPreferences.getInstance()
-                    TokenStorage->>TokenStorage: prefs.setString('access_token', access_token)
-                    TokenStorage->>TokenStorage: prefs.setString('refresh_token', refresh_token)
+                        TokenStorage->>TokenStorage: prefs.setString('access_token', ...)
+                        TokenStorage->>TokenStorage: prefs.setString('refresh_token', ...)
                     TokenStorage-->>ApiAuthRepo: Success
                     
                     ApiAuthRepo->>ApiClient: get(ApiConfig.authMe, includeAuth: true)
                     ApiClient->>TokenStorage: getAccessToken()
-                    TokenStorage->>TokenStorage: SharedPreferences.getInstance()
-                    TokenStorage->>TokenStorage: prefs.getString('access_token')
                     TokenStorage-->>ApiClient: access_token
                     ApiClient->>ApiClient: Set Authorization header<br/>("Bearer " + access_token)
                     ApiClient->>AuthAPI: HTTP GET /auth/me<br/>(with Authorization header)
                     
-                    AuthAPI->>AuthAPI: get_current_user dependency<br/>(extract token from header)
-                    AuthAPI->>Security: decode_token(token)
-                    Security->>Security: jwt.decode(token, secret_key,<br/>algorithms=["HS256"])
-                    Security-->>AuthAPI: payload {sub, username, exp, type}
-                    AuthAPI->>Security: verify_token_type(payload, "access")
-                    Security-->>AuthAPI: true/false
-                    AuthAPI->>UserRepo: get_by_id(user_id)
-                    UserRepo->>DB: SELECT * FROM users<br/>WHERE id = ?
-                    DB-->>UserRepo: User object
-                    UserRepo-->>AuthAPI: User model
-                    AuthAPI->>AuthAPI: UserResponse.from_user_model(user)
-                    AuthAPI-->>ApiClient: HTTP 200<br/>{id, email, username, first_name,<br/>last_name, full_name, is_active, created_at}
-                    
-                    ApiClient-->>ApiAuthRepo: User data
-                    ApiAuthRepo->>ApiAuthRepo: Convert to User model<br/>(name = first_name + " " + last_name)
+                        AuthAPI->>AuthAPI: get_current_user dependency
+                        AuthAPI->>AuthAPI: Extract token from Authorization header
+                        AuthAPI->>AuthAPI: verify_supabase_token(token)
+                        AuthAPI->>AuthAPI: jwt.decode(token, supabase_jwt_secret,<br/>algorithms=["HS256"], audience="authenticated")
+                        AuthAPI->>AuthAPI: Extract user_id from payload["sub"]
+                        AuthAPI->>UserProfileRepo: get_by_id(user_id)
+                        UserProfileRepo->>DB: SELECT * FROM user_profiles<br/>WHERE user_id = ?
+                        DB-->>UserProfileRepo: UserProfile object
+                        UserProfileRepo-->>AuthAPI: UserProfile model
+                        AuthAPI->>AuthAPI: UserProfileResponse.from_user_profile(profile)
+                        AuthAPI-->>ApiClient: HTTP 200<br/>{user_id, full_name, ...}
+                        
+                        ApiClient-->>ApiAuthRepo: User data (JSON)
+                        ApiAuthRepo->>ApiAuthRepo: UserMapper.fromJson(userResponse)
                     ApiAuthRepo-->>SignupScreen: User object
-                    SignupScreen->>SignupScreen: Navigate to home screen<br/>(context.go('/home'))
-                    SignupScreen->>User: Show success & redirect
+                        SignupScreen->>SignupScreen: context.go(Routes.receiverHome)
+                        SignupScreen->>User: Navigate to inbox screen
+                    end
                 end
             end
         end
@@ -210,111 +189,118 @@ sequenceDiagram
 
 ### 2. User Login
 
-**Description**: An existing user logs in with username/email and password.
+**Description**: An existing user logs in with email and password. Backend authenticates via Supabase Auth and returns JWT tokens.
+
+**Key Steps**:
+1. User enters email and password
+2. Frontend validates input
+3. Frontend calls backend `/auth/login` endpoint
+4. Backend authenticates with Supabase Auth
+5. Backend gets or creates user profile
+6. Backend returns JWT tokens
+7. Frontend saves tokens and fetches user info
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant LoginScreen as Login Screen<br/>(Flutter)
+    participant LoginScreen as LoginScreen<br/>(Flutter)
+    participant Validation as Validation<br/>(Flutter)
     participant ApiAuthRepo as ApiAuthRepository<br/>(Flutter)
     participant ApiClient as ApiClient<br/>(Flutter)
     participant TokenStorage as TokenStorage<br/>(Flutter)
-    participant AuthAPI as /auth/login<br/>(FastAPI)
-    participant Security as Security Utils<br/>(Python)
-    participant UserRepo as UserRepository<br/>(Python)
-    participant DB as Database
+    participant AuthAPI as POST /auth/login<br/>(FastAPI)
+    participant SupabaseAuth as Supabase Auth
+    participant UserProfileRepo as UserProfileRepository<br/>(Python)
+    participant DB as Supabase PostgreSQL
 
-    User->>LoginScreen: Enter username/email and password
+    User->>LoginScreen: Enter email and password
     User->>LoginScreen: Click "Log In" button
-    LoginScreen->>LoginScreen: Validate form<br/>(_formKey.currentState.validate())
+    
+    LoginScreen->>LoginScreen: _formKey.currentState.validate()
+    LoginScreen->>Validation: validateEmail(email)
+    Validation-->>LoginScreen: true/false
+    LoginScreen->>Validation: validatePassword(password)
+    Validation-->>LoginScreen: true/false
     
     alt Validation fails
         LoginScreen->>User: Show validation errors
     else Validation passes
-        LoginScreen->>ApiAuthRepo: login(username, password)
-        ApiAuthRepo->>ApiClient: post(ApiConfig.authLogin,<br/>{username, password})
-        ApiClient->>ApiClient: Build request URL
-        ApiClient->>ApiClient: Set headers<br/>(Content-Type: application/json)
+        LoginScreen->>ApiAuthRepo: signIn(email, password)
+        
+        ApiAuthRepo->>Validation: sanitizeEmail(email)
+        Validation-->>ApiAuthRepo: sanitized_email
+        ApiAuthRepo->>Validation: validateEmail(sanitized_email)
+        Validation-->>ApiAuthRepo: true/false
+        ApiAuthRepo->>Validation: validatePassword(password)
+        Validation-->>ApiAuthRepo: true/false
+        
+        ApiAuthRepo->>ApiClient: post(ApiConfig.authLogin,<br/>{username: email, password})
+        ApiClient->>ApiClient: Build URL: baseUrl + "/auth/login"
+        ApiClient->>ApiClient: Set headers:<br/>Content-Type: application/json
         ApiClient->>ApiClient: Convert body to JSON
-        ApiClient->>AuthAPI: HTTP POST /auth/login<br/>(with JSON body)
+        ApiClient->>AuthAPI: HTTP POST /auth/login<br/>(no auth header needed)
         
         AuthAPI->>AuthAPI: Receive UserLogin schema<br/>(Pydantic validation)
-        AuthAPI->>UserRepo: get_by_username(username)
-        UserRepo->>DB: SELECT * FROM users<br/>WHERE username = ?
-        DB-->>UserRepo: user or None
+        AuthAPI->>SupabaseAuth: POST /auth/v1/token?grant_type=password<br/>(with service_role key)<br/>{email: username, password}
         
-        alt User not found by username
-            UserRepo->>UserRepo: get_by_email(username)<br/>(try email instead)
-            UserRepo->>DB: SELECT * FROM users<br/>WHERE email = ?
-            DB-->>UserRepo: user or None
-        end
-        
-        UserRepo-->>AuthAPI: User model or None
-        
-        alt User not found
-            AuthAPI-->>ApiClient: HTTP 401<br/>("Incorrect username or password")
-            ApiClient-->>ApiAuthRepo: AuthenticationException
-            ApiAuthRepo-->>LoginScreen: Error message
-            LoginScreen->>User: Show "Incorrect credentials"
-        else User found
-            AuthAPI->>Security: verify_password(password,<br/>user.hashed_password)
-            Security->>Security: password.encode('utf-8')
-            Security->>Security: Truncate to 72 bytes if needed
-            Security->>Security: bcrypt.checkpw(password_bytes,<br/>hashed_password.encode('utf-8'))
-            Security-->>AuthAPI: true/false
+        alt Invalid credentials
+            SupabaseAuth-->>AuthAPI: HTTP 401<br/>("Invalid email or password")
+            AuthAPI-->>ApiClient: HTTP 401<br/>("Invalid email or password")
+            ApiClient-->>ApiAuthRepo: HTTPException
+            ApiAuthRepo-->>LoginScreen: AuthenticationException
+            LoginScreen->>User: Show "Invalid email or password"
+        else Valid credentials
+            SupabaseAuth-->>AuthAPI: HTTP 200<br/>{access_token, refresh_token, user: {id, email}}
             
-            alt Password incorrect
-                AuthAPI-->>ApiClient: HTTP 401<br/>("Incorrect username or password")
-                ApiClient-->>ApiAuthRepo: AuthenticationException
-                ApiAuthRepo-->>LoginScreen: Error message
-                LoginScreen->>User: Show "Incorrect credentials"
-            else Password correct
-                alt User inactive
-                    AuthAPI-->>ApiClient: HTTP 403<br/>("User account is inactive")
-                    ApiClient-->>ApiAuthRepo: AuthenticationException
-                    ApiAuthRepo-->>LoginScreen: Error message
-                    LoginScreen->>User: Show "Account inactive"
-                else User active
-                    AuthAPI->>Security: create_access_token({sub: user_id,<br/>username: username})
-                    Security->>Security: jwt.encode({sub, username, exp, type: "access"},<br/>secret_key, algorithm="HS256")
-                    Security-->>AuthAPI: access_token
-                    
-                    AuthAPI->>Security: create_refresh_token({sub: user_id,<br/>username: username})
-                    Security->>Security: jwt.encode({sub, username, exp, type: "refresh"},<br/>secret_key, algorithm="HS256")
-                    Security-->>AuthAPI: refresh_token
-                    
-                    AuthAPI-->>ApiClient: HTTP 200<br/>{access_token, refresh_token, token_type: "bearer"}
-                    
-                    ApiClient-->>ApiAuthRepo: {access_token, refresh_token}
+            AuthAPI->>AuthAPI: Extract user_id from tokens["user"]["id"]
+            AuthAPI->>UserProfileRepo: get_by_id(user_id)
+            UserProfileRepo->>DB: SELECT * FROM user_profiles<br/>WHERE user_id = ?
+            DB-->>UserProfileRepo: UserProfile or None
+            
+            alt Profile not found
+                UserProfileRepo->>UserProfileRepo: create(user_id, ...)
+                UserProfileRepo->>DB: INSERT INTO user_profiles<br/>(user_id, created_at, updated_at)<br/>VALUES (?, NOW(), NOW())
+                DB-->>UserProfileRepo: Success
+                UserProfileRepo->>DB: SELECT * FROM user_profiles<br/>WHERE user_id = ?
+                DB-->>UserProfileRepo: UserProfile object
+                UserProfileRepo-->>AuthAPI: UserProfile model
+            else Profile found
+                UserProfileRepo-->>AuthAPI: UserProfile model
+            end
+            
+            AuthAPI->>AuthAPI: UserProfileResponse.from_user_profile(profile)
+            AuthAPI-->>ApiClient: HTTP 200<br/>{access_token, refresh_token,<br/>token_type: "bearer", user}
+            
+            ApiClient-->>ApiAuthRepo: {access_token, refresh_token, user}
                     ApiAuthRepo->>TokenStorage: saveTokens(access_token, refresh_token)
-                    TokenStorage->>TokenStorage: Save to SharedPreferences
+            TokenStorage->>TokenStorage: SharedPreferences.getInstance()
+            TokenStorage->>TokenStorage: prefs.setString('access_token', ...)
+            TokenStorage->>TokenStorage: prefs.setString('refresh_token', ...)
                     TokenStorage-->>ApiAuthRepo: Success
                     
                     ApiAuthRepo->>ApiClient: get(ApiConfig.authMe, includeAuth: true)
                     ApiClient->>TokenStorage: getAccessToken()
                     TokenStorage-->>ApiClient: access_token
-                    ApiClient->>ApiClient: Set Authorization header
-                    ApiClient->>AuthAPI: HTTP GET /auth/me
+            ApiClient->>ApiClient: Set Authorization header<br/>("Bearer " + access_token)
+            ApiClient->>AuthAPI: HTTP GET /auth/me<br/>(with Authorization header)
                     
                     AuthAPI->>AuthAPI: get_current_user dependency
-                    AuthAPI->>Security: decode_token(token)
-                    Security-->>AuthAPI: payload
-                    AuthAPI->>Security: verify_token_type(payload, "access")
-                    Security-->>AuthAPI: true
-                    AuthAPI->>UserRepo: get_by_id(user_id)
-                    UserRepo->>DB: SELECT * FROM users WHERE id = ?
-                    DB-->>UserRepo: User object
-                    UserRepo-->>AuthAPI: User model
-                    AuthAPI->>AuthAPI: UserResponse.from_user_model(user)
-                    AuthAPI-->>ApiClient: HTTP 200<br/>(User data)
-                    
-                    ApiClient-->>ApiAuthRepo: User data
-                    ApiAuthRepo->>ApiAuthRepo: Convert to User model
+            AuthAPI->>AuthAPI: Extract token from Authorization header
+            AuthAPI->>AuthAPI: verify_supabase_token(token)
+            AuthAPI->>AuthAPI: jwt.decode(token, supabase_jwt_secret,<br/>algorithms=["HS256"], audience="authenticated")
+            AuthAPI->>AuthAPI: Extract user_id from payload["sub"]
+            AuthAPI->>UserProfileRepo: get_by_id(user_id)
+            UserProfileRepo->>DB: SELECT * FROM user_profiles<br/>WHERE user_id = ?
+            DB-->>UserProfileRepo: UserProfile object
+            UserProfileRepo-->>AuthAPI: UserProfile model
+            AuthAPI->>AuthAPI: UserProfileResponse.from_user_profile(profile)
+            AuthAPI-->>ApiClient: HTTP 200<br/>{user_id, full_name, ...}
+            
+            ApiClient-->>ApiAuthRepo: User data (JSON)
+            ApiAuthRepo->>ApiAuthRepo: UserMapper.fromJson(userResponse)
                     ApiAuthRepo-->>LoginScreen: User object
-                    LoginScreen->>LoginScreen: Navigate to home screen<br/>(context.go('/home'))
-                    LoginScreen->>User: Show success & redirect
-                end
-            end
+            LoginScreen->>LoginScreen: context.go(Routes.receiverHome)
+            LoginScreen->>User: Navigate to inbox screen
         end
     end
 ```
@@ -323,17 +309,15 @@ sequenceDiagram
 
 ### 3. Username Availability Check
 
-**Description**: Real-time username availability check during signup.
+**Description**: Real-time username availability check during signup. Validates format and checks if username is available.
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant SignupScreen as Signup Screen<br/>(Flutter)
+    participant SignupScreen as SignupScreen<br/>(Flutter)
     participant ApiUserService as ApiUserService<br/>(Flutter)
     participant ApiClient as ApiClient<br/>(Flutter)
-    participant AuthAPI as /auth/username/check<br/>(FastAPI)
-    participant UserRepo as UserRepository<br/>(Python)
-    participant DB as Database
+    participant AuthAPI as GET /auth/username/check<br/>(FastAPI)
 
     User->>SignupScreen: Type username in field
     SignupScreen->>SignupScreen: _onUsernameChanged(value)
@@ -351,11 +335,10 @@ sequenceDiagram
     else Username valid length
         SignupScreen->>ApiUserService: checkUsernameAvailability(username)
         ApiUserService->>ApiClient: get(ApiConfig.checkUsernameAvailability,<br/>queryParams: {username: username})
-        ApiClient->>ApiClient: Build request URL<br/>(/auth/username/check?username=...)
+        ApiClient->>ApiClient: Build URL: baseUrl + "/auth/username/check?username=..."
         ApiClient->>AuthAPI: HTTP GET /auth/username/check?username=alice
         
-        AuthAPI->>AuthAPI: Receive username query parameter<br/>(Query validation: min_length=3, max_length=100)
-        AuthAPI->>AuthAPI: sanitize_text(username.strip())
+        AuthAPI->>AuthAPI: Receive username query parameter<br/>(Query validation: min_length=1)
         AuthAPI->>AuthAPI: validate_username(username)
         
         alt Username format invalid
@@ -366,26 +349,12 @@ sequenceDiagram
             SignupScreen->>SignupScreen: Set _usernameMessage = message
             SignupScreen->>User: Show ❌ "Invalid format"
         else Username format valid
-            AuthAPI->>UserRepo: username_exists(username)
-            UserRepo->>DB: SELECT COUNT(*) FROM users<br/>WHERE username = ?
-            DB-->>UserRepo: count (0 or 1)
-            UserRepo-->>AuthAPI: exists (true/false)
-            
-            alt Username exists
-                AuthAPI-->>ApiClient: HTTP 200<br/>{available: false, message: "Username already taken"}
-                ApiClient-->>ApiUserService: {available: false, message: "..."}
-                ApiUserService-->>SignupScreen: {available: false, message: "..."}
-                SignupScreen->>SignupScreen: Set _usernameAvailable = false
-                SignupScreen->>SignupScreen: Set _usernameMessage = "Username already taken"
-                SignupScreen->>User: Show ❌ "Username already taken"
-            else Username available
                 AuthAPI-->>ApiClient: HTTP 200<br/>{available: true, message: "Username is available"}
                 ApiClient-->>ApiUserService: {available: true, message: "..."}
                 ApiUserService-->>SignupScreen: {available: true, message: "..."}
                 SignupScreen->>SignupScreen: Set _usernameAvailable = true
                 SignupScreen->>SignupScreen: Set _usernameMessage = "Username is available"
                 SignupScreen->>User: Show ✅ "Username is available"
-            end
         end
         
         SignupScreen->>SignupScreen: Set _isCheckingUsername = false
@@ -396,7 +365,7 @@ sequenceDiagram
 
 ### 4. Get Current User Info
 
-**Description**: Fetch current authenticated user information.
+**Description**: Fetch current authenticated user information using stored JWT token.
 
 ```mermaid
 sequenceDiagram
@@ -405,10 +374,9 @@ sequenceDiagram
     participant ApiAuthRepo as ApiAuthRepository<br/>(Flutter)
     participant ApiClient as ApiClient<br/>(Flutter)
     participant TokenStorage as TokenStorage<br/>(Flutter)
-    participant AuthAPI as /auth/me<br/>(FastAPI)
-    participant Security as Security Utils<br/>(Python)
-    participant UserRepo as UserRepository<br/>(Python)
-    participant DB as Database
+    participant AuthAPI as GET /auth/me<br/>(FastAPI)
+    participant UserProfileRepo as UserProfileRepository<br/>(Python)
+    participant DB as Supabase PostgreSQL
 
     Widget->>Provider: ref.watch(currentUserProvider)
     Provider->>ApiAuthRepo: getCurrentUser()
@@ -429,49 +397,39 @@ sequenceDiagram
         
         AuthAPI->>AuthAPI: get_current_user dependency
         AuthAPI->>AuthAPI: Extract token from Authorization header
-        AuthAPI->>Security: decode_token(token)
-        Security->>Security: jwt.decode(token, secret_key,<br/>algorithms=["HS256"])
+        AuthAPI->>AuthAPI: verify_supabase_token(token)
+        AuthAPI->>AuthAPI: jwt.decode(token, supabase_jwt_secret,<br/>algorithms=["HS256"], audience="authenticated")
         
         alt Token invalid or expired
-            Security-->>AuthAPI: ValueError("Invalid token")
+            AuthAPI->>AuthAPI: ValueError("Invalid Supabase token")
             AuthAPI-->>ApiClient: HTTP 401<br/>("Invalid token")
-            ApiClient-->>ApiAuthRepo: AuthenticationException
+            ApiClient-->>ApiAuthRepo: HTTPException
             ApiAuthRepo->>TokenStorage: clearTokens()
             ApiAuthRepo-->>Provider: null
             Provider-->>Widget: null
         else Token valid
-            Security-->>AuthAPI: payload {sub, username, exp, type}
-            AuthAPI->>Security: verify_token_type(payload, "access")
-            
-            alt Wrong token type
-                AuthAPI-->>ApiClient: HTTP 401<br/>("Invalid token type")
-                ApiClient-->>ApiAuthRepo: AuthenticationException
-                ApiAuthRepo-->>Provider: null
-                Provider-->>Widget: null
-            else Token type correct
-                Security-->>AuthAPI: true
-                AuthAPI->>AuthAPI: user_id = payload.get("sub")
-                AuthAPI->>UserRepo: get_by_id(user_id)
-                UserRepo->>DB: SELECT * FROM users<br/>WHERE id = ?
-                DB-->>UserRepo: User object
-                UserRepo-->>AuthAPI: User model
+            AuthAPI->>AuthAPI: Extract user_id from payload["sub"]
+            AuthAPI->>UserProfileRepo: get_by_id(user_id)
+            UserProfileRepo->>DB: SELECT * FROM user_profiles<br/>WHERE user_id = ?
+            DB-->>UserProfileRepo: UserProfile object
+            UserProfileRepo-->>AuthAPI: UserProfile model
                 
                 alt User not found
-                    AuthAPI-->>ApiClient: HTTP 404<br/>("User not found")
-                    ApiClient-->>ApiAuthRepo: NotFoundException
-                    ApiAuthRepo-->>Provider: null
-                    Provider-->>Widget: null
-                else User found
-                    AuthAPI->>AuthAPI: UserResponse.from_user_model(user)
-                    AuthAPI->>AuthAPI: Parse full_name into first_name, last_name
-                    AuthAPI-->>ApiClient: HTTP 200<br/>{id, email, username, first_name,<br/>last_name, full_name, is_active, created_at}
+                AuthAPI->>UserProfileRepo: create(user_id, ...)
+                UserProfileRepo->>DB: INSERT INTO user_profiles<br/>(user_id, ...) VALUES (?, ...)
+                DB-->>UserProfileRepo: Success
+                UserProfileRepo->>DB: SELECT * FROM user_profiles<br/>WHERE user_id = ?
+                DB-->>UserProfileRepo: UserProfile object
+                UserProfileRepo-->>AuthAPI: UserProfile model
+            end
+            
+            AuthAPI->>AuthAPI: UserProfileResponse.from_user_profile(profile)
+            AuthAPI-->>ApiClient: HTTP 200<br/>{user_id, full_name, ...}
                     
                     ApiClient-->>ApiAuthRepo: User data (JSON)
-                    ApiAuthRepo->>ApiAuthRepo: Convert to User model<br/>(name = first_name + " " + last_name)
+            ApiAuthRepo->>ApiAuthRepo: UserMapper.fromJson(userResponse)
                     ApiAuthRepo-->>Provider: User object
                     Provider-->>Widget: User object
-                end
-            end
         end
     end
 ```
@@ -480,159 +438,115 @@ sequenceDiagram
 
 ## Capsule Management Flows
 
-### 5. Create Capsule (Draft)
+### 5. Create Capsule
 
-**Description**: User creates a new time capsule in draft state.
+**Description**: User creates a new time-locked capsule. The capsule is created in 'sealed' status with an unlock time.
+
+**Key Steps**:
+1. User fills form (recipient, title, body, unlock time)
+2. Frontend validates input
+3. Frontend calls backend `/capsules` POST endpoint
+4. Backend validates recipient ownership
+5. Backend creates capsule in 'sealed' status
+6. Frontend receives created capsule
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant CreateScreen as Create Capsule Screen<br/>(Flutter)
-    participant CapsuleRepo as CapsuleRepository<br/>(Flutter)
+    participant CreateScreen as CreateCapsuleScreen<br/>(Flutter)
+    participant Validation as Validation<br/>(Flutter)
+    participant CapsuleRepo as ApiCapsuleRepository<br/>(Flutter)
     participant ApiClient as ApiClient<br/>(Flutter)
     participant TokenStorage as TokenStorage<br/>(Flutter)
-    participant CapsuleAPI as /capsules<br/>(FastAPI)
-    participant StateMachine as State Machine<br/>(Python)
+    participant CapsuleAPI as POST /capsules<br/>(FastAPI)
     participant CapsuleRepo as CapsuleRepository<br/>(Python)
-    participant DB as Database
+    participant RecipientRepo as RecipientRepository<br/>(Python)
+    participant DB as Supabase PostgreSQL
 
-    User->>CreateScreen: Fill form (receiver, title, body, theme)
-    User->>CreateScreen: Click "Create" button
+    User->>CreateScreen: Fill form (recipient, title, body, unlock time)
+    User->>CreateScreen: Click "Send Letter" button
+    
     CreateScreen->>CreateScreen: Validate form fields
+    CreateScreen->>Validation: validateContent(body)
+    Validation-->>CreateScreen: true/false
+    CreateScreen->>Validation: validateUnlockDate(unlockAt)
+    Validation-->>CreateScreen: true/false
     
     alt Validation fails
         CreateScreen->>User: Show validation errors
     else Validation passes
-        CreateScreen->>CapsuleRepo: createCapsule(CapsuleCreate)
-        CapsuleRepo->>ApiClient: post(ApiConfig.capsules,<br/>{receiver_id, title, body, theme,<br/>media_urls, allow_early_view,<br/>allow_receiver_reply})
+        CreateScreen->>CapsuleRepo: createCapsule(Capsule)
+        
+        CapsuleRepo->>Validation: validateContent(capsule.content)
+        Validation-->>CapsuleRepo: true/false
+        CapsuleRepo->>Validation: validateUnlockDate(capsule.unlockAt)
+        Validation-->>CapsuleRepo: true/false
+        
+        CapsuleRepo->>ApiClient: post(ApiConfig.capsules,<br/>{recipient_id, title, body_text,<br/>unlocks_at, is_anonymous,<br/>is_disappearing})
         ApiClient->>TokenStorage: getAccessToken()
         TokenStorage-->>ApiClient: access_token
-        ApiClient->>ApiClient: Set Authorization header
+        ApiClient->>ApiClient: Set Authorization header<br/>("Bearer " + access_token)
         ApiClient->>ApiClient: Convert body to JSON
         ApiClient->>CapsuleAPI: HTTP POST /capsules<br/>(with JSON body & auth header)
         
-        CapsuleAPI->>CapsuleAPI: get_current_user dependency<br/>(extract & verify JWT)
-        CapsuleAPI->>CapsuleAPI: Receive CapsuleCreate schema<br/>(Pydantic validation)
-        CapsuleAPI->>CapsuleAPI: sanitize_text(title.strip())
-        CapsuleAPI->>CapsuleAPI: sanitize_text(body.strip())
-        CapsuleAPI->>CapsuleAPI: sanitize_text(theme.strip()) if theme
-        
-        alt Receiver ID missing
-            CapsuleAPI-->>ApiClient: HTTP 400<br/>("Receiver ID is required")
-            ApiClient-->>CapsuleRepo: ValidationException
-            CapsuleRepo-->>CreateScreen: Error message
-            CreateScreen->>User: Show error
-        else Receiver ID provided
-            CapsuleAPI->>CapsuleRepo: create(sender_id=current_user.id,<br/>receiver_id, title, body, theme,<br/>state=CapsuleState.DRAFT)
-            CapsuleRepo->>CapsuleRepo: Create Capsule model instance
-            CapsuleRepo->>DB: INSERT INTO capsules<br/>(id, sender_id, receiver_id, title, body,<br/>theme, state, created_at,<br/>allow_early_view, allow_receiver_reply)<br/>VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)
-            DB-->>CapsuleRepo: capsule_id
-            CapsuleRepo->>DB: SELECT * FROM capsules<br/>WHERE id = ?
-            DB-->>CapsuleRepo: Capsule object
-            CapsuleRepo-->>CapsuleAPI: Capsule model
-            
-            CapsuleAPI->>CapsuleAPI: CapsuleResponse.model_validate(capsule)
-            CapsuleAPI-->>ApiClient: HTTP 201<br/>{id, sender_id, receiver_id, title, body,<br/>theme, state: "draft", created_at, ...}
-            
-            ApiClient-->>CapsuleRepo: Capsule data (JSON)
-            CapsuleRepo->>CapsuleRepo: Convert to Capsule model
-            CapsuleRepo-->>CreateScreen: Capsule object
-            CreateScreen->>CreateScreen: Navigate to capsule detail<br/>(context.go('/capsule/{id}'))
-            CreateScreen->>User: Show success & redirect
-        end
-    end
-```
-
----
-
-### 6. Seal Capsule
-
-**Description**: User sets unlock time and seals the capsule (moves from draft to sealed state).
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant CapsuleScreen as Capsule Detail Screen<br/>(Flutter)
-    participant CapsuleRepo as CapsuleRepository<br/>(Flutter)
-    participant ApiClient as ApiClient<br/>(Flutter)
-    participant CapsuleAPI as /capsules/{id}/seal<br/>(FastAPI)
-    participant StateMachine as State Machine<br/>(Python)
-    participant CapsuleRepo as CapsuleRepository<br/>(Python)
-    participant DB as Database
-
-    User->>CapsuleScreen: Select unlock date/time
-    User->>CapsuleScreen: Click "Seal Capsule" button
-    CapsuleScreen->>CapsuleScreen: Validate unlock time is in future
-    
-    alt Unlock time in past
-        CapsuleScreen->>User: Show "Unlock time must be in future"
-    else Unlock time valid
-        CapsuleScreen->>CapsuleRepo: sealCapsule(capsuleId, unlockTime)
-        CapsuleRepo->>ApiClient: post(ApiConfig.sealCapsule(capsuleId),<br/>{scheduled_unlock_at: unlockTime})
-        ApiClient->>TokenStorage: getAccessToken()
-        TokenStorage-->>ApiClient: access_token
-        ApiClient->>ApiClient: Set Authorization header
-        ApiClient->>CapsuleAPI: HTTP POST /capsules/{id}/seal<br/>(with JSON body & auth header)
-        
         CapsuleAPI->>CapsuleAPI: get_current_user dependency
-        CapsuleAPI->>CapsuleAPI: Receive CapsuleSeal schema<br/>(Pydantic validation)
-        CapsuleAPI->>CapsuleRepo: get_by_id(capsule_id)
-        CapsuleRepo->>DB: SELECT * FROM capsules<br/>WHERE id = ?
-        DB-->>CapsuleRepo: Capsule object
-        CapsuleRepo-->>CapsuleAPI: Capsule model
+        CapsuleAPI->>CapsuleAPI: Extract token from Authorization header
+        CapsuleAPI->>CapsuleAPI: verify_supabase_token(token)
+        CapsuleAPI->>CapsuleAPI: Extract user_id from payload["sub"]
+        CapsuleAPI->>CapsuleAPI: Get UserProfile from database
+        CapsuleAPI->>CapsuleAPI: Receive CapsuleCreate schema<br/>(Pydantic validation)
         
-        alt Capsule not found
-            CapsuleAPI-->>ApiClient: HTTP 404<br/>("Capsule not found")
+        CapsuleAPI->>RecipientRepo: get_by_id(recipient_id)
+        RecipientRepo->>DB: SELECT * FROM recipients<br/>WHERE id = ?
+        DB-->>RecipientRepo: Recipient object or None
+        
+        alt Recipient not found
+            CapsuleAPI-->>ApiClient: HTTP 404<br/>("Recipient not found")
             ApiClient-->>CapsuleRepo: NotFoundException
-            CapsuleRepo-->>CapsuleScreen: Error message
-            CapsuleScreen->>User: Show error
-        else Capsule found
+            CapsuleRepo-->>CreateScreen: Error message
+            CreateScreen->>User: Show "Recipient not found"
+        else Recipient found
+            CapsuleAPI->>CapsuleAPI: Check recipient.owner_id == current_user.user_id
+            
             alt Not owner
-                CapsuleAPI-->>ApiClient: HTTP 403<br/>("Only sender can seal capsule")
-                ApiClient-->>CapsuleRepo: AuthenticationException
-                CapsuleRepo-->>CapsuleScreen: Error message
-                CapsuleScreen->>User: Show "Access denied"
+                CapsuleAPI-->>ApiClient: HTTP 403<br/>("You can only create capsules for your own recipients")
+                ApiClient-->>CapsuleRepo: HTTPException
+                CapsuleRepo-->>CreateScreen: Error message
+                CreateScreen->>User: Show "Access denied"
             else Is owner
-                CapsuleAPI->>StateMachine: can_transition(capsule.state,<br/>CapsuleState.SEALED)
-                StateMachine->>StateMachine: Check transition rules<br/>(draft -> sealed allowed)
-                StateMachine-->>CapsuleAPI: true/false
+                CapsuleAPI->>CapsuleAPI: Check body_text or body_rich_text provided
                 
-                alt Invalid state transition
-                    CapsuleAPI-->>ApiClient: HTTP 400<br/>("Cannot seal capsule in current state")
+                alt No body content
+                    CapsuleAPI-->>ApiClient: HTTP 400<br/>("Either body_text or body_rich_text is required")
                     ApiClient-->>CapsuleRepo: ValidationException
-                    CapsuleRepo-->>CapsuleScreen: Error message
-                    CapsuleScreen->>User: Show error
-                else Valid transition
-                    CapsuleAPI->>CapsuleAPI: validate_unlock_time(scheduled_unlock_at)
-                    CapsuleAPI->>CapsuleAPI: Check min_unlock_minutes, max_unlock_years
+                    CapsuleRepo-->>CreateScreen: Error message
+                    CreateScreen->>User: Show "Content is required"
+                else Body content provided
+                    CapsuleAPI->>CapsuleAPI: sanitize_text(title.strip())
+                    CapsuleAPI->>CapsuleAPI: sanitize_text(body_text.strip())
+                    CapsuleAPI->>CapsuleAPI: Validate unlocks_at is in future
                     
-                    alt Unlock time invalid
-                        CapsuleAPI-->>ApiClient: HTTP 400<br/>("Unlock time validation error")
+                    alt Unlock time in past
+                        CapsuleAPI-->>ApiClient: HTTP 400<br/>("Unlock time must be in the future")
                         ApiClient-->>CapsuleRepo: ValidationException
-                        CapsuleRepo-->>CapsuleScreen: Error message
-                        CapsuleScreen->>User: Show error
+                        CapsuleRepo-->>CreateScreen: Error message
+                        CreateScreen->>User: Show "Unlock time must be in the future"
                     else Unlock time valid
-                        CapsuleAPI->>StateMachine: transition_to(capsule,<br/>CapsuleState.SEALED)
-                        StateMachine->>StateMachine: Update capsule.state = "sealed"
-                        StateMachine->>StateMachine: Set capsule.sealed_at = now()
-                        StateMachine->>StateMachine: Set capsule.scheduled_unlock_at
-                        StateMachine-->>CapsuleAPI: Updated capsule
-                        
-                        CapsuleAPI->>CapsuleRepo: update(capsule)
-                        CapsuleRepo->>DB: UPDATE capsules<br/>SET state = 'sealed',<br/>sealed_at = ?,<br/>scheduled_unlock_at = ?<br/>WHERE id = ?
-                        DB-->>CapsuleRepo: Success
-                        CapsuleRepo->>DB: SELECT * FROM capsules WHERE id = ?
-                        DB-->>CapsuleRepo: Updated Capsule object
+                        CapsuleAPI->>CapsuleRepo: create(sender_id, recipient_id,<br/>title, body_text, unlocks_at,<br/>status=CapsuleStatus.SEALED)
+                        CapsuleRepo->>DB: INSERT INTO capsules<br/>(id, sender_id, recipient_id, title,<br/>body_text, unlocks_at, status,<br/>created_at, updated_at)<br/>VALUES (gen_random_uuid(), ?, ?, ?, ?, ?, 'sealed', NOW(), NOW())
+                        DB-->>CapsuleRepo: capsule_id
+                        CapsuleRepo->>DB: SELECT * FROM capsules<br/>WHERE id = ?
+                        DB-->>CapsuleRepo: Capsule object
                         CapsuleRepo-->>CapsuleAPI: Capsule model
                         
                         CapsuleAPI->>CapsuleAPI: CapsuleResponse.model_validate(capsule)
-                        CapsuleAPI-->>ApiClient: HTTP 200<br/>{id, state: "sealed", sealed_at,<br/>scheduled_unlock_at, ...}
+                        CapsuleAPI-->>ApiClient: HTTP 201<br/>{id, sender_id, recipient_id, title,<br/>body_text, unlocks_at, status: "sealed", ...}
                         
                         ApiClient-->>CapsuleRepo: Capsule data (JSON)
-                        CapsuleRepo->>CapsuleRepo: Convert to Capsule model
-                        CapsuleRepo-->>CapsuleScreen: Updated Capsule object
-                        CapsuleScreen->>CapsuleScreen: Refresh UI
-                        CapsuleScreen->>User: Show "Capsule sealed successfully"
+                        CapsuleRepo->>CapsuleRepo: CapsuleMapper.fromJson(response)
+                        CapsuleRepo-->>CreateScreen: Capsule object
+                        CreateScreen->>CreateScreen: Navigate back or show success
+                        CreateScreen->>User: Show "Capsule created successfully"
                     end
                 end
             end
@@ -642,53 +556,71 @@ sequenceDiagram
 
 ---
 
-### 7. List Capsules (Inbox/Outbox)
+### 6. List Capsules (Inbox/Outbox)
 
-**Description**: User views their inbox (received) or outbox (sent) capsules.
+**Description**: User views their inbox (received) or outbox (sent) capsules with pagination.
+
+**Key Steps**:
+1. User navigates to inbox or outbox
+2. Frontend calls backend `/capsules` GET endpoint with `box` parameter
+3. Backend queries capsules based on box type
+4. For inbox: Gets all recipients owned by user, then gets capsules for those recipients
+5. For outbox: Gets capsules where user is sender
+6. Frontend displays capsules
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant HomeScreen as Home Screen<br/>(Flutter)
+    participant HomeScreen as HomeScreen<br/>(Flutter)
     participant Provider as capsulesProvider<br/>(Riverpod)
-    participant CapsuleRepo as CapsuleRepository<br/>(Flutter)
+    participant CapsuleRepo as ApiCapsuleRepository<br/>(Flutter)
     participant ApiClient as ApiClient<br/>(Flutter)
-    participant CapsuleAPI as /capsules<br/>(FastAPI)
+    participant TokenStorage as TokenStorage<br/>(Flutter)
+    participant CapsuleAPI as GET /capsules<br/>(FastAPI)
     participant CapsuleRepo as CapsuleRepository<br/>(Python)
-    participant DB as Database
+    participant RecipientRepo as RecipientRepository<br/>(Python)
+    participant DB as Supabase PostgreSQL
 
     User->>HomeScreen: Navigate to Home/Inbox/Outbox
     HomeScreen->>Provider: ref.watch(capsulesProvider(box: "inbox"))
-    Provider->>CapsuleRepo: getCapsules(box: "inbox", state: null)
+    Provider->>CapsuleRepo: getCapsules(userId, asSender: false)
     CapsuleRepo->>ApiClient: get(ApiConfig.capsules,<br/>queryParams: {box: "inbox", page: 1, page_size: 20})
     ApiClient->>TokenStorage: getAccessToken()
     TokenStorage-->>ApiClient: access_token
-    ApiClient->>ApiClient: Set Authorization header
+    ApiClient->>ApiClient: Set Authorization header<br/>("Bearer " + access_token)
     ApiClient->>CapsuleAPI: HTTP GET /capsules?box=inbox&page=1&page_size=20<br/>(with auth header)
     
     CapsuleAPI->>CapsuleAPI: get_current_user dependency
-    CapsuleAPI->>CapsuleAPI: Parse query parameters<br/>(box, state, page, page_size)
+    CapsuleAPI->>CapsuleAPI: Extract token and verify
+    CapsuleAPI->>CapsuleAPI: Get UserProfile from database
+    CapsuleAPI->>CapsuleAPI: Parse query parameters<br/>(box, status, page, page_size)
     CapsuleAPI->>CapsuleAPI: Validate box in ["inbox", "outbox"]
     CapsuleAPI->>CapsuleAPI: Validate page >= 1, page_size 1-100
     
     alt box == "inbox"
-        CapsuleAPI->>CapsuleRepo: get_by_receiver(current_user.id,<br/>state=state, skip=(page-1)*page_size,<br/>limit=page_size)
-        CapsuleRepo->>DB: SELECT * FROM capsules<br/>WHERE receiver_id = ?<br/>AND (state = ? OR ? IS NULL)<br/>ORDER BY created_at DESC<br/>LIMIT ? OFFSET ?
+        CapsuleAPI->>RecipientRepo: get_by_owner(current_user.user_id,<br/>skip=0, limit=1000)
+        RecipientRepo->>DB: SELECT * FROM recipients<br/>WHERE owner_id = ?<br/>ORDER BY created_at DESC<br/>LIMIT 1000
+        DB-->>RecipientRepo: List of Recipient objects
+        RecipientRepo-->>CapsuleAPI: List of recipients
+        
+        CapsuleAPI->>CapsuleAPI: Extract recipient_ids from recipients
+        CapsuleAPI->>CapsuleRepo: get_by_recipient_ids(recipient_ids,<br/>status=status_filter, skip=skip, limit=page_size)
+        CapsuleRepo->>DB: SELECT * FROM capsules<br/>WHERE recipient_id IN (?, ?, ...)<br/>AND deleted_at IS NULL<br/>AND (status = ? OR ? IS NULL)<br/>ORDER BY created_at DESC<br/>LIMIT ? OFFSET ?
         DB-->>CapsuleRepo: List of Capsule objects
         CapsuleRepo-->>CapsuleAPI: List of capsules
         
-        CapsuleAPI->>CapsuleRepo: count_by_receiver(current_user.id, state=state)
-        CapsuleRepo->>DB: SELECT COUNT(*) FROM capsules<br/>WHERE receiver_id = ?<br/>AND (state = ? OR ? IS NULL)
+        CapsuleAPI->>CapsuleRepo: count_by_recipient_ids(recipient_ids,<br/>status=status_filter)
+        CapsuleRepo->>DB: SELECT COUNT(*) FROM capsules<br/>WHERE recipient_id IN (?, ?, ...)<br/>AND deleted_at IS NULL<br/>AND (status = ? OR ? IS NULL)
         DB-->>CapsuleRepo: total count
         CapsuleRepo-->>CapsuleAPI: total
     else box == "outbox"
-        CapsuleAPI->>CapsuleRepo: get_by_sender(current_user.id,<br/>state=state, skip=(page-1)*page_size,<br/>limit=page_size)
-        CapsuleRepo->>DB: SELECT * FROM capsules<br/>WHERE sender_id = ?<br/>AND (state = ? OR ? IS NULL)<br/>ORDER BY created_at DESC<br/>LIMIT ? OFFSET ?
+        CapsuleAPI->>CapsuleRepo: get_by_sender(current_user.user_id,<br/>status=status_filter, skip=skip, limit=page_size)
+        CapsuleRepo->>DB: SELECT * FROM capsules<br/>WHERE sender_id = ?<br/>AND deleted_at IS NULL<br/>AND (status = ? OR ? IS NULL)<br/>ORDER BY created_at DESC<br/>LIMIT ? OFFSET ?
         DB-->>CapsuleRepo: List of Capsule objects
         CapsuleRepo-->>CapsuleAPI: List of capsules
         
-        CapsuleAPI->>CapsuleRepo: count_by_sender(current_user.id, state=state)
-        CapsuleRepo->>DB: SELECT COUNT(*) FROM capsules<br/>WHERE sender_id = ?<br/>AND (state = ? OR ? IS NULL)
+        CapsuleAPI->>CapsuleRepo: count_by_sender(current_user.user_id,<br/>status=status_filter)
+        CapsuleRepo->>DB: SELECT COUNT(*) FROM capsules<br/>WHERE sender_id = ?<br/>AND deleted_at IS NULL<br/>AND (status = ? OR ? IS NULL)
         DB-->>CapsuleRepo: total count
         CapsuleRepo-->>CapsuleAPI: total
     end
@@ -698,7 +630,7 @@ sequenceDiagram
     CapsuleAPI-->>ApiClient: HTTP 200<br/>{capsules: [...], total: 10, page: 1, page_size: 20}
     
     ApiClient-->>CapsuleRepo: CapsuleListResponse (JSON)
-    CapsuleRepo->>CapsuleRepo: Convert to List<Capsule>
+    CapsuleRepo->>CapsuleRepo: Convert to List<Capsule><br/>([CapsuleMapper.fromJson(c) for c in capsules])
     CapsuleRepo-->>Provider: List of Capsule objects
     Provider-->>HomeScreen: List of capsules
     HomeScreen->>HomeScreen: Build UI (ListView/GridView)
@@ -707,24 +639,25 @@ sequenceDiagram
 
 ---
 
-### 8. Open Capsule
+### 7. Open Capsule
 
-**Description**: Receiver opens a ready capsule.
+**Description**: Recipient opens a ready capsule. Backend updates status to 'opened' and sets opened_at timestamp.
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant CapsuleScreen as Capsule Screen<br/>(Flutter)
-    participant CapsuleRepo as CapsuleRepository<br/>(Flutter)
+    participant CapsuleScreen as CapsuleScreen<br/>(Flutter)
+    participant CapsuleRepo as ApiCapsuleRepository<br/>(Flutter)
     participant ApiClient as ApiClient<br/>(Flutter)
-    participant CapsuleAPI as /capsules/{id}/open<br/>(FastAPI)
-    participant StateMachine as State Machine<br/>(Python)
+    participant TokenStorage as TokenStorage<br/>(Flutter)
+    participant CapsuleAPI as POST /capsules/{id}/open<br/>(FastAPI)
     participant CapsuleRepo as CapsuleRepository<br/>(Python)
-    participant DB as Database
+    participant RecipientRepo as RecipientRepository<br/>(Python)
+    participant DB as Supabase PostgreSQL
 
     User->>CapsuleScreen: View ready capsule
     User->>CapsuleScreen: Click "Open" button
-    CapsuleScreen->>CapsuleScreen: Check if capsule.canOpen<br/>(unlockAt < now && openedAt == null)
+    CapsuleScreen->>CapsuleScreen: Check if capsule.canOpen<br/>(unlocksAt < now && openedAt == null)
     
     alt Capsule not ready
         CapsuleScreen->>User: Show "Capsule not ready yet"
@@ -748,23 +681,28 @@ sequenceDiagram
             CapsuleRepo-->>CapsuleScreen: Error message
             CapsuleScreen->>User: Show error
         else Capsule found
-            alt Not receiver
-                CapsuleAPI-->>ApiClient: HTTP 403<br/>("Only receiver can open capsule")
-                ApiClient-->>CapsuleRepo: AuthenticationException
+            CapsuleAPI->>RecipientRepo: get_by_id(capsule.recipient_id)
+            RecipientRepo->>DB: SELECT * FROM recipients WHERE id = ?
+            DB-->>RecipientRepo: Recipient object
+            RecipientRepo-->>CapsuleAPI: Recipient model
+            
+            CapsuleAPI->>CapsuleAPI: Check if current_user.user_id == recipient.owner_id
+            
+            alt Not recipient owner
+                CapsuleAPI-->>ApiClient: HTTP 403<br/>("Only recipient can open capsule")
+                ApiClient-->>CapsuleRepo: HTTPException
                 CapsuleRepo-->>CapsuleScreen: Error message
                 CapsuleScreen->>User: Show "Access denied"
-            else Is receiver
-                CapsuleAPI->>StateMachine: can_transition(capsule.state,<br/>CapsuleState.OPENED)
-                StateMachine->>StateMachine: Check transition rules<br/>(ready -> opened allowed)
-                StateMachine-->>CapsuleAPI: true/false
+            else Is recipient owner
+                CapsuleAPI->>CapsuleAPI: Check capsule.status == CapsuleStatus.READY
                 
-                alt Invalid state transition
+                alt Status not ready
                     CapsuleAPI-->>ApiClient: HTTP 400<br/>("Capsule must be in ready state")
                     ApiClient-->>CapsuleRepo: ValidationException
                     CapsuleRepo-->>CapsuleScreen: Error message
                     CapsuleScreen->>User: Show error
-                else Valid transition
-                    CapsuleAPI->>CapsuleAPI: Check scheduled_unlock_at <= now()
+                else Status is ready
+                    CapsuleAPI->>CapsuleAPI: Check unlocks_at <= now()
                     
                     alt Not yet unlocked
                         CapsuleAPI-->>ApiClient: HTTP 400<br/>("Capsule unlock time has not arrived")
@@ -772,27 +710,20 @@ sequenceDiagram
                         CapsuleRepo-->>CapsuleScreen: Error message
                         CapsuleScreen->>User: Show error
                     else Unlock time arrived
-                        CapsuleAPI->>StateMachine: transition_to(capsule,<br/>CapsuleState.OPENED)
-                        StateMachine->>StateMachine: Update capsule.state = "opened"
-                        StateMachine->>StateMachine: Set capsule.opened_at = now()
-                        StateMachine-->>CapsuleAPI: Updated capsule
-                        
-                        CapsuleAPI->>CapsuleRepo: update(capsule)
-                        CapsuleRepo->>DB: UPDATE capsules<br/>SET state = 'opened',<br/>opened_at = ?<br/>WHERE id = ?
+                        CapsuleAPI->>CapsuleRepo: update(capsule,<br/>status=CapsuleStatus.OPENED,<br/>opened_at=NOW())
+                        CapsuleRepo->>DB: UPDATE capsules<br/>SET status = 'opened',<br/>opened_at = NOW()<br/>WHERE id = ?
                         DB-->>CapsuleRepo: Success
                         CapsuleRepo->>DB: SELECT * FROM capsules WHERE id = ?
                         DB-->>CapsuleRepo: Updated Capsule object
                         CapsuleRepo-->>CapsuleAPI: Capsule model
                         
                         CapsuleAPI->>CapsuleAPI: CapsuleResponse.model_validate(capsule)
-                        CapsuleAPI-->>ApiClient: HTTP 200<br/>{id, state: "opened", opened_at, ...}
+                        CapsuleAPI-->>ApiClient: HTTP 200<br/>{id, status: "opened", opened_at, ...}
                         
                         ApiClient-->>CapsuleRepo: Capsule data (JSON)
-                        CapsuleRepo->>CapsuleRepo: Convert to Capsule model
+                        CapsuleRepo->>CapsuleRepo: CapsuleMapper.fromJson(response)
                         CapsuleRepo-->>CapsuleScreen: Updated Capsule object
-                        CapsuleScreen->>CapsuleScreen: Navigate to opening animation<br/>(context.go('/capsule/{id}/opening'))
-                        CapsuleScreen->>CapsuleScreen: Play opening animation
-                        CapsuleScreen->>CapsuleScreen: Navigate to opened letter<br/>(context.go('/capsule/{id}/opened'))
+                        CapsuleScreen->>CapsuleScreen: Navigate to opened letter screen
                         CapsuleScreen->>User: Show opened capsule content
                     end
                 end
@@ -803,22 +734,21 @@ sequenceDiagram
 
 ---
 
-### 9. Update Capsule
+### 8. Update Capsule
 
-**Description**: User updates a capsule in draft state (before sealing).
+**Description**: User updates a capsule before it's opened (only if status is 'sealed').
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant CapsuleScreen as Capsule Detail Screen<br/>(Flutter)
-    participant CapsuleRepo as CapsuleRepository<br/>(Flutter)
+    participant CapsuleScreen as CapsuleScreen<br/>(Flutter)
+    participant CapsuleRepo as ApiCapsuleRepository<br/>(Flutter)
     participant ApiClient as ApiClient<br/>(Flutter)
-    participant CapsuleAPI as /capsules/{id}<br/>(FastAPI)
-    participant StateMachine as State Machine<br/>(Python)
+    participant CapsuleAPI as PUT /capsules/{id}<br/>(FastAPI)
     participant CapsuleRepo as CapsuleRepository<br/>(Python)
-    participant DB as Database
+    participant DB as Supabase PostgreSQL
 
-    User->>CapsuleScreen: Edit capsule fields<br/>(title, body, theme)
+    User->>CapsuleScreen: Edit capsule fields<br/>(title, body)
     User->>CapsuleScreen: Click "Save" button
     CapsuleScreen->>CapsuleScreen: Validate form
     
@@ -826,7 +756,7 @@ sequenceDiagram
         CapsuleScreen->>User: Show validation errors
     else Validation passes
         CapsuleScreen->>CapsuleRepo: updateCapsule(capsuleId, updates)
-        CapsuleRepo->>ApiClient: put(ApiConfig.updateCapsule(capsuleId),<br/>{title, body, theme, ...})
+        CapsuleRepo->>ApiClient: put(ApiConfig.updateCapsule(capsuleId),<br/>{title, body_text})
         ApiClient->>TokenStorage: getAccessToken()
         TokenStorage-->>ApiClient: access_token
         ApiClient->>ApiClient: Set Authorization header
@@ -845,24 +775,27 @@ sequenceDiagram
             CapsuleRepo-->>CapsuleScreen: Error message
             CapsuleScreen->>User: Show error
         else Capsule found
+            CapsuleAPI->>CapsuleAPI: Check capsule.sender_id == current_user.user_id
+            
             alt Not owner
                 CapsuleAPI-->>ApiClient: HTTP 403<br/>("Only sender can update capsule")
-                ApiClient-->>CapsuleRepo: AuthenticationException
+                ApiClient-->>CapsuleRepo: HTTPException
                 CapsuleRepo-->>CapsuleScreen: Error message
                 CapsuleScreen->>User: Show "Access denied"
             else Is owner
-                alt State not draft
-                    CapsuleAPI-->>ApiClient: HTTP 400<br/>("Can only update draft capsules")
+                CapsuleAPI->>CapsuleAPI: Check capsule.status == CapsuleStatus.SEALED
+                
+                alt Status not sealed
+                    CapsuleAPI-->>ApiClient: HTTP 400<br/>("Can only update sealed capsules")
                     ApiClient-->>CapsuleRepo: ValidationException
                     CapsuleRepo-->>CapsuleScreen: Error message
                     CapsuleScreen->>User: Show error
-                else State is draft
+                else Status is sealed
                     CapsuleAPI->>CapsuleAPI: sanitize_text(title.strip()) if title
-                    CapsuleAPI->>CapsuleAPI: sanitize_text(body.strip()) if body
-                    CapsuleAPI->>CapsuleAPI: sanitize_text(theme.strip()) if theme
+                    CapsuleAPI->>CapsuleAPI: sanitize_text(body_text.strip()) if body_text
                     
-                    CapsuleAPI->>CapsuleRepo: update(capsule, title, body, theme, ...)
-                    CapsuleRepo->>DB: UPDATE capsules<br/>SET title = ?, body = ?, theme = ?<br/>WHERE id = ?
+                    CapsuleAPI->>CapsuleRepo: update(capsule, title, body_text)
+                    CapsuleRepo->>DB: UPDATE capsules<br/>SET title = ?, body_text = ?,<br/>updated_at = NOW()<br/>WHERE id = ?
                     DB-->>CapsuleRepo: Success
                     CapsuleRepo->>DB: SELECT * FROM capsules WHERE id = ?
                     DB-->>CapsuleRepo: Updated Capsule object
@@ -872,7 +805,7 @@ sequenceDiagram
                     CapsuleAPI-->>ApiClient: HTTP 200<br/>(Updated capsule data)
                     
                     ApiClient-->>CapsuleRepo: Capsule data (JSON)
-                    CapsuleRepo->>CapsuleRepo: Convert to Capsule model
+                    CapsuleRepo->>CapsuleRepo: CapsuleMapper.fromJson(response)
                     CapsuleRepo-->>CapsuleScreen: Updated Capsule object
                     CapsuleScreen->>CapsuleScreen: Refresh UI
                     CapsuleScreen->>User: Show "Capsule updated successfully"
@@ -884,19 +817,19 @@ sequenceDiagram
 
 ---
 
-### 10. Delete Capsule
+### 9. Delete Capsule
 
-**Description**: User deletes a capsule in draft state.
+**Description**: User deletes a capsule (only if status is 'sealed'). Performs soft delete.
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant CapsuleScreen as Capsule Detail Screen<br/>(Flutter)
-    participant CapsuleRepo as CapsuleRepository<br/>(Flutter)
+    participant CapsuleScreen as CapsuleScreen<br/>(Flutter)
+    participant CapsuleRepo as ApiCapsuleRepository<br/>(Flutter)
     participant ApiClient as ApiClient<br/>(Flutter)
-    participant CapsuleAPI as /capsules/{id}<br/>(FastAPI)
+    participant CapsuleAPI as DELETE /capsules/{id}<br/>(FastAPI)
     participant CapsuleRepo as CapsuleRepository<br/>(Python)
-    participant DB as Database
+    participant DB as Supabase PostgreSQL
 
     User->>CapsuleScreen: Click "Delete" button
     CapsuleScreen->>CapsuleScreen: Show confirmation dialog
@@ -923,20 +856,24 @@ sequenceDiagram
             CapsuleRepo-->>CapsuleScreen: Error message
             CapsuleScreen->>User: Show error
         else Capsule found
+            CapsuleAPI->>CapsuleAPI: Check capsule.sender_id == current_user.user_id
+            
             alt Not owner
                 CapsuleAPI-->>ApiClient: HTTP 403<br/>("Only sender can delete capsule")
-                ApiClient-->>CapsuleRepo: AuthenticationException
+                ApiClient-->>CapsuleRepo: HTTPException
                 CapsuleRepo-->>CapsuleScreen: Error message
                 CapsuleScreen->>User: Show "Access denied"
             else Is owner
-                alt State not draft
-                    CapsuleAPI-->>ApiClient: HTTP 400<br/>("Can only delete draft capsules")
+                CapsuleAPI->>CapsuleAPI: Check capsule.status == CapsuleStatus.SEALED
+                
+                alt Status not sealed
+                    CapsuleAPI-->>ApiClient: HTTP 400<br/>("Can only delete sealed capsules")
                     ApiClient-->>CapsuleRepo: ValidationException
                     CapsuleRepo-->>CapsuleScreen: Error message
                     CapsuleScreen->>User: Show error
-                else State is draft
-                    CapsuleAPI->>CapsuleRepo: delete(capsule_id)
-                    CapsuleRepo->>DB: DELETE FROM capsules<br/>WHERE id = ?
+                else Status is sealed
+                    CapsuleAPI->>CapsuleRepo: update(capsule, deleted_at=NOW())
+                    CapsuleRepo->>DB: UPDATE capsules<br/>SET deleted_at = NOW()<br/>WHERE id = ?
                     DB-->>CapsuleRepo: Success
                     CapsuleRepo-->>CapsuleAPI: Success
                     
@@ -956,20 +893,20 @@ sequenceDiagram
 
 ## Recipient Management Flows
 
-### 11. Search Users for Recipients
+### 10. Search Users for Recipients
 
 **Description**: User searches for registered users to add as recipients.
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant AddRecipientScreen as Add Recipient Screen<br/>(Flutter)
+    participant AddRecipientScreen as AddRecipientScreen<br/>(Flutter)
     participant UserSearchField as UserSearchField<br/>(Flutter Widget)
     participant ApiUserService as ApiUserService<br/>(Flutter)
     participant ApiClient as ApiClient<br/>(Flutter)
-    participant AuthAPI as /auth/users/search<br/>(FastAPI)
-    participant UserRepo as UserRepository<br/>(Python)
-    participant DB as Database
+    participant AuthAPI as GET /auth/users/search<br/>(FastAPI)
+    participant UserProfileRepo as UserProfileRepository<br/>(Python)
+    participant DB as Supabase PostgreSQL
 
     User->>AddRecipientScreen: Type search query in UserSearchField
     UserSearchField->>UserSearchField: _onQueryChanged(value)
@@ -998,17 +935,16 @@ sequenceDiagram
         AuthAPI->>AuthAPI: Validate limit 1-50
         AuthAPI->>AuthAPI: sanitize_text(query.strip())
         
-        AuthAPI->>UserRepo: search_users(query=sanitized_query,<br/>limit=limit,<br/>exclude_user_id=current_user.id)
-        UserRepo->>UserRepo: Build search query<br/>(email LIKE %query% OR<br/>username LIKE %query% OR<br/>full_name LIKE %query%)
-        UserRepo->>DB: SELECT * FROM users<br/>WHERE (email LIKE ? OR<br/>username LIKE ? OR<br/>full_name LIKE ?)<br/>AND id != ?<br/>ORDER BY<br/>CASE WHEN username = ? THEN 0 ELSE 1 END,<br/>username ASC<br/>LIMIT ?
-        DB-->>UserRepo: List of User objects
-        UserRepo-->>AuthAPI: List of users
+        AuthAPI->>UserProfileRepo: search_users(query=sanitized_query,<br/>limit=limit,<br/>exclude_user_id=current_user.user_id)
+        UserProfileRepo->>DB: SELECT * FROM user_profiles<br/>WHERE (full_name ILIKE %query% OR<br/>user_id::text ILIKE %query%)<br/>AND user_id != ?<br/>ORDER BY full_name ASC<br/>LIMIT ?
+        DB-->>UserProfileRepo: List of UserProfile objects
+        UserProfileRepo-->>AuthAPI: List of users
         
-        AuthAPI->>AuthAPI: Convert to UserResponse<br/>([UserResponse.from_user_model(u) for u in users])
-        AuthAPI-->>ApiClient: HTTP 200<br/>[{id, email, username, first_name,<br/>last_name, full_name, ...}, ...]
+        AuthAPI->>AuthAPI: Convert to UserProfileResponse<br/>([UserProfileResponse.from_user_profile(u) for u in users])
+        AuthAPI-->>ApiClient: HTTP 200<br/>[{user_id, full_name, ...}, ...]
         
         ApiClient-->>ApiUserService: List of User data (JSON)
-        ApiUserService->>ApiUserService: Convert to List<User>
+        ApiUserService->>ApiUserService: Convert to List<User><br/>([UserMapper.fromJson(u) for u in response])
         ApiUserService-->>UserSearchField: List of User objects
         UserSearchField->>UserSearchField: Set _searchResults = users
         UserSearchField->>UserSearchField: Set _isSearching = false
@@ -1028,30 +964,31 @@ sequenceDiagram
 
 ---
 
-### 12. Add Recipient
+### 11. Add Recipient
 
-**Description**: User adds a recipient (either registered user or manual entry).
+**Description**: User adds a recipient (either registered user or manual entry) with optional relationship and avatar.
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant AddRecipientScreen as Add Recipient Screen<br/>(Flutter)
-    participant RecipientRepo as RecipientRepository<br/>(Flutter)
+    participant AddRecipientScreen as AddRecipientScreen<br/>(Flutter)
+    participant Validation as Validation<br/>(Flutter)
+    participant RecipientRepo as ApiRecipientRepository<br/>(Flutter)
     participant ApiClient as ApiClient<br/>(Flutter)
-    participant RecipientAPI as /recipients<br/>(FastAPI)
+    participant TokenStorage as TokenStorage<br/>(Flutter)
+    participant RecipientAPI as POST /recipients<br/>(FastAPI)
     participant RecipientRepo as RecipientRepository<br/>(Python)
-    participant DB as Database
+    participant DB as Supabase PostgreSQL
 
-    User->>AddRecipientScreen: Fill recipient form<br/>(name, email, or select from search)
+    User->>AddRecipientScreen: Fill recipient form<br/>(name, email, relationship, avatar_url)
     User->>AddRecipientScreen: Click "Save" button
     AddRecipientScreen->>AddRecipientScreen: Validate form
     
     alt Validation fails
         AddRecipientScreen->>User: Show validation errors
     else Validation passes
-        AddRecipientScreen->>AddRecipientScreen: Create Recipient object<br/>(name, email, userId if selected)
-        AddRecipientScreen->>RecipientRepo: createRecipient(recipient,<br/>linkedUserId: selectedUser?.id)
-        RecipientRepo->>ApiClient: post(ApiConfig.recipients,<br/>{name, email, user_id: linkedUserId})
+        AddRecipientScreen->>RecipientRepo: createRecipient(Recipient)
+        RecipientRepo->>ApiClient: post(ApiConfig.recipients,<br/>{name, email, relationship, avatar_url})
         ApiClient->>TokenStorage: getAccessToken()
         TokenStorage-->>ApiClient: access_token
         ApiClient->>ApiClient: Set Authorization header
@@ -1075,19 +1012,19 @@ sequenceDiagram
                 RecipientRepo-->>AddRecipientScreen: Error message
                 AddRecipientScreen->>User: Show error
             else Email valid or no email
-                RecipientAPI->>RecipientRepo: create(owner_id=current_user.id,<br/>name, email, user_id)
-                RecipientRepo->>RecipientRepo: Create Recipient model instance
-                RecipientRepo->>DB: INSERT INTO recipients<br/>(id, owner_id, name, email, user_id, created_at)<br/>VALUES (?, ?, ?, ?, ?, ?)
+                RecipientAPI->>RecipientAPI: Use relationship or default to 'friend'
+                RecipientAPI->>RecipientRepo: create(owner_id=current_user.user_id,<br/>name, email, relationship, avatar_url)
+                RecipientRepo->>DB: INSERT INTO recipients<br/>(id, owner_id, name, email, relationship,<br/>avatar_url, created_at, updated_at)<br/>VALUES (gen_random_uuid(), ?, ?, ?, ?, ?, NOW(), NOW())
                 DB-->>RecipientRepo: recipient_id
                 RecipientRepo->>DB: SELECT * FROM recipients WHERE id = ?
                 DB-->>RecipientRepo: Recipient object
                 RecipientRepo-->>RecipientAPI: Recipient model
                 
                 RecipientAPI->>RecipientAPI: RecipientResponse.model_validate(recipient)
-                RecipientAPI-->>ApiClient: HTTP 201<br/>{id, owner_id, name, email, user_id, created_at}
+                RecipientAPI-->>ApiClient: HTTP 201<br/>{id, owner_id, name, email, relationship,<br/>avatar_url, created_at}
                 
                 ApiClient-->>RecipientRepo: Recipient data (JSON)
-                RecipientRepo->>RecipientRepo: Convert to Recipient model
+                RecipientRepo->>RecipientRepo: RecipientMapper.fromJson(response)
                 RecipientRepo-->>AddRecipientScreen: Recipient object
                 AddRecipientScreen->>AddRecipientScreen: Navigate back<br/>(context.pop())
                 AddRecipientScreen->>User: Show success & redirect
@@ -1098,24 +1035,24 @@ sequenceDiagram
 
 ---
 
-### 13. List Recipients
+### 12. List Recipients
 
-**Description**: User views their saved recipients list.
+**Description**: User views their saved recipients list with pagination.
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant RecipientsScreen as Recipients Screen<br/>(Flutter)
+    participant RecipientsScreen as RecipientsScreen<br/>(Flutter)
     participant Provider as recipientsProvider<br/>(Riverpod)
-    participant RecipientRepo as RecipientRepository<br/>(Flutter)
+    participant RecipientRepo as ApiRecipientRepository<br/>(Flutter)
     participant ApiClient as ApiClient<br/>(Flutter)
-    participant RecipientAPI as /recipients<br/>(FastAPI)
+    participant RecipientAPI as GET /recipients<br/>(FastAPI)
     participant RecipientRepo as RecipientRepository<br/>(Python)
-    participant DB as Database
+    participant DB as Supabase PostgreSQL
 
     User->>RecipientsScreen: Navigate to Recipients screen
     RecipientsScreen->>Provider: ref.watch(recipientsProvider)
-    Provider->>RecipientRepo: getRecipients()
+    Provider->>RecipientRepo: getRecipients(userId)
     RecipientRepo->>ApiClient: get(ApiConfig.recipients,<br/>queryParams: {page: 1, page_size: 20})
     ApiClient->>TokenStorage: getAccessToken()
     TokenStorage-->>ApiClient: access_token
@@ -1125,20 +1062,95 @@ sequenceDiagram
     RecipientAPI->>RecipientAPI: get_current_user dependency
     RecipientAPI->>RecipientAPI: Parse query parameters<br/>(page, page_size)
     RecipientAPI->>RecipientAPI: Validate page >= 1, page_size 1-100
-    RecipientAPI->>RecipientRepo: get_by_owner(current_user.id,<br/>skip=(page-1)*page_size,<br/>limit=page_size)
+    RecipientAPI->>RecipientRepo: get_by_owner(current_user.user_id,<br/>skip=(page-1)*page_size,<br/>limit=page_size)
     RecipientRepo->>DB: SELECT * FROM recipients<br/>WHERE owner_id = ?<br/>ORDER BY created_at DESC<br/>LIMIT ? OFFSET ?
     DB-->>RecipientRepo: List of Recipient objects
     RecipientRepo-->>RecipientAPI: List of recipients
     
     RecipientAPI->>RecipientAPI: Convert to RecipientResponse<br/>([RecipientResponse.model_validate(r) for r in recipients])
-    RecipientAPI-->>ApiClient: HTTP 200<br/>[{id, owner_id, name, email, user_id, created_at}, ...]
+    RecipientAPI-->>ApiClient: HTTP 200<br/>[{id, owner_id, name, email, relationship,<br/>avatar_url, created_at}, ...]
     
     ApiClient-->>RecipientRepo: List of Recipient data (JSON)
-    RecipientRepo->>RecipientRepo: Convert to List<Recipient>
+    RecipientRepo->>RecipientRepo: Convert to List<Recipient><br/>([RecipientMapper.fromJson(r) for r in response])
     RecipientRepo-->>Provider: List of Recipient objects
     Provider-->>RecipientsScreen: List of recipients
     RecipientsScreen->>RecipientsScreen: Build UI (ListView)
     RecipientsScreen->>User: Display recipients list
+```
+
+---
+
+### 13. Update Recipient
+
+**Description**: User updates recipient details (name, email, relationship, avatar_url).
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant RecipientScreen as RecipientScreen<br/>(Flutter)
+    participant RecipientRepo as ApiRecipientRepository<br/>(Flutter)
+    participant ApiClient as ApiClient<br/>(Flutter)
+    participant RecipientAPI as PUT /recipients/{id}<br/>(FastAPI)
+    participant RecipientRepo as RecipientRepository<br/>(Python)
+    participant DB as Supabase PostgreSQL
+
+    User->>RecipientScreen: Edit recipient fields<br/>(name, email, relationship)
+    User->>RecipientScreen: Click "Save" button
+    RecipientScreen->>RecipientScreen: Validate form
+    
+    alt Validation fails
+        RecipientScreen->>User: Show validation errors
+    else Validation passes
+        RecipientScreen->>RecipientRepo: updateRecipient(recipientId, updates)
+        RecipientRepo->>ApiClient: put(ApiConfig.updateRecipient(recipientId),<br/>{name, email, relationship, avatar_url})
+        ApiClient->>TokenStorage: getAccessToken()
+        TokenStorage-->>ApiClient: access_token
+        ApiClient->>ApiClient: Set Authorization header
+        ApiClient->>RecipientAPI: HTTP PUT /recipients/{id}<br/>(with JSON body & auth header)
+        
+        RecipientAPI->>RecipientAPI: get_current_user dependency
+        RecipientAPI->>RecipientAPI: Receive RecipientUpdate schema<br/>(Pydantic validation)
+        RecipientAPI->>RecipientRepo: get_by_id(recipient_id)
+        RecipientRepo->>DB: SELECT * FROM recipients WHERE id = ?
+        DB-->>RecipientRepo: Recipient object
+        RecipientRepo-->>RecipientAPI: Recipient model
+        
+        alt Recipient not found
+            RecipientAPI-->>ApiClient: HTTP 404<br/>("Recipient not found")
+            ApiClient-->>RecipientRepo: NotFoundException
+            RecipientRepo-->>RecipientScreen: Error message
+            RecipientScreen->>User: Show error
+        else Recipient found
+            RecipientAPI->>RecipientAPI: Check recipient.owner_id == current_user.user_id
+            
+            alt Not owner
+                RecipientAPI-->>ApiClient: HTTP 403<br/>("You do not have permission")
+                ApiClient-->>RecipientRepo: HTTPException
+                RecipientRepo-->>RecipientScreen: Error message
+                RecipientScreen->>User: Show "Access denied"
+            else Is owner
+                RecipientAPI->>RecipientAPI: sanitize_text(name.strip()) if name
+                RecipientAPI->>RecipientAPI: sanitize_text(email.lower().strip()) if email
+                RecipientAPI->>RecipientAPI: validate_email(email) if email
+                
+                RecipientAPI->>RecipientRepo: update(recipient, name, email,<br/>relationship, avatar_url)
+                RecipientRepo->>DB: UPDATE recipients<br/>SET name = ?, email = ?, relationship = ?,<br/>avatar_url = ?, updated_at = NOW()<br/>WHERE id = ?
+                DB-->>RecipientRepo: Success
+                RecipientRepo->>DB: SELECT * FROM recipients WHERE id = ?
+                DB-->>RecipientRepo: Updated Recipient object
+                RecipientRepo-->>RecipientAPI: Recipient model
+                
+                RecipientAPI->>RecipientAPI: RecipientResponse.model_validate(recipient)
+                RecipientAPI-->>ApiClient: HTTP 200<br/>(Updated recipient data)
+                
+                ApiClient-->>RecipientRepo: Recipient data (JSON)
+                RecipientRepo->>RecipientRepo: RecipientMapper.fromJson(response)
+                RecipientRepo-->>RecipientScreen: Updated Recipient object
+                RecipientScreen->>RecipientScreen: Refresh UI
+                RecipientScreen->>User: Show "Recipient updated successfully"
+            end
+        end
+    end
 ```
 
 ---
@@ -1150,12 +1162,12 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant User
-    participant RecipientsScreen as Recipients Screen<br/>(Flutter)
-    participant RecipientRepo as RecipientRepository<br/>(Flutter)
+    participant RecipientsScreen as RecipientsScreen<br/>(Flutter)
+    participant RecipientRepo as ApiRecipientRepository<br/>(Flutter)
     participant ApiClient as ApiClient<br/>(Flutter)
-    participant RecipientAPI as /recipients/{id}<br/>(FastAPI)
+    participant RecipientAPI as DELETE /recipients/{id}<br/>(FastAPI)
     participant RecipientRepo as RecipientRepository<br/>(Python)
-    participant DB as Database
+    participant DB as Supabase PostgreSQL
 
     User->>RecipientsScreen: Swipe to delete or tap delete button
     RecipientsScreen->>RecipientsScreen: Show confirmation dialog
@@ -1182,14 +1194,11 @@ sequenceDiagram
             RecipientRepo-->>RecipientsScreen: Error message
             RecipientsScreen->>User: Show error
         else Recipient found
-            RecipientAPI->>RecipientRepo: verify_ownership(recipient_id,<br/>current_user.id)
-            RecipientRepo->>DB: SELECT owner_id FROM recipients<br/>WHERE id = ?
-            DB-->>RecipientRepo: owner_id
-            RecipientRepo-->>RecipientAPI: is_owner (true/false)
+            RecipientAPI->>RecipientAPI: Check recipient.owner_id == current_user.user_id
             
             alt Not owner
                 RecipientAPI-->>ApiClient: HTTP 403<br/>("You do not have permission")
-                ApiClient-->>RecipientRepo: AuthenticationException
+                ApiClient-->>RecipientRepo: HTTPException
                 RecipientRepo-->>RecipientsScreen: Error message
                 RecipientsScreen->>User: Show "Access denied"
             else Is owner
@@ -1211,311 +1220,44 @@ sequenceDiagram
 
 ---
 
-## Draft Management Flows
-
-### 15. Create Draft
-
-**Description**: User creates a draft capsule for later editing.
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant CreateScreen as Create Capsule Screen<br/>(Flutter)
-    participant DraftRepo as DraftRepository<br/>(Flutter)
-    participant ApiClient as ApiClient<br/>(Flutter)
-    participant DraftAPI as /drafts<br/>(FastAPI)
-    participant DraftRepo as DraftRepository<br/>(Python)
-    participant DB as Database
-
-    User->>CreateScreen: Fill draft form<br/>(title, body, recipient_id, theme)
-    User->>CreateScreen: Click "Save as Draft" button
-    CreateScreen->>CreateScreen: Validate form
-    
-    alt Validation fails
-        CreateScreen->>User: Show validation errors
-    else Validation passes
-        CreateScreen->>DraftRepo: createDraft(DraftCreate)
-        DraftRepo->>ApiClient: post(ApiConfig.drafts,<br/>{title, body, recipient_id, theme, media_urls})
-        ApiClient->>TokenStorage: getAccessToken()
-        TokenStorage-->>ApiClient: access_token
-        ApiClient->>ApiClient: Set Authorization header
-        ApiClient->>DraftAPI: HTTP POST /drafts<br/>(with JSON body & auth header)
-        
-        DraftAPI->>DraftAPI: get_current_user dependency
-        DraftAPI->>DraftAPI: Receive DraftCreate schema<br/>(Pydantic validation)
-        DraftAPI->>DraftAPI: sanitize_text(title.strip())
-        DraftAPI->>DraftAPI: sanitize_text(body.strip())
-        DraftAPI->>DraftAPI: sanitize_text(theme.strip()) if theme
-        
-        DraftAPI->>DraftRepo: create(owner_id=current_user.id,<br/>title, body, recipient_id, theme, media_urls)
-        DraftRepo->>DraftRepo: Create Draft model instance
-        DraftRepo->>DB: INSERT INTO drafts<br/>(id, owner_id, title, body, recipient_id,<br/>theme, media_urls, created_at, updated_at)<br/>VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        DB-->>DraftRepo: draft_id
-        DraftRepo->>DB: SELECT * FROM drafts WHERE id = ?
-        DB-->>DraftRepo: Draft object
-        DraftRepo-->>DraftAPI: Draft model
-        
-        DraftAPI->>DraftAPI: DraftResponse.model_validate(draft)
-        DraftAPI-->>ApiClient: HTTP 201<br/>{id, owner_id, title, body, recipient_id,<br/>theme, created_at, updated_at}
-        
-        ApiClient-->>DraftRepo: Draft data (JSON)
-        DraftRepo->>DraftRepo: Convert to Draft model
-        DraftRepo-->>CreateScreen: Draft object
-        CreateScreen->>CreateScreen: Navigate to drafts list<br/>(context.go('/drafts'))
-        CreateScreen->>User: Show success & redirect
-    end
-```
-
----
-
-### 16. List Drafts
-
-**Description**: User views their saved drafts list.
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant DraftsScreen as Drafts Screen<br/>(Flutter)
-    participant Provider as draftsProvider<br/>(Riverpod)
-    participant DraftRepo as DraftRepository<br/>(Flutter)
-    participant ApiClient as ApiClient<br/>(Flutter)
-    participant DraftAPI as /drafts<br/>(FastAPI)
-    participant DraftRepo as DraftRepository<br/>(Python)
-    participant DB as Database
-
-    User->>DraftsScreen: Navigate to Drafts screen
-    DraftsScreen->>Provider: ref.watch(draftsProvider)
-    Provider->>DraftRepo: getDrafts()
-    DraftRepo->>ApiClient: get(ApiConfig.drafts,<br/>queryParams: {page: 1, page_size: 50})
-    ApiClient->>TokenStorage: getAccessToken()
-    TokenStorage-->>ApiClient: access_token
-    ApiClient->>ApiClient: Set Authorization header
-    ApiClient->>DraftAPI: HTTP GET /drafts?page=1&page_size=50<br/>(with auth header)
-    
-    DraftAPI->>DraftAPI: get_current_user dependency
-    DraftAPI->>DraftAPI: Parse query parameters<br/>(page, page_size)
-    DraftAPI->>DraftAPI: Validate page >= 1, page_size 1-100
-    DraftAPI->>DraftRepo: get_by_owner(current_user.id,<br/>skip=(page-1)*page_size,<br/>limit=page_size)
-    DraftRepo->>DB: SELECT * FROM drafts<br/>WHERE owner_id = ?<br/>ORDER BY updated_at DESC<br/>LIMIT ? OFFSET ?
-    DB-->>DraftRepo: List of Draft objects
-    DraftRepo-->>DraftAPI: List of drafts
-    
-    DraftAPI->>DraftAPI: Convert to DraftResponse<br/>([DraftResponse.model_validate(d) for d in drafts])
-    DraftAPI-->>ApiClient: HTTP 200<br/>[{id, owner_id, title, body, recipient_id,<br/>theme, created_at, updated_at}, ...]
-    
-    ApiClient-->>DraftRepo: List of Draft data (JSON)
-    DraftRepo->>DraftRepo: Convert to List<Draft>
-    DraftRepo-->>Provider: List of Draft objects
-    Provider-->>DraftsScreen: List of drafts
-    DraftsScreen->>DraftsScreen: Build UI (ListView)
-    DraftsScreen->>User: Display drafts list
-```
-
----
-
-### 17. Update Draft
-
-**Description**: User updates an existing draft.
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant DraftScreen as Draft Edit Screen<br/>(Flutter)
-    participant DraftRepo as DraftRepository<br/>(Flutter)
-    participant ApiClient as ApiClient<br/>(Flutter)
-    participant DraftAPI as /drafts/{id}<br/>(FastAPI)
-    participant DraftRepo as DraftRepository<br/>(Python)
-    participant DB as Database
-
-    User->>DraftScreen: Edit draft fields<br/>(title, body, theme)
-    User->>DraftScreen: Click "Save" button
-    DraftScreen->>DraftScreen: Validate form
-    
-    alt Validation fails
-        DraftScreen->>User: Show validation errors
-    else Validation passes
-        DraftScreen->>DraftRepo: updateDraft(draftId, updates)
-        DraftRepo->>ApiClient: put(ApiConfig.updateDraft(draftId),<br/>{title, body, theme, ...})
-        ApiClient->>TokenStorage: getAccessToken()
-        TokenStorage-->>ApiClient: access_token
-        ApiClient->>ApiClient: Set Authorization header
-        ApiClient->>DraftAPI: HTTP PUT /drafts/{id}<br/>(with JSON body & auth header)
-        
-        DraftAPI->>DraftAPI: get_current_user dependency
-        DraftAPI->>DraftAPI: Receive DraftUpdate schema<br/>(Pydantic validation)
-        DraftAPI->>DraftRepo: get_by_id(draft_id)
-        DraftRepo->>DB: SELECT * FROM drafts WHERE id = ?
-        DB-->>DraftRepo: Draft object
-        DraftRepo-->>DraftAPI: Draft model
-        
-        alt Draft not found
-            DraftAPI-->>ApiClient: HTTP 404<br/>("Draft not found")
-            ApiClient-->>DraftRepo: NotFoundException
-            DraftRepo-->>DraftScreen: Error message
-            DraftScreen->>User: Show error
-        else Draft found
-            alt Not owner
-                DraftAPI-->>ApiClient: HTTP 403<br/>("Only owner can update draft")
-                ApiClient-->>DraftRepo: AuthenticationException
-                DraftRepo-->>DraftScreen: Error message
-                DraftScreen->>User: Show "Access denied"
-            else Is owner
-                DraftAPI->>DraftAPI: sanitize_text(title.strip()) if title
-                DraftAPI->>DraftAPI: sanitize_text(body.strip()) if body
-                DraftAPI->>DraftAPI: sanitize_text(theme.strip()) if theme
-                
-                DraftAPI->>DraftRepo: update(draft, title, body, theme, ...)
-                DraftRepo->>DB: UPDATE drafts<br/>SET title = ?, body = ?, theme = ?,<br/>updated_at = ?<br/>WHERE id = ?
-                DB-->>DraftRepo: Success
-                DraftRepo->>DB: SELECT * FROM drafts WHERE id = ?
-                DB-->>DraftRepo: Updated Draft object
-                DraftRepo-->>DraftAPI: Draft model
-                
-                DraftAPI->>DraftAPI: DraftResponse.model_validate(draft)
-                DraftAPI-->>ApiClient: HTTP 200<br/>(Updated draft data)
-                
-                ApiClient-->>DraftRepo: Draft data (JSON)
-                DraftRepo->>DraftRepo: Convert to Draft model
-                DraftRepo-->>DraftScreen: Updated Draft object
-                DraftScreen->>DraftScreen: Refresh UI
-                DraftScreen->>User: Show "Draft updated successfully"
-            end
-        end
-    end
-```
-
----
-
-### 18. Delete Draft
-
-**Description**: User deletes a saved draft.
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant DraftsScreen as Drafts Screen<br/>(Flutter)
-    participant DraftRepo as DraftRepository<br/>(Flutter)
-    participant ApiClient as ApiClient<br/>(Flutter)
-    participant DraftAPI as /drafts/{id}<br/>(FastAPI)
-    participant DraftRepo as DraftRepository<br/>(Python)
-    participant DB as Database
-
-    User->>DraftsScreen: Swipe to delete or tap delete button
-    DraftsScreen->>DraftsScreen: Show confirmation dialog
-    
-    alt User cancels
-        DraftsScreen->>User: Close dialog
-    else User confirms
-        DraftsScreen->>DraftRepo: deleteDraft(draftId)
-        DraftRepo->>ApiClient: delete(ApiConfig.deleteDraft(draftId))
-        ApiClient->>TokenStorage: getAccessToken()
-        TokenStorage-->>ApiClient: access_token
-        ApiClient->>ApiClient: Set Authorization header
-        ApiClient->>DraftAPI: HTTP DELETE /drafts/{id}<br/>(with auth header)
-        
-        DraftAPI->>DraftAPI: get_current_user dependency
-        DraftAPI->>DraftRepo: get_by_id(draft_id)
-        DraftRepo->>DB: SELECT * FROM drafts WHERE id = ?
-        DB-->>DraftRepo: Draft object
-        DraftRepo-->>DraftAPI: Draft model
-        
-        alt Draft not found
-            DraftAPI-->>ApiClient: HTTP 404<br/>("Draft not found")
-            ApiClient-->>DraftRepo: NotFoundException
-            DraftRepo-->>DraftsScreen: Error message
-            DraftsScreen->>User: Show error
-        else Draft found
-            alt Not owner
-                DraftAPI-->>ApiClient: HTTP 403<br/>("Only owner can delete draft")
-                ApiClient-->>DraftRepo: AuthenticationException
-                DraftRepo-->>DraftsScreen: Error message
-                DraftsScreen->>User: Show "Access denied"
-            else Is owner
-                DraftAPI->>DraftRepo: delete(draft_id)
-                DraftRepo->>DB: DELETE FROM drafts<br/>WHERE id = ?
-                DB-->>DraftRepo: Success
-                DraftRepo-->>DraftAPI: Success
-                
-                DraftAPI-->>ApiClient: HTTP 200<br/>{message: "Draft deleted successfully"}
-                
-                ApiClient-->>DraftRepo: Success response
-                DraftRepo-->>DraftsScreen: Success
-                DraftsScreen->>DraftsScreen: Refresh drafts list<br/>(ref.invalidate(draftsProvider))
-                DraftsScreen->>User: Show "Draft deleted"
-            end
-        end
-    end
-```
-
----
-
 ## Background Processes
 
-### 19. Capsule State Automation
+### 15. Capsule State Automation
 
-**Description**: Background worker automatically updates capsule states based on unlock times.
+**Description**: Background worker automatically updates capsule states based on unlock times. Runs every 60 seconds.
+
+**Key Steps**:
+1. Scheduler triggers unlock check every 60 seconds
+2. UnlockService queries for sealed capsules with unlocks_at <= now()
+3. Updates status from 'sealed' to 'ready'
+4. Triggers notifications if configured
 
 ```mermaid
 sequenceDiagram
     participant Scheduler as APScheduler<br/>(Background Worker)
-    participant UnlockService as Unlock Service<br/>(Python)
+    participant UnlockService as UnlockService<br/>(Python)
     participant CapsuleRepo as CapsuleRepository<br/>(Python)
-    participant StateMachine as State Machine<br/>(Python)
-    participant DB as Database
+    participant DB as Supabase PostgreSQL
 
     Note over Scheduler: Every 60 seconds (configurable)
     
     Scheduler->>UnlockService: check_and_unlock_capsules()
     UnlockService->>UnlockService: Get current UTC time
     UnlockService->>CapsuleRepo: get_capsules_for_unlock()
-    CapsuleRepo->>DB: SELECT * FROM capsules<br/>WHERE state IN ('sealed', 'unfolding')<br/>AND scheduled_unlock_at IS NOT NULL<br/>AND scheduled_unlock_at <= ?<br/>ORDER BY scheduled_unlock_at ASC
+    CapsuleRepo->>DB: SELECT * FROM capsules<br/>WHERE status = 'sealed'<br/>AND unlocks_at IS NOT NULL<br/>AND unlocks_at <= ?<br/>AND deleted_at IS NULL<br/>ORDER BY unlocks_at ASC
     DB-->>CapsuleRepo: List of Capsule objects
     CapsuleRepo-->>UnlockService: List of capsules ready to unlock
     
     loop For each capsule
-        UnlockService->>UnlockService: Check capsule state
-        
-        alt State is "sealed"
-            UnlockService->>UnlockService: Check if scheduled_unlock_at <= now()
+        UnlockService->>UnlockService: Check capsule.unlocks_at <= now()
             
             alt Unlock time arrived
-                UnlockService->>StateMachine: can_transition(capsule.state,<br/>CapsuleState.READY)
-                StateMachine-->>UnlockService: true
-                UnlockService->>StateMachine: transition_to(capsule,<br/>CapsuleState.READY)
-                StateMachine->>StateMachine: Update capsule.state = "ready"
-                StateMachine-->>UnlockService: Updated capsule
-                UnlockService->>CapsuleRepo: update(capsule)
-                CapsuleRepo->>DB: UPDATE capsules<br/>SET state = 'ready'<br/>WHERE id = ?
+            UnlockService->>CapsuleRepo: update(capsule,<br/>status=CapsuleStatus.READY)
+            CapsuleRepo->>DB: UPDATE capsules<br/>SET status = 'ready'<br/>WHERE id = ?
                 DB-->>CapsuleRepo: Success
+            
                 UnlockService->>UnlockService: _notify_ready(capsule)<br/>(placeholder for notifications)
-            end
-        else State is "unfolding"
-            UnlockService->>UnlockService: Check if scheduled_unlock_at <= now()
-            
-            alt Unlock time arrived
-                UnlockService->>StateMachine: can_transition(capsule.state,<br/>CapsuleState.READY)
-                StateMachine-->>UnlockService: true
-                UnlockService->>StateMachine: transition_to(capsule,<br/>CapsuleState.READY)
-                StateMachine->>StateMachine: Update capsule.state = "ready"
-                StateMachine-->>UnlockService: Updated capsule
-                UnlockService->>CapsuleRepo: update(capsule)
-                CapsuleRepo->>DB: UPDATE capsules<br/>SET state = 'ready'<br/>WHERE id = ?
-                DB-->>CapsuleRepo: Success
-                UnlockService->>UnlockService: _notify_ready(capsule)
-            end
-        end
-        
-        UnlockService->>UnlockService: Check if 3 days before unlock<br/>(for "unfolding" state)
-        
-        alt 3 days before unlock and state is "sealed"
-            UnlockService->>StateMachine: can_transition(capsule.state,<br/>CapsuleState.UNFOLDING)
-            StateMachine-->>UnlockService: true
-            UnlockService->>StateMachine: transition_to(capsule,<br/>CapsuleState.UNFOLDING)
-            StateMachine->>StateMachine: Update capsule.state = "unfolding"
-            StateMachine-->>UnlockService: Updated capsule
-            UnlockService->>CapsuleRepo: update(capsule)
-            CapsuleRepo->>DB: UPDATE capsules<br/>SET state = 'unfolding'<br/>WHERE id = ?
-            DB-->>CapsuleRepo: Success
+            Note over UnlockService: Could trigger push notification<br/>or email to recipient
         end
     end
     
@@ -1525,37 +1267,261 @@ sequenceDiagram
 
 ---
 
-## Notes
+## Key Concepts Explained
 
-### Key Concepts Explained
+### JWT Tokens (Supabase)
+- **Access tokens**: Short-lived tokens issued by Supabase Auth, used for API authentication
+- **Refresh tokens**: Long-lived tokens used to get new access tokens
+- **Token verification**: Backend verifies Supabase JWT signature using `supabase_jwt_secret`
+- **Token payload**: Contains `sub` (user ID), `aud` (audience), `role`, `exp` (expiration)
 
-1. **JWT Tokens**: 
-   - Access tokens are short-lived (30 minutes) and used for API authentication
-   - Refresh tokens are long-lived (7 days) and used to get new access tokens
-   - Tokens contain user ID and are signed with a secret key
+### Capsule Status Flow
+- **sealed**: Capsule is created but not yet ready to open (unlocks_at is in the future)
+- **ready**: Capsule's unlock time has passed, ready for recipient to open
+- **opened**: Recipient has opened the capsule
+- **expired**: Capsule has passed expiration date or been soft-deleted
 
-2. **State Machine**:
-   - Capsules follow strict state transitions: draft → sealed → unfolding → ready → opened
-   - States cannot be reversed
-   - Background worker automatically transitions states based on time
-
-3. **Debouncing**:
-   - Used in search and username check to avoid excessive API calls
-   - Waits 500ms after user stops typing before making request
-
-4. **Repository Pattern**:
+### Repository Pattern
    - Separates data access logic from business logic
    - Frontend and backend both use repository pattern for consistency
+- Repositories handle API calls, data mapping, and error handling
 
-5. **Pydantic Validation**:
-   - Backend uses Pydantic schemas to automatically validate all incoming data
-   - Invalid data is rejected before reaching business logic
+### Input Validation & Sanitization
+- **Frontend**: Validates input format and length before sending to backend
+- **Backend**: Validates with Pydantic schemas and sanitizes all text inputs
+- **Sanitization**: Removes control characters and enforces length limits
 
-6. **Input Sanitization**:
-   - All user inputs are sanitized to remove harmful characters
-   - Prevents injection attacks and data corruption
+### Database Queries
+- **Inbox query**: Gets all recipients owned by user, then gets capsules for those recipients (uses IN clause to avoid N+1)
+- **Outbox query**: Gets capsules where user is sender
+- **Soft deletes**: Capsules are marked as deleted (deleted_at set) rather than physically deleted
 
 ---
 
-**Last Updated**: 2025
+## Additional User Flows
 
+### 16. Select Color Theme
+
+**Description**: User changes the app's color theme from the profile settings.
+
+**Key Steps**:
+1. User navigates to profile screen
+2. User taps "Color Theme" option
+3. Frontend displays list of available themes
+4. User selects a theme
+5. Frontend updates theme provider
+6. UI updates with new theme colors
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant ProfileScreen as ProfileScreen<br/>(Flutter)
+    participant ColorSchemeScreen as ColorSchemeScreen<br/>(Flutter)
+    participant ThemeProvider as selectedColorSchemeProvider<br/>(Riverpod)
+    participant SharedPrefs as SharedPreferences<br/>(Flutter)
+
+    User->>ProfileScreen: Navigate to Profile
+    User->>ProfileScreen: Tap "Color Theme" option
+    ProfileScreen->>ColorSchemeScreen: context.push(Routes.colorScheme)
+    
+    ColorSchemeScreen->>ThemeProvider: ref.watch(selectedColorSchemeProvider)
+    ThemeProvider-->>ColorSchemeScreen: currentScheme
+    ColorSchemeScreen->>ColorSchemeScreen: Display list of themes<br/>(AppColorScheme.allSchemes)
+    ColorSchemeScreen->>User: Show theme cards with previews
+    
+    User->>ColorSchemeScreen: Tap on a theme card
+    ColorSchemeScreen->>ThemeProvider: ref.read(selectedColorSchemeProvider.notifier).setScheme(scheme)
+    ThemeProvider->>SharedPrefs: Save theme ID to SharedPreferences
+    SharedPrefs-->>ThemeProvider: Success
+    ThemeProvider->>ThemeProvider: Notify listeners (UI rebuilds)
+    ThemeProvider-->>ColorSchemeScreen: Theme updated
+    ColorSchemeScreen->>ColorSchemeScreen: Show success SnackBar
+    ColorSchemeScreen->>User: Display "Theme applied" message
+    ColorSchemeScreen->>ColorSchemeScreen: UI updates with new theme colors
+```
+
+---
+
+### 17. View Opened Letter
+
+**Description**: User views a letter that has been opened, with ability to add reactions.
+
+**Key Steps**:
+1. User navigates to opened letter screen
+2. Frontend displays letter content
+3. User can add emoji reaction
+4. Frontend sends reaction to backend
+5. Backend updates capsule with reaction
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant OpenedLetterScreen as OpenedLetterScreen<br/>(Flutter)
+    participant CapsuleRepo as ApiCapsuleRepository<br/>(Flutter)
+    participant ApiClient as ApiClient<br/>(Flutter)
+    participant CapsuleAPI as POST /capsules/{id}/reaction<br/>(FastAPI)
+    participant CapsuleRepo as CapsuleRepository<br/>(Python)
+    participant DB as Supabase PostgreSQL
+
+    User->>OpenedLetterScreen: Navigate to opened letter<br/>(after opening animation)
+    OpenedLetterScreen->>OpenedLetterScreen: Display letter content<br/>(title, body, sender, opened date)
+    OpenedLetterScreen->>User: Show letter with reaction options
+    
+    User->>OpenedLetterScreen: Tap emoji reaction button
+    OpenedLetterScreen->>OpenedLetterScreen: Set _selectedReaction = emoji
+    OpenedLetterScreen->>CapsuleRepo: addReaction(capsuleId, emoji)
+    
+    CapsuleRepo->>ApiClient: post(ApiConfig.addReaction(capsuleId),<br/>{reaction: emoji})
+    ApiClient->>TokenStorage: getAccessToken()
+    TokenStorage-->>ApiClient: access_token
+    ApiClient->>ApiClient: Set Authorization header
+    ApiClient->>CapsuleAPI: HTTP POST /capsules/{id}/reaction<br/>(with JSON body & auth header)
+    
+    CapsuleAPI->>CapsuleAPI: get_current_user dependency
+    CapsuleAPI->>CapsuleRepo: get_by_id(capsule_id)
+    CapsuleRepo->>DB: SELECT * FROM capsules WHERE id = ?
+    DB-->>CapsuleRepo: Capsule object
+    CapsuleRepo-->>CapsuleAPI: Capsule model
+    
+    alt Capsule not found
+        CapsuleAPI-->>ApiClient: HTTP 404<br/>("Capsule not found")
+        ApiClient-->>CapsuleRepo: NotFoundException
+        CapsuleRepo-->>OpenedLetterScreen: Error message
+        OpenedLetterScreen->>User: Show error
+    else Capsule found
+        CapsuleAPI->>CapsuleAPI: Check if user is recipient
+        CapsuleAPI->>CapsuleRepo: update(capsule, reaction=emoji)
+        CapsuleRepo->>DB: UPDATE capsules<br/>SET reaction = ?<br/>WHERE id = ?
+        DB-->>CapsuleRepo: Success
+        CapsuleRepo-->>CapsuleAPI: Success
+        
+        CapsuleAPI-->>ApiClient: HTTP 200<br/>{message: "Reaction added"}
+        ApiClient-->>CapsuleRepo: Success response
+        CapsuleRepo-->>OpenedLetterScreen: Success
+        OpenedLetterScreen->>OpenedLetterScreen: Show success SnackBar<br/>("Reaction sent to sender")
+        OpenedLetterScreen->>User: Display confirmation
+    end
+```
+
+---
+
+### 18. Opening Animation Flow
+
+**Description**: When a capsule is opened, an animation plays before showing the letter content.
+
+**Key Steps**:
+1. User taps "Open" on ready capsule
+2. Backend updates capsule status to 'opened'
+3. Frontend navigates to opening animation screen
+4. Animation plays (fade in, scale, etc.)
+5. After animation, navigate to opened letter screen
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant LockedCapsuleScreen as LockedCapsuleScreen<br/>(Flutter)
+    participant CapsuleRepo as ApiCapsuleRepository<br/>(Flutter)
+    participant ApiClient as ApiClient<br/>(Flutter)
+    participant CapsuleAPI as POST /capsules/{id}/open<br/>(FastAPI)
+    participant OpeningAnimationScreen as OpeningAnimationScreen<br/>(Flutter)
+    participant OpenedLetterScreen as OpenedLetterScreen<br/>(Flutter)
+
+    User->>LockedCapsuleScreen: View ready capsule
+    User->>LockedCapsuleScreen: Tap "Open" button
+    LockedCapsuleScreen->>CapsuleRepo: openCapsule(capsuleId)
+    
+    Note over CapsuleRepo,CapsuleAPI: (See "7. Open Capsule" flow above)
+    CapsuleRepo->>CapsuleAPI: HTTP POST /capsules/{id}/open
+    CapsuleAPI-->>CapsuleRepo: Updated capsule (status: "opened")
+    CapsuleRepo-->>LockedCapsuleScreen: Updated Capsule object
+    
+    LockedCapsuleScreen->>OpeningAnimationScreen: context.go(Routes.openingAnimation,<br/>extra: updatedCapsule)
+    
+    OpeningAnimationScreen->>OpeningAnimationScreen: Initialize animation<br/>(TweenAnimationBuilder)
+    OpeningAnimationScreen->>OpeningAnimationScreen: Start animation<br/>(duration: 3 seconds)
+    
+    alt User skips animation
+        User->>OpeningAnimationScreen: Tap "Skip" button
+        OpeningAnimationScreen->>OpenedLetterScreen: context.go(Routes.openedLetter,<br/>extra: capsule)
+    else Animation completes
+        OpeningAnimationScreen->>OpeningAnimationScreen: Set _animationComplete = true
+        OpeningAnimationScreen->>OpenedLetterScreen: context.go(Routes.openedLetter,<br/>extra: capsule)
+    end
+    
+    OpenedLetterScreen->>OpenedLetterScreen: Display letter content
+    OpenedLetterScreen->>User: Show opened letter
+```
+
+---
+
+### 19. Share Countdown (Locked Capsule)
+
+**Description**: User shares a locked capsule's countdown with others.
+
+**Key Steps**:
+1. User views locked capsule
+2. User taps "Share Countdown" button
+3. Frontend uses platform share functionality
+4. Share dialog appears with capsule details
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant LockedCapsuleScreen as LockedCapsuleScreen<br/>(Flutter)
+    participant SharePlugin as Share Plugin<br/>(Flutter)
+
+    User->>LockedCapsuleScreen: View locked capsule
+    User->>LockedCapsuleScreen: Tap "Share Countdown" button
+    LockedCapsuleScreen->>LockedCapsuleScreen: Prepare share content<br/>(title, unlock date, time remaining)
+    LockedCapsuleScreen->>SharePlugin: Share.share(content)
+    SharePlugin->>SharePlugin: Show platform share dialog<br/>(iOS/Android native)
+    SharePlugin->>User: Display share options<br/>(Messages, Email, Social Media, etc.)
+    
+    User->>SharePlugin: Select share method
+    SharePlugin->>SharePlugin: Open selected app with content
+    SharePlugin-->>LockedCapsuleScreen: Share completed
+    LockedCapsuleScreen->>User: Show confirmation (optional)
+```
+
+---
+
+### 20. Navigate Between Tabs (Inbox/Outbox)
+
+**Description**: User switches between inbox and outbox tabs in the home screen.
+
+**Key Steps**:
+1. User is on home screen
+2. User taps different tab (Inbox/Outbox)
+3. Frontend updates selected tab index
+4. Frontend fetches capsules for selected tab
+5. UI updates with new capsule list
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant HomeScreen as HomeScreen<br/>(Flutter)
+    participant Provider as capsulesProvider<br/>(Riverpod)
+    participant CapsuleRepo as ApiCapsuleRepository<br/>(Flutter)
+
+    User->>HomeScreen: View home screen
+    HomeScreen->>HomeScreen: Initialize with default tab<br/>(Inbox = 0, Outbox = 1)
+    HomeScreen->>Provider: ref.watch(capsulesProvider(box: "inbox"))
+    Provider->>CapsuleRepo: getCapsules(userId, asSender: false)
+    CapsuleRepo-->>Provider: List of inbox capsules
+    Provider-->>HomeScreen: Display inbox capsules
+    
+    User->>HomeScreen: Tap "Outbox" tab
+    HomeScreen->>HomeScreen: Set _selectedTabIndex = 1
+    HomeScreen->>Provider: ref.watch(capsulesProvider(box: "outbox"))
+    Provider->>CapsuleRepo: getCapsules(userId, asSender: true)
+    CapsuleRepo-->>Provider: List of outbox capsules
+    Provider-->>HomeScreen: Display outbox capsules
+    
+    Note over HomeScreen: Tab indicator animates<br/>to selected tab position
+    HomeScreen->>User: Show outbox capsules
+```
+
+---
+
+**Last Updated**: January 2025  
+**Version**: 2.1 (Complete User Flows)

@@ -1,35 +1,54 @@
 # OpenOn Backend Requirements
 # Python 3.11+ required
+#
+# Installation:
+#   pip install -r requirements.txt
+#
+# For development with dev dependencies:
+#   pip install -r requirements.txt
 
+# ============================================================================
 # Web Framework
+# ============================================================================
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
 
-# Data Validation
+# ============================================================================
+# Data Validation & Serialization
+# ============================================================================
 pydantic==2.5.0
 pydantic-settings==2.1.0
 email-validator==2.1.0
 
-# Database
+# ============================================================================
+# Database & ORM
+# ============================================================================
 sqlalchemy==2.0.25
 alembic==1.13.1
-asyncpg==0.29.0
-aiosqlite==0.19.0
-greenlet==3.0.3
+asyncpg==0.29.0          # PostgreSQL async driver (Supabase)
+greenlet==3.0.3          # Required for SQLAlchemy async
 
+# ============================================================================
 # Authentication & Security
-python-jose[cryptography]==3.3.0
-bcrypt==4.1.2
-python-multipart==0.0.6
+# ============================================================================
+python-jose[cryptography]==3.3.0  # JWT token handling
+bcrypt==4.1.2                      # Password hashing
+python-multipart==0.0.6            # Form data parsing
 
-# Background Tasks
-apscheduler==3.10.4
+# ============================================================================
+# Background Tasks & Scheduling
+# ============================================================================
+apscheduler==3.10.4      # Background job scheduling
 
+# ============================================================================
 # Utilities
-pytz==2024.1
-httpx==0.26.0
+# ============================================================================
+pytz==2024.1              # Timezone handling
+httpx==0.26.0             # HTTP client for external APIs
 
-# Development & Testing
+# ============================================================================
+# Development & Testing (Optional - can be installed separately)
+# ============================================================================
 pytest==7.4.4
 pytest-asyncio==0.23.3
 pytest-cov==4.1.0

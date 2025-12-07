@@ -5,7 +5,6 @@ import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
-import 'package:openon_app/core/data/api_repositories.dart';
 import 'package:openon_app/core/utils/error_handler.dart';
 import 'package:openon_app/features/create_capsule/step_choose_recipient.dart';
 import 'package:openon_app/features/create_capsule/step_write_letter.dart';
@@ -97,13 +96,9 @@ class _CreateCapsuleScreenState extends ConsumerState<CreateCapsuleScreen> {
       
       final repo = ref.read(capsuleRepositoryProvider);
       
-      // Create capsule (in draft state)
-      final createdCapsule = await repo.createCapsule(capsule);
-      
-      // Seal capsule with unlock time (if using API repository)
-      if (repo is ApiCapsuleRepository && draft.unlockAt != null) {
-        await repo.sealCapsule(createdCapsule.id, draft.unlockAt!);
-      }
+      // Create capsule directly with unlock time (Supabase schema)
+      // Capsules are created in 'sealed' status with unlocks_at set
+      await repo.createCapsule(capsule);
       
       // Invalidate capsules cache
       ref.invalidate(capsulesProvider);

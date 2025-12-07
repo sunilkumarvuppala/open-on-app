@@ -1,14 +1,18 @@
 """
-Specific repositories for each model.
+Specific repositories for each model matching Supabase schema.
 
 This module implements repository pattern for database operations.
 Each repository provides type-safe, optimized database queries for its model.
 
 Repositories:
-- UserRepository: User operations (search, lookup, existence checks)
-- CapsuleRepository: Capsule operations (by sender/receiver, state transitions)
-- DraftRepository: Draft operations (CRUD for unsent capsules)
+- UserProfileRepository: User profile operations (extends Supabase Auth)
+- CapsuleRepository: Capsule operations (by sender/recipient, status transitions)
 - RecipientRepository: Recipient operations (CRUD for saved contacts)
+- ThemeRepository: Theme operations
+- AnimationRepository: Animation operations
+- NotificationRepository: Notification operations
+- UserSubscriptionRepository: Subscription operations
+- AuditLogRepository: Audit log operations
 
 Benefits:
 - Separation of concerns (business logic vs. data access)
@@ -17,372 +21,347 @@ Benefits:
 - Optimized queries with proper indexing
 """
 from typing import Optional
-from datetime import datetime
-from sqlalchemy import select, and_, or_, case
+from datetime import datetime, timezone
+from uuid import UUID
+from sqlalchemy import select, and_, or_, case, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.models import User, Capsule, Draft, Recipient, CapsuleState
+from app.db.models import (
+    UserProfile, Capsule, Recipient, Theme, Animation, Notification,
+    UserSubscription, AuditLog, CapsuleStatus, NotificationType,
+    SubscriptionStatus, RecipientRelationship
+)
 from app.db.repository import BaseRepository
 
 
-class UserRepository(BaseRepository[User]):
-    """Repository for user operations."""
+class UserProfileRepository(BaseRepository[UserProfile]):
+    """
+    Repository for user profile operations.
+    
+    Note: Authentication is handled by Supabase Auth (auth.users table).
+    This repository only manages the user_profiles table which extends
+    Supabase Auth users with app-specific data.
+    """
     
     def __init__(self, session: AsyncSession):
-        super().__init__(User, session)
+        super().__init__(UserProfile, session)
     
-    async def get_by_email(self, email: str) -> Optional[User]:
-        """Get user by email."""
+    async def get_by_id(self, id: UUID) -> Optional[UserProfile]:
+        """Get user profile by user_id (UUID)."""
         result = await self.session.execute(
-            select(User).where(User.email == email)
+            select(UserProfile).where(UserProfile.user_id == id)
         )
         return result.scalar_one_or_none()
     
-    async def get_by_username(self, username: str) -> Optional[User]:
-        """Get user by username."""
-        result = await self.session.execute(
-            select(User).where(User.username == username)
+    async def create(
+        self,
+        user_id: UUID,
+        full_name: Optional[str] = None,
+        avatar_url: Optional[str] = None,
+        premium_status: bool = False,
+        premium_until: Optional[datetime] = None,
+        is_admin: bool = False,
+        country: Optional[str] = None,
+        device_token: Optional[str] = None
+    ) -> UserProfile:
+        """Create a new user profile."""
+        instance = UserProfile(
+            user_id=user_id,
+            full_name=full_name,
+            avatar_url=avatar_url,
+            premium_status=premium_status,
+            premium_until=premium_until,
+            is_admin=is_admin,
+            country=country,
+            device_token=device_token
         )
-        return result.scalar_one_or_none()
-    
-    async def email_exists(self, email: str) -> bool:
-        """Check if email already exists."""
-        return await self.exists(email=email)
-    
-    async def username_exists(self, username: str) -> bool:
-        """Check if username already exists."""
-        return await self.exists(username=username)
-    
-    async def search_users(
-        self, 
-        query: str, 
-        limit: Optional[int] = None,
-        exclude_user_id: Optional[str] = None
-    ) -> list[User]:
-        """
-        Search users by email, username, or full_name.
-        
-        Prioritizes exact username matches, then partial matches.
-        Username is unique across the database, making it ideal for searching.
-        
-        Args:
-            query: Search query string
-            limit: Maximum number of results to return (uses settings default if None)
-            exclude_user_id: User ID to exclude from results (e.g., current user)
-        
-        Returns:
-            List of matching users, ordered by relevance (exact username matches first)
-        """
-        from app.core.config import settings
-        
-        query_lower = query.lower().strip()
-        search_term = f"%{query_lower}%"
-        search_limit = limit if limit is not None else settings.default_search_limit
-        
-        # Build query to search across email, username, and full_name
-        search_conditions = or_(
-            User.email.ilike(search_term),
-            User.username.ilike(search_term),
-            User.full_name.ilike(search_term)
-        )
-        
-        # Exclude specific user if provided
-        if exclude_user_id:
-            search_conditions = and_(search_conditions, User.id != exclude_user_id)
-        
-        # Only return active users
-        search_conditions = and_(search_conditions, User.is_active == True)
-        
-        # Order by relevance:
-        # 1. Exact username match (case-insensitive) - highest priority
-        # 2. Username starts with query
-        # 3. Email starts with query
-        # 4. Full name starts with query
-        # 5. Then by full_name, username
-        result = await self.session.execute(
-            select(User)
-            .where(search_conditions)
-            .order_by(
-                # Prioritize exact username matches first
-                case(
-                    (User.username.ilike(query_lower), 1),
-                    (User.username.ilike(f"{query_lower}%"), 2),
-                    (User.email.ilike(f"{query_lower}%"), 3),
-                    (User.full_name.ilike(f"{query_lower}%"), 4),
-                    else_=5
-                ),
-                # Then alphabetical
-                User.full_name.nulls_last(),
-                User.username
-            )
-            .limit(search_limit)
-        )
-        return list(result.scalars().all())
+        self.session.add(instance)
+        await self.session.flush()
+        await self.session.refresh(instance)
+        return instance
 
 
 class CapsuleRepository(BaseRepository[Capsule]):
-    """Repository for capsule operations."""
+    """Repository for capsule operations matching Supabase schema."""
     
     def __init__(self, session: AsyncSession):
         super().__init__(Capsule, session)
     
+    async def get_by_id(self, id: UUID) -> Optional[Capsule]:
+        """Get capsule by ID (UUID)."""
+        result = await self.session.execute(
+            select(Capsule).where(Capsule.id == id)
+        )
+        return result.scalar_one_or_none()
+    
     async def get_by_sender(
         self,
-        sender_id: str,
-        state: Optional[CapsuleState] = None,
+        sender_id: UUID,
+        status: Optional[CapsuleStatus] = None,
         skip: int = 0,
         limit: Optional[int] = None
     ) -> list[Capsule]:
         """
-        Get capsules by sender with optional state filter.
+        Get capsules by sender with optional status filter.
         
         Args:
-            sender_id: ID of the user who sent the capsules
-            state: Optional state filter (e.g., only DRAFT, only READY)
+            sender_id: UUID of the user who sent the capsules
+            status: Optional status filter (e.g., only SEALED, only READY)
             skip: Number of records to skip (for pagination)
-            limit: Maximum number of records to return (uses settings default if None)
+            limit: Maximum number of records to return
         
         Returns:
-            List of capsules sent by the specified user
-        
-        Note:
-            Results are ordered by creation date (newest first)
-            Uses index on sender_id for optimal performance
+            List of capsules sent by the specified user, ordered by creation date (newest first)
         """
         from app.core.config import settings
         
-        # Build base query filtering by sender_id
-        query = select(Capsule).where(Capsule.sender_id == sender_id)
+        query = select(Capsule).where(
+            and_(
+                Capsule.sender_id == sender_id,
+                Capsule.deleted_at.is_(None)  # Exclude soft-deleted
+            )
+        )
         
-        # Add state filter if provided
-        # This enables filtering by state (e.g., only drafts, only ready)
-        if state:
-            query = query.where(Capsule.state == state)
+        if status:
+            query = query.where(Capsule.status == status)
         
-        # Order by creation date (newest first) and apply pagination
-        # Uses database indexes for efficient sorting
         query = query.order_by(Capsule.created_at.desc()).offset(skip)
         if limit is not None:
             query = query.limit(limit)
         else:
             query = query.limit(settings.default_page_size)
+        
         result = await self.session.execute(query)
         return list(result.scalars().all())
     
-    async def get_by_receiver(
+    async def get_by_recipient(
         self,
-        receiver_id: str,
-        state: Optional[CapsuleState] = None,
+        recipient_id: UUID,
+        status: Optional[CapsuleStatus] = None,
         skip: int = 0,
         limit: Optional[int] = None
     ) -> list[Capsule]:
         """
-        Get capsules by receiver with optional state filter.
+        Get capsules by recipient with optional status filter.
         
         Args:
-            receiver_id: ID of the user who received the capsules
-            state: Optional state filter (e.g., only READY, only OPENED)
+            recipient_id: UUID of the recipient
+            status: Optional status filter
             skip: Number of records to skip (for pagination)
-            limit: Maximum number of records to return (uses settings default if None)
+            limit: Maximum number of records to return
         
         Returns:
-            List of capsules received by the specified user
-        
-        Note:
-            Results are ordered by creation date (newest first)
-            Uses index on receiver_id for optimal performance
-            This is the primary query for the inbox view
+            List of capsules for the specified recipient
         """
-        from app.core.logging import get_logger
         from app.core.config import settings
         
-        logger = get_logger(__name__)
+        query = select(Capsule).where(
+            and_(
+                Capsule.recipient_id == recipient_id,
+                Capsule.deleted_at.is_(None)  # Exclude soft-deleted
+            )
+        )
         
-        # Build base query filtering by receiver_id
-        # This is the key query for showing received capsules (inbox)
-        query = select(Capsule).where(Capsule.receiver_id == receiver_id)
+        if status:
+            query = query.where(Capsule.status == status)
         
-        # Add state filter if provided
-        # Enables filtering by state (e.g., only ready capsules, only opened)
-        if state:
-            query = query.where(Capsule.state == state)
-        
-        # Order by creation date (newest first) and apply pagination
-        # Uses database indexes for efficient sorting
         query = query.order_by(Capsule.created_at.desc()).offset(skip)
         if limit is not None:
             query = query.limit(limit)
         else:
             query = query.limit(settings.default_page_size)
+        
         result = await self.session.execute(query)
-        capsules = list(result.scalars().all())
-        
-        # Log query results for debugging
-        logger.info(
-            f"get_by_receiver: receiver_id={receiver_id}, state={state}, "
-            f"found {len(capsules)} capsules"
-        )
-        
-        return capsules
+        return list(result.scalars().all())
     
     async def count_by_sender(
         self,
-        sender_id: str,
-        state: Optional[CapsuleState] = None
+        sender_id: UUID,
+        status: Optional[CapsuleStatus] = None
     ) -> int:
         """Count capsules by sender."""
-        from sqlalchemy import func
-        
         query = select(func.count()).select_from(Capsule).where(
-            Capsule.sender_id == sender_id
+            and_(
+                Capsule.sender_id == sender_id,
+                Capsule.deleted_at.is_(None)
+            )
         )
         
-        if state:
-            query = query.where(Capsule.state == state)
+        if status:
+            query = query.where(Capsule.status == status)
         
         result = await self.session.execute(query)
         return result.scalar_one()
     
-    async def count_by_receiver(
+    async def get_by_recipient_ids(
         self,
-        receiver_id: str,
-        state: Optional[CapsuleState] = None
-    ) -> int:
-        """Count capsules by receiver."""
-        from sqlalchemy import func
+        recipient_ids: list[UUID],
+        status: Optional[CapsuleStatus] = None,
+        skip: int = 0,
+        limit: Optional[int] = None
+    ) -> list[Capsule]:
+        """
+        Get capsules by multiple recipient IDs (optimized for inbox query).
         
-        query = select(func.count()).select_from(Capsule).where(
-            Capsule.receiver_id == receiver_id
+        Uses IN clause to avoid N+1 query problem.
+        """
+        from app.core.config import settings
+        
+        if not recipient_ids:
+            return []
+        
+        query = select(Capsule).where(
+            and_(
+                Capsule.recipient_id.in_(recipient_ids),
+                Capsule.deleted_at.is_(None)
+            )
         )
         
-        if state:
-            query = query.where(Capsule.state == state)
+        if status:
+            query = query.where(Capsule.status == status)
+        
+        query = query.order_by(Capsule.created_at.desc()).offset(skip)
+        if limit is not None:
+            query = query.limit(limit)
+        else:
+            query = query.limit(settings.default_page_size)
+        
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+    
+    async def count_by_recipient_ids(
+        self,
+        recipient_ids: list[UUID],
+        status: Optional[CapsuleStatus] = None
+    ) -> int:
+        """Count capsules by multiple recipient IDs."""
+        if not recipient_ids:
+            return 0
+        
+        query = select(func.count()).select_from(Capsule).where(
+            and_(
+                Capsule.recipient_id.in_(recipient_ids),
+                Capsule.deleted_at.is_(None)
+            )
+        )
+        
+        if status:
+            query = query.where(Capsule.status == status)
+        
+        result = await self.session.execute(query)
+        return result.scalar_one()
+    
+    async def count_by_recipient(
+        self,
+        recipient_id: UUID,
+        status: Optional[CapsuleStatus] = None
+    ) -> int:
+        """Count capsules by recipient."""
+        query = select(func.count()).select_from(Capsule).where(
+            and_(
+                Capsule.recipient_id == recipient_id,
+                Capsule.deleted_at.is_(None)
+            )
+        )
+        
+        if status:
+            query = query.where(Capsule.status == status)
         
         result = await self.session.execute(query)
         return result.scalar_one()
     
     async def get_capsules_for_unlock(self) -> list[Capsule]:
         """
-        Get all capsules that need state updates (sealed/unfolding).
+        Get all capsules that need status updates.
         
-        This method is called by the background worker to find capsules
-        that need automatic state transitions based on their unlock time.
-        
-        Returns:
-            List of capsules that may need state transitions
-        
-        Criteria:
-        - State is SEALED or UNFOLDING
-        - Has a scheduled_unlock_at time
-        - Used by background worker for automatic transitions
+        Returns capsules that are SEALED and have unlocks_at in the past,
+        which should transition to READY status.
         """
-        from datetime import timezone
         now = datetime.now(timezone.utc)
         
-        # Query capsules that may need state transitions
-        # Only check SEALED and UNFOLDING states (others don't auto-transition)
         query = select(Capsule).where(
             and_(
-                or_(
-                    Capsule.state == CapsuleState.SEALED,  # May transition to UNFOLDING
-                    Capsule.state == CapsuleState.UNFOLDING  # May transition to READY
-                ),
-                Capsule.scheduled_unlock_at.isnot(None)  # Must have unlock time
+                Capsule.status == CapsuleStatus.SEALED,
+                Capsule.unlocks_at <= now,
+                Capsule.deleted_at.is_(None)
             )
         )
         
         result = await self.session.execute(query)
         return list(result.scalars().all())
     
-    async def transition_state(
+    async def transition_status(
         self,
-        capsule_id: str,
-        new_state: CapsuleState,
+        capsule_id: UUID,
+        new_status: CapsuleStatus,
         **extra_fields: datetime
     ) -> Optional[Capsule]:
-        """Transition capsule to a new state with timestamp updates."""
-        updates = {"state": new_state}
+        """Transition capsule to a new status with timestamp updates."""
+        updates = {"status": new_status}
         updates.update(extra_fields)
         return await self.update(capsule_id, **updates)
     
-    async def verify_ownership(self, capsule_id: str, user_id: str) -> bool:
+    async def update(self, id: UUID, **kwargs) -> Optional[Capsule]:
+        """Update capsule by ID (UUID)."""
+        stmt = (
+            update(Capsule)
+            .where(Capsule.id == id)
+            .values(**kwargs)
+            .returning(Capsule)
+        )
+        result = await self.session.execute(stmt)
+        await self.session.flush()
+        return result.scalar_one_or_none()
+    
+    async def verify_ownership(self, capsule_id: UUID, user_id: UUID) -> bool:
         """Verify if user is the sender of a capsule."""
         capsule = await self.get_by_id(capsule_id)
         return capsule is not None and capsule.sender_id == user_id
     
-    async def can_open(self, capsule_id: str, user_id: str) -> tuple[bool, str]:
-        """Check if user can open a capsule."""
+    async def can_open(self, capsule_id: UUID, user_id: UUID) -> tuple[bool, str]:
+        """
+        Check if user can open a capsule.
+        
+        Note: This checks if the user is the owner of the recipient,
+        not the recipient itself. Recipients are owned by users.
+        """
         capsule = await self.get_by_id(capsule_id)
         
         if not capsule:
             return False, "Capsule not found"
         
-        if capsule.receiver_id != user_id:
-            return False, "You are not the receiver of this capsule"
+        if capsule.deleted_at is not None:
+            return False, "Capsule has been deleted"
         
-        if capsule.state == CapsuleState.OPENED:
+        # Check if user owns the recipient
+        recipient = await self.session.get(Recipient, capsule.recipient_id)
+        if not recipient or recipient.owner_id != user_id:
+            return False, "You are not the recipient of this capsule"
+        
+        if capsule.status == CapsuleStatus.OPENED:
             return False, "Capsule already opened"
         
-        if capsule.state != CapsuleState.READY:
-            return False, f"Capsule is not ready yet (current state: {capsule.state})"
+        if capsule.status != CapsuleStatus.READY:
+            return False, f"Capsule is not ready yet (current status: {capsule.status.value})"
         
         return True, "OK"
 
 
-class DraftRepository(BaseRepository[Draft]):
-    """Repository for draft operations."""
-    
-    def __init__(self, session: AsyncSession):
-        super().__init__(Draft, session)
-    
-    async def get_by_owner(
-        self,
-        owner_id: str,
-        skip: int = 0,
-        limit: Optional[int] = None
-    ) -> list[Draft]:
-        """Get all drafts by owner."""
-        from app.core.config import settings
-        
-        query = (
-            select(Draft)
-            .where(Draft.owner_id == owner_id)
-            .order_by(Draft.updated_at.desc())
-            .offset(skip)
-        )
-        if limit is not None:
-            query = query.limit(limit)
-        else:
-            query = query.limit(settings.default_page_size)
-        result = await self.session.execute(query)
-        return list(result.scalars().all())
-    
-    async def count_by_owner(self, owner_id: str) -> int:
-        """Count drafts by owner."""
-        from sqlalchemy import func
-        
-        query = (
-            select(func.count())
-            .select_from(Draft)
-            .where(Draft.owner_id == owner_id)
-        )
-        result = await self.session.execute(query)
-        return result.scalar_one()
-    
-    async def verify_ownership(self, draft_id: str, user_id: str) -> bool:
-        """Verify if user owns a draft."""
-        draft = await self.get_by_id(draft_id)
-        return draft is not None and draft.owner_id == user_id
-
-
 class RecipientRepository(BaseRepository[Recipient]):
-    """Repository for recipient operations."""
+    """Repository for recipient operations matching Supabase schema."""
     
     def __init__(self, session: AsyncSession):
         super().__init__(Recipient, session)
     
+    async def get_by_id(self, id: UUID) -> Optional[Recipient]:
+        """Get recipient by ID (UUID)."""
+        result = await self.session.execute(
+            select(Recipient).where(Recipient.id == id)
+        )
+        return result.scalar_one_or_none()
+    
     async def get_by_owner(
         self,
-        owner_id: str,
+        owner_id: UUID,
         skip: int = 0,
         limit: Optional[int] = None
     ) -> list[Recipient]:
@@ -402,7 +381,185 @@ class RecipientRepository(BaseRepository[Recipient]):
         result = await self.session.execute(query)
         return list(result.scalars().all())
     
-    async def verify_ownership(self, recipient_id: str, user_id: str) -> bool:
+    async def update(self, id: UUID, **kwargs) -> Optional[Recipient]:
+        """Update recipient by ID (UUID)."""
+        stmt = (
+            update(Recipient)
+            .where(Recipient.id == id)
+            .values(**kwargs)
+            .returning(Recipient)
+        )
+        result = await self.session.execute(stmt)
+        await self.session.flush()
+        return result.scalar_one_or_none()
+    
+    async def delete(self, id: UUID) -> bool:
+        """Delete recipient by ID (UUID)."""
+        stmt = delete(Recipient).where(Recipient.id == id)
+        result = await self.session.execute(stmt)
+        await self.session.flush()
+        return result.rowcount > 0
+    
+    async def verify_ownership(self, recipient_id: UUID, user_id: UUID) -> bool:
         """Verify if user owns a recipient."""
         recipient = await self.get_by_id(recipient_id)
         return recipient is not None and recipient.owner_id == user_id
+
+
+class ThemeRepository(BaseRepository[Theme]):
+    """Repository for theme operations."""
+    
+    def __init__(self, session: AsyncSession):
+        super().__init__(Theme, session)
+    
+    async def get_by_id(self, id: UUID) -> Optional[Theme]:
+        """Get theme by ID (UUID)."""
+        result = await self.session.execute(
+            select(Theme).where(Theme.id == id)
+        )
+        return result.scalar_one_or_none()
+    
+    async def get_all_free(self) -> list[Theme]:
+        """Get all free (non-premium) themes."""
+        result = await self.session.execute(
+            select(Theme).where(Theme.premium_only == False)
+        )
+        return list(result.scalars().all())
+    
+    async def get_all_premium(self) -> list[Theme]:
+        """Get all premium themes."""
+        result = await self.session.execute(
+            select(Theme).where(Theme.premium_only == True)
+        )
+        return list(result.scalars().all())
+
+
+class AnimationRepository(BaseRepository[Animation]):
+    """Repository for animation operations."""
+    
+    def __init__(self, session: AsyncSession):
+        super().__init__(Animation, session)
+    
+    async def get_by_id(self, id: UUID) -> Optional[Animation]:
+        """Get animation by ID (UUID)."""
+        result = await self.session.execute(
+            select(Animation).where(Animation.id == id)
+        )
+        return result.scalar_one_or_none()
+    
+    async def get_all_free(self) -> list[Animation]:
+        """Get all free (non-premium) animations."""
+        result = await self.session.execute(
+            select(Animation).where(Animation.premium_only == False)
+        )
+        return list(result.scalars().all())
+    
+    async def get_all_premium(self) -> list[Animation]:
+        """Get all premium animations."""
+        result = await self.session.execute(
+            select(Animation).where(Animation.premium_only == True)
+        )
+        return list(result.scalars().all())
+
+
+class NotificationRepository(BaseRepository[Notification]):
+    """Repository for notification operations."""
+    
+    def __init__(self, session: AsyncSession):
+        super().__init__(Notification, session)
+    
+    async def get_by_id(self, id: UUID) -> Optional[Notification]:
+        """Get notification by ID (UUID)."""
+        result = await self.session.execute(
+            select(Notification).where(Notification.id == id)
+        )
+        return result.scalar_one_or_none()
+    
+    async def get_by_user(
+        self,
+        user_id: UUID,
+        skip: int = 0,
+        limit: Optional[int] = None,
+        delivered: Optional[bool] = None
+    ) -> list[Notification]:
+        """Get notifications for a user."""
+        from app.core.config import settings
+        
+        query = select(Notification).where(Notification.user_id == user_id)
+        
+        if delivered is not None:
+            query = query.where(Notification.delivered == delivered)
+        
+        query = query.order_by(Notification.created_at.desc()).offset(skip)
+        if limit is not None:
+            query = query.limit(limit)
+        else:
+            query = query.limit(settings.default_page_size)
+        
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+
+
+class UserSubscriptionRepository(BaseRepository[UserSubscription]):
+    """Repository for subscription operations."""
+    
+    def __init__(self, session: AsyncSession):
+        super().__init__(UserSubscription, session)
+    
+    async def get_by_id(self, id: UUID) -> Optional[UserSubscription]:
+        """Get subscription by ID (UUID)."""
+        result = await self.session.execute(
+            select(UserSubscription).where(UserSubscription.id == id)
+        )
+        return result.scalar_one_or_none()
+    
+    async def get_by_user(self, user_id: UUID) -> Optional[UserSubscription]:
+        """Get active subscription for a user."""
+        result = await self.session.execute(
+            select(UserSubscription)
+            .where(
+                and_(
+                    UserSubscription.user_id == user_id,
+                    UserSubscription.status == SubscriptionStatus.ACTIVE
+                )
+            )
+            .order_by(UserSubscription.created_at.desc())
+        )
+        return result.scalar_one_or_none()
+
+
+class AuditLogRepository(BaseRepository[AuditLog]):
+    """Repository for audit log operations."""
+    
+    def __init__(self, session: AsyncSession):
+        super().__init__(AuditLog, session)
+    
+    async def get_by_id(self, id: UUID) -> Optional[AuditLog]:
+        """Get audit log by ID (UUID)."""
+        result = await self.session.execute(
+            select(AuditLog).where(AuditLog.id == id)
+        )
+        return result.scalar_one_or_none()
+    
+    async def get_by_user(
+        self,
+        user_id: UUID,
+        skip: int = 0,
+        limit: Optional[int] = None
+    ) -> list[AuditLog]:
+        """Get audit logs for a user."""
+        from app.core.config import settings
+        
+        query = (
+            select(AuditLog)
+            .where(AuditLog.user_id == user_id)
+            .order_by(AuditLog.created_at.desc())
+            .offset(skip)
+        )
+        if limit is not None:
+            query = query.limit(limit)
+        else:
+            query = query.limit(settings.default_page_size)
+        
+        result = await self.session.execute(query)
+        return list(result.scalars().all())

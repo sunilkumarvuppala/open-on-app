@@ -110,17 +110,6 @@ class User {
 
 **Note**: The frontend `User` model uses `name` (full name) which is computed from `first_name` and `last_name` received from the backend. The backend API returns `first_name`, `last_name`, and `username` separately.
 
-### Draft
-
-```dart
-class Draft {
-  final String id;
-  final String title;
-  final String body;
-  final DateTime lastEdited;
-}
-```
-
 ## Providers
 
 ### User Providers
@@ -204,20 +193,6 @@ final selectedColorSchemeProvider = StateProvider<AppColorScheme>((ref) {
 });
 ```
 
-### Draft Provider
-
-```dart
-final draftsProvider = FutureProvider<List<Draft>>((ref) async {
-  final repo = ref.watch(draftRepositoryProvider);
-  return repo.getDrafts();
-});
-
-final draftsCountProvider = Provider<int>((ref) {
-  final draftsAsync = ref.watch(draftsProvider);
-  return draftsAsync.asData?.value.length ?? 0;
-});
-```
-
 ## Repositories
 
 ### CapsuleRepository
@@ -265,16 +240,6 @@ abstract class UserRepository {
   Future<User?> getCurrentUser();
   Future<User> updateUser(User user);
   Future<void> signOut();
-}
-```
-
-### DraftRepository
-
-```dart
-abstract class DraftRepository {
-  Future<List<Draft>> getDrafts();
-  Future<Draft> saveDraft(Draft draft);
-  Future<void> deleteDraft(String id);
 }
 ```
 
@@ -537,7 +502,6 @@ class Routes {
   static const recipients = '/recipients';
   static const createCapsule = '/create-capsule';
   static const profile = '/profile';
-  static const drafts = '/drafts';
 }
 ```
 

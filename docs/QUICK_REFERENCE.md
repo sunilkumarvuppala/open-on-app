@@ -1,9 +1,10 @@
 # Quick Reference Guide
 
-A quick reference for common tasks and patterns in the OpenOn codebase.
+> **📖 For complete onboarding**: See [ONBOARDING.md](./ONBOARDING.md)  
+> **🚀 For quick setup**: See [QUICK_START.md](./QUICK_START.md)  
+> **📋 For detailed refactoring information**: See [REFACTORING_2025.md](./REFACTORING_2025.md)
 
-> **For detailed refactoring information**, see [REFACTORING_2025.md](./REFACTORING_2025.md)  
-> **For onboarding**, see [ONBOARDING.md](./ONBOARDING.md)
+A quick reference for common tasks and patterns in the OpenOn codebase.
 
 ## 📋 Table of Contents
 

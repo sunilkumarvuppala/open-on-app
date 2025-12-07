@@ -1,13 +1,12 @@
 """
-Time-lock unlock service for automated capsule state transitions.
+Time-lock unlock service for automated capsule status transitions matching Supabase schema.
 
-This service handles automatic state transitions for capsules based on time.
+This service handles automatic status transitions for capsules based on time.
 It's called periodically by the background worker to check if any capsules
-need to transition states (e.g., SEALED → UNFOLDING → READY).
+need to transition statuses (SEALED → READY).
 
-State Transitions:
-- SEALED → UNFOLDING: When unlock time is within 3 days
-- UNFOLDING → READY: When unlock time has arrived
+Status Transitions:
+- SEALED → READY: When unlocks_at has passed
 
 This service ensures capsules automatically progress through their lifecycle
 without manual intervention.
@@ -28,14 +27,14 @@ logger = get_logger(__name__)
 
 class UnlockService:
     """
-    Service for checking and updating capsule unlock states.
+    Service for checking and updating capsule unlock statuses.
     
-    This service periodically checks all capsules that might need state
-    transitions and updates them based on their scheduled unlock time.
+    This service periodically checks all capsules that might need status
+    transitions and updates them based on their unlock time.
     
     Responsibilities:
-    - Check capsules for state transitions
-    - Update capsule states via state machine
+    - Check capsules for status transitions
+    - Update capsule statuses via state machine
     - Track statistics for monitoring
     - Trigger notifications when capsules become ready
     
@@ -56,17 +55,16 @@ class UnlockService:
     
     async def check_and_update_capsules(self) -> dict[str, int]:
         """
-        Check all sealed/unfolding capsules and update states as needed.
+        Check all sealed capsules and update statuses as needed.
         
         This is the main entry point for the unlock check cycle.
-        It finds all capsules that might need state transitions, checks
-        each one, and updates their states if needed.
+        It finds all capsules that might need status transitions, checks
+        each one, and updates their statuses if needed.
         
         Returns:
             Dictionary with statistics:
             - checked: Number of capsules checked
-            - sealed_to_unfolding: Number of SEALED → UNFOLDING transitions
-            - unfolding_to_ready: Number of UNFOLDING → READY transitions
+            - sealed_to_ready: Number of SEALED → READY transitions
             - errors: Number of errors encountered
         
         Note:
@@ -76,52 +74,50 @@ class UnlockService:
         logger.info("Starting unlock check cycle")
         
         # ===== Get Capsules to Check =====
-        # Get all capsules that might need state updates
-        # This includes SEALED and UNFOLDING capsules
+        # Get all capsules that might need status updates
+        # This includes SEALED capsules with unlocks_at in the past
         capsules = await self.repository.get_capsules_for_unlock()
         
         # ===== Initialize Statistics =====
         # Track transitions and errors for monitoring
         stats = {
             "checked": len(capsules),
-            "sealed_to_unfolding": 0,
-            "unfolding_to_ready": 0,
+            "sealed_to_ready": 0,
             "errors": 0
         }
         
         # ===== Process Each Capsule =====
-        # Check each capsule and update state if needed
+        # Check each capsule and update status if needed
         for capsule in capsules:
             try:
-                await self._update_capsule_state(capsule, stats)
+                await self._update_capsule_status(capsule, stats)
             except Exception as e:
                 # Log error but continue processing other capsules
                 logger.error(f"Error updating capsule {capsule.id}: {str(e)}")
                 stats["errors"] += 1
         
         # ===== Commit Changes =====
-        # Commit all state updates in a single transaction
+        # Commit all status updates in a single transaction
         await self.session.commit()
         
         # ===== Log Results =====
         logger.info(
             f"Unlock check complete: {stats['checked']} checked, "
-            f"{stats['sealed_to_unfolding']} sealed→unfolding, "
-            f"{stats['unfolding_to_ready']} unfolding→ready, "
+            f"{stats['sealed_to_ready']} sealed→ready, "
             f"{stats['errors']} errors"
         )
         
         return stats
     
-    async def _update_capsule_state(
+    async def _update_capsule_status(
         self,
         capsule: "Capsule",
         stats: dict[str, int]
     ) -> None:
         """
-        Update a single capsule's state if needed.
+        Update a single capsule's status if needed.
         
-        Checks if the capsule needs a state transition based on time,
+        Checks if the capsule needs a status transition based on time,
         validates the transition, and updates the capsule if needed.
         
         Args:
@@ -129,53 +125,53 @@ class UnlockService:
             stats: Statistics dictionary to update with transition counts
         
         Note:
-            Uses state machine to determine next state and validate transitions
+            Uses state machine to determine next status and validate transitions
             Updates statistics for monitoring
             Triggers notification if capsule becomes ready
         """
-        current_state = capsule.state
-        next_state = self.state_machine.get_next_state(capsule)
+        current_status = capsule.status
+        next_status = self.state_machine.get_next_status(capsule)
         
         # ===== Check if Transition Needed =====
-        # If no next state, capsule doesn't need a transition
-        if not next_state:
+        # If no next status, capsule doesn't need a transition
+        if not next_status:
             return  # No transition needed
         
         # ===== Validate Transition =====
         # Ensure transition is valid according to state machine rules
-        self.state_machine.validate_transition(current_state, next_state)
+        self.state_machine.validate_transition(current_status, next_status)
         
-        # ===== Update Capsule State =====
-        # Update capsule state in database
-        await self.repository.transition_state(
+        # ===== Update Capsule Status =====
+        # Update capsule status in database
+        await self.repository.transition_status(
             capsule.id,
-            next_state
+            next_status
         )
         
         # ===== Update Statistics =====
         # Track transition for monitoring
-        transition_key = f"{current_state.value}_to_{next_state.value}"
+        transition_key = f"{current_status.value}_to_{next_status.value}"
         if transition_key in stats:
             stats[transition_key] += 1
         
         # ===== Log Transition =====
         logger.info(
-            f"Capsule {capsule.id}: {current_state} → {next_state} "
-            f"(unlock: {capsule.scheduled_unlock_at})"
+            f"Capsule {capsule.id}: {current_status} → {next_status} "
+            f"(unlocks_at: {capsule.unlocks_at})"
         )
         
         # ===== Trigger Notification =====
-        # If capsule is now ready, notify the receiver
-        if next_state.value == "ready":
+        # If capsule is now ready, notify the recipient
+        if next_status.value == "ready":
             await self._notify_ready(capsule)
     
     async def _notify_ready(self, capsule: "Capsule") -> None:
         """
         Send notification that capsule is ready (placeholder for future).
         
-        This method is called when a capsule transitions to READY state.
+        This method is called when a capsule transitions to READY status.
         Currently logs the event, but can be extended to send push notifications,
-        emails, or other alerts to the receiver.
+        emails, or other alerts to the recipient.
         
         Args:
             capsule: Capsule that is now ready
@@ -187,7 +183,7 @@ class UnlockService:
         # TODO: Integrate with notification service
         logger.info(
             f"📬 Notification: Capsule {capsule.id} is ready for "
-            f"receiver {capsule.receiver_id}"
+            f"recipient {capsule.recipient_id}"
         )
         # Future: await notification_service.send_capsule_ready(capsule)
 

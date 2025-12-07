@@ -11,8 +11,7 @@ This directory contains detailed documentation for each feature in the OpenOn ap
 3. **[Receiver Screen](./features/RECEIVER.md)** - Receiver's inbox (Inbox - PRIMARY) for incoming capsules
 4. **[Create Capsule](./features/CREATE_CAPSULE.md)** - Multi-step letter creation flow
 5. **[Capsule Viewing](./features/CAPSULE.md)** - Viewing locked, opening, and opened capsules
-6. **[Drafts](./features/DRAFTS.md)** - Draft management system
-7. **[Recipients](./features/RECIPIENTS.md)** - Recipient management
+6. **[Recipients](./features/RECIPIENTS.md)** - Recipient management
 8. **[Profile](./features/PROFILE.md)** - User profile and settings
 9. **[Navigation](./features/NAVIGATION.md)** - Main navigation system
 10. **[Animations](./features/ANIMATIONS.md)** - Animation system and effects

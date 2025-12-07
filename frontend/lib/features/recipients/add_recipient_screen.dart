@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/models/models.dart';
+import 'package:openon_app/core/models/supabase_types.dart' as supabase;
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
@@ -22,21 +23,25 @@ class AddRecipientScreen extends ConsumerStatefulWidget {
 class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _searchController;
-  late final TextEditingController _relationshipController;
   final ApiUserService _userService = ApiUserService();
   bool _isLoading = false;
   User? _selectedUser;
   List<User> _searchResults = [];
   Timer? _searchDebounce;
   bool _isSearching = false;
+  supabase.RecipientRelationship _selectedRelationship = supabase.RecipientRelationship.friend;
   
   @override
   void initState() {
     super.initState();
     _searchController = TextEditingController(text: widget.recipient?.name ?? '');
-    _relationshipController = TextEditingController(
-      text: widget.recipient?.relationship,
-    );
+    // Convert string relationship to enum if editing
+    if (widget.recipient != null && widget.recipient!.relationship.isNotEmpty) {
+      _selectedRelationship = supabase.RecipientRelationship.values.firstWhere(
+        (r) => r.displayName.toLowerCase() == widget.recipient!.relationship.toLowerCase(),
+        orElse: () => supabase.RecipientRelationship.friend,
+      );
+    }
     // If editing, try to find the user
     if (widget.recipient != null) {
       _selectedUser = null; // We'll need to load this from recipient data if available
@@ -46,7 +51,6 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
   @override
   void dispose() {
     _searchController.dispose();
-    _relationshipController.dispose();
     _searchDebounce?.cancel();
     super.dispose();
   }
@@ -135,15 +139,16 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
         // Update existing recipient
         final updated = widget.recipient!.copyWith(
           name: _selectedUser!.name,
-          relationship: _relationshipController.text.trim(),
+          relationship: _selectedRelationship.displayName,
         );
         await repo.updateRecipient(updated);
       } else {
-        // Create new recipient - link to selected user
+        // Create new recipient - convert to old Recipient model
         final newRecipient = Recipient(
           userId: user.id, // Owner ID
           name: _selectedUser!.name,
-          relationship: _relationshipController.text.trim(),
+          relationship: _selectedRelationship.displayName,
+          linkedUserId: _selectedUser!.id,
         );
         await repo.createRecipient(newRecipient, linkedUserId: _selectedUser!.id);
       }
@@ -305,14 +310,51 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
                       textInputAction: TextInputAction.next,
                       style: TextStyle(
                         color: DynamicTheme.getInputTextColor(colorScheme),
+                        fontSize: 16,
                       ),
                       decoration: InputDecoration(
                         labelText: 'Search Registered User *',
                         hintText: 'Search by username, name, or email',
                         helperText: 'Only registered users can be added as recipients',
+                        filled: true,
+                        fillColor: DynamicTheme.getInputBackgroundColor(colorScheme),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 16,
+                        ),
+                        labelStyle: TextStyle(
+                          color: DynamicTheme.getInputHintColor(colorScheme),
+                        ),
+                        hintStyle: TextStyle(
+                          color: DynamicTheme.getInputHintColor(colorScheme),
+                        ),
+                        helperStyle: TextStyle(
+                          color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                        ),
                         prefixIcon: Icon(
                           Icons.search,
                           color: DynamicTheme.getInputHintColor(colorScheme),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                          borderSide: BorderSide(
+                            color: DynamicTheme.getInputBorderColor(colorScheme),
+                            width: AppTheme.borderWidthStandard,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                          borderSide: BorderSide(
+                            color: DynamicTheme.getInputBorderColor(colorScheme, isFocused: true),
+                            width: AppTheme.borderWidthStandard,
+                          ),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                          borderSide: BorderSide(
+                            color: DynamicTheme.getInputBorderColor(colorScheme),
+                            width: AppTheme.borderWidthStandard,
+                          ),
                         ),
                         suffixIcon: _isSearching
                             ? Padding(
@@ -458,28 +500,82 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
                 
                 SizedBox(height: AppTheme.spacingMd),
                 
-                // Relationship field
-                TextFormField(
-                  controller: _relationshipController,
-                  textInputAction: TextInputAction.done,
-                  textCapitalization: TextCapitalization.words,
-                  style: TextStyle(
-                    color: DynamicTheme.getInputTextColor(colorScheme),
-                  ),
+                // Relationship dropdown
+                DropdownButtonFormField<supabase.RecipientRelationship>(
+                  value: _selectedRelationship,
+                  isExpanded: true,
+                  menuMaxHeight: 250,
                   decoration: InputDecoration(
-                    labelText: 'Relationship *',
-                    hintText: 'e.g., Partner, Daughter, Best Friend',
+                    labelText: 'Relationship',
+                    hintText: 'Select relationship',
+                    filled: true,
+                    fillColor: DynamicTheme.getInputBackgroundColor(colorScheme),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
                     prefixIcon: Icon(
                       Icons.favorite_outline,
-                                    color: DynamicTheme.getInputHintColor(colorScheme),
+                      color: DynamicTheme.getInputHintColor(colorScheme),
+                    ),
+                    labelStyle: TextStyle(
+                      color: DynamicTheme.getInputHintColor(colorScheme),
+                      fontSize: 16,
+                    ),
+                    hintStyle: TextStyle(
+                      color: DynamicTheme.getInputHintColor(colorScheme),
+                      fontSize: 16,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      borderSide: BorderSide(
+                        color: DynamicTheme.getInputBorderColor(colorScheme),
+                        width: AppTheme.borderWidthStandard,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      borderSide: BorderSide(
+                        color: DynamicTheme.getInputBorderColor(colorScheme, isFocused: true),
+                        width: AppTheme.borderWidthStandard,
+                      ),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      borderSide: BorderSide(
+                        color: DynamicTheme.getInputBorderColor(colorScheme),
+                        width: AppTheme.borderWidthStandard,
+                      ),
                     ),
                   ),
-                  onFieldSubmitted: (_) => _handleSave(),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter a relationship';
+                  style: TextStyle(
+                    color: DynamicTheme.getInputTextColor(colorScheme),
+                    fontSize: 16,
+                  ),
+                  dropdownColor: DynamicTheme.getCardBackgroundColor(colorScheme),
+                  icon: Icon(
+                    Icons.arrow_drop_down,
+                    color: DynamicTheme.getInputTextColor(colorScheme),
+                  ),
+                  iconSize: 24,
+                  items: supabase.RecipientRelationship.values.map((relationship) {
+                    return DropdownMenuItem<supabase.RecipientRelationship>(
+                      value: relationship,
+                      child: Text(
+                        relationship.displayName,
+                        style: TextStyle(
+                          color: DynamicTheme.getInputTextColor(colorScheme),
+                          fontSize: 16,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedRelationship = value;
+                      });
                     }
-                    return null;
                   },
                 ),
                 

@@ -6,7 +6,7 @@ This document summarizes the comprehensive refactoring performed in 2025 to make
 
 > **Quick Reference**: See [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) for common patterns  
 > **Onboarding**: See [ONBOARDING.md](./ONBOARDING.md) for developer onboarding  
-> **Patterns Guide**: See [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md) for refactoring best practices
+> **Refactoring Patterns**: See [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md) for refactoring best practices and patterns
 
 **Status**: ✅ Complete - Production Ready  
 **Last Updated**: January 2025
@@ -42,7 +42,6 @@ This document summarizes the comprehensive refactoring performed in 2025 to make
 **Files Modified**:
 - `backend/app/core/config.py` - Added configuration constants
 - `backend/app/db/repositories.py` - Fixed hardcoded limits
-- `backend/app/api/drafts.py` - Fixed hardcoded page_size
 - `backend/app/api/recipients.py` - Removed duplicate imports
 
 > **See [backend/CONFIGURATION.md](./backend/CONFIGURATION.md) for complete configuration reference**
@@ -166,7 +165,6 @@ Feature-based modular architecture:
 ### Backend
 - `backend/app/core/config.py` - Added configuration constants
 - `backend/app/db/repositories.py` - Fixed hardcoded limits
-- `backend/app/api/drafts.py` - Fixed hardcoded page_size
 - `backend/app/api/recipients.py` - Removed duplicate imports
 
 ### Frontend

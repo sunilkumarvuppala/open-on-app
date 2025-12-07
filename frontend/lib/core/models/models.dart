@@ -267,28 +267,21 @@ class DraftCapsule {
       throw Exception('Cannot convert invalid draft to capsule');
     }
     
-    // Recipient must be linked to a registered user to receive capsules
-    if (recipient!.linkedUserId == null || recipient!.linkedUserId!.isEmpty) {
-      throw Exception(
-        'Recipient "${recipient!.name}" is not linked to a registered user. '
-        'Please select a recipient that is linked to a user account.'
-      );
-    }
-    
-    // Use linkedUserId (the actual user ID) as receiver_id
-    final receiverId = recipient!.linkedUserId!;
+    // Use recipient.id as receiver_id (backend expects recipient_id UUID)
+    // In Supabase schema, recipient_id is the UUID of the recipient record
+    final receiverId = recipient!.id;
     
     // Log for debugging
     Logger.info(
       'Creating capsule: recipient.id=${recipient!.id}, '
-      'recipient.linkedUserId=${recipient!.linkedUserId}, '
+      'recipient.name=${recipient!.name}, '
       'receiverId=$receiverId'
     );
     
     return Capsule(
       senderId: senderId,
       senderName: senderName,
-      receiverId: receiverId,
+      receiverId: receiverId, // Use recipient.id (UUID) as recipient_id
       receiverName: recipient!.name,
       receiverAvatar: recipient!.avatar,
       label: label ?? 'A special letter',

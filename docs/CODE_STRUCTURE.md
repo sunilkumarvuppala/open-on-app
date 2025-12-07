@@ -12,13 +12,13 @@ frontend/lib/
 │   │   └── app_constants.dart    # All constants (UI, animation, validation)
 │   │
 │   ├── data/
-│   │   └── repositories.dart     # Data access layer (Capsule, Recipient, User, Draft)
+│   │   └── repositories.dart     # Data access layer (Capsule, Recipient, User)
 │   │
 │   ├── errors/
 │   │   └── app_exceptions.dart   # Custom exception hierarchy
 │   │
 │   ├── models/
-│   │   └── models.dart           # Data models (Capsule, Recipient, User, Draft)
+│   │   └── models.dart           # Data models (Capsule, Recipient, User)
 │   │
 │   ├── providers/
 │   │   └── providers.dart        # Riverpod state providers
@@ -57,9 +57,6 @@ frontend/lib/
 │   │   ├── step_write_letter.dart
 │   │   ├── step_choose_time.dart
 │   │   └── step_preview.dart
-│   │
-│   ├── drafts/
-│   │   └── drafts_screen.dart
 │   │
 │   ├── home/
 │   │   ├── home_screen.dart      # Sender home (3 tabs)
@@ -123,7 +120,7 @@ frontend/lib/
 #### Models (`core/models/`)
 - **Purpose**: Data models
 - **Key File**: `models.dart`
-- **Contains**: Capsule, Recipient, User, Draft models
+- **Contains**: Capsule, Recipient, User models
 
 #### Providers (`core/providers/`)
 - **Purpose**: State management
@@ -169,10 +166,6 @@ Each feature is self-contained with its own screens and logic.
 #### Create Capsule (`features/create_capsule/`)
 - Multi-step letter creation
 - Recipient selection, writing, time selection, preview
-
-#### Drafts (`features/drafts/`)
-- Draft management
-- List, edit, delete drafts
 
 #### Home (`features/home/`)
 - Sender's home screen (Outbox)
@@ -265,7 +258,6 @@ Feature Screens
     ├── Create Capsule
     ├── Recipients
     ├── Profile
-    └── Drafts
 ```
 
 ## Key Patterns

@@ -8,8 +8,9 @@ from app.db.models import User, Capsule, Draft, Recipient
 from app.core.security import get_password_hash
 
 
-# Test database URL
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+# Test database URL (use Supabase PostgreSQL for testing)
+# For local testing, use Supabase test database or PostgreSQL test instance
+TEST_DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:54322/postgres_test"
 
 
 @pytest.fixture(scope="session")
