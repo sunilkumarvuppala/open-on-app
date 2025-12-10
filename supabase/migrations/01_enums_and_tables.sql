@@ -156,7 +156,9 @@ END $$;
 --   - Update avatar: UPDATE user_profiles SET avatar_url = '...' WHERE user_id = '...'
 -- COLUMNS:
 --   - user_id: Links to Supabase Auth user (CASCADE delete removes profile if user deleted)
---   - full_name: User's display name (e.g., "John Doe")
+--   - first_name: User's first name (e.g., "John")
+--   - last_name: User's last name (e.g., "Doe")
+--   - username: User's username for searching and display
 --   - avatar_url: URL to user's profile picture (e.g., "https://storage.../avatar.jpg")
 --   - premium_status: Whether user has active premium subscription
 --   - premium_until: When premium subscription expires (NULL if not premium)
@@ -166,13 +168,16 @@ END $$;
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.user_profiles (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  full_name TEXT,
+  first_name TEXT,
+  last_name TEXT,
+  username TEXT, -- Username for searching and display
   avatar_url TEXT,
   premium_status BOOLEAN DEFAULT FALSE NOT NULL,
   premium_until TIMESTAMPTZ,
   is_admin BOOLEAN DEFAULT FALSE NOT NULL, -- Admin flag for system administration
   country TEXT,
   device_token TEXT,
+  last_login TIMESTAMPTZ, -- Last login timestamp for analytics and security
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );

@@ -2,7 +2,7 @@
 
 > **📖 For complete onboarding**: See [ONBOARDING.md](./ONBOARDING.md)  
 > **🚀 For quick setup**: See [QUICK_START.md](./QUICK_START.md)  
-> **📋 For detailed refactoring information**: See [REFACTORING_2025.md](./REFACTORING_2025.md)
+> **📋 For detailed refactoring information**: See [REFACTORING.md](./REFACTORING.md)
 
 A quick reference for common tasks and patterns in the OpenOn codebase.
 

@@ -1,6 +1,7 @@
 # Refactoring Guide
 
-> **Note**: This guide covers refactoring patterns and best practices. For information about the 2025 refactoring, see [REFACTORING_2025.md](./REFACTORING_2025.md).
+> **Note**: This guide covers refactoring patterns and best practices.  
+> For information about the 2025 refactoring, see [REFACTORING.md](./REFACTORING.md).
 
 This document describes refactoring patterns and best practices to follow when making changes to the codebase.
 

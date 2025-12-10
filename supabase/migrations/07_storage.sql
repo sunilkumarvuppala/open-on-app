@@ -102,7 +102,8 @@ CREATE POLICY "Recipients can view received capsule assets"
     AND EXISTS (
       SELECT 1 FROM public.capsules c
       JOIN public.recipients r ON c.recipient_id = r.id
-      WHERE r.owner_id = auth.uid()
+      WHERE r.email IS NOT NULL
+        AND LOWER(TRIM(r.email)) = LOWER(TRIM((auth.jwt() ->> 'email')::text))
         AND c.id::text = (storage.foldername(name))[2]
     )
   );

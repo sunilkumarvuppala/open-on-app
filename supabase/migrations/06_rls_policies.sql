@@ -84,7 +84,8 @@ CREATE POLICY "Recipients can view received capsules"
     EXISTS (
       SELECT 1 FROM public.recipients r
       WHERE r.id = capsules.recipient_id
-        AND r.owner_id = auth.uid()
+        AND r.email IS NOT NULL
+        AND LOWER(TRIM(r.email)) = LOWER(TRIM((auth.jwt() ->> 'email')::text))
     )
     AND deleted_at IS NULL -- Exclude soft-deleted capsules
   );

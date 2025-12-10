@@ -136,11 +136,13 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
               
               Expanded(
                 child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(AppTheme.spacingXl),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppTheme.spacingXl),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
                         // Label
                         Text(
                           capsule.label,
@@ -251,28 +253,29 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
                   ),
                 ),
               ),
+              ),
               
               // Bottom buttons
               if (!canOpen)
                 Padding(
                   padding: EdgeInsets.all(AppTheme.spacingLg),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _handleShare,
-                        icon: const Icon(Icons.share),
-                        label: const Text('Share Countdown'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.white,
-                          foregroundColor: colorScheme.primary1,
-                          padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
-                          side: DynamicTheme.getButtonBorderSide(colorScheme),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                          ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _handleShare,
+                      icon: const Icon(Icons.share),
+                      label: const Text('Share Countdown'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.white,
+                        foregroundColor: colorScheme.primary1,
+                        padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                        side: DynamicTheme.getButtonBorderSide(colorScheme),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                         ),
                       ),
                     ),
+                  ),
                 ),
             ],
           ),

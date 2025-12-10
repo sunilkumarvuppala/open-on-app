@@ -23,7 +23,7 @@ Benefits:
 from typing import Optional
 from datetime import datetime, timezone
 from uuid import UUID
-from sqlalchemy import select, and_, or_, case, func
+from sqlalchemy import select, and_, or_, case, func, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import (
     UserProfile, Capsule, Recipient, Theme, Animation, Notification,
@@ -55,7 +55,9 @@ class UserProfileRepository(BaseRepository[UserProfile]):
     async def create(
         self,
         user_id: UUID,
-        full_name: Optional[str] = None,
+        first_name: Optional[str] = None,
+        last_name: Optional[str] = None,
+        username: Optional[str] = None,
         avatar_url: Optional[str] = None,
         premium_status: bool = False,
         premium_until: Optional[datetime] = None,
@@ -66,7 +68,9 @@ class UserProfileRepository(BaseRepository[UserProfile]):
         """Create a new user profile."""
         instance = UserProfile(
             user_id=user_id,
-            full_name=full_name,
+            first_name=first_name,
+            last_name=last_name,
+            username=username,
             avatar_url=avatar_url,
             premium_status=premium_status,
             premium_until=premium_until,
@@ -78,6 +82,15 @@ class UserProfileRepository(BaseRepository[UserProfile]):
         await self.session.flush()
         await self.session.refresh(instance)
         return instance
+    
+    async def update_last_login(self, user_id: UUID) -> Optional[UserProfile]:
+        """Update the last_login timestamp for a user."""
+        profile = await self.get_by_id(user_id)
+        if profile:
+            profile.last_login = datetime.now(timezone.utc)
+            await self.session.flush()
+            await self.session.refresh(profile)
+        return profile
 
 
 class CapsuleRepository(BaseRepository[Capsule]):
@@ -191,6 +204,88 @@ class CapsuleRepository(BaseRepository[Capsule]):
         
         result = await self.session.execute(query)
         return result.scalar_one()
+    
+    async def get_by_recipient_email(
+        self,
+        recipient_email: str,
+        status: Optional[CapsuleStatus] = None,
+        skip: int = 0,
+        limit: Optional[int] = None
+    ) -> list[Capsule]:
+        """
+        Get capsules by recipient email with optional status filter.
+        
+        This is used for inbox queries - finds capsules sent to recipients
+        whose email matches the current user's email.
+        
+        Args:
+            recipient_email: Email address of the recipient
+            status: Optional status filter
+            skip: Number of records to skip (for pagination)
+            limit: Maximum number of records to return
+        
+        Returns:
+            List of capsules for recipients with matching email
+        """
+        from app.core.config import settings
+        from sqlalchemy import select, and_, or_
+        from app.db.models import Recipient
+        
+        # Query capsules where recipient email matches (case-insensitive, handle NULL)
+        # Use LOWER() for case-insensitive comparison and ensure email is not NULL
+        from sqlalchemy import func
+        query = (
+            select(Capsule)
+            .join(Recipient, Capsule.recipient_id == Recipient.id)
+            .where(
+                and_(
+                    Recipient.email.isnot(None),  # Exclude recipients without email
+                    func.lower(Recipient.email) == func.lower(recipient_email),  # Case-insensitive match
+                    Capsule.deleted_at.is_(None)  # Exclude soft-deleted
+                )
+            )
+        )
+        
+        if status:
+            query = query.where(Capsule.status == status)
+        
+        query = query.order_by(Capsule.created_at.desc()).offset(skip)
+        if limit is not None:
+            query = query.limit(limit)
+        else:
+            query = query.limit(settings.default_page_size)
+        
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+    
+    async def count_by_recipient_email(
+        self,
+        recipient_email: str,
+        status: Optional[CapsuleStatus] = None
+    ) -> int:
+        """Count capsules by recipient email."""
+        from sqlalchemy import select, func, and_
+        from app.db.models import Recipient
+        
+        # Use LOWER() for case-insensitive comparison and ensure email is not NULL
+        query = (
+            select(func.count())
+            .select_from(Capsule)
+            .join(Recipient, Capsule.recipient_id == Recipient.id)
+            .where(
+                and_(
+                    Recipient.email.isnot(None),  # Exclude recipients without email
+                    func.lower(Recipient.email) == func.lower(recipient_email),  # Case-insensitive match
+                    Capsule.deleted_at.is_(None)  # Exclude soft-deleted
+                )
+            )
+        )
+        
+        if status:
+            query = query.where(Capsule.status == status)
+        
+        result = await self.session.execute(query)
+        return result.scalar() or 0
     
     async def get_by_recipient_ids(
         self,
@@ -317,35 +412,6 @@ class CapsuleRepository(BaseRepository[Capsule]):
         capsule = await self.get_by_id(capsule_id)
         return capsule is not None and capsule.sender_id == user_id
     
-    async def can_open(self, capsule_id: UUID, user_id: UUID) -> tuple[bool, str]:
-        """
-        Check if user can open a capsule.
-        
-        Note: This checks if the user is the owner of the recipient,
-        not the recipient itself. Recipients are owned by users.
-        """
-        capsule = await self.get_by_id(capsule_id)
-        
-        if not capsule:
-            return False, "Capsule not found"
-        
-        if capsule.deleted_at is not None:
-            return False, "Capsule has been deleted"
-        
-        # Check if user owns the recipient
-        recipient = await self.session.get(Recipient, capsule.recipient_id)
-        if not recipient or recipient.owner_id != user_id:
-            return False, "You are not the recipient of this capsule"
-        
-        if capsule.status == CapsuleStatus.OPENED:
-            return False, "Capsule already opened"
-        
-        if capsule.status != CapsuleStatus.READY:
-            return False, f"Capsule is not ready yet (current status: {capsule.status.value})"
-        
-        return True, "OK"
-
-
 class RecipientRepository(BaseRepository[Recipient]):
     """Repository for recipient operations matching Supabase schema."""
     

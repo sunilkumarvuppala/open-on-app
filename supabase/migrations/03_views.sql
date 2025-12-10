@@ -28,7 +28,12 @@ SELECT
   END AS sender_id,
   CASE 
     WHEN c.is_anonymous = TRUE THEN 'Anonymous'
-    ELSE up.full_name
+    ELSE COALESCE(
+      NULLIF(TRIM(up.first_name || ' ' || up.last_name), ''),
+      up.first_name,
+      up.last_name,
+      ''
+    )
   END AS sender_name,
   CASE 
     WHEN c.is_anonymous = TRUE THEN NULL
@@ -76,10 +81,11 @@ WHERE c.deleted_at IS NULL;
 CREATE OR REPLACE VIEW public.inbox_view AS
 SELECT 
   c.*,
-  r.owner_id AS current_user_id
+  auth.uid() AS current_user_id
 FROM public.recipient_safe_capsules_view c
 JOIN public.recipients r ON c.recipient_id = r.id
-WHERE r.owner_id = auth.uid()
+WHERE r.email IS NOT NULL
+  AND LOWER(TRIM(r.email)) = LOWER(TRIM((auth.jwt() ->> 'email')::text))
   AND c.deleted_at IS NULL;
 
 -- ============================================================================

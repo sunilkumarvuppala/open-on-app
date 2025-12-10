@@ -7,6 +7,7 @@ import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
+import 'package:openon_app/core/utils/logger.dart';
 
 // Import AppColors for error color
 import 'package:openon_app/core/theme/app_theme.dart' show AppColors;
@@ -43,30 +44,88 @@ class RecipientsScreen extends ConsumerWidget {
           ),
           body: recipientsAsync.when(
             data: (recipients) {
+              // Debug logging
+              Logger.info('Recipients screen: Received ${recipients.length} recipients');
+              
               if (recipients.isEmpty) {
+                Logger.info('Recipients screen: Showing empty state');
                 return _buildEmptyState(context);
               }
               
-              return ListView.builder(
-                padding: EdgeInsets.all(AppTheme.spacingMd),
-                itemCount: recipients.length,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
-                    child: _buildRecipientCard(
-                      context,
-                      ref,
-                      recipients[index],
-                    ),
-                  );
+              Logger.info('Recipients screen: Building list with ${recipients.length} items');
+              
+              return RefreshIndicator(
+                onRefresh: () async {
+                  Logger.info('Recipients screen: Refreshing recipients');
+                  ref.invalidate(recipientsProvider(user.id));
+                  // Wait for the provider to refresh
+                  await Future.delayed(const Duration(milliseconds: 500));
                 },
+                child: ListView.builder(
+                  padding: EdgeInsets.all(AppTheme.spacingMd),
+                  itemCount: recipients.length,
+                  itemBuilder: (context, index) {
+                    final recipient = recipients[index];
+                    Logger.debug('Recipients screen: Building card for recipient ${recipient.id}: ${recipient.name}');
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
+                      child: _buildRecipientCard(
+                        context,
+                        ref,
+                        recipient,
+                      ),
+                    );
+                  },
+                ),
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, stack) => ErrorDisplay(
-              message: error.toString(),
-              onRetry: () => ref.invalidate(recipientsProvider(user.id)),
-            ),
+            loading: () {
+              Logger.info('Recipients screen: Loading state');
+              return const Center(child: CircularProgressIndicator());
+            },
+            error: (error, stack) {
+              // Log the error for debugging
+              Logger.error('Recipients screen error', error: error, stackTrace: stack);
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ErrorDisplay(
+                    message: error.toString(),
+                    onRetry: () {
+                      Logger.info('Recipients screen: Retrying after error');
+                      ref.invalidate(recipientsProvider(user.id));
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  // Debug button to show more info
+                  ElevatedButton(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Debug Info'),
+                          content: SingleChildScrollView(
+                            child: Text(
+                              'Error: $error\n\n'
+                              'User ID: ${user.id}\n'
+                              'Stack: $stack',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Close'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    child: const Text('Show Debug Info'),
+                  ),
+                ],
+              );
+            },
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: () => context.push(Routes.addRecipient),

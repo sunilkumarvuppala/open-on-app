@@ -33,46 +33,78 @@ class UserProfileResponse(BaseModel):
     
     Contains user profile information returned to clients.
     Note: Authentication is handled by Supabase Auth (auth.users table).
-    This model only contains profile data from user_profiles table.
+    This model contains profile data from user_profiles table plus email from auth.users.
     
     Fields:
     - user_id: User UUID (from auth.users)
-    - full_name: User's display name
+    - email: User's email address (from auth.users, required)
+    - first_name: User's first name
+    - last_name: User's last name
+    - username: User's username for searching and display
     - avatar_url: URL to user's profile picture
     - premium_status: Whether user has active premium subscription
     - premium_until: When premium subscription expires
     - is_admin: Admin flag
     - country: User's country
     - device_token: Push notification device token
+    - last_login: Last login timestamp
     - created_at: Profile creation timestamp
     - updated_at: Last profile update timestamp
     """
     user_id: UUID
-    full_name: Optional[str] = None
+    email: str  # Email from Supabase Auth (required)
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    username: Optional[str] = None
     avatar_url: Optional[str] = None
     premium_status: bool = False
     premium_until: Optional[datetime] = None
     is_admin: bool = False
     country: Optional[str] = None
     device_token: Optional[str] = None
+    last_login: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
     
     @classmethod
-    def from_user_profile(cls, profile: "UserProfile") -> "UserProfileResponse":
-        """Create UserProfileResponse from UserProfile database model."""
+    def from_user_profile(cls, profile: "UserProfile", email: Optional[str] = None) -> "UserProfileResponse":
+        """
+        Create UserProfileResponse from UserProfile database model.
+        
+        Args:
+            profile: UserProfile database model
+            email: User's email from Supabase Auth (required, must be provided)
+        """
+        if email is None:
+            raise ValueError("Email is required for UserProfileResponse. Fetch from Supabase Auth.")
+        
         return cls(
             user_id=profile.user_id,
-            full_name=profile.full_name,
+            email=email,
+            first_name=profile.first_name,
+            last_name=profile.last_name,
+            username=profile.username,
             avatar_url=profile.avatar_url,
             premium_status=profile.premium_status,
             premium_until=profile.premium_until,
             is_admin=profile.is_admin,
             country=profile.country,
             device_token=profile.device_token,
+            last_login=profile.last_login,
             created_at=profile.created_at,
             updated_at=profile.updated_at,
         )
+    
+    @property
+    def full_name(self) -> Optional[str]:
+        """Computed property for backward compatibility."""
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        elif self.first_name:
+            return self.first_name
+        elif self.last_name:
+            return self.last_name
+        return None
     
     class Config:
         from_attributes = True

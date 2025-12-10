@@ -25,7 +25,7 @@ Security:
 from typing import Optional
 from datetime import datetime, timezone
 from uuid import UUID
-from fastapi import APIRouter, HTTPException, status, Query
+from fastapi import APIRouter, HTTPException, status, Query, Request
 from app.models.schemas import (
     CapsuleCreate,
     CapsuleUpdate,
@@ -37,6 +37,8 @@ from app.dependencies import DatabaseSession, CurrentUser
 from app.db.repositories import CapsuleRepository, RecipientRepository
 from app.db.models import CapsuleStatus
 from app.core.logging import get_logger
+from app.core.permissions import verify_recipient_ownership, verify_capsule_access, verify_capsule_sender, verify_capsule_recipient
+from app.core.pagination import calculate_pagination
 from app.utils.helpers import sanitize_text
 from app.core.config import settings
 
@@ -63,18 +65,11 @@ async def create_capsule(
     
     # ===== Recipient Validation =====
     # Verify recipient exists and belongs to current user
-    recipient = await recipient_repo.get_by_id(capsule_data.recipient_id)
-    if not recipient:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Recipient not found"
-        )
-    
-    if recipient.owner_id != current_user.user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only create capsules for your own recipients"
-        )
+    await verify_recipient_ownership(
+        session,
+        capsule_data.recipient_id,
+        current_user.user_id
+    )
     
     # ===== Content Validation =====
     # Must have either body_text OR body_rich_text
@@ -142,6 +137,7 @@ async def create_capsule(
 
 @router.get("", response_model=CapsuleListResponse)
 async def list_capsules(
+    request: Request,  # Added to access user_email from request state
     current_user: CurrentUser,
     session: DatabaseSession,
     box: str = Query("inbox", regex="^(inbox|outbox)$"),
@@ -165,7 +161,7 @@ async def list_capsules(
     recipient_repo = RecipientRepository(session)
     
     # ===== Pagination Calculation =====
-    skip = (page - 1) * page_size
+    skip, limit = calculate_pagination(page, page_size)
     
     logger.info(
         f"Listing capsules: user_id={current_user.user_id}, box={box}, status={status_filter}, "
@@ -173,19 +169,20 @@ async def list_capsules(
     )
     
     # ===== Query Based on Box Type =====
-    # "inbox" = capsules where current user owns the recipient
+    # "inbox" = capsules where recipient email matches current user's email
     # "outbox" = capsules sent by current user
     if box == "inbox":
-        # Get all recipients owned by current user
-        recipients = await recipient_repo.get_by_owner(
-            current_user.user_id,
-            skip=0,
-            limit=settings.max_page_size * 50  # Reasonable limit for inbox query
-        )
-        recipient_ids = [r.id for r in recipients]
+        # Get current user's email from request state (set by get_current_user)
+        # This is the correct way to find capsules sent TO the current user
+        # Recipients are owned by senders, but we match by email
+        # Get user email from request state (set by get_current_user dependency)
+        user_email = getattr(request.state, 'user_email', None)
         
-        if not recipient_ids:
-            # No recipients, so no inbox capsules
+        if not user_email:
+            logger.warning(
+                f"Inbox query: No email found in request state for user_id={current_user.user_id}, "
+                f"cannot query inbox capsules. User email must be set in get_current_user."
+            )
             return CapsuleListResponse(
                 capsules=[],
                 total=0,
@@ -193,30 +190,61 @@ async def list_capsules(
                 page_size=page_size
             )
         
-        # Get capsules for these recipients using a single query with IN clause
-        # This avoids N+1 query problem
-        capsules = await capsule_repo.get_by_recipient_ids(
-            recipient_ids=recipient_ids,
+        # Normalize email to lowercase for consistent matching
+        user_email_lower = user_email.lower().strip()
+        
+        logger.info(
+            f"Inbox query: user_id={current_user.user_id}, email={user_email_lower}, "
+            f"searching for capsules where recipient.email matches"
+        )
+        
+        # Use email-based query (correct approach)
+        # Find capsules where recipient email matches current user's email (case-insensitive)
+        capsules = await capsule_repo.get_by_recipient_email(
+            recipient_email=user_email_lower,
             status=status_filter,
             skip=skip,
-            limit=page_size
+            limit=limit
         )
-        total = await capsule_repo.count_by_recipient_ids(
-            recipient_ids=recipient_ids,
+        total = await capsule_repo.count_by_recipient_email(
+            recipient_email=user_email_lower,
             status=status_filter
         )
         
         logger.info(
             f"Inbox query result: found {len(capsules)} capsules for user_id={current_user.user_id}, "
-            f"total={total}"
+            f"email={user_email_lower}, total={total}"
         )
+        
+        # Debug: Log diagnostic info if no capsules found
+        if len(capsules) == 0:
+            logger.warning(
+                f"Inbox query: No capsules found for email={user_email_lower}, user_id={current_user.user_id}"
+            )
+            # Diagnostic: Check if any recipients have this email
+            from app.db.models import Recipient
+            from sqlalchemy import select, func
+            diagnostic_query = select(
+                func.count(Recipient.id).label('recipient_count'),
+                func.count(Recipient.id).filter(Recipient.email.isnot(None)).label('recipients_with_email'),
+                func.count(Recipient.id).filter(
+                    func.lower(Recipient.email) == user_email_lower
+                ).label('recipients_matching_email')
+            )
+            diagnostic_result = await session.execute(diagnostic_query)
+            diagnostic = diagnostic_result.first()
+            logger.warning(
+                f"Inbox diagnostic: total_recipients={diagnostic.recipient_count}, "
+                f"recipients_with_email={diagnostic.recipients_with_email}, "
+                f"recipients_matching_email={diagnostic.recipients_matching_email}"
+            )
     else:  # outbox
         # Get capsules where current user is the sender
         capsules = await capsule_repo.get_by_sender(
             current_user.user_id,
             status=status_filter,
             skip=skip,
-            limit=page_size
+            limit=limit
         )
         total = await capsule_repo.count_by_sender(current_user.user_id, status=status_filter)
         logger.info(
@@ -235,6 +263,7 @@ async def list_capsules(
 @router.get("/{capsule_id}", response_model=CapsuleResponse)
 async def get_capsule(
     capsule_id: UUID,
+    request: Request,  # Added to access user_email from request state
     current_user: CurrentUser,
     session: DatabaseSession
 ) -> CapsuleResponse:
@@ -245,34 +274,21 @@ async def get_capsule(
     For anonymous capsules, sender info is hidden from recipient.
     """
     capsule_repo = CapsuleRepository(session)
-    recipient_repo = RecipientRepository(session)
+    user_email = getattr(request.state, 'user_email', None)
     
+    # Verify access (raises 404 or 403 if not authorized)
+    is_sender, is_recipient = await verify_capsule_access(
+        session,
+        capsule_id,
+        current_user.user_id,
+        user_email
+    )
+    
+    # Get capsule (already verified to exist by verify_capsule_access)
     capsule = await capsule_repo.get_by_id(capsule_id)
     
-    # ===== Existence Check =====
-    if not capsule:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Capsule not found"
-        )
-    
-    # ===== Permission Check =====
-    # Check if user has permission to view this capsule
-    # Rules:
-    # - Sender can always view
-    # - Recipient owner can view if capsule is ready or opened
-    is_sender = capsule.sender_id == current_user.user_id
-    recipient = await recipient_repo.get_by_id(capsule.recipient_id)
-    is_recipient_owner = recipient and recipient.owner_id == current_user.user_id
-    
-    if not is_sender and not is_recipient_owner:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have permission to view this capsule"
-        )
-    
     # Recipients can only view if status is ready or opened
-    if is_recipient_owner and not is_sender:
+    if is_recipient and not is_sender:
         if capsule.status not in [CapsuleStatus.READY, CapsuleStatus.OPENED]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -360,35 +376,33 @@ async def update_capsule(
 @router.post("/{capsule_id}/open", response_model=CapsuleResponse)
 async def open_capsule(
     capsule_id: UUID,
+    request: Request,  # Added to access user_email from request state
     current_user: CurrentUser,
     session: DatabaseSession
 ) -> CapsuleResponse:
     """
     Open a capsule (transition from 'ready' to 'opened').
     
-    Only the recipient owner can open a capsule, and only when it's in 'ready' status.
+    Only the recipient can open a capsule, and only when it's in 'ready' status.
     This action is irreversible and triggers disappearing message deletion if applicable.
     """
+    user_email = getattr(request.state, 'user_email', None)
+    if not user_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User email not found. Cannot verify recipient permission."
+        )
+    
+    # Verify recipient access (raises 404 or 403 if not authorized)
+    await verify_capsule_recipient(
+        session,
+        capsule_id,
+        current_user.user_id,
+        user_email
+    )
+    
     capsule_repo = CapsuleRepository(session)
-    recipient_repo = RecipientRepository(session)
-    
     capsule = await capsule_repo.get_by_id(capsule_id)
-    
-    # ===== Existence Check =====
-    if not capsule:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Capsule not found"
-        )
-    
-    # ===== Permission Check =====
-    # Check if user can open this capsule
-    can_open, message = await capsule_repo.can_open(capsule_id, current_user.user_id)
-    if not can_open:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=message
-        )
     
     # ===== Status Check =====
     # Must be in READY status

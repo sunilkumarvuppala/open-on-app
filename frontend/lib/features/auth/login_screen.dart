@@ -147,7 +147,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   style: TextStyle(
-                    color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                    color: DynamicTheme.getInputTextColor(colorScheme),
                   ),
                   decoration: InputDecoration(
                     labelText: 'Email',
@@ -177,7 +177,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _handleLogin(),
                   style: TextStyle(
-                    color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                    color: DynamicTheme.getInputTextColor(colorScheme),
                   ),
                   decoration: InputDecoration(
                     labelText: 'Password',

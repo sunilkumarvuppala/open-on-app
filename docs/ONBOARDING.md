@@ -351,7 +351,7 @@ frontend/lib/
 
 ### Project-Specific
 
-- **[REFACTORING_2025.md](./REFACTORING_2025.md)** - Recent refactoring details (read when needed)
+- **[REFACTORING.md](./REFACTORING.md)** - Consolidated refactoring documentation (read when needed)
 - **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Common patterns and tasks
 
 ## ❓ Getting Help

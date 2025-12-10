@@ -29,6 +29,8 @@ from app.db.repositories import RecipientRepository
 from app.db.models import RecipientRelationship
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.permissions import verify_recipient_ownership
+from app.core.pagination import calculate_pagination
 from app.utils.helpers import sanitize_text, validate_email
 from app.core.constants import MAX_URL_LENGTH
 
@@ -82,15 +84,28 @@ async def create_recipient(
     
     # ===== Relationship =====
     # Use provided relationship or default to 'friend'
+    # Ensure we have a valid RecipientRelationship enum object
+    # The TypeDecorator with values_callable will convert it to the enum value ('friend')
     relationship = recipient_data.relationship if recipient_data.relationship else RecipientRelationship.FRIEND
     
+    # Ensure we have a valid enum (convert string to enum if needed)
+    if isinstance(relationship, str):
+        try:
+            relationship = RecipientRelationship(relationship.lower())
+        except ValueError:
+            relationship = RecipientRelationship.FRIEND
+    elif not isinstance(relationship, RecipientRelationship):
+        relationship = RecipientRelationship.FRIEND
+    
     # Create recipient
+    # The TypeDecorator's values_callable and bind_processor will ensure
+    # enum.value ('friend') is used, not enum.name ('FRIEND')
     recipient = await recipient_repo.create(
         owner_id=current_user.user_id,
         name=name,
         email=email,
         avatar_url=avatar_url,
-        relationship=relationship
+        relationship=relationship  # Pass enum object, TypeDecorator handles conversion
     )
     
     logger.info(f"Recipient {recipient.id} created by user {current_user.user_id}")
@@ -111,14 +126,12 @@ async def list_recipients(
     Returns recipients ordered by most recently created first.
     """
     recipient_repo = RecipientRepository(session)
-    
-    # ===== Pagination Calculation =====
-    skip = (page - 1) * page_size
+    skip, limit = calculate_pagination(page, page_size)
     
     recipients = await recipient_repo.get_by_owner(
         current_user.user_id,
         skip=skip,
-        limit=page_size
+        limit=limit
     )
     
     logger.info(
@@ -140,23 +153,10 @@ async def get_recipient(
     
     Only the owner can view their recipients.
     """
+    await verify_recipient_ownership(session, recipient_id, current_user.user_id)
+    
     recipient_repo = RecipientRepository(session)
     recipient = await recipient_repo.get_by_id(recipient_id)
-    
-    # ===== Existence Check =====
-    if not recipient:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Recipient not found"
-        )
-    
-    # ===== Ownership Check =====
-    # Only the owner can view their recipients
-    if recipient.owner_id != current_user.user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have permission to view this recipient"
-        )
     
     return RecipientResponse.model_validate(recipient)
 
@@ -174,23 +174,9 @@ async def update_recipient(
     Only the owner can update their recipients.
     All fields are optional for partial updates.
     """
+    await verify_recipient_ownership(session, recipient_id, current_user.user_id)
+    
     recipient_repo = RecipientRepository(session)
-    recipient = await recipient_repo.get_by_id(recipient_id)
-    
-    # ===== Existence Check =====
-    if not recipient:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Recipient not found"
-        )
-    
-    # ===== Ownership Check =====
-    # Only the owner can update their recipients
-    if recipient.owner_id != current_user.user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have permission to update this recipient"
-        )
     
     # ===== Prepare Update Data =====
     # Only include fields that were provided
@@ -247,23 +233,9 @@ async def delete_recipient(
     
     Only the owner can delete their recipients.
     """
+    await verify_recipient_ownership(session, recipient_id, current_user.user_id)
+    
     recipient_repo = RecipientRepository(session)
-    recipient = await recipient_repo.get_by_id(recipient_id)
-    
-    # ===== Existence Check =====
-    if not recipient:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Recipient not found"
-        )
-    
-    # ===== Ownership Check =====
-    # Only the owner can delete their recipients
-    if recipient.owner_id != current_user.user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have permission to delete this recipient"
-        )
     
     # ===== Check for Associated Capsules =====
     # Note: In Supabase, we might want to check if there are capsules

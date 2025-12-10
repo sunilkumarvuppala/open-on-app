@@ -1,6 +1,9 @@
-# Code Structure Guide
+# Frontend Code Structure
 
-This document provides a visual guide to the codebase structure and file organization.
+> **Note**: This document covers the **Flutter frontend** code structure.  
+> For **backend code structure**, see [backend/CODE_STRUCTURE.md](./backend/CODE_STRUCTURE.md).
+
+This document provides a visual guide to the frontend codebase structure and file organization.
 
 ## Directory Tree
 
