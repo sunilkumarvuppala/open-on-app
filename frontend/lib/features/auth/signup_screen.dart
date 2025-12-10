@@ -196,11 +196,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = ref.watch(selectedColorSchemeProvider);
-    final isDeepBlue = colorScheme.id == 'deep_blue';
     
     // Theme-aware text colors
-    final titleColor = isDeepBlue ? Colors.white : AppColors.textDark;
-    final bodyColor = isDeepBlue ? Colors.white.withOpacity(0.9) : AppColors.textGrey;
+    final titleColor = DynamicTheme.getPrimaryTextColor(colorScheme);
+    final bodyColor = DynamicTheme.getSecondaryTextColor(colorScheme);
     
     return Scaffold(
       appBar: AppBar(
@@ -277,14 +276,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   textCapitalization: TextCapitalization.words,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   style: TextStyle(
-                    color: isDeepBlue ? Colors.white : AppColors.textDark,
+                    color: DynamicTheme.getInputTextColor(colorScheme),
                   ),
                   decoration: InputDecoration(
                     labelText: 'First Name *',
                     hintText: 'John',
                     prefixIcon: Icon(
                       Icons.person_outline,
-                      color: isDeepBlue ? Colors.white.withOpacity(0.7) : null,
+                      color: DynamicTheme.getInputHintColor(colorScheme),
                     ),
                   ),
                   validator: (value) {
@@ -307,14 +306,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   textCapitalization: TextCapitalization.words,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   style: TextStyle(
-                    color: isDeepBlue ? Colors.white : AppColors.textDark,
+                    color: DynamicTheme.getInputTextColor(colorScheme),
                   ),
                   decoration: InputDecoration(
                     labelText: 'Last Name *',
                     hintText: 'Doe',
                     prefixIcon: Icon(
                       Icons.person_outline,
-                      color: isDeepBlue ? Colors.white.withOpacity(0.7) : null,
+                      color: DynamicTheme.getInputHintColor(colorScheme),
                     ),
                   ),
                   validator: (value) {
@@ -338,14 +337,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   autocorrect: false,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   style: TextStyle(
-                    color: isDeepBlue ? Colors.white : AppColors.textDark,
+                    color: DynamicTheme.getInputTextColor(colorScheme),
                   ),
                   decoration: InputDecoration(
                     labelText: 'Username *',
                     hintText: 'johndoe',
                     prefixIcon: Icon(
                       Icons.alternate_email,
-                      color: isDeepBlue ? Colors.white.withOpacity(0.7) : null,
+                      color: DynamicTheme.getInputHintColor(colorScheme),
                     ),
                     suffixIcon: _isCheckingUsername
                         ? Padding(
@@ -356,7 +355,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 valueColor: AlwaysStoppedAnimation<Color>(
-                                  isDeepBlue ? Colors.white : colorScheme.primary1,
+                                  DynamicTheme.getInputTextColor(colorScheme),
                                 ),
                               ),
                             ),
@@ -368,6 +367,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                 : null,
                     helperText: _usernameMessage,
                     helperMaxLines: 2,
+                    helperStyle: TextStyle(
+                      color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                    ),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -398,14 +400,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   textInputAction: TextInputAction.next,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   style: TextStyle(
-                    color: isDeepBlue ? Colors.white : AppColors.textDark,
+                    color: DynamicTheme.getInputTextColor(colorScheme),
                   ),
                   decoration: InputDecoration(
                     labelText: 'Email *',
                     hintText: 'your@email.com',
                     prefixIcon: Icon(
                       Icons.email_outlined,
-                      color: isDeepBlue ? Colors.white.withOpacity(0.7) : null,
+                      color: DynamicTheme.getInputHintColor(colorScheme),
                     ),
                   ),
                   validator: (value) {
@@ -429,19 +431,19 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   onChanged: (_) => _checkPasswordMatch(),
                   style: TextStyle(
-                    color: isDeepBlue ? Colors.white : AppColors.textDark,
+                    color: DynamicTheme.getInputTextColor(colorScheme),
                   ),
                   decoration: InputDecoration(
                     labelText: 'Password *',
                     hintText: 'At least 8 characters',
                     prefixIcon: Icon(
                       Icons.lock_outline,
-                      color: isDeepBlue ? Colors.white.withOpacity(0.7) : null,
+                      color: DynamicTheme.getInputHintColor(colorScheme),
                     ),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                        color: isDeepBlue ? Colors.white.withOpacity(0.7) : null,
+                        color: DynamicTheme.getInputHintColor(colorScheme),
                       ),
                       onPressed: () {
                         setState(() => _obscurePassword = !_obscurePassword);
@@ -470,14 +472,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   onFieldSubmitted: (_) => _handleSignup(),
                   onChanged: (_) => _checkPasswordMatch(),
                   style: TextStyle(
-                    color: isDeepBlue ? Colors.white : AppColors.textDark,
+                    color: DynamicTheme.getInputTextColor(colorScheme),
                   ),
                   decoration: InputDecoration(
                     labelText: 'Confirm Password *',
                     hintText: 'Re-enter your password',
                     prefixIcon: Icon(
                       Icons.lock_outline,
-                      color: isDeepBlue ? Colors.white.withOpacity(0.7) : null,
+                      color: DynamicTheme.getInputHintColor(colorScheme),
                     ),
                     suffixIcon: _showPasswordMatchFeedback
                         ? Icon(
@@ -487,7 +489,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         : IconButton(
                             icon: Icon(
                               _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
-                              color: isDeepBlue ? Colors.white.withOpacity(0.7) : null,
+                              color: DynamicTheme.getInputHintColor(colorScheme),
                             ),
                             onPressed: () {
                               setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
@@ -574,7 +576,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     Text(
                       'Already have an account? ',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: isDeepBlue ? Colors.white.withOpacity(0.9) : null,
+                            color: DynamicTheme.getSecondaryTextColor(colorScheme),
                           ),
                     ),
                     TextButton(
@@ -582,9 +584,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       child: Text(
                         'Log In',
                         style: TextStyle(
-                          color: isDeepBlue 
-                              ? Colors.white 
-                              : colorScheme.primary1,
+                          color: DynamicTheme.getPrimaryTextColor(colorScheme),
                           fontWeight: FontWeight.w600,
                         ),
                       ),

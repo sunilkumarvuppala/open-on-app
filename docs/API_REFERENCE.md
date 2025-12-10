@@ -1,6 +1,9 @@
-# API Reference
+# Frontend API Reference
 
-This document provides detailed API reference for key classes, functions, and patterns used in the OpenOn app.
+> **Note**: This document covers **Flutter/Dart** API reference (classes, providers, models).  
+> For **Backend REST API** endpoints, see [backend/API_REFERENCE.md](./backend/API_REFERENCE.md).
+
+This document provides detailed API reference for key classes, functions, and patterns used in the OpenOn Flutter app.
 
 ## Table of Contents
 

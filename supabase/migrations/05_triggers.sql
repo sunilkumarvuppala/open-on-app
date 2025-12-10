@@ -74,7 +74,7 @@ CREATE TRIGGER trigger_notify_capsule_unlocked
 -- FUNCTION: update_updated_at()
 -- TABLES: user_profiles, recipients, capsules, user_subscriptions
 -- EXAMPLES:
---   - Update profile: UPDATE user_profiles SET full_name = '...' WHERE user_id = '...'
+--   - Update profile: UPDATE user_profiles SET first_name = '...', last_name = '...' WHERE user_id = '...'
 --     → updated_at automatically set to current timestamp
 --   - Update recipient: UPDATE recipients SET name = '...' WHERE id = '...'
 --     → updated_at automatically set to current timestamp

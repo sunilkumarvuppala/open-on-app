@@ -24,9 +24,9 @@
 ### Backend (Python/FastAPI)
 - **[backend/INDEX.md](./backend/INDEX.md)** - Backend documentation index
 - **[backend/GETTING_STARTED.md](./backend/GETTING_STARTED.md)** - Setup and quick start
-- **[backend/ARCHITECTURE.md](./backend/ARCHITECTURE.md)** - Backend architecture
-- **[backend/API_REFERENCE.md](./backend/API_REFERENCE.md)** - Complete API documentation
-- **[backend/CODE_STRUCTURE.md](./backend/CODE_STRUCTURE.md)** - Code organization
+- **[backend/ARCHITECTURE.md](./backend/ARCHITECTURE.md)** - Backend architecture (Python/FastAPI)
+- **[backend/API_REFERENCE.md](./backend/API_REFERENCE.md)** - Backend REST API endpoints
+- **[backend/CODE_STRUCTURE.md](./backend/CODE_STRUCTURE.md)** - Backend code organization
 - **[backend/CONFIGURATION.md](./backend/CONFIGURATION.md)** - Configuration guide
 - **[backend/SECURITY.md](./backend/SECURITY.md)** - Security practices
 - **[backend/DEVELOPMENT.md](./backend/DEVELOPMENT.md)** - Development guide
@@ -72,7 +72,7 @@
 - **[SEQUENCE_DIAGRAMS.md](./SEQUENCE_DIAGRAMS.md)** - User flow diagrams with method-level detail
 
 ### Development
-- **[REFACTORING_2025.md](./REFACTORING_2025.md)** - Recent refactoring
+- **[REFACTORING.md](./REFACTORING.md)** - Consolidated refactoring documentation
 - **[PERFORMANCE_OPTIMIZATIONS.md](./PERFORMANCE_OPTIMIZATIONS.md)** - Performance best practices
 - **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Contribution guidelines
 
@@ -102,7 +102,7 @@
 1. **[ONBOARDING.md](./ONBOARDING.md)** - Start here
 2. **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System architecture
 3. **[SEQUENCE_DIAGRAMS.md](./SEQUENCE_DIAGRAMS.md)** - Complete user flows
-4. **[REFACTORING_2025.md](./REFACTORING_2025.md)** - Recent changes
+4. **[REFACTORING.md](./REFACTORING.md)** - Consolidated refactoring documentation
 
 ### Database Developer
 1. **[supabase/GETTING_STARTED.md](./supabase/GETTING_STARTED.md)** - Supabase setup
@@ -160,7 +160,8 @@ docs/
 ├── ARCHITECTURE.md              # System architecture
 ├── CODE_STRUCTURE.md            # Code organization
 ├── SEQUENCE_DIAGRAMS.md         # User flow diagrams
-├── REFACTORING_2025.md          # Recent refactoring
+├── REFACTORING.md                # Consolidated refactoring documentation
+├── REFACTORING_2025.md          # ⚠️ DEPRECATED - See REFACTORING.md
 ├── PERFORMANCE_OPTIMIZATIONS.md # Performance guide
 ├── CONTRIBUTING.md              # Contribution guidelines
 ├── CHANGELOG.md                 # Documentation changelog
@@ -214,7 +215,7 @@ docs/
 - [ ] Study [SEQUENCE_DIAGRAMS.md](./SEQUENCE_DIAGRAMS.md) for user flows
 
 ### For Code Reviewers
-- [ ] Review [REFACTORING_2025.md](./REFACTORING_2025.md) for patterns
+- [ ] Review [REFACTORING.md](./REFACTORING.md) for patterns
 - [ ] Check [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) for common patterns
 - [ ] Review [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines
 

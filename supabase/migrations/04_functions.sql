@@ -106,7 +106,7 @@ $$ LANGUAGE plpgsql;
 -- BEHAVIOR:
 --   - Gets recipient owner_id from recipients table
 --   - Creates notification with type 'unlocked'
---   - Shows 'Anonymous' if is_anonymous = TRUE, else shows sender's full_name
+--   - Shows 'Anonymous' if is_anonymous = TRUE, else shows sender's name (first_name + last_name)
 -- EXAMPLES:
 --   - Capsule unlocks: Status changes from 'sealed' to 'ready'
 --     → Recipient gets notification: "You have a letter from John that is now ready to open"
@@ -138,7 +138,12 @@ BEGIN
     'You have a letter from ' || 
     CASE 
       WHEN NEW.is_anonymous = TRUE THEN 'Anonymous'
-      ELSE (SELECT full_name FROM public.user_profiles WHERE user_id = NEW.sender_id)
+      ELSE COALESCE(
+        NULLIF(TRIM((SELECT first_name || ' ' || last_name FROM public.user_profiles WHERE user_id = NEW.sender_id)), ''),
+        (SELECT first_name FROM public.user_profiles WHERE user_id = NEW.sender_id),
+        (SELECT last_name FROM public.user_profiles WHERE user_id = NEW.sender_id),
+        'Someone'
+      )
     END || ' that is now ready to open.'
   );
   
@@ -177,6 +182,7 @@ SET search_path = public
 AS $$
 DECLARE
   v_user_id UUID;
+  v_capsule_id UUID;
 BEGIN
   -- Try to get user ID from JWT claims (for trigger context)
   BEGIN
@@ -190,12 +196,23 @@ BEGIN
     END;
   END;
   
+  -- CRITICAL: Only set capsule_id if the table is 'capsules', otherwise NULL
+  -- This prevents foreign key violations when creating recipients or other non-capsule records
+  -- TG_TABLE_NAME is just the table name (e.g., 'capsules', 'recipients'), not schema-qualified
+  -- Use explicit NULL assignment to ensure no accidental values
+  v_capsule_id := NULL; -- Default to NULL for all tables
+  
+  IF TG_TABLE_NAME = 'capsules' THEN
+    -- For capsules table only, use the capsule's ID
+    v_capsule_id := COALESCE(NEW.id, OLD.id);
+  END IF;
+  
   -- Insert audit log (bypasses RLS via SECURITY DEFINER)
   INSERT INTO public.audit_logs (user_id, action, capsule_id, metadata)
   VALUES (
     v_user_id,
     TG_OP, -- INSERT, UPDATE, DELETE
-    COALESCE(NEW.id, OLD.id),
+    v_capsule_id, -- NULL for non-capsule tables, capsule ID for capsules table
     jsonb_build_object(
       'table', TG_TABLE_NAME,
       'old', to_jsonb(OLD),
@@ -222,7 +239,7 @@ $$ LANGUAGE plpgsql;
 --   - Sets NEW.updated_at = NOW() before row is updated
 --   - Works on any table with updated_at column
 -- EXAMPLES:
---   - User updates profile: UPDATE user_profiles SET full_name = 'John' WHERE user_id = '...'
+--   - User updates profile: UPDATE user_profiles SET first_name = 'John', last_name = 'Doe' WHERE user_id = '...'
 --     → updated_at automatically set to current timestamp
 --   - User updates recipient: UPDATE recipients SET name = 'Sarah' WHERE id = '...'
 --     → updated_at automatically set to current timestamp
@@ -303,7 +320,12 @@ BEGIN
   FOR recipient_owner_id, sender_name, recipient_name IN
     SELECT DISTINCT
       r.owner_id,
-      COALESCE(up.full_name, 'Someone'),
+      COALESCE(
+        NULLIF(TRIM(up.first_name || ' ' || up.last_name), ''),
+        up.first_name,
+        up.last_name,
+        'Someone'
+      ),
       r.name
     FROM public.capsules c
     JOIN public.recipients r ON c.recipient_id = r.id

@@ -22,10 +22,18 @@
 -- idx_user_profiles_is_admin: Partial index for admin operations (only indexes admins)
 --   - Used for: Finding admin users quickly (smaller index, faster queries)
 --   - Example: SELECT * FROM user_profiles WHERE is_admin = TRUE
+-- idx_user_profiles_username: Index for username searches
+--   - Used for: Fast username lookups and searches
+--   - Example: SELECT * FROM user_profiles WHERE username = 'johndoe'
+-- idx_user_profiles_last_login: Index for last login queries
+--   - Used for: Finding inactive users, analytics
+--   - Example: SELECT * FROM user_profiles WHERE last_login < NOW() - INTERVAL '30 days'
 -- ============================================================================
 CREATE INDEX IF NOT EXISTS idx_user_profiles_premium ON public.user_profiles(premium_status, premium_until);
 CREATE INDEX IF NOT EXISTS idx_user_profiles_country ON public.user_profiles(country);
 CREATE INDEX IF NOT EXISTS idx_user_profiles_is_admin ON public.user_profiles(is_admin) WHERE is_admin = TRUE;
+CREATE INDEX IF NOT EXISTS idx_user_profiles_username ON public.user_profiles(username) WHERE username IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_user_profiles_last_login ON public.user_profiles(last_login) WHERE last_login IS NOT NULL;
 
 -- ============================================================================
 -- Recipients Indexes
@@ -43,6 +51,7 @@ CREATE INDEX IF NOT EXISTS idx_user_profiles_is_admin ON public.user_profiles(is
 CREATE INDEX IF NOT EXISTS idx_recipients_owner ON public.recipients(owner_id);
 CREATE INDEX IF NOT EXISTS idx_recipients_owner_created ON public.recipients(owner_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_recipients_relationship ON public.recipients(owner_id, relationship);
+CREATE INDEX IF NOT EXISTS idx_recipients_email ON public.recipients(email) WHERE email IS NOT NULL;
 
 -- ============================================================================
 -- Themes Indexes

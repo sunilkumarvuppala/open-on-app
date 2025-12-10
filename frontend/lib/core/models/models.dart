@@ -144,6 +144,7 @@ class Recipient {
   final String relationship;
   final String avatar; // URL or asset path
   final String? linkedUserId; // ID of the linked user (if recipient is a registered user)
+  final String? email; // Email address (used for inbox matching)
   
   Recipient({
     String? id,
@@ -152,6 +153,7 @@ class Recipient {
     required this.relationship,
     String? avatar,
     this.linkedUserId,
+    this.email,
   })  : id = id ?? _uuid.v4(),
         avatar = avatar ?? '';
   
@@ -162,6 +164,7 @@ class Recipient {
     String? relationship,
     String? avatar,
     String? linkedUserId,
+    String? email,
   }) {
     return Recipient(
       id: id ?? this.id,
@@ -170,6 +173,7 @@ class Recipient {
       relationship: relationship ?? this.relationship,
       avatar: avatar ?? this.avatar,
       linkedUserId: linkedUserId ?? this.linkedUserId,
+      email: email ?? this.email,
     );
   }
 }

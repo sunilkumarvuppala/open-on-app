@@ -13,7 +13,7 @@ docs/backend/
 ├── API_REFERENCE.md                  # Complete API documentation
 ├── SECURITY.md                       # Security practices
 ├── CONFIGURATION.md                  # Configuration guide
-├── REFACTORING_CHANGES.md            # Backend-specific refactoring details
+├── REFACTORING_CHANGES.md            # Backend-specific refactoring details (see ../REFACTORING.md for consolidated docs)
 ├── CLEARING_DATABASE.md              # Guide for clearing database data
 └── DEVELOPMENT.md                    # Development guide
 ```
@@ -86,7 +86,7 @@ docs/backend/
 - Code quality enhancements
 - Performance optimizations
 - Security improvements
-- **Note**: For comprehensive refactoring (backend + frontend), see [../REFACTORING_2025.md](../REFACTORING_2025.md)
+- **Note**: For comprehensive refactoring (backend + frontend), see [../REFACTORING.md](../REFACTORING.md)
 
 ### [CLEARING_DATABASE.md](./CLEARING_DATABASE.md)
 - Guide for clearing database data

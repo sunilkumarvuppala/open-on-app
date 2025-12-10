@@ -1,6 +1,9 @@
-# Architecture Documentation
+# System Architecture
 
-This document describes the architecture, design patterns, and code organization of the OpenOn app.
+> **Note**: This document covers the **overall system architecture** (frontend + backend).  
+> For **backend-specific architecture**, see [backend/ARCHITECTURE.md](./backend/ARCHITECTURE.md).
+
+This document describes the architecture, design patterns, and code organization of the OpenOn application.
 
 ## Table of Contents
 

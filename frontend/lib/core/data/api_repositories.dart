@@ -482,6 +482,8 @@ class ApiRecipientRepository implements RecipientRepository {
         throw const ValidationException('User ID cannot be empty');
       }
 
+      Logger.info('Fetching recipients for user: $userId');
+      
       final response = await _apiClient.getList(
         ApiConfig.recipients,
         queryParams: {
@@ -490,9 +492,34 @@ class ApiRecipientRepository implements RecipientRepository {
         },
       );
 
-      return response
-          .map((json) => RecipientMapper.fromJson(json as Map<String, dynamic>))
+      Logger.info('Received ${response.length} recipients from API');
+      
+      // Log raw response for debugging
+      if (response.isNotEmpty) {
+        Logger.debug('First recipient raw JSON: ${response[0]}');
+      } else {
+        Logger.info('API returned empty recipients list');
+      }
+
+      final recipients = response
+          .map((json) {
+            try {
+              Logger.debug('Mapping recipient JSON: $json');
+              final recipient = RecipientMapper.fromJson(json as Map<String, dynamic>);
+              Logger.debug('Mapped recipient: id=${recipient.id}, name=${recipient.name}');
+              return recipient;
+            } catch (e, stackTrace) {
+              Logger.error('Failed to map recipient JSON: $json', error: e, stackTrace: stackTrace);
+              rethrow;
+            }
+          })
           .toList();
+
+      Logger.info('Successfully mapped ${recipients.length} recipients');
+      if (recipients.isNotEmpty) {
+        Logger.info('First recipient: ${recipients[0].name} (${recipients[0].id})');
+      }
+      return recipients;
     } catch (e, stackTrace) {
       Logger.error('Failed to get recipients', error: e, stackTrace: stackTrace);
       if (e is AppException) {
@@ -518,7 +545,14 @@ class ApiRecipientRepository implements RecipientRepository {
         'relationship': recipient.relationship,
       };
       
+      // CRITICAL: Include email if available (needed for inbox matching)
+      // The email is used to match recipient.email to current_user.email in inbox queries
+      if (recipient.email != null && recipient.email!.isNotEmpty) {
+        requestBody['email'] = recipient.email;
+      }
+      
       // If a linked user ID is provided (from user search), include it
+      // Note: Backend doesn't use this, but we include it for potential future use
       if (linkedUserId != null && linkedUserId.isNotEmpty) {
         requestBody['user_id'] = linkedUserId;
       }

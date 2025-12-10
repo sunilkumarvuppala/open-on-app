@@ -1,5 +1,8 @@
 # Refactoring Documentation - 2025
 
+> **⚠️ DEPRECATED**: This file has been consolidated into [REFACTORING.md](./REFACTORING.md).  
+> **Please use [REFACTORING.md](./REFACTORING.md) for the latest refactoring documentation.**
+
 ## Overview
 
 This document summarizes the comprehensive refactoring performed in 2025 to make the OpenOn codebase production-ready and company acquisition ready.
@@ -9,7 +12,8 @@ This document summarizes the comprehensive refactoring performed in 2025 to make
 > **Refactoring Patterns**: See [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md) for refactoring best practices and patterns
 
 **Status**: ✅ Complete - Production Ready  
-**Last Updated**: January 2025
+**Last Updated**: January 2025  
+**Note**: See [REFACTORING.md](./REFACTORING.md) for consolidated documentation
 
 ---
 

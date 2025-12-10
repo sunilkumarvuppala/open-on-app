@@ -4,19 +4,23 @@ Welcome to the OpenOn App documentation! This comprehensive guide will help you 
 
 ## 📚 Documentation Structure
 
-> **Quick Navigation**: See [INDEX.md](./INDEX.md) for complete documentation index organized by category and role.
+> **Quick Navigation**: See [INDEX.md](./INDEX.md) for complete documentation index organized by category and role.  
+> **Structure Guide**: See [STRUCTURE.md](./STRUCTURE.md) for documentation organization and naming conventions.
 
 ```
 docs/
 ├── README.md (this file)              # Overview and navigation
 ├── INDEX.md                           # Master documentation index
+├── STRUCTURE.md                       # Documentation structure guide
 ├── ONBOARDING.md                      # Complete onboarding guide for new developers
 ├── QUICK_REFERENCE.md                 # Quick reference for common tasks
 ├── QUICK_START.md                     # Quick setup guide
-├── ARCHITECTURE.md                    # System architecture overview
-├── CODE_STRUCTURE.md                  # Code organization
+├── ARCHITECTURE.md                    # System architecture overview (frontend + backend)
+├── CODE_STRUCTURE.md                  # Frontend code organization
+├── API_REFERENCE.md                   # Frontend API reference (Flutter classes, providers)
 ├── SEQUENCE_DIAGRAMS.md               # Detailed sequence diagrams for all user flows
-├── REFACTORING_2025.md                # Comprehensive refactoring documentation
+├── REFACTORING.md                     # Consolidated refactoring documentation
+├── REFACTORING_GUIDE.md               # Refactoring patterns and best practices
 ├── PERFORMANCE_OPTIMIZATIONS.md       # Performance best practices
 ├── CONTRIBUTING.md                    # Contribution guidelines
 ├── CHANGELOG.md                       # Documentation changelog
@@ -24,13 +28,14 @@ docs/
 ├── backend/                           # Backend documentation
 │   ├── INDEX.md                       # Navigation index
 │   ├── GETTING_STARTED.md             # Quick start guide
-│   ├── ARCHITECTURE.md                # Architecture overview
-│   ├── CODE_STRUCTURE.md             # Code organization
-│   ├── API_REFERENCE.md              # Complete API documentation
+│   ├── ARCHITECTURE.md                # Backend architecture (Python/FastAPI)
+│   ├── CODE_STRUCTURE.md             # Backend code organization
+│   ├── API_REFERENCE.md              # Backend REST API endpoints
 │   ├── SECURITY.md                    # Security practices
 │   ├── CONFIGURATION.md              # Configuration guide
 │   ├── REFACTORING_CHANGES.md        # Backend-specific refactoring
-│   └── DEVELOPMENT.md                # Development guide
+│   ├── DEVELOPMENT.md                # Development guide
+│   └── CLEARING_DATABASE.md          # Database clearing guide
 │
 ├── frontend/                          # Frontend documentation
 │   ├── INDEX.md                       # Navigation index
@@ -65,7 +70,7 @@ docs/
 ### Backend
 - **New to backend?** Start with [backend/GETTING_STARTED.md](./backend/GETTING_STARTED.md)
 - **Backend architecture?** See [backend/ARCHITECTURE.md](./backend/ARCHITECTURE.md)
-- **API reference?** See [backend/API_REFERENCE.md](./backend/API_REFERENCE.md)
+- **API reference?** See [backend/API_REFERENCE.md](./backend/API_REFERENCE.md) (REST endpoints)
 - **Backend navigation?** See [backend/INDEX.md](./backend/INDEX.md)
 
 ### Frontend
@@ -86,12 +91,16 @@ docs/
 
 ### Technical
 - **Performance concerns?** Check [PERFORMANCE_OPTIMIZATIONS.md](./PERFORMANCE_OPTIMIZATIONS.md)
-- **Recent refactoring?** See [REFACTORING_2025.md](./REFACTORING_2025.md)
-- **Frontend API details?** See [API_REFERENCE.md](./API_REFERENCE.md) (Frontend classes/patterns)
+- **Recent refactoring?** See [REFACTORING.md](./REFACTORING.md) (Consolidated refactoring docs)
+- **Refactoring patterns?** See [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md) (Best practices)
+- **Frontend API details?** See [API_REFERENCE.md](./API_REFERENCE.md) (Flutter classes/patterns)
 - **Backend API details?** See [backend/API_REFERENCE.md](./backend/API_REFERENCE.md) (REST API endpoints)
 - **Complete user flows?** See [SEQUENCE_DIAGRAMS.md](./SEQUENCE_DIAGRAMS.md) (Detailed sequence diagrams for all user actions with method-level detail)
-- **System architecture?** See [ARCHITECTURE.md](./ARCHITECTURE.md)
-- **Code structure?** See [CODE_STRUCTURE.md](./CODE_STRUCTURE.md)
+- **System architecture?** See [ARCHITECTURE.md](./ARCHITECTURE.md) (Overview)
+- **Backend architecture?** See [backend/ARCHITECTURE.md](./backend/ARCHITECTURE.md) (Backend-specific)
+- **Frontend code structure?** See [CODE_STRUCTURE.md](./CODE_STRUCTURE.md) (Flutter)
+- **Backend code structure?** See [backend/CODE_STRUCTURE.md](./backend/CODE_STRUCTURE.md) (Python)
+- **Documentation structure?** See [STRUCTURE.md](./STRUCTURE.md) (Organization guide)
 - **Contributing?** Follow [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ### New Developers
@@ -150,7 +159,7 @@ This codebase has been extensively refactored and optimized for:
 - ✅ Code maintainability
 - ✅ Best practices compliance
 
-**For detailed information**, see [REFACTORING_2025.md](./REFACTORING_2025.md)
+**For detailed information**, see [REFACTORING.md](./REFACTORING.md) (Consolidated refactoring documentation)
 
 ## 🔗 Next Steps
 
@@ -161,20 +170,21 @@ This codebase has been extensively refactored and optimized for:
 4. **Development Guide**: Read [frontend/DEVELOPMENT_GUIDE.md](./frontend/DEVELOPMENT_GUIDE.md) for complete workflow
 5. **Core Components**: Understand [frontend/CORE_COMPONENTS.md](./frontend/CORE_COMPONENTS.md)
 6. **Architecture**: Explore [ARCHITECTURE.md](./ARCHITECTURE.md)
-7. **Refactoring**: Review [REFACTORING_2025.md](./REFACTORING_2025.md) to understand recent changes
+7. **Refactoring**: Review [REFACTORING.md](./REFACTORING.md) to understand recent changes
 
 ### For Understanding the Codebase
-1. **Navigation**: Start with [frontend/INDEX.md](./frontend/INDEX.md)
-2. **Visual Guide**: Review [CODE_STRUCTURE.md](./CODE_STRUCTURE.md)
+1. **Navigation**: Start with [frontend/INDEX.md](./frontend/INDEX.md) or [backend/INDEX.md](./backend/INDEX.md)
+2. **Visual Guide**: Review [CODE_STRUCTURE.md](./CODE_STRUCTURE.md) (Frontend) or [backend/CODE_STRUCTURE.md](./backend/CODE_STRUCTURE.md) (Backend)
 3. **Features**: Check [frontend/FEATURES.md](./frontend/FEATURES.md) and feature docs
 4. **Theme System**: Learn [frontend/THEME_SYSTEM.md](./frontend/THEME_SYSTEM.md)
 5. **User Flows**: Study [SEQUENCE_DIAGRAMS.md](./SEQUENCE_DIAGRAMS.md) for complete flow understanding
 
 ### For Advanced Topics
 1. **Performance**: See [PERFORMANCE_OPTIMIZATIONS.md](./PERFORMANCE_OPTIMIZATIONS.md)
-2. **Refactoring Patterns**: Review [REFACTORING_2025.md](./REFACTORING_2025.md)
-3. **APIs**: Check [API_REFERENCE.md](./API_REFERENCE.md) and [backend/API_REFERENCE.md](./backend/API_REFERENCE.md)
+2. **Refactoring**: Review [REFACTORING.md](./REFACTORING.md) (Consolidated) and [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md) (Patterns)
+3. **APIs**: Check [API_REFERENCE.md](./API_REFERENCE.md) (Frontend) and [backend/API_REFERENCE.md](./backend/API_REFERENCE.md) (Backend)
 4. **Contributing**: Read [CONTRIBUTING.md](./CONTRIBUTING.md)
+5. **Documentation Structure**: See [STRUCTURE.md](./STRUCTURE.md) for organization guide
 
 ---
 

@@ -79,9 +79,10 @@ flutter run
 
 - [Onboarding Guide](./docs/ONBOARDING.md) - For new developers
 - [Architecture](./docs/ARCHITECTURE.md) - System architecture
-- [Refactoring 2025](./docs/REFACTORING_2025.md) - Recent refactoring
+- [Refactoring](./docs/REFACTORING.md) - Consolidated refactoring documentation
 - [Quick Reference](./docs/QUICK_REFERENCE.md) - Common tasks
-- [Backend API](./docs/backend/API_REFERENCE.md) - API endpoints
+- [Backend API](./docs/backend/API_REFERENCE.md) - Backend REST API endpoints
+- [Frontend API](./docs/API_REFERENCE.md) - Frontend API reference (Flutter classes)
 
 ## 🛠️ Technology Stack
 

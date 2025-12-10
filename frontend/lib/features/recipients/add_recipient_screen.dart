@@ -6,6 +6,7 @@ import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/models/supabase_types.dart' as supabase;
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
+import 'package:openon_app/core/theme/app_theme.dart' show AppColors;
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/data/api_repositories.dart';
 import 'package:openon_app/core/constants/app_constants.dart';
@@ -92,6 +93,16 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
             _searchResults = [];
             _isSearching = false;
           });
+          // Log error for debugging
+          // Error logged by API client
+          // Show error to user
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Search failed: ${e.toString()}'),
+              backgroundColor: AppColors.error,
+              duration: const Duration(seconds: 2),
+            ),
+          );
         }
       }
     });
@@ -135,20 +146,25 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
         return;
       }
       
+      // Convert enum to lowercase string value (backend expects 'friend', not 'Friend')
+      final relationshipValue = _selectedRelationship.name; // Gets 'friend', 'family', etc.
+      
       if (widget.recipient != null) {
         // Update existing recipient
         final updated = widget.recipient!.copyWith(
           name: _selectedUser!.name,
-          relationship: _selectedRelationship.displayName,
+          relationship: relationshipValue,
         );
         await repo.updateRecipient(updated);
       } else {
         // Create new recipient - convert to old Recipient model
+        // CRITICAL: Include email from selected user (needed for inbox matching)
         final newRecipient = Recipient(
           userId: user.id, // Owner ID
           name: _selectedUser!.name,
-          relationship: _selectedRelationship.displayName,
+          relationship: relationshipValue,
           linkedUserId: _selectedUser!.id,
+          email: _selectedUser!.email, // Include email for inbox matching
         );
         await repo.createRecipient(newRecipient, linkedUserId: _selectedUser!.id);
       }

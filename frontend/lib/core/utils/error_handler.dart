@@ -117,15 +117,15 @@ class ErrorHandler {
 
     // Try error: format
     if (errorStr.contains('error:')) {
-      var error = errorStr.split('error:').last.trim();
-      if (error.startsWith('"') || error.startsWith("'")) {
-        error = error.substring(1);
+      var errorMsg = errorStr.split('error:').last.trim();
+      if (errorMsg.startsWith('"') || errorMsg.startsWith("'")) {
+        errorMsg = errorMsg.substring(1);
       }
-      if (error.endsWith('"') || error.endsWith("'")) {
-        error = error.substring(0, error.length - 1);
+      if (errorMsg.endsWith('"') || errorMsg.endsWith("'")) {
+        errorMsg = errorMsg.substring(0, errorMsg.length - 1);
       }
-      if (error.isNotEmpty && error.length < 200) {
-        return error;
+      if (errorMsg.isNotEmpty && errorMsg.length < 200) {
+        return errorMsg;
       }
     }
 

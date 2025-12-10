@@ -20,18 +20,69 @@ Security considerations:
 from typing import Any
 from uuid import UUID
 import httpx
-from fastapi import APIRouter, HTTPException, status, Query, Depends
+from fastapi import APIRouter, HTTPException, status, Query, Depends, Request
 from app.models.schemas import UserProfileResponse, UserCreate, UserLogin
 from app.dependencies import DatabaseSession, CurrentUser
 from app.db.repositories import UserProfileRepository
 from app.db.models import UserProfile
-from app.utils.helpers import validate_username
+from app.utils.helpers import validate_username, sanitize_text
 from app.utils.url_helpers import normalize_supabase_url
 from app.core.config import settings
+from app.core.security import verify_supabase_token
 
 
 # Router for all authentication endpoints
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+async def get_user_email_from_auth(user_id: UUID) -> str:
+    """
+    Fetch user email from Supabase Auth.
+    
+    Args:
+        user_id: User UUID
+        
+    Returns:
+        str: User's email address
+        
+    Raises:
+        HTTPException: If email cannot be fetched
+    """
+    if not settings.supabase_service_key or settings.supabase_service_key == "your-supabase-service-key-here":
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="SUPABASE_SERVICE_KEY not configured"
+        )
+    
+    supabase_url = normalize_supabase_url(settings.supabase_url)
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        headers = {
+            "apikey": settings.supabase_service_key,
+            "Authorization": f"Bearer {settings.supabase_service_key}",
+        }
+        
+        auth_url = f"{supabase_url}/auth/v1/admin/users/{user_id}"
+        try:
+            response = await client.get(auth_url, headers=headers)
+            if response.status_code == 200:
+                auth_user = response.json()
+                email = auth_user.get("email", "")
+                if not email:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="User email not found"
+                    )
+                return email
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to fetch user email from Supabase Auth"
+                )
+        except httpx.HTTPError:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to connect to Supabase Auth"
+            )
 
 
 @router.post("/signup")
@@ -118,7 +169,9 @@ async def signup(
             user_profile_repo = UserProfileRepository(session)
             profile = await user_profile_repo.create(
                 user_id=user_id,
-                full_name=user_data.full_name or f"{user_data.first_name} {user_data.last_name}"
+                first_name=user_data.first_name,
+                last_name=user_data.last_name,
+                username=user_data.username
             )
             await session.commit()
             
@@ -145,11 +198,14 @@ async def signup(
             
             tokens = signin_response.json()
             
+            # Get email from Supabase Auth response
+            user_email = tokens["user"].get("email", user_data.email)
+            
             return {
                 "access_token": tokens["access_token"],
                 "refresh_token": tokens.get("refresh_token", ""),
                 "token_type": "bearer",
-                "user": UserProfileResponse.from_user_profile(profile).model_dump()
+                "user": UserProfileResponse.from_user_profile(profile, email=user_email).model_dump()
             }
             
         except httpx.HTTPStatusError as e:
@@ -229,11 +285,21 @@ async def login(
                 profile = await user_profile_repo.create(user_id=user_id)
                 await session.commit()
             
+            # Update last_login timestamp
+            await user_profile_repo.update_last_login(user_id)
+            await session.commit()
+            
+            # Get email from Supabase Auth response
+            user_email = tokens["user"].get("email", "")
+            if not user_email:
+                # Fallback: fetch from Supabase Auth Admin API
+                user_email = await get_user_email_from_auth(user_id)
+            
             return {
                 "access_token": tokens["access_token"],
                 "refresh_token": tokens.get("refresh_token", ""),
                 "token_type": "bearer",
-                "user": UserProfileResponse.from_user_profile(profile).model_dump()
+                "user": UserProfileResponse.from_user_profile(profile, email=user_email).model_dump()
             }
             
         except httpx.HTTPStatusError:
@@ -250,7 +316,8 @@ async def login(
 
 @router.get("/me", response_model=UserProfileResponse)
 async def get_current_user_info(
-    current_user: CurrentUser
+    current_user: CurrentUser,
+    request: Request
 ) -> UserProfileResponse:
     """
     Get current authenticated user profile information.
@@ -260,9 +327,24 @@ async def get_current_user_info(
     
     Note:
         Authentication is handled by Supabase Auth.
-        This endpoint only returns the user profile data.
+        This endpoint returns the user profile data including email.
     """
-    return UserProfileResponse.from_user_profile(current_user)
+    # Get email from JWT token if available, otherwise fetch from Supabase Auth
+    email = None
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header.replace("Bearer ", "")
+        try:
+            payload = verify_supabase_token(token)
+            email = payload.get("email")  # Supabase JWT may contain email
+        except ValueError:
+            pass
+    
+    # If email not in token, fetch from Supabase Auth
+    if not email:
+        email = await get_user_email_from_auth(current_user.user_id)
+    
+    return UserProfileResponse.from_user_profile(current_user, email=email)
 
 
 @router.get("/username/check")
@@ -301,11 +383,128 @@ async def check_username_availability(
     }
 
 
+@router.get("/users/search")
+async def search_users(
+    current_user: CurrentUser,
+    session: DatabaseSession,
+    query: str = Query(..., min_length=2, description="Search query (username, email, or name)"),
+    limit: int = Query(10, ge=1, le=50, description="Maximum number of results")
+) -> list[dict[str, Any]]:
+    """
+    Search for registered users by username, email, or name.
+    
+    Searches Supabase Auth users and returns matching users with their profile data.
+    Only returns users that have a profile in user_profiles table.
+    
+    Search matches:
+    - Email (exact or partial)
+    - Username (from user_metadata)
+    - Full name (from user_profiles or user_metadata)
+    
+    Returns list of users with:
+    - id: User UUID
+    - email: User email
+    - username: Username from user_metadata
+    - name: Full name from profile or metadata
+    - avatar: Avatar URL from profile
+    """
+    if not settings.supabase_service_key or settings.supabase_service_key == "your-supabase-service-key-here":
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="SUPABASE_SERVICE_KEY not configured"
+        )
+    
+    from sqlalchemy import select, or_, func
+    from app.db.models import UserProfile
+    
+    # Sanitize and normalize search query
+    query_sanitized = sanitize_text(query, max_length=settings.max_search_query_length)
+    query_lower = query_sanitized.lower().strip()
+    
+    # Validate query length
+    if len(query_lower) < settings.min_search_query_length:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Search query must be at least {settings.min_search_query_length} characters"
+        )
+    
+    users_list = []
+    
+    # First, search user_profiles by first_name, last_name, or username (most efficient)
+    # SQLAlchemy .contains() uses parameterized queries - safe from SQL injection
+    stmt = select(UserProfile).where(
+        or_(
+            func.lower(UserProfile.first_name).contains(query_lower),
+            func.lower(UserProfile.last_name).contains(query_lower),
+            func.lower(UserProfile.username).contains(query_lower),
+            UserProfile.first_name.contains(query_sanitized),  # Case-sensitive fallback
+            UserProfile.last_name.contains(query_sanitized),
+            UserProfile.username.contains(query_sanitized)
+        )
+    ).limit(limit * 2)  # Get more to filter by email/username later
+    
+    result = await session.execute(stmt)
+    profiles = result.scalars().all()
+    
+    # Fetch auth user data for matching profiles
+    supabase_url = normalize_supabase_url(settings.supabase_url)
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        headers = {
+            "apikey": settings.supabase_service_key,
+            "Authorization": f"Bearer {settings.supabase_service_key}",
+        }
+        
+        for profile in profiles:
+            if len(users_list) >= limit:
+                break
+            
+            # Exclude current user from search results
+            if profile.user_id == current_user.user_id:
+                continue
+                
+            try:
+                # Get user from Supabase Auth
+                auth_url = f"{supabase_url}/auth/v1/admin/users/{profile.user_id}"
+                auth_response = await client.get(auth_url, headers=headers)
+                
+                if auth_response.status_code == 200:
+                    auth_user = auth_response.json()
+                    email = auth_user.get("email", "")
+                    user_metadata = auth_user.get("user_metadata", {})
+                    username = profile.username or user_metadata.get("username", email.split("@")[0] if email else "")
+                    first_name = profile.first_name or user_metadata.get("first_name", "")
+                    last_name = profile.last_name or user_metadata.get("last_name", "")
+                    full_name = f"{first_name} {last_name}".strip() if (first_name or last_name) else email.split("@")[0]
+                    
+                    # Check if query matches email, username, first_name, or last_name
+                    email_match = query_lower in email.lower() if email else False
+                    username_match = query_lower in username.lower() if username else False
+                    first_name_match = query_lower in first_name.lower() if first_name else False
+                    last_name_match = query_lower in last_name.lower() if last_name else False
+                    full_name_match = query_lower in full_name.lower() if full_name else False
+                    
+                    if email_match or username_match or first_name_match or last_name_match or full_name_match:
+                        users_list.append({
+                            "id": str(profile.user_id),
+                            "email": email,
+                            "username": username,
+                            "name": full_name,
+                            "avatar": profile.avatar_url or ""
+                        })
+            except Exception:
+                # Skip users that can't be fetched
+                continue
+    
+    return users_list
+
+
 @router.put("/me", response_model=UserProfileResponse)
 async def update_current_user_profile(
     current_user: CurrentUser,
     session: DatabaseSession,
-    full_name: str | None = None,
+    first_name: str | None = None,
+    last_name: str | None = None,
+    username: str | None = None,
     avatar_url: str | None = None,
     country: str | None = None,
     device_token: str | None = None
@@ -319,8 +518,12 @@ async def update_current_user_profile(
     user_profile_repo = UserProfileRepository(session)
     
     updates = {}
-    if full_name is not None:
-        updates["full_name"] = full_name
+    if first_name is not None:
+        updates["first_name"] = first_name
+    if last_name is not None:
+        updates["last_name"] = last_name
+    if username is not None:
+        updates["username"] = username
     if avatar_url is not None:
         updates["avatar_url"] = avatar_url
     if country is not None:
@@ -341,4 +544,7 @@ async def update_current_user_profile(
             detail="User profile not found"
         )
     
-    return UserProfileResponse.from_user_profile(updated_profile)
+    # Get email from Supabase Auth
+    email = await get_user_email_from_auth(current_user.user_id)
+    
+    return UserProfileResponse.from_user_profile(updated_profile, email=email)

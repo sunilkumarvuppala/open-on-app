@@ -12,7 +12,7 @@ Dependencies:
 - CurrentUser: Type alias for authenticated user dependency
 - DatabaseSession: Type alias for database session dependency
 """
-from typing import Annotated
+from typing import Annotated, Optional
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -102,6 +102,11 @@ async def get_current_user(
     # This allows middleware to log requests with user context
     request.state.user_id = str(user_id)
     
+    # Extract email from JWT payload for inbox queries
+    user_email: Optional[str] = payload.get("email")
+    if user_email:
+        request.state.user_email = user_email
+    
     # ===== User Profile Lookup =====
     # Fetch user profile from database using ID from token
     # User profile extends Supabase Auth user with app-specific data
@@ -116,7 +121,9 @@ async def get_current_user(
         # This happens when a user signs up via Supabase Auth but profile hasn't been created yet
         user_profile = await user_profile_repo.create(
             user_id=user_id,
-            full_name=None,
+            first_name=None,
+            last_name=None,
+            username=None,
             avatar_url=None,
             premium_status=False,
             premium_until=None,
