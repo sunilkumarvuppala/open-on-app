@@ -73,10 +73,14 @@ backend/app/
 ├── api/              # FastAPI routes
 │   ├── auth.py       # Authentication endpoints
 │   ├── capsules.py   # Capsule management
-│   └── recipients.py # Recipient management
+│   ├── connections.py # ⭐ NEW: Connection endpoints
+│   ├── recipients.py # Recipient management
+│   └── connection_helpers.py # ⭐ NEW: Helper functions
 ├── core/             # Core functionality
 │   ├── config.py     # Configuration (settings)
+│   ├── constants.py  # ⭐ NEW: All constants
 │   ├── security.py   # JWT, password hashing
+│   ├── permissions.py # Permission checking
 │   └── logging.py    # Logging system
 ├── db/               # Database layer
 │   ├── models.py     # SQLAlchemy models
@@ -85,6 +89,7 @@ backend/app/
 ├── models/           # Pydantic schemas
 │   └── schemas.py    # Request/response models
 ├── services/         # Business logic
+│   ├── connection_service.py # ⭐ NEW: Connection business logic
 │   ├── state_machine.py # Capsule state machine
 │   └── unlock_service.py # Unlock logic
 └── utils/            # Utilities
@@ -97,7 +102,9 @@ backend/app/
 frontend/lib/
 ├── core/             # Core functionality
 │   ├── constants/    # AppConstants
-│   ├── data/         # API client, repositories
+│   ├── data/         # API client, repositories, mixins
+│   │   ├── stream_polling_mixin.dart  # ⭐ NEW: Reusable polling
+│   │   └── api_repositories.dart      # Connection repository
 │   ├── models/       # Data models
 │   ├── providers/    # Riverpod providers
 │   ├── router/       # Navigation

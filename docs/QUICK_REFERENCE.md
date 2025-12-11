@@ -47,6 +47,17 @@ settings.bcrypt_rounds         # 12
 # Content
 settings.max_content_length     # 10000
 settings.max_title_length       # 255
+
+# Connections ⭐ NEW
+from app.core.constants import (
+    MAX_CONNECTION_MESSAGE_LENGTH,      # 500
+    MAX_DECLINED_REASON_LENGTH,          # 500
+    MAX_DAILY_CONNECTION_REQUESTS,       # 5
+    CONNECTION_COOLDOWN_DAYS,            # 7
+    DEFAULT_QUERY_LIMIT,                 # 50
+    MAX_QUERY_LIMIT,                     # 100
+    MIN_QUERY_LIMIT,                     # 1
+)
 ```
 
 ### Input Sanitization
@@ -67,6 +78,26 @@ from app.db.repositories import UserRepository
 user_repo = UserRepository(session)
 user = await user_repo.get_by_id(user_id)
 users = await user_repo.search_users(query="search", limit=10)
+```
+
+### Service Layer Pattern ⭐ NEW
+
+```python
+from app.services.connection_service import ConnectionService
+
+connection_service = ConnectionService(session)
+
+# Check if users are connected
+is_connected = await connection_service.check_existing_connection(user1, user2)
+
+# Check for pending request
+has_pending = await connection_service.check_pending_request(from_user, to_user)
+
+# Check rate limit
+rate_exceeded, count = await connection_service.check_rate_limit(user_id)
+
+# Create connection (with auto-recipient creation)
+await connection_service.create_connection(user1, user2)
 ```
 
 ### Error Handling
@@ -288,6 +319,50 @@ Text(
 )
 ```
 
+### Frontend: Polling Streams ⭐ NEW
+
+```dart
+// Using StreamPollingMixin
+class MyRepository with StreamPollingMixin {
+  Stream<List<Item>> watchItems() {
+    return createPollingStream<List<Item>>(
+      loadData: () async {
+        final response = await apiClient.get('/items');
+        return parseItems(response);
+      },
+      pollInterval: const Duration(seconds: 5),
+    );
+  }
+}
+```
+
+### Frontend: Connection Operations ⭐ NEW
+
+```dart
+final connectionRepo = ref.read(connectionRepositoryProvider);
+
+// Send connection request
+await connectionRepo.sendConnectionRequest(
+  toUserId: userId,
+  message: 'Optional message',
+);
+
+// Respond to request
+await connectionRepo.respondToRequest(
+  requestId: requestId,
+  status: 'accepted', // or 'declined'
+  declinedReason: 'Optional reason',
+);
+
+// Watch connections (real-time)
+final connectionsAsync = ref.watch(connectionsProvider);
+connectionsAsync.when(
+  data: (connections) => ListView(...),
+  loading: () => CircularProgressIndicator(),
+  error: (e, _) => ErrorWidget(e),
+);
+```
+
 ---
 
 ## File Locations
@@ -297,6 +372,13 @@ Text(
 | Purpose | Location |
 |---------|----------|
 | Configuration | `backend/app/core/config.py` |
+| Constants | `backend/app/core/constants.py` ⭐ NEW |
+| Connection Service | `backend/app/services/connection_service.py` ⭐ NEW |
+| Connection Helpers | `backend/app/api/connection_helpers.py` ⭐ NEW |
+| Connection API | `backend/app/api/connections.py` ⭐ NEW |
+| Permissions | `backend/app/core/permissions.py` |
+| Repositories | `backend/app/db/repositories.py` |
+| Schemas | `backend/app/models/schemas.py` |
 | API Routes | `backend/app/api/` |
 | Repositories | `backend/app/db/repositories.py` |
 | Models | `backend/app/db/models.py` |
@@ -310,6 +392,11 @@ Text(
 | Purpose | Location |
 |---------|----------|
 | Constants | `frontend/lib/core/constants/app_constants.dart` |
+| Polling Mixin | `frontend/lib/core/data/stream_polling_mixin.dart` ⭐ NEW |
+| Connection Repository | `frontend/lib/core/data/api_repositories.dart` |
+| Connection Models | `frontend/lib/core/models/connection_models.dart` |
+| People Screen | `frontend/lib/features/people/people_screen.dart` ⭐ NEW |
+| Add Connection | `frontend/lib/features/connections/add_connection_screen.dart` |
 | API Client | `frontend/lib/core/data/api_client.dart` |
 | Models | `frontend/lib/core/models/models.dart` |
 | Providers | `frontend/lib/core/providers/providers.dart` |

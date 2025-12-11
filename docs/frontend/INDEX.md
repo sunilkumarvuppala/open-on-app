@@ -55,6 +55,7 @@ docs/
 - **[RECEIVER.md](./features/RECEIVER.md)** - Receiver screen (inbox view)
 - **[CREATE_CAPSULE.md](./features/CREATE_CAPSULE.md)** - Letter creation flow
 - **[CAPSULE.md](./features/CAPSULE.md)** - Capsule viewing screens
+- **[CONNECTIONS.md](./features/CONNECTIONS.md)** - Connections & friend requests ⭐
 - **[RECIPIENTS.md](./features/RECIPIENTS.md)** - Recipient management
 - **[PROFILE.md](./features/PROFILE.md)** - Profile and settings
 - **[NAVIGATION.md](./features/NAVIGATION.md)** - Navigation system
@@ -106,6 +107,7 @@ docs/
 | Receiver Screen (Inbox) | [RECEIVER.md](./features/RECEIVER.md) | Receiver's inbox (Tab 0 - PRIMARY) |
 | Create Capsule | [CREATE_CAPSULE.md](./features/CREATE_CAPSULE.md) | Letter creation flow |
 | Capsule Viewing | [CAPSULE.md](./features/CAPSULE.md) | View locked/opened capsules |
+| Connections | [CONNECTIONS.md](./features/CONNECTIONS.md) | Friend requests & mutual connections ⭐ |
 | Recipients | [RECIPIENTS.md](./features/RECIPIENTS.md) | Recipient management |
 | Profile | [PROFILE.md](./features/PROFILE.md) | User profile and settings |
 | Navigation | [NAVIGATION.md](./features/NAVIGATION.md) | Main navigation |

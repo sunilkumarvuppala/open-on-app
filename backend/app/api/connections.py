@@ -35,6 +35,17 @@ from app.models.schemas import (
 from app.dependencies import DatabaseSession, CurrentUser
 from app.core.logging import get_logger
 from app.utils.helpers import sanitize_text
+from app.core.constants import (
+    MAX_CONNECTION_MESSAGE_LENGTH,
+    MAX_DECLINED_REASON_LENGTH,
+    MAX_DAILY_CONNECTION_REQUESTS,
+    CONNECTION_COOLDOWN_DAYS,
+    DEFAULT_QUERY_LIMIT,
+    MAX_QUERY_LIMIT,
+    MIN_QUERY_LIMIT
+)
+from app.services.connection_service import ConnectionService
+from app.api.connection_helpers import build_connection_request_response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError, DatabaseError
@@ -66,82 +77,52 @@ async def send_connection_request(
     # Sanitize message if provided
     message = None
     if request_data.message:
-        message = sanitize_text(request_data.message.strip(), max_length=500)
+        message = sanitize_text(
+            request_data.message.strip(),
+            max_length=MAX_CONNECTION_MESSAGE_LENGTH
+        )
     
-    # Validate and create connection request
+    # Validate connection request using service layer
+    connection_service = ConnectionService(session)
+    
     # Check if already connected
-    connection_check = await session.execute(
-        text("""
-            SELECT 1 FROM public.connections
-            WHERE (user_id_1 = :user1 AND user_id_2 = :user2)
-               OR (user_id_1 = :user2 AND user_id_2 = :user1)
-        """),
-        {
-            "user1": min(current_user.user_id, request_data.to_user_id),
-            "user2": max(current_user.user_id, request_data.to_user_id)
-        }
-    )
-    if connection_check.scalar():
+    if await connection_service.check_existing_connection(
+        current_user.user_id,
+        request_data.to_user_id
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You are already connected with this user"
         )
     
     # Check for existing pending request
-    existing_check = await session.execute(
-        text("""
-            SELECT id FROM public.connection_requests
-            WHERE (
-                (from_user_id = :from_id AND to_user_id = :to_id)
-                OR (from_user_id = :to_id AND to_user_id = :from_id)
-            )
-            AND status = 'pending'
-        """),
-        {
-            "from_id": current_user.user_id,
-            "to_id": request_data.to_user_id
-        }
-    )
-    if existing_check.scalar():
+    if await connection_service.check_pending_request(
+        current_user.user_id,
+        request_data.to_user_id
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="A pending request already exists"
         )
     
-    # Check cooldown (7 days after decline)
-    cooldown_check = await session.execute(
-        text("""
-            SELECT 1 FROM public.connection_requests
-            WHERE from_user_id = :from_id
-              AND to_user_id = :to_id
-              AND status = 'declined'
-              AND acted_at > NOW() - INTERVAL '7 days'
-        """),
-        {
-            "from_id": current_user.user_id,
-            "to_id": request_data.to_user_id
-        }
-    )
-    if cooldown_check.scalar():
+    # Check cooldown period
+    if await connection_service.check_cooldown(
+        current_user.user_id,
+        request_data.to_user_id
+    ):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Please wait 7 days before sending another request to this user"
+            detail=f"Please wait {CONNECTION_COOLDOWN_DAYS} days before sending another request to this user"
         )
     
-    # Rate limiting (max 5 requests per day)
-    rate_limit_check = await session.execute(
-        text("""
-            SELECT COUNT(*) FROM public.connection_requests
-            WHERE from_user_id = :from_id
-              AND created_at > NOW() - INTERVAL '1 day'
-        """),
-        {"from_id": current_user.user_id}
+    # Check rate limit
+    rate_exceeded, _ = await connection_service.check_rate_limit(
+        current_user.user_id
     )
-    daily_count = rate_limit_check.scalar() or 0
-    if daily_count >= 5:
+    if rate_exceeded:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Rate limit exceeded: Maximum 5 connection requests per day"
+            detail=f"Rate limit exceeded: Maximum {MAX_DAILY_CONNECTION_REQUESTS} connection requests per day"
         )
     
     # Create the request
@@ -167,33 +148,13 @@ async def send_connection_request(
                 detail="Failed to create connection request"
             )
         
-        # Get user profile for the recipient (to_user_id)
-        profile_result = await session.execute(
-            text("""
-                SELECT first_name, last_name, username, avatar_url
-                FROM public.user_profiles
-                WHERE user_id = :user_id
-            """),
-            {"user_id": request_data.to_user_id}
-        )
-        profile_row = profile_result.fetchone()
-        
         await session.commit()
         
-        return ConnectionRequestResponse(
-            id=row[0],
-            from_user_id=row[1],
-            to_user_id=row[2],
-            status=row[3],
-            message=row[4],
-            declined_reason=row[5],
-            acted_at=row[6],
-            created_at=row[7],
-            updated_at=row[8],
-            from_user_first_name=profile_row[0] if profile_row and len(profile_row) > 0 else None,
-            from_user_last_name=profile_row[1] if profile_row and len(profile_row) > 1 else None,
-            from_user_username=profile_row[2] if profile_row and len(profile_row) > 2 else None,
-            from_user_avatar_url=profile_row[3] if profile_row and len(profile_row) > 3 else None,
+        # Build response with profile data
+        return await build_connection_request_response(
+            session,
+            row,
+            profile_user_id=request_data.to_user_id
         )
     except IntegrityError as e:
         await session.rollback()
@@ -246,7 +207,7 @@ async def send_connection_request(
         elif "rate limit" in error_msg.lower():
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Rate limit exceeded: Maximum 5 requests per day"
+                detail=f"Rate limit exceeded: Maximum {MAX_DAILY_CONNECTION_REQUESTS} requests per day"
             )
         else:
             await session.rollback()
@@ -298,23 +259,19 @@ async def respond_to_request(
     
     declined_reason = None
     if response_data.status == 'declined' and response_data.declined_reason:
-        declined_reason = sanitize_text(response_data.declined_reason.strip(), max_length=500)
+        declined_reason = sanitize_text(
+            response_data.declined_reason.strip(),
+            max_length=MAX_DECLINED_REASON_LENGTH
+        )
     
     # Update request and create connection if accepted
     try:
         if response_data.status == 'accepted':
-            # Create mutual connection
-            user1 = min(request_row[0], request_row[1])  # from_user_id, to_user_id
-            user2 = max(request_row[0], request_row[1])
-            
-            await session.execute(
-                text("""
-                    INSERT INTO public.connections (user_id_1, user_id_2, connected_at)
-                    VALUES (:user1, :user2, NOW())
-                    ON CONFLICT DO NOTHING
-                """),
-                {"user1": user1, "user2": user2}
-            )
+            # Create mutual connection using service layer
+            connection_service = ConnectionService(session)
+            from_user_id = request_row[0]
+            to_user_id = request_row[1]
+            await connection_service.create_connection(from_user_id, to_user_id)
         
         # Update request status
         result = await session.execute(
@@ -341,33 +298,13 @@ async def respond_to_request(
                 detail="Failed to update connection request"
             )
         
-        # Get user profile for the sender (from_user_id)
-        profile_result = await session.execute(
-            text("""
-                SELECT first_name, last_name, username, avatar_url
-                FROM public.user_profiles
-                WHERE user_id = :user_id
-            """),
-            {"user_id": request_row[0]}  # from_user_id
-        )
-        profile_row = profile_result.fetchone()
-        
         await session.commit()
         
-        return ConnectionRequestResponse(
-            id=row[0],
-            from_user_id=row[1],
-            to_user_id=row[2],
-            status=row[3],
-            message=row[4],
-            declined_reason=row[5],
-            acted_at=row[6],
-            created_at=row[7],
-            updated_at=row[8],
-            from_user_first_name=profile_row[0] if profile_row and len(profile_row) > 0 else None,
-            from_user_last_name=profile_row[1] if profile_row and len(profile_row) > 1 else None,
-            from_user_username=profile_row[2] if profile_row and len(profile_row) > 2 else None,
-            from_user_avatar_url=profile_row[3] if profile_row and len(profile_row) > 3 else None,
+        # Build response with profile data
+        return await build_connection_request_response(
+            session,
+            row,
+            profile_user_id=request_row[0]  # from_user_id
         )
     except HTTPException:
         raise
@@ -401,7 +338,7 @@ async def respond_to_request(
 async def get_incoming_requests(
     current_user: CurrentUser,
     session: DatabaseSession,
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(DEFAULT_QUERY_LIMIT, ge=MIN_QUERY_LIMIT, le=MAX_QUERY_LIMIT),
     offset: int = Query(0, ge=0)
 ) -> ConnectionRequestListResponse:
     """
@@ -480,7 +417,7 @@ async def get_incoming_requests(
 async def get_outgoing_requests(
     current_user: CurrentUser,
     session: DatabaseSession,
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(DEFAULT_QUERY_LIMIT, ge=MIN_QUERY_LIMIT, le=MAX_QUERY_LIMIT),
     offset: int = Query(0, ge=0)
 ) -> ConnectionRequestListResponse:
     """
@@ -559,7 +496,7 @@ async def get_outgoing_requests(
 async def get_connections(
     current_user: CurrentUser,
     session: DatabaseSession,
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(DEFAULT_QUERY_LIMIT, ge=MIN_QUERY_LIMIT, le=MAX_QUERY_LIMIT),
     offset: int = Query(0, ge=0)
 ) -> ConnectionListResponse:
     """

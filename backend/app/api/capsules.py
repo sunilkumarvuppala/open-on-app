@@ -73,12 +73,32 @@ async def create_capsule(
     
     # ===== Mutual Connection Validation =====
     # Enforce that letters can only be sent to mutual friends
-    # Get recipient to find the linked user (if recipient is a registered user)
+    # SIMPLIFIED: All recipients are now connection-based (email=NULL)
+    # Recipients are auto-created when connections are established
     recipient = await recipient_repo.get_by_id(capsule_data.recipient_id)
     
-    if recipient and recipient.email:
-        # Check if recipient email matches a registered user
-        # If so, verify mutual connection
+    if not recipient:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Recipient not found"
+        )
+    
+    # Verify recipient belongs to current user
+    if recipient.owner_id != current_user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only send letters to your own recipients"
+        )
+    
+    # Since recipients are now only created from connections,
+    # and connections require mutual acceptance, we can trust that
+    # if a recipient exists, it's from a valid connection.
+    # For extra safety, we can verify the connection exists by checking
+    # if recipient name matches a connected user's profile
+    # (This is a simplified check - in production you might want to add linked_user_id to recipients table)
+    
+    # If recipient has email, it's a legacy recipient - verify connection via email
+    if recipient.email:
         from sqlalchemy import text
         result = await session.execute(
             text("""
@@ -97,6 +117,8 @@ async def create_capsule(
                 recipient_user_id,
                 raise_on_not_connected=True
             )
+    # If recipient has no email (connection-based), we trust it's valid
+    # because recipients are only auto-created when connections are established
     
     # ===== Content Validation =====
     # Must have either body_text OR body_rich_text

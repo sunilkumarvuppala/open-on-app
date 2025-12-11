@@ -49,13 +49,17 @@ class RecipientMapper {
               ? _safeString(relationshipValue)!
               : 'friend';
           
+          // Get linked_user_id if present (for connections)
+          final linkedUserIdValue = json['linked_user_id'];
+          final linkedUserId = _convertToString(linkedUserIdValue);
+          
           return Recipient(
             id: id,
             userId: userId,
             name: name,
             relationship: relationship,
             avatar: avatar,
-            linkedUserId: null, // Not in current Supabase schema
+            linkedUserId: linkedUserId,
             email: email, // Include email from backend
           );
   }

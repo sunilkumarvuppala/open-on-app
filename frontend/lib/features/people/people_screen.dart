@@ -9,8 +9,23 @@ import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/utils/logger.dart';
+import 'package:openon_app/core/constants/app_constants.dart';
 import 'package:openon_app/animations/effects/confetti_burst.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+
+/// Custom FAB location to position it right above bottom navigation
+class _CustomFABLocation extends FloatingActionButtonLocation {
+  @override
+  Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
+    final double fabX = scaffoldGeometry.scaffoldSize.width -
+        scaffoldGeometry.floatingActionButtonSize.width -
+        AppConstants.fabMargin;
+    final double fabY = scaffoldGeometry.scaffoldSize.height -
+        scaffoldGeometry.floatingActionButtonSize.height -
+        AppConstants.fabYOffset;
+    return Offset(fabX, fabY);
+  }
+}
 
 /// Main People screen - hub for all connection-related features
 class PeopleScreen extends ConsumerStatefulWidget {
@@ -152,20 +167,22 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen>
           const RequestsTabView(),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: () {
           context.push(Routes.addConnection);
         },
-        backgroundColor: colorScheme.accent,
-        icon: const Icon(Icons.person_add_rounded, color: AppColors.white),
-        label: Text(
-          'Add Connection',
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: AppColors.white,
-                fontWeight: FontWeight.w600,
-              ),
+        backgroundColor: colorScheme.primary2,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.person_add_rounded, size: 18, color: Colors.white),
+            SizedBox(width: AppConstants.tabSpacing),
+            Text('+', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+          ],
         ),
       ),
+      floatingActionButtonLocation: _CustomFABLocation(),
     );
   }
 }
@@ -200,45 +217,31 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
     final colorScheme = ref.watch(selectedColorSchemeProvider);
     final connectionsAsync = ref.watch(connectionsProvider);
 
-    return connectionsAsync.when(
-      data: (connections) {
-        // Filter connections based on search
-        final filteredConnections = _searchController.text.isEmpty
-            ? connections
-            : connections.where((conn) {
-                final profile = conn.otherUserProfile;
-                final query = _searchController.text.toLowerCase();
-                return profile.displayName.toLowerCase().contains(query) ||
-                    (profile.username?.toLowerCase().contains(query) ?? false);
-              }).toList();
+    return Column(
+      children: [
+        _buildSearchBar(context, colorScheme),
+        Expanded(
+          child: connectionsAsync.when(
+            data: (connections) {
+              // Filter connections based on search
+              final filteredConnections = _searchController.text.isEmpty
+                  ? connections
+                  : connections.where((conn) {
+                      final profile = conn.otherUserProfile;
+                      final query = _searchController.text.toLowerCase();
+                      return profile.displayName.toLowerCase().contains(query) ||
+                          (profile.username?.toLowerCase().contains(query) ?? false);
+                    }).toList();
 
-        if (filteredConnections.isEmpty && _searchController.text.isNotEmpty) {
-          return Column(
-            children: [
-              _buildSearchBar(context, colorScheme),
-              Expanded(
-                child: _buildEmptySearchState(context, colorScheme),
-              ),
-            ],
-          );
-        }
+              if (filteredConnections.isEmpty && _searchController.text.isNotEmpty) {
+                return _buildEmptySearchState(context, colorScheme);
+              }
 
-        if (filteredConnections.isEmpty) {
-          return Column(
-            children: [
-              _buildSearchBar(context, colorScheme),
-              Expanded(
-                child: _buildEmptyConnectionsState(context, colorScheme),
-              ),
-            ],
-          );
-        }
+              if (filteredConnections.isEmpty) {
+                return _buildEmptyConnectionsState(context, colorScheme);
+              }
 
-        return Column(
-          children: [
-            _buildSearchBar(context, colorScheme),
-            Expanded(
-              child: RefreshIndicator(
+              return RefreshIndicator(
                 onRefresh: () async {
                   ref.invalidate(connectionsProvider);
                 },
@@ -250,37 +253,28 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
                     return _buildConnectionCard(context, ref, connection, colorScheme);
                   },
                 ),
+              );
+            },
+            loading: () => Center(
+              child: CircularProgressIndicator(
+                color: colorScheme.accent,
               ),
             ),
-          ],
-        );
-      },
-      loading: () => Center(
-        child: CircularProgressIndicator(
-          color: colorScheme.accent,
+            error: (error, stack) {
+              Logger.error('Error loading connections', error: error, stackTrace: stack);
+              return _buildErrorState(context, colorScheme, () {
+                ref.invalidate(connectionsProvider);
+              });
+            },
+          ),
         ),
-      ),
-      error: (error, stack) {
-        Logger.error('Error loading connections', error: error, stackTrace: stack);
-        return _buildErrorState(context, colorScheme, () {
-          ref.invalidate(connectionsProvider);
-        });
-      },
+      ],
     );
   }
 
   Widget _buildSearchBar(BuildContext context, AppColorScheme colorScheme) {
-    return Container(
-      margin: EdgeInsets.all(AppTheme.spacingMd),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: DynamicTheme.getCardBackgroundColor(colorScheme),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(
-          color: DynamicTheme.getDividerColor(colorScheme),
-          width: 1,
-        ),
-      ),
+    return Padding(
+      padding: EdgeInsets.all(AppTheme.spacingMd),
       child: TextField(
         controller: _searchController,
         onChanged: (value) => setState(() {}),
@@ -305,7 +299,50 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
                   },
                 )
               : null,
-          border: InputBorder.none,
+          filled: true,
+          fillColor: DynamicTheme.getCardBackgroundColor(colorScheme),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: BorderSide(
+              color: DynamicTheme.getDividerColor(colorScheme),
+              width: 1,
+            ),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: BorderSide(
+              color: DynamicTheme.getDividerColor(colorScheme),
+              width: 1,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: BorderSide(
+              color: colorScheme.accent,
+              width: 2,
+            ),
+          ),
+          disabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: BorderSide(
+              color: DynamicTheme.getDividerColor(colorScheme),
+              width: 1,
+            ),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: BorderSide(
+              color: AppColors.error,
+              width: 1,
+            ),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: BorderSide(
+              color: AppColors.error,
+              width: 2,
+            ),
+          ),
         ),
         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
               color: DynamicTheme.getPrimaryTextColor(colorScheme),
@@ -920,30 +957,14 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
     final colorScheme = ref.watch(selectedColorSchemeProvider);
     final incomingAsync = ref.watch(incomingRequestsProvider);
 
-    // Debug logging
-    print('🟡 [UI] Watching incomingRequestsProvider');
-    print('🟡 [UI] AsyncValue state: ${incomingAsync.runtimeType}');
-    incomingAsync.whenData((requests) {
-      print('🟢 [UI] Received ${requests.length} requests in UI');
-      Logger.info('Incoming requests UI - received ${requests.length} requests');
-      for (var i = 0; i < requests.length; i++) {
-        print('🟢 [UI] Request $i: id=${requests[i].id}, status=${requests[i].status}');
-        Logger.info('UI Request $i: id=${requests[i].id}, status=${requests[i].status}');
-      }
-    });
-
     return incomingAsync.when(
       data: (requests) {
-        print('🟢 [UI] Building UI with ${requests.length} requests');
-        Logger.info('Building incoming requests UI with ${requests.length} requests');
+        Logger.debug('Building incoming requests UI with ${requests.length} requests');
         if (requests.isEmpty) {
-          print('🟡 [UI] No requests, showing empty state');
-          Logger.info('No incoming requests, showing empty state');
           return _buildEmptyIncomingState(context, colorScheme);
         }
         
-        print('🟢 [UI] Building ListView with ${requests.length} items');
-        Logger.info('Building ListView with ${requests.length} items');
+        Logger.debug('Building ListView with ${requests.length} items');
 
         return RefreshIndicator(
           onRefresh: () async {
@@ -1202,10 +1223,6 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
     ConnectionRequest request,
     AppColorScheme colorScheme,
   ) {
-    print('🟡 [CARD] Building incoming request card for request: ${request.id}');
-    print('🟡 [CARD] fromUserProfile: ${request.fromUserProfile}');
-    print('🟡 [CARD] fromUserId: ${request.fromUserId}');
-    
     final profile = request.fromUserProfile;
     // Create a fallback profile if missing
     final displayProfile = profile ?? ConnectionUserProfile(
@@ -1214,12 +1231,9 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
       username: null,
       avatarUrl: null,
     );
-    
-    print('🟡 [CARD] Using profile: ${displayProfile.displayName}');
 
     final timeAgo = _formatTimeAgo(request.createdAt);
 
-    print('🟢 [CARD] Building card UI with profile: ${displayProfile.displayName}');
 
     return Container(
       margin: EdgeInsets.only(bottom: AppTheme.spacingMd),

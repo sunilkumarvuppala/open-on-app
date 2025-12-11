@@ -522,7 +522,7 @@ class DraftBase(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     body: str = Field(min_length=1)
     media_urls: Optional[list[str]] = None
-    theme: Optional[str] = Field(None, max_length=50)
+    theme: Optional[str] = Field(None, max_length=50)  # Matches MAX_THEME_NAME_LENGTH constant
     recipient_id: Optional[str] = None  # Optional recipient
 
 
@@ -557,7 +557,7 @@ class DraftUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=255)
     body: Optional[str] = Field(None, min_length=1)
     media_urls: Optional[list[str]] = None
-    theme: Optional[str] = Field(None, max_length=50)
+    theme: Optional[str] = Field(None, max_length=50)  # Matches MAX_THEME_NAME_LENGTH constant
     recipient_id: Optional[str] = None
 
 
@@ -628,6 +628,9 @@ class RecipientResponse(RecipientBase):
     Contains all recipient information returned to clients.
     Extends RecipientBase with metadata fields.
     
+    If linked_user_id is provided, this recipient represents a connection
+    (mutual friend) rather than a manually added contact.
+    
     Fields:
     - Inherits all fields from RecipientBase
     - id: Recipient UUID
@@ -643,6 +646,7 @@ class RecipientResponse(RecipientBase):
     owner_id: UUID
     created_at: datetime
     updated_at: datetime
+    linked_user_id: Optional[UUID] = None  # If set, this recipient represents a connection
     
     class Config:
         from_attributes = True
@@ -695,7 +699,7 @@ class ConnectionRequestCreate(BaseModel):
     - message: Optional message to include with request
     """
     to_user_id: UUID
-    message: Optional[str] = Field(None, max_length=500)
+    message: Optional[str] = Field(None, max_length=500)  # Matches MAX_CONNECTION_MESSAGE_LENGTH
 
 
 class ConnectionRequestResponse(BaseModel):
@@ -729,7 +733,7 @@ class ConnectionRequestUpdate(BaseModel):
     - declined_reason: Optional reason if declining
     """
     status: str = Field(..., pattern="^(accepted|declined)$")
-    declined_reason: Optional[str] = Field(None, max_length=500)
+    declined_reason: Optional[str] = Field(None, max_length=500)  # Matches MAX_DECLINED_REASON_LENGTH
 
 
 class ConnectionResponse(BaseModel):

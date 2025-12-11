@@ -15,11 +15,15 @@ backend/
 │   │   ├── __init__.py
 │   │   ├── auth.py             # User profile endpoints (Supabase handles signup/login)
 │   │   ├── capsules.py          # Capsule management endpoints
+│   │   ├── connections.py       # ⭐ NEW: Connection endpoints
+│   │   ├── connection_helpers.py # ⭐ NEW: Connection helper functions
 │   │   └── recipients.py       # Recipient management endpoints
 │   │
 │   ├── core/                    # Core configuration and utilities
 │   │   ├── __init__.py
 │   │   ├── config.py           # Application settings
+│   │   ├── constants.py         # ⭐ NEW: All constants
+│   │   ├── permissions.py       # Permission checking utilities
 │   │   ├── security.py         # JWT, password hashing
 │   │   └── logging.py          # Logging configuration
 │   │
@@ -36,6 +40,7 @@ backend/
 │   │
 │   ├── services/                # Business logic
 │   │   ├── __init__.py
+│   │   ├── connection_service.py # ⭐ NEW: Connection business logic
 │   │   ├── state_machine.py    # Capsule state transitions
 │   │   └── unlock_service.py   # Automated unlock logic
 │   │
@@ -72,6 +77,8 @@ backend/
 **Files**:
 - `auth.py` - User profile management (Supabase handles signup/login)
 - `capsules.py` - Capsule CRUD operations
+- `connections.py` - ⭐ NEW: Connection request and management endpoints
+- `connection_helpers.py` - ⭐ NEW: Reusable helper functions for connections
 - `recipients.py` - Recipient management
 
 **Conventions**:
@@ -85,6 +92,8 @@ backend/
 
 **Files**:
 - `config.py` - Settings from environment variables (includes Supabase JWT secret)
+- `constants.py` - ⭐ NEW: All magic numbers and constants
+- `permissions.py` - Permission checking utilities
 - `security.py` - Supabase JWT verification, password hashing
 - `logging.py` - Logging setup
 
@@ -125,6 +134,7 @@ backend/
 **Purpose**: Business logic
 
 **Files**:
+- `connection_service.py` - ⭐ NEW: Connection business logic (validation, creation, etc.)
 - `state_machine.py` - Capsule state transition rules
 - `unlock_service.py` - Automated unlock checking
 

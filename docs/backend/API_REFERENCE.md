@@ -33,7 +33,8 @@ Content-Type: application/json
 1. [Authentication & Profile](#authentication--profile-endpoints)
 2. [Capsules](#capsules-endpoints)
 3. [Recipients](#recipients-endpoints)
-4. [Error Handling](#error-handling)
+4. [Connections](#connections-endpoints)
+5. [Error Handling](#error-handling)
 
 ---
 
@@ -501,6 +502,267 @@ Delete a recipient.
 curl -X DELETE "http://localhost:8000/recipients/550e8400-e29b-41d4-a716-446655440004" \
   -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN"
 ```
+
+---
+
+## Connections Endpoints
+
+The Connections API enables users to send friend requests, establish mutual connections, and manage their social network. All connection endpoints require authentication.
+
+### POST /connections/requests
+
+Send a connection request to another user.
+
+**Request Body:**
+```json
+{
+  "to_user_id": "550e8400-e29b-41d4-a716-446655440000",
+  "message": "Hey, let's connect!"
+}
+```
+
+**Response (201):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440001",
+  "from_user_id": "your-user-id",
+  "to_user_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "pending",
+  "message": "Hey, let's connect!",
+  "declined_reason": null,
+  "acted_at": null,
+  "created_at": "2025-01-15T10:30:00Z",
+  "updated_at": "2025-01-15T10:30:00Z",
+  "from_user_first_name": "Alice",
+  "from_user_last_name": "Johnson",
+  "from_user_username": "alice",
+  "from_user_avatar_url": "https://example.com/avatar.jpg"
+}
+```
+
+**Validations:**
+- Cannot send to yourself
+- Cannot send if already connected
+- Cannot send if pending request exists
+- Must wait 7 days after decline (cooldown period)
+- Maximum 5 requests per day (rate limit)
+- Message is optional, max 500 characters
+
+**Error Responses:**
+- `400`: Already connected, pending request exists, or self-request
+- `429`: Rate limit exceeded or cooldown period active
+
+**Example:**
+```bash
+curl -X POST "http://localhost:8000/connections/requests" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN" \
+  -d '{
+    "to_user_id": "550e8400-e29b-41d4-a716-446655440000",
+    "message": "Hey, let'\''s connect!"
+  }'
+```
+
+### PATCH /connections/requests/{request_id}
+
+Respond to a connection request (accept or decline).
+
+**Request Body:**
+```json
+{
+  "status": "accepted"
+}
+```
+
+Or for decline:
+```json
+{
+  "status": "declined",
+  "declined_reason": "Not interested"
+}
+```
+
+**Response (200):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440001",
+  "from_user_id": "sender-id",
+  "to_user_id": "your-user-id",
+  "status": "accepted",
+  "message": "Hey, let's connect!",
+  "declined_reason": null,
+  "acted_at": "2025-01-15T10:35:00Z",
+  "created_at": "2025-01-15T10:30:00Z",
+  "updated_at": "2025-01-15T10:35:00Z",
+  "from_user_first_name": "Alice",
+  "from_user_last_name": "Johnson",
+  "from_user_username": "alice",
+  "from_user_avatar_url": "https://example.com/avatar.jpg"
+}
+```
+
+**Validations:**
+- Only the recipient (to_user_id) can respond
+- Request must be in `pending` status
+- Status must be either `accepted` or `declined`
+- If accepted: Creates mutual connection and auto-creates recipients
+
+**Actions on Accept:**
+- Creates connection record in `connections` table
+- Auto-creates recipient entries for both users
+- Updates request status to `accepted`
+
+**Error Responses:**
+- `403`: Not the recipient of the request
+- `400`: Request already responded to
+- `404`: Request not found
+
+**Example:**
+```bash
+# Accept request
+curl -X PATCH "http://localhost:8000/connections/requests/550e8400-e29b-41d4-a716-446655440001" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN" \
+  -d '{"status": "accepted"}'
+
+# Decline request
+curl -X PATCH "http://localhost:8000/connections/requests/550e8400-e29b-41d4-a716-446655440001" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN" \
+  -d '{
+    "status": "declined",
+    "declined_reason": "Not interested"
+  }'
+```
+
+### GET /connections/requests/incoming
+
+Get all pending incoming connection requests.
+
+**Query Parameters:**
+- `limit` (optional): Maximum results (default: 50, min: 1, max: 100)
+- `offset` (optional): Pagination offset (default: 0, min: 0)
+
+**Response (200):**
+```json
+{
+  "requests": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "from_user_id": "sender-id",
+      "to_user_id": "your-user-id",
+      "status": "pending",
+      "message": "Hey, let's connect!",
+      "declined_reason": null,
+      "acted_at": null,
+      "created_at": "2025-01-15T10:30:00Z",
+      "updated_at": "2025-01-15T10:30:00Z",
+      "from_user_first_name": "Alice",
+      "from_user_last_name": "Johnson",
+      "from_user_username": "alice",
+      "from_user_avatar_url": "https://example.com/avatar.jpg"
+    }
+  ],
+  "total": 1
+}
+```
+
+**Example:**
+```bash
+curl -X GET "http://localhost:8000/connections/requests/incoming?limit=20&offset=0" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN"
+```
+
+### GET /connections/requests/outgoing
+
+Get all pending outgoing connection requests.
+
+**Query Parameters:**
+- `limit` (optional): Maximum results (default: 50, min: 1, max: 100)
+- `offset` (optional): Pagination offset (default: 0, min: 0)
+
+**Response (200):**
+```json
+{
+  "requests": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "from_user_id": "your-user-id",
+      "to_user_id": "recipient-id",
+      "status": "pending",
+      "message": "Hey, let's connect!",
+      "declined_reason": null,
+      "acted_at": null,
+      "created_at": "2025-01-15T10:30:00Z",
+      "updated_at": "2025-01-15T10:30:00Z",
+      "from_user_first_name": "Bob",
+      "from_user_last_name": "Smith",
+      "from_user_username": "bob",
+      "from_user_avatar_url": "https://example.com/avatar.jpg"
+    }
+  ],
+  "total": 1
+}
+```
+
+**Example:**
+```bash
+curl -X GET "http://localhost:8000/connections/requests/outgoing?limit=20&offset=0" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN"
+```
+
+### GET /connections
+
+Get all mutual connections for the current user.
+
+**Query Parameters:**
+- `limit` (optional): Maximum results (default: 50, min: 1, max: 100)
+- `offset` (optional): Pagination offset (default: 0, min: 0)
+
+**Response (200):**
+```json
+{
+  "connections": [
+    {
+      "user_id_1": "user1-id",
+      "user_id_2": "user2-id",
+      "connected_at": "2025-01-15T10:35:00Z",
+      "other_user_first_name": "Alice",
+      "other_user_last_name": "Johnson",
+      "other_user_username": "alice",
+      "other_user_avatar_url": "https://example.com/avatar.jpg"
+    }
+  ],
+  "total": 1
+}
+```
+
+**Note**: The `other_user_*` fields represent the profile of the connected user (not the current user).
+
+**Example:**
+```bash
+curl -X GET "http://localhost:8000/connections?limit=20&offset=0" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN"
+```
+
+### Business Rules
+
+**Connection Request Rules:**
+1. Cannot send to yourself
+2. Cannot send if already connected
+3. Cannot send if pending request exists
+4. Cooldown: 7 days after decline before retrying
+5. Rate limit: Maximum 5 requests per day
+
+**Connection Rules:**
+1. Connections are bidirectional (mutual)
+2. Recipients are auto-created when connection is accepted
+3. Letters can only be sent to connected users
+
+**Status Values:**
+- `pending`: Request sent, awaiting response
+- `accepted`: Request accepted, connection established
+- `declined`: Request declined
 
 ---
 

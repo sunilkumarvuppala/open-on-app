@@ -300,6 +300,90 @@ Premium subscription tracking (Stripe integration).
 
 ---
 
+### `connection_requests`
+
+Friend/connection requests between users.
+
+**Columns:**
+- `id` (UUID, PK, DEFAULT gen_random_uuid())
+- `from_user_id` (UUID, NOT NULL, FK → `auth.users.id`) - User who sent the request
+- `to_user_id` (UUID, NOT NULL, FK → `auth.users.id`) - User who received the request
+- `status` (TEXT, NOT NULL, CHECK IN ('pending', 'accepted', 'declined'), DEFAULT 'pending') - Request status
+- `message` (TEXT) - Optional message from sender
+- `declined_reason` (TEXT) - Optional reason for decline
+- `acted_at` (TIMESTAMPTZ) - When request was accepted/declined
+- `created_at` (TIMESTAMPTZ, NOT NULL, DEFAULT NOW())
+- `updated_at` (TIMESTAMPTZ, NOT NULL, DEFAULT NOW())
+
+**Relationships:**
+- `from_user_id` → `auth.users(id)` ON DELETE CASCADE
+- `to_user_id` → `auth.users(id)` ON DELETE CASCADE
+
+**Constraints:**
+- `connection_requests_unique_pending` - Unique constraint on (from_user_id, to_user_id) prevents duplicate pending requests
+
+**RLS:** Users can see requests where they are sender or receiver. Only receiver can respond.
+
+**Indexes:**
+- `idx_connection_requests_unique_pending` on `(from_user_id, to_user_id)` WHERE `status = 'pending'` - Prevents duplicates
+- `idx_connection_requests_to_user_id` on `(to_user_id, created_at DESC)` - Incoming requests lookup
+- `idx_connection_requests_from_user_id` on `(from_user_id, created_at DESC)` - Outgoing requests lookup
+- `idx_connection_requests_status` on `(status)` WHERE `status = 'pending'` - Status filtering
+
+**Migration:** `supabase/migrations/08_connections.sql`
+
+---
+
+### `connections`
+
+Mutual connections (friendships) between users.
+
+**Columns:**
+- `user_id_1` (UUID, NOT NULL, FK → `auth.users.id`) - First user (always smaller UUID)
+- `user_id_2` (UUID, NOT NULL, FK → `auth.users.id`) - Second user (always larger UUID)
+- `connected_at` (TIMESTAMPTZ, NOT NULL, DEFAULT NOW()) - When connection was established
+
+**Relationships:**
+- `user_id_1` → `auth.users(id)` ON DELETE CASCADE
+- `user_id_2` → `auth.users(id)` ON DELETE CASCADE
+
+**Constraints:**
+- Primary key on `(user_id_1, user_id_2)` ensures uniqueness
+- `connections_user_order` CHECK ensures `user_id_1 < user_id_2` for consistency
+
+**RLS:** Users can view connections where they are user_id_1 or user_id_2. Only service role can create connections.
+
+**Indexes:**
+- `idx_connections_user1` on `(user_id_1)` - User1 lookups
+- `idx_connections_user2` on `(user_id_2)` - User2 lookups
+
+**Migration:** `supabase/migrations/08_connections.sql`
+
+---
+
+### `blocked_users`
+
+Abuse prevention - tracks blocked users.
+
+**Columns:**
+- `blocker_id` (UUID, NOT NULL, FK → `auth.users.id`) - User who blocked
+- `blocked_id` (UUID, NOT NULL, FK → `auth.users.id`) - User who is blocked
+- `created_at` (TIMESTAMPTZ, NOT NULL, DEFAULT NOW()) - When block was created
+
+**Relationships:**
+- `blocker_id` → `auth.users(id)` ON DELETE CASCADE
+- `blocked_id` → `auth.users(id)` ON DELETE CASCADE
+
+**Constraints:**
+- Primary key on `(blocker_id, blocked_id)` ensures uniqueness
+- Prevents self-blocking (enforced in application logic)
+
+**RLS:** Users can view and manage their own blocks.
+
+**Migration:** `supabase/migrations/08_connections.sql`
+
+---
+
 ### `audit_logs`
 
 Action logging for security and compliance.
@@ -404,6 +488,12 @@ All indexes are optimized for common query patterns:
 - Time-based queries (unlock, expiration)
 - Soft-delete exclusion
 
+**Connections:**
+- Connection requests lookups (incoming/outgoing)
+- Status filtering (pending requests)
+- User-based queries
+- Connections lookups (bidirectional)
+
 **Notifications:**
 - User notifications (sorted by date)
 - Undelivered notification queue
@@ -492,7 +582,7 @@ Automatically updates `updated_at` timestamp on row modification.
 **Security:** Regular (runs in user context)  
 **Usage:** Called by triggers before UPDATE on tables with `updated_at` column
 
-**Tables:** `user_profiles`, `recipients`, `capsules`, `user_subscriptions`
+**Tables:** `user_profiles`, `recipients`, `capsules`, `connection_requests`, `user_subscriptions`
 
 ---
 
@@ -558,7 +648,7 @@ Notifies recipient when capsule unlocks.
 
 ### `trigger_update_*_updated_at`
 
-**Tables:** `user_profiles`, `recipients`, `capsules`, `user_subscriptions`  
+**Tables:** `user_profiles`, `recipients`, `capsules`, `connection_requests`, `user_subscriptions`  
 **When:** BEFORE UPDATE  
 **Function:** `update_updated_at()`
 
@@ -641,6 +731,37 @@ Logs all changes for audit trail.
 
 ---
 
+### Connection Requests
+
+- **SELECT:** Users can view requests where they are sender or receiver
+- **INSERT:** Users can send requests (must be sender)
+- **UPDATE:** Only receiver can respond (accept/decline)
+- **DELETE:** System only (service role)
+
+**Migration:** `supabase/migrations/09_connections_rls.sql`
+
+---
+
+### Connections
+
+- **SELECT:** Users can view connections where they are user_id_1 or user_id_2
+- **INSERT:** System only (service role - via RPC function)
+- **DELETE:** Users can delete own connections (unfriend)
+
+**Migration:** `supabase/migrations/09_connections_rls.sql`
+
+---
+
+### Blocked Users
+
+- **SELECT:** Users can view own blocks
+- **INSERT:** Users can create blocks (must be blocker)
+- **DELETE:** Users can unblock (delete own blocks)
+
+**Migration:** `supabase/migrations/09_connections_rls.sql`
+
+---
+
 ### Audit Logs
 
 - **SELECT (Own):** Users can read own audit logs
@@ -717,6 +838,12 @@ auth.users
   ├── user_profiles.user_id (CASCADE)
   ├── recipients.owner_id (CASCADE)
   ├── capsules.sender_id (CASCADE)
+  ├── connection_requests.from_user_id (CASCADE)
+  ├── connection_requests.to_user_id (CASCADE)
+  ├── connections.user_id_1 (CASCADE)
+  ├── connections.user_id_2 (CASCADE)
+  ├── blocked_users.blocker_id (CASCADE)
+  ├── blocked_users.blocked_id (CASCADE)
   ├── notifications.user_id (CASCADE)
   ├── user_subscriptions.user_id (CASCADE)
   └── audit_logs.user_id (SET NULL)
@@ -805,6 +932,41 @@ WHERE user_id = auth.uid()
 ORDER BY created_at DESC;
 ```
 
+### Get User's Connections
+
+```sql
+SELECT * FROM connections 
+WHERE user_id_1 = auth.uid() OR user_id_2 = auth.uid()
+ORDER BY connected_at DESC;
+```
+
+### Get Incoming Connection Requests
+
+```sql
+SELECT * FROM connection_requests 
+WHERE to_user_id = auth.uid() 
+  AND status = 'pending'
+ORDER BY created_at DESC;
+```
+
+### Get Outgoing Connection Requests
+
+```sql
+SELECT * FROM connection_requests 
+WHERE from_user_id = auth.uid() 
+  AND status = 'pending'
+ORDER BY created_at DESC;
+```
+
+### Check if Users are Connected
+
+```sql
+SELECT 1 FROM connections 
+WHERE (user_id_1 = :user1 AND user_id_2 = :user2)
+   OR (user_id_1 = :user2 AND user_id_2 = :user1)
+LIMIT 1;
+```
+
 ### Get Available Themes
 
 ```sql
@@ -842,8 +1004,15 @@ All schema changes are in numbered migration files:
 5. `05_triggers.sql` - Automated triggers
 6. `06_rls_policies.sql` - Row-level security policies
 7. `07_storage.sql` - Storage bucket configuration
-8. `08_seed_data.sql` - Sample data (development)
-9. `09_scheduled_jobs.sql` - pg_cron jobs
+8. `08_connections.sql` - Connection tables and indexes ⭐ NEW
+9. `09_connections_rls.sql` - Connection RLS policies ⭐ NEW
+10. `10_connections_functions.sql` - Connection RPC functions ⭐ NEW
+11. `11_connections_notifications.sql` - Connection notification triggers ⭐ NEW
+12. `12_search_users_function.sql` - User search function
+13. `13_user_profiles_search_policy.sql` - User search RLS policy
+14. `14_scheduled_jobs.sql` - pg_cron jobs
+15. `15_search_users_with_user_id.sql` - Enhanced user search
+16. `16_remove_recipients_table.sql` - Migration for recipients table removal (pending)
 
 **To apply:** Run `supabase db reset` to apply all migrations.
 

@@ -17,6 +17,8 @@ This document describes the architecture and design patterns used in the OpenOn 
 ┌───────▼────────┐  ┌───────▼────────┐  ┌───────▼────────┐
 │   API Layer    │  │  Service Layer │  │  Data Layer    │
 │  (app/api/)    │  │ (app/services/)│  │ (app/db/)      │
+│  + Helpers     │  │ + Connection   │  │ (repositories) │
+│  (helpers.py)  │  │   Service ⭐   │  │                │
 └────────────────┘  └────────────────┘  └────────────────┘
         │                   │                   │
         │                   │                   │
@@ -188,6 +190,10 @@ SEALED → READY → OPENED
 - Database independence
 - Centralized data access logic
 
+**Files**:
+- `backend/app/db/repository.py` - Base repository
+- `backend/app/db/repositories.py` - Specific repositories
+
 ### 2. Dependency Injection
 
 **Purpose**: Loose coupling, testability
@@ -216,18 +222,38 @@ SEALED → READY → OPENED
 - Clear business rules
 - Type-safe status management
 
-### 4. Service Layer Pattern
+### 4. Service Layer Pattern ⭐ NEW
 
 **Purpose**: Separate business logic from API layer
 
 **Implementation**:
 - Service classes for complex operations
 - Background workers for automation
+- **ConnectionService** - Encapsulates connection business logic
+
+**Example**:
+```python
+# backend/app/services/connection_service.py
+class ConnectionService:
+    async def check_existing_connection(self, user_id_1, user_id_2) -> bool:
+        # Business logic for checking connections
+        pass
+    
+    async def create_connection(self, user_id_1, user_id_2) -> None:
+        # Business logic for creating connections with auto-recipient creation
+        pass
+```
 
 **Benefits**:
 - Reusable business logic
 - Easier testing
 - Clear separation of concerns
+- Eliminates code duplication across endpoints
+
+**Files**:
+- `backend/app/services/connection_service.py` - Connection business logic
+- `backend/app/services/state_machine.py` - Capsule state machine
+- `backend/app/services/unlock_service.py` - Unlock logic
 
 ## 🔐 Security Architecture
 

@@ -98,6 +98,12 @@ Riverpod providers for state management:
 Data access layer with repository pattern:
 - `CapsuleRepository`: Capsule CRUD operations
 - `RecipientRepository`: Recipient management
+- `ConnectionRepository`: Connection management ⭐ NEW
+- `ApiConnectionRepository`: FastAPI-based connection repository ⭐ NEW
+
+**Polling Pattern**:
+- `StreamPollingMixin`: Reusable polling pattern for real-time updates ⭐ NEW
+- Used by connection repositories for efficient polling
 - `UserRepository`: User operations
 
 **Note**: Currently uses mock implementations. Replace with actual backend when ready.

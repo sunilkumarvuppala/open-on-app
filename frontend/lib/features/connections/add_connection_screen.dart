@@ -56,18 +56,42 @@ class _AddConnectionScreenState extends ConsumerState<AddConnectionScreen> {
         // Use ApiUserService like add recipient screen does
         final users = await _userService.searchUsers(query);
         
-        // Convert User to ConnectionUserProfile (same as add recipient screen pattern)
-        final results = users.map((user) {
-          // Build display name from user name
-          final displayName = user.name.isNotEmpty ? user.name : user.username;
-          
-          return ConnectionUserProfile(
-            userId: user.id,
-            displayName: displayName,
-            avatarUrl: user.avatarUrl, // User model has avatarUrl getter
-            username: user.username,
-          );
-        }).toList();
+        // Get current user's connections to filter out already connected users
+        final currentUserAsync = ref.read(currentUserProvider);
+        final currentUserId = currentUserAsync.asData?.value?.id ?? '';
+        
+        Set<String> connectedUserIds = {};
+        if (currentUserId.isNotEmpty) {
+          try {
+            final connectionsAsync = ref.read(connectionsProvider);
+            // Get connections synchronously if available
+            if (connectionsAsync.hasValue) {
+              final connections = connectionsAsync.value ?? [];
+              // Extract user IDs from connections
+              for (final connection in connections) {
+                // connection.otherUserId is the connected user's ID
+                connectedUserIds.add(connection.otherUserId);
+              }
+            }
+          } catch (e) {
+            Logger.warning('Error loading connections for filtering: $e');
+          }
+        }
+        
+        // Convert User to ConnectionUserProfile and filter out already connected users
+        final results = users
+            .where((user) => !connectedUserIds.contains(user.id)) // Filter out connected users
+            .map((user) {
+              // Build display name from user name
+              final displayName = user.name.isNotEmpty ? user.name : user.username;
+              
+              return ConnectionUserProfile(
+                userId: user.id,
+                displayName: displayName,
+                avatarUrl: user.avatarUrl, // User model has avatarUrl getter
+                username: user.username,
+              );
+            }).toList();
         
         if (mounted) {
           setState(() {

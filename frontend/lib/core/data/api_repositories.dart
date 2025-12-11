@@ -12,6 +12,7 @@ import 'package:openon_app/core/models/connection_models.dart';
 import 'package:openon_app/core/utils/logger.dart';
 import 'package:openon_app/core/utils/validation.dart';
 import 'package:openon_app/core/constants/app_constants.dart';
+import 'package:openon_app/core/data/stream_polling_mixin.dart';
 import 'dart:async';
 
 /// API-based Auth Repository
@@ -227,7 +228,6 @@ class ApiCapsuleRepository implements CapsuleRepository {
 
       final box = asSender ? 'outbox' : 'inbox';
       
-      // Log for debugging
       Logger.info('Fetching capsules: userId=$userId, box=$box, asSender=$asSender');
       
       final response = await _apiClient.get(
@@ -497,31 +497,18 @@ class ApiRecipientRepository implements RecipientRepository {
 
       Logger.info('Received ${response.length} recipients from API');
       
-      // Log raw response for debugging
-      if (response.isNotEmpty) {
-        Logger.debug('First recipient raw JSON: ${response[0]}');
-      } else {
-        Logger.info('API returned empty recipients list');
-      }
-
       final recipients = response
           .map((json) {
             try {
-              Logger.debug('Mapping recipient JSON: $json');
-              final recipient = RecipientMapper.fromJson(json as Map<String, dynamic>);
-              Logger.debug('Mapped recipient: id=${recipient.id}, name=${recipient.name}');
-              return recipient;
+              return RecipientMapper.fromJson(json as Map<String, dynamic>);
             } catch (e, stackTrace) {
-              Logger.error('Failed to map recipient JSON: $json', error: e, stackTrace: stackTrace);
+              Logger.error('Failed to map recipient JSON', error: e, stackTrace: stackTrace);
               rethrow;
             }
           })
           .toList();
 
-      Logger.info('Successfully mapped ${recipients.length} recipients');
-      if (recipients.isNotEmpty) {
-        Logger.info('First recipient: ${recipients[0].name} (${recipients[0].id})');
-      }
+      Logger.debug('Successfully mapped ${recipients.length} recipients');
       return recipients;
     } catch (e, stackTrace) {
       Logger.error('Failed to get recipients', error: e, stackTrace: stackTrace);
@@ -612,9 +599,11 @@ class ApiRecipientRepository implements RecipientRepository {
 
 /// API-based Connection Repository
 /// Uses FastAPI backend instead of Supabase directly
-class ApiConnectionRepository implements ConnectionRepository {
+class ApiConnectionRepository with StreamPollingMixin implements ConnectionRepository {
   final ApiClient _apiClient = ApiClient();
   final ApiAuthRepository _authRepo = ApiAuthRepository();
+  
+  static const Duration _pollInterval = Duration(seconds: 5);
 
   /// Transform snake_case response from FastAPI to camelCase for Flutter models
   /// Handles UUID objects, datetime objects, and null values
@@ -631,16 +620,12 @@ class ApiConnectionRepository implements ConnectionRepository {
       // Build user profile from individual fields if available
       Map<String, dynamic>? fromUserProfile;
       final fromUserId = _toString(json['from_user_id']) ?? _toString(json['fromUserId']) ?? '';
-      print('🔵 [TRANSFORM] Building profile for userId: $fromUserId');
-      print('🔵 [TRANSFORM] Available keys: ${json.keys.toList()}');
       
       if (fromUserId.isNotEmpty) {
         final firstName = json['from_user_first_name'] as String? ?? json['fromUserFirstName'] as String?;
         final lastName = json['from_user_last_name'] as String? ?? json['fromUserLastName'] as String?;
         final username = json['from_user_username'] as String? ?? json['fromUserUsername'] as String?;
         final avatarUrl = json['from_user_avatar_url'] as String? ?? json['fromUserAvatarUrl'] as String?;
-        
-        print('🔵 [TRANSFORM] Profile fields - firstName: $firstName, lastName: $lastName, username: $username, avatarUrl: $avatarUrl');
         
         if (firstName != null || lastName != null || username != null) {
           final displayName = [firstName, lastName].whereType<String>().join(' ').trim();
@@ -650,9 +635,6 @@ class ApiConnectionRepository implements ConnectionRepository {
             'username': username,
             'avatarUrl': avatarUrl,
           };
-          print('🟢 [TRANSFORM] Created profile: $fromUserProfile');
-        } else {
-          print('🟡 [TRANSFORM] No profile fields found, will use fallback');
         }
       }
 
@@ -691,7 +673,6 @@ class ApiConnectionRepository implements ConnectionRepository {
       );
 
       final transformed = _transformConnectionRequest(response);
-      Logger.debug('Transformed connection request: $transformed');
       return ConnectionRequest.fromJson(transformed);
     } catch (e, stackTrace) {
       Logger.error('Failed to send connection request', error: e, stackTrace: stackTrace);
@@ -732,7 +713,6 @@ class ApiConnectionRepository implements ConnectionRepository {
       );
 
       final transformed = _transformConnectionRequest(response);
-      Logger.debug('Transformed connection request response: $transformed');
       return ConnectionRequest.fromJson(transformed);
     } catch (e, stackTrace) {
       Logger.error('Failed to respond to request', error: e, stackTrace: stackTrace);
@@ -753,8 +733,6 @@ class ApiConnectionRepository implements ConnectionRepository {
       final incomingResponse = await _apiClient.get(ApiConfig.incomingRequests);
       final outgoingResponse = await _apiClient.get(ApiConfig.outgoingRequests);
 
-      Logger.debug('Incoming response: $incomingResponse');
-      Logger.debug('Outgoing response: $outgoingResponse');
 
       final incomingList = (incomingResponse['requests'] as List?)
               ?.map((json) {
@@ -895,271 +873,144 @@ class ApiConnectionRepository implements ConnectionRepository {
 
   @override
   Stream<List<ConnectionRequest>> watchIncomingRequests() {
-    // Use a broadcast stream that can be listened to multiple times
-    // Poll every 5 seconds for updates
-    final controller = StreamController<List<ConnectionRequest>>.broadcast();
-    
-    // Load data immediately (don't emit empty list first)
-    _loadIncomingRequests(controller);
-    
-    // Poll for updates every 5 seconds
-    Timer? timer;
-    timer = Timer.periodic(const Duration(seconds: 5), (t) {
-      if (controller.isClosed) {
-        t.cancel();
-        return;
-      }
-      _loadIncomingRequests(controller);
-    });
-    
-    // Cancel timer when stream is closed
-    controller.onCancel = () {
-      timer?.cancel();
-    };
-    
-    return controller.stream;
+    return createPollingStream<List<ConnectionRequest>>(
+      loadData: _loadIncomingRequestsData,
+      pollInterval: _pollInterval,
+    );
   }
   
-  Future<void> _loadIncomingRequests(StreamController<List<ConnectionRequest>> controller) async {
-    try {
-      print('🔵 [CONNECTION] Loading incoming requests from API...');
-      Logger.info('Loading incoming requests from API...');
-      final response = await _apiClient.get(ApiConfig.incomingRequests);
-      print('🔵 [CONNECTION] API response: $response');
-      print('🔵 [CONNECTION] Response keys: ${response.keys.toList()}');
-      Logger.info('Incoming requests API response: $response');
-      Logger.info('Response type: ${response.runtimeType}');
-      Logger.info('Response keys: ${response.keys.toList()}');
-      
-      final requestsRaw = response['requests'];
-      print('🔵 [CONNECTION] Requests raw: $requestsRaw');
-      print('🔵 [CONNECTION] Requests type: ${requestsRaw.runtimeType}');
-      print('🔵 [CONNECTION] Is List: ${requestsRaw is List}');
-      Logger.info('Requests raw: $requestsRaw');
-      Logger.info('Requests type: ${requestsRaw.runtimeType}');
-      Logger.info('Is List: ${requestsRaw is List}');
-      
-      if (requestsRaw is List) {
-        print('🔵 [CONNECTION] Requests list length: ${requestsRaw.length}');
-        Logger.info('Requests list length: ${requestsRaw.length}');
-      }
-      
-      final requestsList = (requestsRaw as List?)
-              ?.map((json) {
-                try {
-                  print('🔵 [CONNECTION] Parsing request JSON: $json');
-                  Logger.debug('Parsing request JSON: $json');
-                  final transformed = _transformConnectionRequest(json as Map<String, dynamic>);
-                  print('🔵 [CONNECTION] Transformed: $transformed');
-                  Logger.debug('Transformed: $transformed');
-                  final request = ConnectionRequest.fromJson(transformed);
-                  print('🔵 [CONNECTION] Parsed request: id=${request.id}, from=${request.fromUserId}, to=${request.toUserId}, status=${request.status}');
-                  Logger.debug('Parsed request: ${request.id}, from: ${request.fromUserId}, to: ${request.toUserId}');
-                  return request;
-                } catch (e, stackTrace) {
-                  print('🔴 [CONNECTION] Error parsing request: $e');
-                  print('🔴 [CONNECTION] JSON: $json');
-                  Logger.error('Error parsing incoming request', error: e, stackTrace: stackTrace);
-                  Logger.error('Problematic JSON: $json');
-                  return null;
-                }
-              })
-              .whereType<ConnectionRequest>()
-              .toList() ??
-          [];
-      
-      print('🟢 [CONNECTION] Successfully parsed ${requestsList.length} incoming requests');
-      for (var i = 0; i < requestsList.length; i++) {
-        print('🟢 [CONNECTION] Request $i: id=${requestsList[i].id}, status=${requestsList[i].status}');
-        Logger.info('Request $i: id=${requestsList[i].id}, status=${requestsList[i].status}');
-      }
-      
-      if (!controller.isClosed) {
-        print('🟢 [CONNECTION] Adding ${requestsList.length} requests to stream. Controller closed: ${controller.isClosed}');
-        Logger.info('Adding ${requestsList.length} requests to stream');
-        controller.add(requestsList);
-        print('🟢 [CONNECTION] Requests added to stream successfully');
-        Logger.info('Requests added to stream successfully');
-      } else {
-        print('🟡 [CONNECTION] Stream controller is CLOSED, cannot add requests');
-        Logger.warning('Stream controller is closed, cannot add requests');
-      }
-    } catch (e, stackTrace) {
-      print('🔴 [CONNECTION] Error loading incoming requests: $e');
-      print('🔴 [CONNECTION] Stack: $stackTrace');
-      Logger.error('Error loading incoming requests', error: e, stackTrace: stackTrace);
-      if (!controller.isClosed) {
-        controller.addError(e, stackTrace);
-      }
+  Future<List<ConnectionRequest>> _loadIncomingRequestsData() async {
+    Logger.debug('Loading incoming requests from API...');
+    final response = await _apiClient.get(ApiConfig.incomingRequests);
+    
+    final requestsRaw = response['requests'];
+    if (requestsRaw is! List) {
+      Logger.warning('Invalid response format for incoming requests');
+      return [];
     }
+    
+    final requestsList = requestsRaw
+        .map((json) {
+          try {
+            final transformed = _transformConnectionRequest(json as Map<String, dynamic>);
+            return ConnectionRequest.fromJson(transformed);
+          } catch (e, stackTrace) {
+            Logger.error('Error parsing incoming request', error: e, stackTrace: stackTrace);
+            return null;
+          }
+        })
+        .whereType<ConnectionRequest>()
+        .toList();
+    
+    Logger.debug('Successfully parsed ${requestsList.length} incoming requests');
+    return requestsList;
   }
+  
 
   @override
   Stream<List<ConnectionRequest>> watchOutgoingRequests() {
-    // Use a broadcast stream that can be listened to multiple times
-    // Poll every 5 seconds for updates
-    final controller = StreamController<List<ConnectionRequest>>.broadcast();
-    
-    // Load data immediately (don't emit empty list first)
-    _loadOutgoingRequests(controller);
-    
-    // Poll for updates every 5 seconds
-    Timer? timer;
-    timer = Timer.periodic(const Duration(seconds: 5), (t) {
-      if (controller.isClosed) {
-        t.cancel();
-        return;
-      }
-      _loadOutgoingRequests(controller);
-    });
-    
-    // Cancel timer when stream is closed
-    controller.onCancel = () {
-      timer?.cancel();
-    };
-    
-    return controller.stream;
+    return createPollingStream<List<ConnectionRequest>>(
+      loadData: _loadOutgoingRequestsData,
+      pollInterval: _pollInterval,
+    );
   }
   
-  Future<void> _loadOutgoingRequests(StreamController<List<ConnectionRequest>> controller) async {
-    try {
-      Logger.info('Loading outgoing requests from API...');
-      final response = await _apiClient.get(ApiConfig.outgoingRequests);
-      Logger.info('Outgoing requests API response: $response');
-      
-      final requestsRaw = response['requests'];
-      Logger.info('Outgoing requests raw: $requestsRaw, type: ${requestsRaw.runtimeType}, is List: ${requestsRaw is List}');
-      
-      if (requestsRaw is List) {
-        Logger.info('Outgoing requests list length: ${requestsRaw.length}');
-      }
-      
-      final requestsList = (requestsRaw as List?)
-              ?.map((json) {
-                try {
-                  Logger.debug('Parsing outgoing request JSON: $json');
-                  final transformed = _transformConnectionRequest(json as Map<String, dynamic>);
-                  Logger.debug('Transformed outgoing: $transformed');
-                  final request = ConnectionRequest.fromJson(transformed);
-                  Logger.debug('Parsed outgoing request: ${request.id}, status=${request.status}');
-                  return request;
-                } catch (e, stackTrace) {
-                  Logger.error('Error parsing outgoing request', error: e, stackTrace: stackTrace);
-                  Logger.error('Problematic JSON: $json');
-                  return null;
-                }
-              })
-              .whereType<ConnectionRequest>()
-              .toList() ??
-          [];
-      
-      Logger.info('Successfully parsed ${requestsList.length} outgoing requests');
-      if (!controller.isClosed) {
-        Logger.info('Adding ${requestsList.length} outgoing requests to stream');
-        controller.add(requestsList);
-      } else {
-        Logger.warning('Stream controller is closed, cannot add outgoing requests');
-      }
-    } catch (e, stackTrace) {
-      Logger.error('Error loading outgoing requests', error: e, stackTrace: stackTrace);
-      if (!controller.isClosed) {
-        controller.addError(e, stackTrace);
-      }
+  Future<List<ConnectionRequest>> _loadOutgoingRequestsData() async {
+    Logger.debug('Loading outgoing requests from API...');
+    final response = await _apiClient.get(ApiConfig.outgoingRequests);
+    
+    final requestsRaw = response['requests'];
+    if (requestsRaw is! List) {
+      Logger.warning('Invalid response format for outgoing requests');
+      return [];
     }
+    
+    final requestsList = requestsRaw
+        .map((json) {
+          try {
+            final transformed = _transformConnectionRequest(json as Map<String, dynamic>);
+            return ConnectionRequest.fromJson(transformed);
+          } catch (e, stackTrace) {
+            Logger.error('Error parsing outgoing request', error: e, stackTrace: stackTrace);
+            return null;
+          }
+        })
+        .whereType<ConnectionRequest>()
+        .toList();
+    
+    Logger.debug('Successfully parsed ${requestsList.length} outgoing requests');
+    return requestsList;
   }
 
   @override
   Stream<List<Connection>> watchConnections() {
-    // Use a broadcast stream that can be listened to multiple times
-    // Poll every 5 seconds for updates
-    final controller = StreamController<List<Connection>>.broadcast();
-    
-    // Load data immediately (don't emit empty list first)
-    _loadConnections(controller);
-    
-    // Poll for updates every 5 seconds
-    Timer? timer;
-    timer = Timer.periodic(const Duration(seconds: 5), (t) {
-      if (controller.isClosed) {
-        t.cancel();
-        return;
-      }
-      _loadConnections(controller);
-    });
-    
-    // Cancel timer when stream is closed
-    controller.onCancel = () {
-      timer?.cancel();
-    };
-    
-    return controller.stream;
+    return createPollingStream<List<Connection>>(
+      loadData: _loadConnectionsData,
+      pollInterval: _pollInterval,
+    );
   }
   
-  Future<void> _loadConnections(StreamController<List<Connection>> controller) async {
-    try {
-      final response = await _apiClient.get(ApiConfig.connections);
-      Logger.debug('Connections response: $response');
-      
-      // Get current user ID to determine which user is the "other" user
-      final currentUser = await _authRepo.getCurrentUser();
-      final currentUserId = currentUser?.id ?? '';
-      
-      final connectionsList = (response['connections'] as List?)
-              ?.map((json) {
-                try {
-                  final connJson = json as Map<String, dynamic>;
-                  final userId1 = connJson['user_id_1']?.toString() ?? connJson['userId1']?.toString() ?? '';
-                  final userId2 = connJson['user_id_2']?.toString() ?? connJson['userId2']?.toString() ?? '';
-                  final connectedAtStr = connJson['connected_at']?.toString() ?? connJson['connectedAt']?.toString() ?? DateTime.now().toIso8601String();
-                  
-                  // Determine which user is the "other" user
-                  final otherUserId = userId1 == currentUserId ? userId2 : userId1;
-                  
-                  // Build profile from individual fields
-                  final firstName = connJson['other_user_first_name'] as String?;
-                  final lastName = connJson['other_user_last_name'] as String?;
-                  final username = connJson['other_user_username'] as String?;
-                  final avatarUrl = connJson['other_user_avatar_url'] as String?;
-                  
-                  final displayName = [firstName, lastName].whereType<String>().join(' ').trim();
-                  final profileDisplayName = displayName.isNotEmpty 
-                      ? displayName 
-                      : (username ?? 'User ${otherUserId.substring(0, 8)}...');
-                  
-                  final otherUserProfile = ConnectionUserProfile(
-                    userId: otherUserId,
-                    displayName: profileDisplayName,
-                    username: username,
-                    avatarUrl: avatarUrl,
-                  );
-                  
-                  return Connection(
-                    userId1: userId1,
-                    userId2: userId2,
-                    connectedAt: DateTime.parse(connectedAtStr),
-                    otherUserId: otherUserId,
-                    otherUserProfile: otherUserProfile,
-                  );
-                } catch (e, stackTrace) {
-                  Logger.error('Error parsing connection', error: e, stackTrace: stackTrace);
-                  Logger.error('Problematic JSON: $json');
-                  return null;
-                }
-              })
-              .whereType<Connection>()
-              .toList() ??
-          [];
-      
-      Logger.debug('Parsed ${connectionsList.length} connections');
-      if (!controller.isClosed) {
-        controller.add(connectionsList);
-      }
-    } catch (e, stackTrace) {
-      Logger.error('Error loading connections', error: e, stackTrace: stackTrace);
-      if (!controller.isClosed) {
-        controller.addError(e, stackTrace);
-      }
+  Future<List<Connection>> _loadConnectionsData() async {
+    Logger.debug('Loading connections from API...');
+    final response = await _apiClient.get(ApiConfig.connections);
+    
+    // Get current user ID to determine which user is the "other" user
+    final currentUser = await _authRepo.getCurrentUser();
+    final currentUserId = currentUser?.id ?? '';
+    
+    final connectionsRaw = response['connections'];
+    if (connectionsRaw is! List) {
+      Logger.warning('Invalid response format for connections');
+      return [];
     }
+    
+    final connectionsList = connectionsRaw
+        .map((json) {
+          try {
+            final connJson = json as Map<String, dynamic>;
+            final userId1 = connJson['user_id_1']?.toString() ?? connJson['userId1']?.toString() ?? '';
+            final userId2 = connJson['user_id_2']?.toString() ?? connJson['userId2']?.toString() ?? '';
+            final connectedAtStr = connJson['connected_at']?.toString() ?? connJson['connectedAt']?.toString() ?? DateTime.now().toIso8601String();
+            
+            // Determine which user is the "other" user
+            final otherUserId = userId1 == currentUserId ? userId2 : userId1;
+            
+            // Build profile from individual fields
+            final firstName = connJson['other_user_first_name'] as String?;
+            final lastName = connJson['other_user_last_name'] as String?;
+            final username = connJson['other_user_username'] as String?;
+            final avatarUrl = connJson['other_user_avatar_url'] as String?;
+            
+            final displayName = [firstName, lastName].whereType<String>().join(' ').trim();
+            final profileDisplayName = displayName.isNotEmpty 
+                ? displayName 
+                : (username ?? 'User ${otherUserId.substring(0, 8)}...');
+            
+            final otherUserProfile = ConnectionUserProfile(
+              userId: otherUserId,
+              displayName: profileDisplayName,
+              username: username,
+              avatarUrl: avatarUrl,
+            );
+            
+            return Connection(
+              userId1: userId1,
+              userId2: userId2,
+              connectedAt: DateTime.parse(connectedAtStr),
+              otherUserId: otherUserId,
+              otherUserProfile: otherUserProfile,
+            );
+          } catch (e, stackTrace) {
+            Logger.error('Error parsing connection', error: e, stackTrace: stackTrace);
+            Logger.error('Problematic JSON: $json');
+            return null;
+          }
+        })
+        .whereType<Connection>()
+        .toList();
+    
+    Logger.debug('Successfully parsed ${connectionsList.length} connections');
+    return connectionsList;
   }
 }
 

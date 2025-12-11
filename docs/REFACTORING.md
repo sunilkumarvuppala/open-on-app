@@ -40,23 +40,49 @@ This document consolidates all refactoring work done to make the OpenOn codebase
 1. **Eliminated Duplicate Code**
    - Created `backend/app/core/permissions.py` - Centralized permission checking utilities
    - Created `backend/app/core/pagination.py` - Centralized pagination calculation
+   - Created `backend/app/services/connection_service.py` - Connection business logic ⭐ NEW
+   - Created `backend/app/api/connection_helpers.py` - Reusable helper functions ⭐ NEW
+   - Created `frontend/lib/core/data/stream_polling_mixin.dart` - Reusable polling pattern ⭐ NEW
    - Removed duplicate existence/ownership checks across all API endpoints
+   - Removed duplicate validation logic in connection endpoints
+   - Removed duplicate polling logic in repositories
    - Removed unused `can_open()` method from repository
 
 2. **Improved Structure**
    - All API endpoints now use shared permission utilities
+   - Connection endpoints use service layer for business logic
    - Consistent error handling patterns
    - Clean separation of concerns
+   - Service layer pattern for complex operations
 
 ### Configuration & Constants
 
 **Problem**: Hardcoded values scattered throughout codebase  
-**Solution**: All constants centralized in `app.core.config.Settings`
+**Solution**: All constants centralized in configuration files
+
+**Backend**:
+- `backend/app/core/constants.py` - All magic numbers and constants ⭐ NEW
+- `backend/app/core/config.py` - Application settings (Pydantic)
+
+**Constants Added**:
+- `MAX_CONNECTION_MESSAGE_LENGTH = 500`
+- `MAX_DECLINED_REASON_LENGTH = 500`
+- `MAX_DAILY_CONNECTION_REQUESTS = 5`
+- `CONNECTION_COOLDOWN_DAYS = 7`
+- `DEFAULT_QUERY_LIMIT = 50`
+- `MAX_QUERY_LIMIT = 100`
+- `MIN_QUERY_LIMIT = 1`
+- `MAX_URL_LENGTH = 500`
 
 **Files Modified**:
-- `backend/app/core/config.py` - Added configuration constants
-- `backend/app/db/repositories.py` - Fixed hardcoded limits
-- `backend/app/api/recipients.py` - Removed duplicate imports
+- `backend/app/core/constants.py` - Created with all constants ⭐ NEW
+- `backend/app/core/config.py` - Application settings
+- `backend/app/api/connections.py` - Uses constants
+- `backend/app/api/recipients.py` - Uses constants
+- `backend/app/api/auth.py` - Uses config settings
+
+**Frontend**:
+- `frontend/lib/core/constants/app_constants.dart` - All UI constants
 
 > **See [backend/CONFIGURATION.md](./backend/CONFIGURATION.md) for complete configuration reference**
 
@@ -76,6 +102,50 @@ All constants now centralized:
 - Animation durations
 - Validation limits
 - Thresholds
+
+**Status**: ✅ Complete - All hardcoded values removed
+
+### Polling Pattern Unification ⭐ NEW
+
+**Problem**: Duplicate polling logic in multiple repositories
+
+**Solution**: Created `StreamPollingMixin` for reusable polling pattern
+
+**Implementation**:
+```dart
+// frontend/lib/core/data/stream_polling_mixin.dart
+mixin StreamPollingMixin {
+  Stream<T> createPollingStream<T>({
+    required Future<T> Function() loadData,
+    Duration pollInterval = const Duration(seconds: 5),
+  }) {
+    // Unified polling implementation
+  }
+}
+```
+
+**Usage**:
+```dart
+class ApiConnectionRepository with StreamPollingMixin {
+  @override
+  Stream<List<ConnectionRequest>> watchIncomingRequests() {
+    return createPollingStream<List<ConnectionRequest>>(
+      loadData: _loadIncomingRequestsData,
+      pollInterval: _pollInterval,
+    );
+  }
+}
+```
+
+**Benefits**:
+- Consistent polling pattern across all repositories
+- Automatic timer cleanup
+- Proper error handling
+- Reduced code duplication
+
+**Files**:
+- `frontend/lib/core/data/stream_polling_mixin.dart` - ⭐ NEW
+- `frontend/lib/core/data/api_repositories.dart` - Refactored to use mixin
 
 ### Error Handling System
 
