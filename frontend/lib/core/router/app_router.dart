@@ -17,6 +17,10 @@ import 'package:openon_app/features/capsule/opened_letter_screen.dart';
 import 'package:openon_app/features/profile/profile_screen.dart';
 import 'package:openon_app/features/profile/color_scheme_screen.dart';
 import 'package:openon_app/features/drafts/drafts_screen.dart';
+import 'package:openon_app/features/connections/add_connection_screen.dart';
+import 'package:openon_app/features/connections/requests_screen.dart';
+import 'package:openon_app/features/connections/connections_screen.dart';
+import 'package:openon_app/features/people/people_screen.dart';
 
 /// Route names
 class Routes {
@@ -34,6 +38,10 @@ class Routes {
   static const profile = '/profile';
   static const colorScheme = '/profile/color-scheme';
   static const drafts = '/drafts';
+  static const connections = '/connections';
+  static const addConnection = '/connections/add';
+  static const connectionRequests = '/connections/requests';
+  static const people = '/people';
 }
 
 final goRouterProvider = Provider<GoRouter>((ref) {
@@ -93,6 +101,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             path: Routes.home,
             builder: (context, state) => const HomeScreen(),
           ),
+          GoRoute(
+            path: Routes.people,
+            builder: (context, state) => const PeopleScreen(),
+          ),
         ],
       ),
       GoRoute(
@@ -142,6 +154,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.drafts,
         builder: (context, state) => const DraftsScreen(),
+      ),
+      GoRoute(
+        path: Routes.connections,
+        builder: (context, state) => const ConnectionsScreen(),
+      ),
+      GoRoute(
+        path: Routes.addConnection,
+        builder: (context, state) => const AddConnectionScreen(),
+      ),
+      GoRoute(
+        path: Routes.connectionRequests,
+        builder: (context, state) => const RequestsScreen(),
       ),
     ],
   );

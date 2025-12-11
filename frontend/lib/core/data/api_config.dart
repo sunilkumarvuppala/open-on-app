@@ -48,6 +48,13 @@ class ApiConfig {
   static const String recipients = '/recipients';
   static String recipientById(String id) => '/recipients/$id';
 
+  // Connection endpoints
+  static const String connectionRequests = '/connections/requests';
+  static String connectionRequestById(String id) => '/connections/requests/$id';
+  static const String incomingRequests = '/connections/requests/incoming';
+  static const String outgoingRequests = '/connections/requests/outgoing';
+  static const String connections = '/connections';
+
   // Helper method to build full URL
   static String buildUrl(String endpoint) {
     return '$baseUrl$endpoint';

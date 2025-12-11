@@ -168,6 +168,11 @@ class _ConfettiBurstState extends State<ConfettiBurst>
     });
     
     _initializeParticles();
+    
+    // Start animation if active
+    if (widget.isActive) {
+      _controller.forward();
+    }
   }
   
   @override
@@ -232,8 +237,9 @@ class _ConfettiBurstState extends State<ConfettiBurst>
   
   @override
   Widget build(BuildContext context) {
-    if (!widget.isActive && _controller.status != AnimationStatus.forward) {
-      return const SizedBox.shrink();
+    // Start animation when widget becomes active
+    if (widget.isActive && _controller.status == AnimationStatus.dismissed) {
+      _controller.forward();
     }
     
     return RepaintBoundary(

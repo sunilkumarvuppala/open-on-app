@@ -37,7 +37,7 @@ from app.dependencies import DatabaseSession, CurrentUser
 from app.db.repositories import CapsuleRepository, RecipientRepository
 from app.db.models import CapsuleStatus
 from app.core.logging import get_logger
-from app.core.permissions import verify_recipient_ownership, verify_capsule_access, verify_capsule_sender, verify_capsule_recipient
+from app.core.permissions import verify_recipient_ownership, verify_users_are_connected, verify_capsule_access, verify_capsule_sender, verify_capsule_recipient
 from app.core.pagination import calculate_pagination
 from app.utils.helpers import sanitize_text
 from app.core.config import settings
@@ -70,6 +70,33 @@ async def create_capsule(
         capsule_data.recipient_id,
         current_user.user_id
     )
+    
+    # ===== Mutual Connection Validation =====
+    # Enforce that letters can only be sent to mutual friends
+    # Get recipient to find the linked user (if recipient is a registered user)
+    recipient = await recipient_repo.get_by_id(capsule_data.recipient_id)
+    
+    if recipient and recipient.email:
+        # Check if recipient email matches a registered user
+        # If so, verify mutual connection
+        from sqlalchemy import text
+        result = await session.execute(
+            text("""
+                SELECT id FROM auth.users
+                WHERE email = :email
+            """),
+            {"email": recipient.email.lower().strip()}
+        )
+        recipient_user_id = result.scalar_one_or_none()
+        
+        if recipient_user_id:
+            # Recipient is a registered user - verify mutual connection
+            await verify_users_are_connected(
+                session,
+                current_user.user_id,
+                recipient_user_id,
+                raise_on_not_connected=True
+            )
     
     # ===== Content Validation =====
     # Must have either body_text OR body_rich_text

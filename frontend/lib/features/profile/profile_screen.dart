@@ -138,6 +138,36 @@ class ProfileScreen extends ConsumerWidget {
               
               SizedBox(height: AppTheme.spacingXl),
               
+              // Connections section
+              _buildSectionTitle(context, 'Connections', ref),
+              _buildConnectionTile(
+                context,
+                ref,
+                icon: Icons.people_outlined,
+                title: 'My Connections',
+                subtitle: 'View all your connections',
+                onTap: () => context.push(Routes.connections),
+              ),
+              _buildConnectionTile(
+                context,
+                ref,
+                icon: Icons.person_add_outlined,
+                title: 'Connection Requests',
+                subtitle: 'Incoming and outgoing requests',
+                badgeCount: ref.watch(incomingRequestsCountProvider),
+                onTap: () => context.push(Routes.connectionRequests),
+              ),
+              _buildConnectionTile(
+                context,
+                ref,
+                icon: Icons.person_add_alt_1_outlined,
+                title: 'Add Connection',
+                subtitle: 'Send a new connection request',
+                onTap: () => context.push(Routes.addConnection),
+              ),
+              
+              SizedBox(height: AppTheme.spacingLg),
+              
               // Settings sections
               _buildSectionTitle(context, 'Account', ref),
               _buildSettingsTile(
@@ -387,6 +417,85 @@ class ProfileScreen extends ConsumerWidget {
         leading: Icon(
           icon, 
           color: DynamicTheme.getPrimaryIconColor(colorScheme),
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: DynamicTheme.getPrimaryTextColor(colorScheme),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: subtitle != null
+            ? Text(
+                subtitle,
+                style: TextStyle(
+                  color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                ),
+              )
+            : null,
+        trailing: Icon(
+          Icons.chevron_right, 
+          color: DynamicTheme.getSecondaryIconColor(colorScheme),
+        ),
+        onTap: onTap,
+      ),
+    );
+  }
+  
+  Widget _buildConnectionTile(
+    BuildContext context,
+    WidgetRef ref, {
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    int badgeCount = 0,
+    required VoidCallback onTap,
+  }) {
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
+    
+    return Card(
+      margin: EdgeInsets.only(bottom: AppTheme.spacingSm),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+      ),
+      child: ListTile(
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingMd,
+          vertical: AppTheme.spacingSm,
+        ),
+        leading: Stack(
+          children: [
+            Icon(
+              icon, 
+              color: DynamicTheme.getPrimaryIconColor(colorScheme),
+            ),
+            if (badgeCount > 0)
+              Positioned(
+                right: -2,
+                top: -2,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 16,
+                    minHeight: 16,
+                  ),
+                  child: Text(
+                    badgeCount > 9 ? '9+' : '$badgeCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
         ),
         title: Text(
           title,

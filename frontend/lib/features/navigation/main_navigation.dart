@@ -42,12 +42,15 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
   }
 
   int get _currentIndex {
-    // Inbox (receiverHome) is now index 0 (primary home)
-    // Outbox (home) is now index 1 (secondary)
+    // Inbox (receiverHome) is index 0
+    // Outbox (home) is index 1
+    // People is index 2
     if (widget.location == Routes.receiverHome) {
       return 0;
     } else if (widget.location == Routes.home) {
       return 1;
+    } else if (widget.location == Routes.people) {
+      return 2;
     }
     return 0; // Default to inbox
   }
@@ -61,9 +64,11 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
     });
 
     if (index == 0) {
-      context.go(Routes.receiverHome); // Inbox (primary home)
+      context.go(Routes.receiverHome); // Inbox
     } else if (index == 1) {
-      context.go(Routes.home); // Outbox (secondary)
+      context.go(Routes.home); // Outbox
+    } else if (index == 2) {
+      context.go(Routes.people); // People
     }
   }
 
@@ -113,6 +118,16 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
                   colorScheme: colorScheme,
                   animationController: _animationController,
                 ),
+                _buildNavItem(
+                  context: context,
+                  icon: Icons.people_outlined,
+                  activeIcon: Icons.people,
+                  label: 'People',
+                  index: 2,
+                  colorScheme: colorScheme,
+                  animationController: _animationController,
+                  badgeCount: ref.watch(incomingRequestsCountProvider),
+                ),
               ],
             ),
           ),
@@ -129,6 +144,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
     required int index,
     required AppColorScheme colorScheme,
     required AnimationController animationController,
+    int badgeCount = 0,
   }) {
     final isSelected = index == _currentIndex;
     
@@ -205,10 +221,41 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
                               ],
                             ),
                           )
-                        : Icon(
-                            icon,
-                            color: unselectedIconColor,
-                            size: 21,
+                        : Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Icon(
+                                icon,
+                                color: unselectedIconColor,
+                                size: 21,
+                              ),
+                              // Badge for incoming requests
+                              if (badgeCount > 0)
+                                Positioned(
+                                  right: -6,
+                                  top: -6,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 16,
+                                      minHeight: 16,
+                                    ),
+                                    child: Text(
+                                      badgeCount > 9 ? '9+' : '$badgeCount',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                   );
                 },

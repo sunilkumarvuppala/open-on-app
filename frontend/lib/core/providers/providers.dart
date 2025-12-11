@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openon_app/core/constants/app_constants.dart';
 import 'package:openon_app/core/data/repositories.dart';
 import 'package:openon_app/core/data/api_repositories.dart';
+import 'package:openon_app/core/data/connection_repository.dart';
 import 'package:openon_app/core/models/models.dart';
+import 'package:openon_app/core/models/connection_models.dart';
 import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/color_scheme_service.dart';
 
@@ -29,6 +31,13 @@ final recipientRepositoryProvider = Provider<RecipientRepository>((ref) {
     return ApiRecipientRepository();
   }
   return MockRecipientRepository();
+});
+
+final connectionRepositoryProvider = Provider<ConnectionRepository>((ref) {
+  if (useApiRepositories) {
+    return ApiConnectionRepository();
+  }
+  return SupabaseConnectionRepository();
 });
 
 // Auth state providers
@@ -227,4 +236,50 @@ final draftsProvider = StateNotifierProvider<DraftsNotifier, List<Draft>>((ref) 
 
 final draftsCountProvider = Provider<int>((ref) {
   return ref.watch(draftsProvider).length;
+});
+
+// Connection providers
+final pendingRequestsProvider = StreamProvider<PendingRequests>((ref) async* {
+  final repo = ref.watch(connectionRepositoryProvider);
+  final requests = await repo.getPendingRequests();
+  yield requests;
+  
+  // Watch for real-time updates
+  yield* Stream.periodic(const Duration(seconds: 5), (_) async {
+    return await repo.getPendingRequests();
+  }).asyncMap((future) => future);
+});
+
+final incomingRequestsProvider = StreamProvider<List<ConnectionRequest>>((ref) {
+  final repo = ref.watch(connectionRepositoryProvider);
+  print('🟡 [PROVIDER] Creating incomingRequestsProvider stream');
+  final stream = repo.watchIncomingRequests();
+  print('🟡 [PROVIDER] Stream created, listening...');
+  stream.listen(
+    (data) {
+      print('🟢 [PROVIDER] Stream emitted ${data.length} incoming requests');
+    },
+    onError: (error, stack) {
+      print('🔴 [PROVIDER] Stream error: $error');
+    },
+    onDone: () {
+      print('🟡 [PROVIDER] Stream done');
+    },
+  );
+  return stream;
+});
+
+final outgoingRequestsProvider = StreamProvider<List<ConnectionRequest>>((ref) {
+  final repo = ref.watch(connectionRepositoryProvider);
+  return repo.watchOutgoingRequests();
+});
+
+final connectionsProvider = StreamProvider<List<Connection>>((ref) {
+  final repo = ref.watch(connectionRepositoryProvider);
+  return repo.watchConnections();
+});
+
+final incomingRequestsCountProvider = Provider<int>((ref) {
+  final requestsAsync = ref.watch(incomingRequestsProvider);
+  return requestsAsync.asData?.value.length ?? 0;
 });

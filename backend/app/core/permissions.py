@@ -10,6 +10,7 @@ from app.db.repositories import RecipientRepository, CapsuleRepository
 from app.db.models import CapsuleStatus
 from app.core.logging import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 
 logger = get_logger(__name__)
 
@@ -54,6 +55,53 @@ async def verify_recipient_ownership(
         )
     
     return True
+
+
+async def verify_users_are_connected(
+    session: AsyncSession,
+    user_id_1: UUID,
+    user_id_2: UUID,
+    raise_on_not_connected: bool = True
+) -> bool:
+    """
+    Verify that two users are mutually connected.
+    
+    This enforces that letters can only be sent to mutual friends.
+    
+    Args:
+        session: Database session
+        user_id_1: First user ID
+        user_id_2: Second user ID
+        raise_on_not_connected: If True, raise 403 if users are not connected
+        
+    Returns:
+        True if users are connected, False otherwise
+        
+    Raises:
+        HTTPException 403: If users are not connected and raise_on_not_connected=True
+    """
+    # Sort user IDs to match how connections are stored
+    user1 = min(user_id_1, user_id_2)
+    user2 = max(user_id_1, user_id_2)
+    
+    # Check if connection exists
+    result = await session.execute(
+        text("""
+            SELECT 1 FROM public.connections
+            WHERE user_id_1 = :user1 AND user_id_2 = :user2
+        """),
+        {"user1": user1, "user2": user2}
+    )
+    
+    is_connected = result.scalar() is not None
+    
+    if not is_connected and raise_on_not_connected:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only send letters to users you are connected with. Please send a connection request first."
+        )
+    
+    return is_connected
 
 
 async def verify_capsule_access(
@@ -227,4 +275,3 @@ async def verify_capsule_recipient(
         )
     
     return True
-

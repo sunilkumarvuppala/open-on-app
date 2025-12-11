@@ -683,3 +683,90 @@ class HealthResponse(BaseModel):
     status: str
     timestamp: datetime
     version: str
+
+
+# ===== Connection Models =====
+class ConnectionRequestCreate(BaseModel):
+    """
+    Request model for creating a connection request.
+    
+    Fields:
+    - to_user_id: UUID of user to send request to
+    - message: Optional message to include with request
+    """
+    to_user_id: UUID
+    message: Optional[str] = Field(None, max_length=500)
+
+
+class ConnectionRequestResponse(BaseModel):
+    """
+    Response model for connection request.
+    
+    Matches Supabase connection_requests table schema.
+    """
+    id: UUID
+    from_user_id: UUID
+    to_user_id: UUID
+    status: str  # pending, accepted, declined
+    message: Optional[str] = None
+    declined_reason: Optional[str] = None
+    acted_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+    # User profile info for display
+    from_user_first_name: Optional[str] = None
+    from_user_last_name: Optional[str] = None
+    from_user_username: Optional[str] = None
+    from_user_avatar_url: Optional[str] = None
+
+
+class ConnectionRequestUpdate(BaseModel):
+    """
+    Request model for responding to a connection request.
+    
+    Fields:
+    - status: Response status (accepted or declined)
+    - declined_reason: Optional reason if declining
+    """
+    status: str = Field(..., pattern="^(accepted|declined)$")
+    declined_reason: Optional[str] = Field(None, max_length=500)
+
+
+class ConnectionResponse(BaseModel):
+    """
+    Response model for a mutual connection.
+    
+    Matches Supabase connections table schema.
+    """
+    user_id_1: UUID
+    user_id_2: UUID
+    connected_at: datetime
+    # User profile info for the other user (not the current user)
+    other_user_first_name: Optional[str] = None
+    other_user_last_name: Optional[str] = None
+    other_user_username: Optional[str] = None
+    other_user_avatar_url: Optional[str] = None
+
+
+class ConnectionListResponse(BaseModel):
+    """
+    Response model for listing connections.
+    
+    Fields:
+    - connections: List of connections
+    - total: Total count
+    """
+    connections: list[ConnectionResponse]
+    total: int
+
+
+class ConnectionRequestListResponse(BaseModel):
+    """
+    Response model for listing connection requests.
+    
+    Fields:
+    - requests: List of connection requests
+    - total: Total count
+    """
+    requests: list[ConnectionRequestResponse]
+    total: int
