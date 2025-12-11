@@ -16,6 +16,8 @@ Security considerations:
 - Signup/login use Supabase Auth via Admin API
 - All other endpoints require Supabase JWT authentication
 - User profile data is managed here, but auth is handled by Supabase
+- All inputs are validated and sanitized before processing
+- Database queries use parameterized statements (SQL injection safe)
 """
 from typing import Any
 from uuid import UUID
@@ -24,11 +26,14 @@ from fastapi import APIRouter, HTTPException, status, Query, Depends, Request
 from app.models.schemas import UserProfileResponse, UserCreate, UserLogin
 from app.dependencies import DatabaseSession, CurrentUser
 from app.db.repositories import UserProfileRepository
-from app.db.models import UserProfile
 from app.utils.helpers import validate_username, sanitize_text
 from app.utils.url_helpers import normalize_supabase_url
+from app.services.error_service import ErrorService
 from app.core.config import settings
 from app.core.security import verify_supabase_token
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 # Router for all authentication endpoints
@@ -115,6 +120,15 @@ async def signup(
             detail=error_message
         )
     
+    # Check if username already exists
+    user_profile_repo = UserProfileRepository(session)
+    existing_profile = await user_profile_repo.get_by_username(user_data.username)
+    if existing_profile:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Username is already taken"
+        )
+    
     # Create user in Supabase Auth using Admin API
     async with httpx.AsyncClient() as client:
         try:
@@ -143,19 +157,34 @@ async def signup(
             response = await client.post(supabase_auth_url, json=payload, headers=headers)
             
             if response.status_code not in (200, 201):
-                # Try to get detailed error message
-                try:
-                    error_json = response.json()
-                    error_detail = error_json.get("message") or error_json.get("error_description") or error_json.get("error") or f"HTTP {response.status_code}: Failed to create user"
-                except:
-                    error_detail = f"HTTP {response.status_code}: Failed to create user. Check SUPABASE_SERVICE_KEY in .env"
+                # Extract user-friendly error message using error service
+                error_detail = ErrorService.extract_supabase_error(
+                    response.text, 
+                    response.status_code
+                )
                 
-                # Log the actual error for debugging
-                from app.core.logging import get_logger
-                logger = get_logger(__name__)
-                logger.error(f"Supabase Admin API error: {response.status_code} - {error_detail}")
-                logger.error(f"URL: {supabase_auth_url}")
-                logger.error(f"Service key set: {bool(settings.supabase_service_key and settings.supabase_service_key != 'your-supabase-service-key-here')}")
+                # Log technical details for debugging (not exposed to users)
+                logger.error(
+                    f"Supabase Admin API error: {response.status_code} - {response.text}",
+                    extra={"url": supabase_auth_url}
+                )
+                
+                # Map specific status codes to appropriate HTTP status codes
+                if response.status_code == 409:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="This email is already registered. Please use a different email or log in."
+                    )
+                elif response.status_code == 403:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Authentication failed. Please contact support if this issue persists."
+                    )
+                elif response.status_code == 422:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=error_detail
+                    )
                 
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -209,35 +238,49 @@ async def signup(
             }
             
         except httpx.HTTPStatusError as e:
-            # Get detailed error from response
-            try:
-                error_json = e.response.json()
-                error_detail = error_json.get("message") or error_json.get("error_description") or error_json.get("error") or "Failed to create user"
-            except:
-                error_detail = f"HTTP {e.response.status_code}: Failed to create user"
+            # Extract user-friendly error message using error service
+            error_detail = ErrorService.extract_supabase_error(
+                e.response.text,
+                e.response.status_code
+            )
             
-            if e.response.status_code == 403:
-                error_detail = "Authentication failed. Check SUPABASE_SERVICE_KEY in .env file. Get it from: cd supabase && supabase status"
+            logger.error(
+                f"Supabase API error: {e.response.status_code} - {e.response.text}"
+            )
+            
+            # Map specific status codes to appropriate HTTP status codes
+            if e.response.status_code == 409:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="This email is already registered. Please use a different email or log in."
+                )
+            elif e.response.status_code == 403:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Authentication failed. Please contact support if this issue persists."
+                )
             elif e.response.status_code == 422:
-                error_detail = "Invalid user data"
-            elif e.response.status_code == 409:
-                error_detail = "Email already registered"
-            
-            from app.core.logging import get_logger
-            logger = get_logger(__name__)
-            logger.error(f"Supabase API error: {e.response.status_code} - {error_detail}")
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=error_detail
+                )
             
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=error_detail
             )
+        except HTTPException:
+            # Re-raise HTTPExceptions as-is (they already have user-friendly messages)
+            raise
         except Exception as e:
-            from app.core.logging import get_logger
-            logger = get_logger(__name__)
             logger.error(f"Unexpected error during signup: {str(e)}", exc_info=True)
+            
+            # Extract user-friendly error message
+            user_message = ErrorService.get_signup_error_message(e)
+            
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to create user: {str(e)}"
+                detail=user_message
             )
 
 
@@ -307,10 +350,16 @@ async def login(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid email or password"
             )
+        except httpx.HTTPStatusError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
         except Exception as e:
+            logger.error(f"Unexpected error during login: {str(e)}", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to authenticate: {str(e)}"
+                detail="Authentication failed. Please try again."
             )
 
 
@@ -349,15 +398,14 @@ async def get_current_user_info(
 
 @router.get("/username/check")
 async def check_username_availability(
+    session: DatabaseSession,
     username: str = Query(..., min_length=1, description="Username to check")
 ) -> dict[str, Any]:
     """
     Check if a username is available.
     
-    This endpoint validates the username format and checks availability.
-    Note: Since authentication is handled by Supabase Auth (which uses email),
-    this endpoint primarily validates username format. Actual username uniqueness
-    will be enforced by Supabase Auth when the user signs up.
+    This endpoint validates the username format and checks availability
+    against existing usernames in the user_profiles table.
     
     Returns:
         - available: bool - Whether the username is available
@@ -372,10 +420,15 @@ async def check_username_availability(
             "message": error_message
         }
     
-    # For now, we return available since we can't easily check Supabase Auth
-    # usernames without the Admin API. The actual uniqueness will be enforced
-    # by Supabase Auth when the user signs up.
-    # TODO: If username is stored in user_profiles or user_metadata, check against that
+    # Check if username already exists in user_profiles table
+    user_profile_repo = UserProfileRepository(session)
+    existing_profile = await user_profile_repo.get_by_username(username)
+    
+    if existing_profile:
+        return {
+            "available": False,
+            "message": "Username is already taken"
+        }
     
     return {
         "available": True,

@@ -120,5 +120,46 @@ class Validation {
   static String sanitizeEmail(String email) {
     return email.trim().toLowerCase();
   }
+
+  /// Validates username format
+  /// Rules: lowercase letters and numbers only, must start with a letter, 3-100 characters
+  static void validateUsername(String username) {
+    if (username.trim().isEmpty) {
+      throw const ValidationException('Username cannot be empty');
+    }
+    if (username.length < AppConstants.minUsernameLength) {
+      throw ValidationException(
+        'Username must be at least ${AppConstants.minUsernameLength} characters',
+      );
+    }
+    if (username.length > AppConstants.maxUsernameLength) {
+      throw ValidationException(
+        'Username must be at most ${AppConstants.maxUsernameLength} characters',
+      );
+    }
+    // Only lowercase letters and numbers, must start with a letter
+    final usernameRegex = RegExp(r'^[a-z][a-z0-9]*$');
+    if (!usernameRegex.hasMatch(username)) {
+      if (username.isEmpty) {
+        throw const ValidationException('Username cannot be empty');
+      }
+      final firstChar = username[0];
+      if (!RegExp(r'^[a-z]$').hasMatch(firstChar)) {
+        throw const ValidationException('Username must start with a lowercase letter');
+      }
+      if (username != username.toLowerCase()) {
+        throw const ValidationException('Username must contain only lowercase letters and numbers');
+      }
+      if (!RegExp(r'^[a-z0-9]+$').hasMatch(username)) {
+        throw const ValidationException('Username can only contain lowercase letters and numbers');
+      }
+      throw const ValidationException('Username must start with a letter and contain only lowercase letters and numbers');
+    }
+  }
+
+  /// Sanitizes username (lowercase, trim)
+  static String sanitizeUsername(String username) {
+    return username.trim().toLowerCase();
+  }
 }
 
