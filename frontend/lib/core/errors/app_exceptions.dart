@@ -44,3 +44,8 @@ class RepositoryException extends AppException {
   const RepositoryException(super.message, {super.originalError, super.stackTrace});
 }
 
+/// Exception thrown when a resource conflict occurs (e.g., email already registered)
+class ConflictException extends AppException {
+  const ConflictException(super.message, {super.originalError, super.stackTrace});
+}
+

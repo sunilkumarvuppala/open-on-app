@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/providers/providers.dart';
@@ -7,6 +8,8 @@ import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/utils/error_handler.dart';
+import 'package:openon_app/core/utils/validation.dart';
+import 'package:openon_app/core/errors/app_exceptions.dart';
 import 'package:openon_app/core/data/api_repositories.dart';
 import 'package:openon_app/core/constants/app_constants.dart';
 
@@ -97,11 +100,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       return;
     }
     
-    if (username.length < 3) {
+    // Validate format first
+    try {
+      Validation.validateUsername(username);
+    } on ValidationException catch (e) {
       setState(() {
         _isCheckingUsername = false;
         _usernameAvailable = false;
-        _usernameMessage = 'Username must be at least 3 characters';
+        _usernameMessage = e.message;
       });
       return;
     }
@@ -336,6 +342,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   textCapitalization: TextCapitalization.none,
                   autocorrect: false,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
+                  // Input formatter to restrict to lowercase letters and numbers only
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[a-z0-9]')),
+                  ],
                   style: TextStyle(
                     color: DynamicTheme.getInputTextColor(colorScheme),
                   ),
@@ -375,9 +385,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     if (value == null || value.trim().isEmpty) {
                       return 'Please enter a username';
                     }
-                    if (value.trim().length < 3) {
-                      return 'Username must be at least 3 characters';
+                    
+                    final trimmedValue = value.trim();
+                    
+                    // Validate using Validation class
+                    try {
+                      Validation.validateUsername(trimmedValue);
+                    } on ValidationException catch (e) {
+                      return e.message;
                     }
+                    
                     if (_usernameAvailable == false) {
                       return _usernameMessage ?? 'Username is not available';
                     }

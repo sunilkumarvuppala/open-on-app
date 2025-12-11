@@ -71,6 +71,8 @@ class ApiClient {
         throw AuthenticationException(errorMessage ?? 'Access denied');
       case 404:
         throw NotFoundException(errorMessage ?? 'Resource not found');
+      case 409:
+        throw ConflictException(errorMessage ?? 'Resource conflict');
       case 422:
         throw ValidationException(errorMessage ?? 'Validation error');
       case 500:

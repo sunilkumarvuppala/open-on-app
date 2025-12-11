@@ -15,22 +15,37 @@ class ErrorHandler {
   }) {
     // Handle specific exception types first
     if (error is ValidationException) {
-      return error.message;
+      return _cleanErrorMessage(error.message);
     }
     if (error is AuthenticationException) {
-      return error.message;
+      return _cleanErrorMessage(error.message);
     }
     if (error is NetworkException) {
-      return error.message;
+      return _cleanErrorMessage(error.message);
     }
     if (error is NotFoundException) {
-      return error.message;
+      return _cleanErrorMessage(error.message);
     }
     if (error is RepositoryException) {
-      return error.message;
+      return _cleanErrorMessage(error.message);
+    }
+    if (error is ConflictException) {
+      // Provide user-friendly message for email already registered
+      if (error.message.contains('Email already registered') || 
+          (error.message.toLowerCase().contains('email') && 
+           error.message.toLowerCase().contains('already'))) {
+        return 'This email is already registered. Please use a different email or log in.';
+      }
+      // Provide user-friendly message for username already taken
+      if (error.message.contains('Username is already taken') || 
+          (error.message.toLowerCase().contains('username') && 
+           error.message.toLowerCase().contains('already'))) {
+        return 'This username is already taken. Please choose a different username.';
+      }
+      return _cleanErrorMessage(error.message);
     }
     if (error is AppException) {
-      return error.message;
+      return _cleanErrorMessage(error.message);
     }
 
     // Try to extract meaningful message from string representation
@@ -78,12 +93,12 @@ class ErrorHandler {
   static String? _extractFromStructuredError(String errorStr) {
     // Try ValidationException format
     if (errorStr.contains('ValidationException:')) {
-      return errorStr.split('ValidationException:').last.trim();
+      return _cleanErrorMessage(errorStr.split('ValidationException:').last.trim());
     }
 
     // Try AuthenticationException format
     if (errorStr.contains('AuthenticationException:')) {
-      return errorStr.split('AuthenticationException:').last.trim();
+      return _cleanErrorMessage(errorStr.split('AuthenticationException:').last.trim());
     }
 
     // Try detail: format (common in API responses)
@@ -97,7 +112,7 @@ class ErrorHandler {
         detail = detail.substring(0, detail.length - 1);
       }
       if (detail.isNotEmpty && detail.length < 200) {
-        return detail;
+        return _cleanErrorMessage(detail);
       }
     }
 
@@ -111,7 +126,7 @@ class ErrorHandler {
         message = message.substring(0, message.length - 1);
       }
       if (message.isNotEmpty && message.length < 200) {
-        return message;
+        return _cleanErrorMessage(message);
       }
     }
 
@@ -125,11 +140,47 @@ class ErrorHandler {
         errorMsg = errorMsg.substring(0, errorMsg.length - 1);
       }
       if (errorMsg.isNotEmpty && errorMsg.length < 200) {
-        return errorMsg;
+        return _cleanErrorMessage(errorMsg);
       }
     }
 
     return null;
+  }
+
+  /// Clean error message to make it user-friendly
+  /// Removes HTTP codes, technical details, and error codes
+  static String _cleanErrorMessage(String message) {
+    if (message.isEmpty) {
+      return 'An error occurred. Please try again.';
+    }
+
+    // Remove HTTP status codes (e.g., "HTTP 422", "400:", "422 Unprocessable Entity")
+    message = message.replaceAll(RegExp(r'HTTP\s+\d+[:\s]*', caseSensitive: false), '');
+    message = message.replaceAll(RegExp(r'\b\d{3}\s+(?:Bad Request|Unauthorized|Forbidden|Not Found|Conflict|Unprocessable Entity|Internal Server Error)\b', caseSensitive: false), '');
+    message = message.replaceAll(RegExp(r'\b\d{3}:\s*', caseSensitive: false), '');
+
+    // Remove common technical prefixes
+    message = message.replaceAll(RegExp(r'^(Error|Exception|Failed|Invalid):\s*', caseSensitive: false), '');
+
+    // Remove file paths and line numbers
+    message = message.replaceAll(RegExp(r'\([^)]*\.dart[^)]*\)', caseSensitive: false), '');
+    message = message.replaceAll(RegExp(r'at\s+[^\s]+\s+line\s+\d+', caseSensitive: false), '');
+
+    // Clean up whitespace
+    message = message.trim();
+    message = message.replaceAll(RegExp(r'\s+'), ' ');
+
+    // Capitalize first letter
+    if (message.isNotEmpty) {
+      message = message[0].toUpperCase() + (message.length > 1 ? message.substring(1) : '');
+    }
+
+    // If message is empty or too short, provide a generic one
+    if (message.isEmpty || message.length < 3) {
+      return 'An error occurred. Please check your input and try again.';
+    }
+
+    return message;
   }
 
   /// Get default error message for common operations

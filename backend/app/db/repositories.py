@@ -52,6 +52,15 @@ class UserProfileRepository(BaseRepository[UserProfile]):
         )
         return result.scalar_one_or_none()
     
+    async def get_by_username(self, username: str) -> Optional[UserProfile]:
+        """Get user profile by username (case-insensitive)."""
+        result = await self.session.execute(
+            select(UserProfile).where(
+                func.lower(UserProfile.username) == username.lower()
+            )
+        )
+        return result.scalar_one_or_none()
+    
     async def create(
         self,
         user_id: UUID,
