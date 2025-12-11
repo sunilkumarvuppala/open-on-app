@@ -57,6 +57,11 @@ class Settings(BaseSettings):
         default="your-supabase-service-key-here",
         description="Supabase service role key (Admin API). For local: Get from 'cd supabase && supabase status' (look for 'service_role key'). For production: Get from Supabase Dashboard > Project Settings > API > service_role key. WARNING: Keep this secret!"
     )
+    # Supabase anon key (used by frontend, not backend, but allowed in config to prevent validation errors)
+    supabase_anon_key: Optional[str] = Field(
+        default=None,
+        description="Supabase anon key (used by Flutter frontend, not required for backend)"
+    )
     # Legacy secret key (kept for backward compatibility, but Supabase JWT is primary)
     secret_key: str = Field(
         default="CHANGE_THIS_IN_PRODUCTION_USE_RANDOM_SECRET_KEY_HERE",

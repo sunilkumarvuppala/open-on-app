@@ -52,6 +52,7 @@
 - **[frontend/features/RECEIVER.md](./frontend/features/RECEIVER.md)** - Receiver screen (inbox)
 - **[frontend/features/CREATE_CAPSULE.md](./frontend/features/CREATE_CAPSULE.md)** - Letter creation
 - **[frontend/features/CAPSULE.md](./frontend/features/CAPSULE.md)** - Capsule viewing
+- **[frontend/features/CONNECTIONS.md](./frontend/features/CONNECTIONS.md)** - Connections & friend requests
 - **[frontend/features/RECIPIENTS.md](./frontend/features/RECIPIENTS.md)** - Recipient management
 - **[frontend/features/PROFILE.md](./frontend/features/PROFILE.md)** - Profile & settings
 - **[frontend/features/NAVIGATION.md](./frontend/features/NAVIGATION.md)** - Navigation system
@@ -73,8 +74,12 @@
 
 ### Development
 - **[REFACTORING.md](./REFACTORING.md)** - Consolidated refactoring documentation
+- **[CHANGES_2025.md](./CHANGES_2025.md)** - Comprehensive changes documentation ⭐ NEW
+- **[ARCHITECTURE_IMPROVEMENTS.md](./ARCHITECTURE_IMPROVEMENTS.md)** - Architecture patterns and improvements ⭐ NEW
+- **[DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md)** - Complete developer reference ⭐ NEW
 - **[PERFORMANCE_OPTIMIZATIONS.md](./PERFORMANCE_OPTIMIZATIONS.md)** - Performance best practices
 - **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Contribution guidelines
+- **[DOCUMENTATION_STRUCTURE.md](./DOCUMENTATION_STRUCTURE.md)** - Documentation organization guide ⭐ NEW
 
 ### API Documentation
 - **[backend/API_REFERENCE.md](./backend/API_REFERENCE.md)** - Backend REST API
@@ -246,4 +251,5 @@ docs/
 ---
 
 **Last Updated**: January 2025  
-**Maintained By**: Development Team
+**Maintained By**: Development Team  
+**Status**: Production Ready & Acquisition Ready ✅

@@ -16,6 +16,7 @@ from typing import Annotated, Optional
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from app.db.base import get_db
 from app.db.repositories import UserProfileRepository
 from app.db.models import UserProfile
@@ -119,18 +120,33 @@ async def get_current_user(
     if not user_profile:
         # Create a basic user profile for first-time users
         # This happens when a user signs up via Supabase Auth but profile hasn't been created yet
-        user_profile = await user_profile_repo.create(
-            user_id=user_id,
-            first_name=None,
-            last_name=None,
-            username=None,
-            avatar_url=None,
-            premium_status=False,
-            premium_until=None,
-            is_admin=False,
-            country=None,
-            device_token=None
-        )
+        try:
+            user_profile = await user_profile_repo.create(
+                user_id=user_id,
+                first_name=None,
+                last_name=None,
+                username=None,
+                avatar_url=None,
+                premium_status=False,
+                premium_until=None,
+                is_admin=False,
+                country=None,
+                device_token=None
+            )
+        except Exception as e:
+            # Handle foreign key violation - user doesn't exist in auth.users
+            # This can happen if:
+            # 1. User was deleted from Supabase Auth but JWT is still valid (not expired)
+            # 2. JWT token is from a different Supabase instance
+            # 3. Database sync issue
+            if isinstance(e, IntegrityError) and "user_profiles_user_id_fkey" in str(e):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="User account not found. Please sign in again.",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            # Re-raise other exceptions
+            raise
     
     return user_profile
 

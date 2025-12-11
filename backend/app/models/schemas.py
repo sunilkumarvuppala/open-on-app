@@ -522,7 +522,7 @@ class DraftBase(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     body: str = Field(min_length=1)
     media_urls: Optional[list[str]] = None
-    theme: Optional[str] = Field(None, max_length=50)
+    theme: Optional[str] = Field(None, max_length=50)  # Matches MAX_THEME_NAME_LENGTH constant
     recipient_id: Optional[str] = None  # Optional recipient
 
 
@@ -557,7 +557,7 @@ class DraftUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=255)
     body: Optional[str] = Field(None, min_length=1)
     media_urls: Optional[list[str]] = None
-    theme: Optional[str] = Field(None, max_length=50)
+    theme: Optional[str] = Field(None, max_length=50)  # Matches MAX_THEME_NAME_LENGTH constant
     recipient_id: Optional[str] = None
 
 
@@ -628,6 +628,9 @@ class RecipientResponse(RecipientBase):
     Contains all recipient information returned to clients.
     Extends RecipientBase with metadata fields.
     
+    If linked_user_id is provided, this recipient represents a connection
+    (mutual friend) rather than a manually added contact.
+    
     Fields:
     - Inherits all fields from RecipientBase
     - id: Recipient UUID
@@ -643,6 +646,7 @@ class RecipientResponse(RecipientBase):
     owner_id: UUID
     created_at: datetime
     updated_at: datetime
+    linked_user_id: Optional[UUID] = None  # If set, this recipient represents a connection
     
     class Config:
         from_attributes = True
@@ -683,3 +687,90 @@ class HealthResponse(BaseModel):
     status: str
     timestamp: datetime
     version: str
+
+
+# ===== Connection Models =====
+class ConnectionRequestCreate(BaseModel):
+    """
+    Request model for creating a connection request.
+    
+    Fields:
+    - to_user_id: UUID of user to send request to
+    - message: Optional message to include with request
+    """
+    to_user_id: UUID
+    message: Optional[str] = Field(None, max_length=500)  # Matches MAX_CONNECTION_MESSAGE_LENGTH
+
+
+class ConnectionRequestResponse(BaseModel):
+    """
+    Response model for connection request.
+    
+    Matches Supabase connection_requests table schema.
+    """
+    id: UUID
+    from_user_id: UUID
+    to_user_id: UUID
+    status: str  # pending, accepted, declined
+    message: Optional[str] = None
+    declined_reason: Optional[str] = None
+    acted_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+    # User profile info for display
+    from_user_first_name: Optional[str] = None
+    from_user_last_name: Optional[str] = None
+    from_user_username: Optional[str] = None
+    from_user_avatar_url: Optional[str] = None
+
+
+class ConnectionRequestUpdate(BaseModel):
+    """
+    Request model for responding to a connection request.
+    
+    Fields:
+    - status: Response status (accepted or declined)
+    - declined_reason: Optional reason if declining
+    """
+    status: str = Field(..., pattern="^(accepted|declined)$")
+    declined_reason: Optional[str] = Field(None, max_length=500)  # Matches MAX_DECLINED_REASON_LENGTH
+
+
+class ConnectionResponse(BaseModel):
+    """
+    Response model for a mutual connection.
+    
+    Matches Supabase connections table schema.
+    """
+    user_id_1: UUID
+    user_id_2: UUID
+    connected_at: datetime
+    # User profile info for the other user (not the current user)
+    other_user_first_name: Optional[str] = None
+    other_user_last_name: Optional[str] = None
+    other_user_username: Optional[str] = None
+    other_user_avatar_url: Optional[str] = None
+
+
+class ConnectionListResponse(BaseModel):
+    """
+    Response model for listing connections.
+    
+    Fields:
+    - connections: List of connections
+    - total: Total count
+    """
+    connections: list[ConnectionResponse]
+    total: int
+
+
+class ConnectionRequestListResponse(BaseModel):
+    """
+    Response model for listing connection requests.
+    
+    Fields:
+    - requests: List of connection requests
+    - total: Total count
+    """
+    requests: list[ConnectionRequestResponse]
+    total: int

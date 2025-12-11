@@ -388,7 +388,12 @@ async def search_users(
     current_user: CurrentUser,
     session: DatabaseSession,
     query: str = Query(..., min_length=2, description="Search query (username, email, or name)"),
-    limit: int = Query(10, ge=1, le=50, description="Maximum number of results")
+    limit: int = Query(
+        settings.default_search_limit,
+        ge=1,
+        le=settings.max_search_limit,
+        description="Maximum number of results"
+    )
 ) -> list[dict[str, Any]]:
     """
     Search for registered users by username, email, or name.

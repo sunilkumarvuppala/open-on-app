@@ -283,6 +283,49 @@ class ApiClient {
     }
   }
 
+  /// PATCH request
+  Future<Map<String, dynamic>> patch(
+    String endpoint,
+    Map<String, dynamic> body, {
+    bool includeAuth = true,
+  }) async {
+    try {
+      final url = ApiConfig.buildUrl(endpoint);
+      Logger.debug('PATCH $url');
+
+      final response = await _client.patch(
+        Uri.parse(url),
+        headers: await _getHeaders(includeAuth: includeAuth),
+        body: jsonEncode(body),
+      );
+
+      _handleResponse(response);
+
+      if (response.body.isEmpty) {
+        return {};
+      }
+
+      try {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (jsonError, jsonStackTrace) {
+        Logger.error(
+          'Failed to parse JSON response from $endpoint',
+          error: jsonError,
+          stackTrace: jsonStackTrace,
+        );
+        throw NetworkException(
+          'Invalid response format from server. Please try again later.',
+        );
+      }
+    } catch (e, stackTrace) {
+      Logger.error('PATCH request failed: $endpoint', error: e, stackTrace: stackTrace);
+      if (e is AppException) {
+        rethrow;
+      }
+      _handleConnectionError(e, endpoint);
+    }
+  }
+
   /// DELETE request
   Future<void> delete(
     String endpoint, {

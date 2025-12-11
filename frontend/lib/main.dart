@@ -1,10 +1,54 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/providers/providers.dart';
+import 'package:openon_app/core/data/supabase_config.dart';
+import 'package:openon_app/core/utils/logger.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Load environment variables from .env file (bundled as asset)
+  try {
+    await dotenv.load(fileName: '.env');
+    Logger.info('Environment variables loaded from .env file');
+    Logger.info('SUPABASE_URL: ${dotenv.env['SUPABASE_URL']?.substring(0, 20) ?? 'not found'}...');
+    Logger.info('SUPABASE_ANON_KEY: ${dotenv.env['SUPABASE_ANON_KEY']?.substring(0, 20) ?? 'not found'}...');
+  } catch (e) {
+    Logger.warning(
+      'Could not load .env file. Using default values or compile-time constants. '
+      'Error: ${e.toString()}'
+    );
+  }
+  
+  // Initialize Supabase for connection features
+  // Note: Supabase URL and anon key can be set via environment variables:
+  //   SUPABASE_URL=http://localhost:54321
+  //   SUPABASE_ANON_KEY=your-anon-key
+  // Or pass them directly to initialize()
+  try {
+    await SupabaseConfig.initialize();
+    if (SupabaseConfig.isInitialized) {
+      Logger.info('Supabase initialized successfully');
+    } else {
+      Logger.warning(
+        'Supabase initialization returned without error but is not initialized. '
+        'Check that SUPABASE_URL and SUPABASE_ANON_KEY are set correctly.'
+      );
+    }
+  } catch (e, stackTrace) {
+    Logger.error(
+      'Failed to initialize Supabase. Connection features will not work. '
+      'Error: ${e.toString()}',
+      error: e,
+      stackTrace: stackTrace,
+    );
+    // Continue app startup even if Supabase fails (for development)
+    // In production, you might want to handle this differently
+  }
+  
   runApp(
     const ProviderScope(
       child: OpenOnApp(),

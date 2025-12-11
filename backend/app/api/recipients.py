@@ -47,11 +47,15 @@ async def create_recipient(
     session: DatabaseSession
 ) -> RecipientResponse:
     """
-    Add a new recipient to saved contacts.
+    DEPRECATED: Manual recipient creation is disabled.
     
-    Recipients can be linked to existing users or just stored as contacts.
-    Relationship defaults to 'friend' if not specified.
+    Recipients are now automatically created when connections are established.
+    To add someone as a recipient, send them a connection request instead.
     """
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="Manual recipient creation is no longer supported. Please use connection requests to add recipients."
+    )
     recipient_repo = RecipientRepository(session)
     
     # ===== Name Validation =====
@@ -123,23 +127,88 @@ async def list_recipients(
     """
     List all recipients for the current user.
     
-    Returns recipients ordered by most recently created first.
+    UNIFIED: Recipients = Connections. This endpoint queries connections directly
+    and returns them as recipients. The recipients table is only used as a cache
+    for the capsule foreign key constraint.
+    
+    Returns recipients ordered by most recently connected first.
     """
-    recipient_repo = RecipientRepository(session)
+    from sqlalchemy import text
+    from uuid import uuid5, NAMESPACE_DNS
+    from app.db.models import RecipientRelationship
+    
     skip, limit = calculate_pagination(page, page_size)
     
-    recipients = await recipient_repo.get_by_owner(
-        current_user.user_id,
-        skip=skip,
-        limit=limit
+    # Query connections directly (single source of truth)
+    connections_result = await session.execute(
+        text("""
+            SELECT 
+                c.user_id_1, 
+                c.user_id_2, 
+                c.connected_at,
+                up.first_name,
+                up.last_name,
+                up.username,
+                up.avatar_url,
+                CASE 
+                    WHEN c.user_id_1 = :user_id THEN c.user_id_2
+                    ELSE c.user_id_1
+                END as other_user_id
+            FROM public.connections c
+            LEFT JOIN public.user_profiles up ON (
+                (c.user_id_1 = :user_id AND up.user_id = c.user_id_2)
+                OR
+                (c.user_id_2 = :user_id AND up.user_id = c.user_id_1)
+            )
+            WHERE c.user_id_1 = :user_id OR c.user_id_2 = :user_id
+            ORDER BY c.connected_at DESC
+            LIMIT :limit OFFSET :skip
+        """),
+        {
+            "user_id": current_user.user_id,
+            "limit": limit,
+            "skip": skip
+        }
     )
+    connections_rows = connections_result.fetchall()
+    
+    # Convert connections to RecipientResponse objects
+    recipient_responses = []
+    for row in connections_rows:
+        other_user_id = row[7]  # other_user_id
+        first_name = row[3] if len(row) > 3 else None
+        last_name = row[4] if len(row) > 4 else None
+        username = row[5] if len(row) > 5 else None
+        avatar_url = row[6] if len(row) > 6 else None
+        connected_at = row[2]  # connected_at
+        
+        # Build display name
+        display_name = " ".join(filter(None, [first_name, last_name])).strip()
+        if not display_name:
+            display_name = username or f"User {str(other_user_id)[:8]}"
+        
+        # Generate deterministic UUID for recipient (matches what we use when auto-creating)
+        virtual_id = uuid5(NAMESPACE_DNS, f"connection_{current_user.user_id}_{other_user_id}")
+        
+        recipient_response = RecipientResponse(
+            id=virtual_id,
+            owner_id=current_user.user_id,
+            name=display_name,
+            email=None,  # Connections don't have email
+            avatar_url=avatar_url,
+            relationship=RecipientRelationship.FRIEND,
+            created_at=connected_at,
+            updated_at=connected_at,
+            linked_user_id=other_user_id
+        )
+        recipient_responses.append(recipient_response)
     
     logger.info(
-        f"Listed {len(recipients)} recipients for user {current_user.user_id}, "
+        f"Listed {len(recipient_responses)} recipients (from connections) for user {current_user.user_id}, "
         f"page={page}, page_size={page_size}"
     )
     
-    return [RecipientResponse.model_validate(r) for r in recipients]
+    return recipient_responses
 
 
 @router.get("/{recipient_id}", response_model=RecipientResponse)
@@ -201,7 +270,10 @@ async def update_recipient(
     
     if recipient_data.avatar_url is not None:
         if recipient_data.avatar_url:
-            update_dict["avatar_url"] = sanitize_text(recipient_data.avatar_url.strip(), max_length=500)
+            update_dict["avatar_url"] = sanitize_text(
+                recipient_data.avatar_url.strip(),
+                max_length=MAX_URL_LENGTH
+            )
         else:
             update_dict["avatar_url"] = None  # Allow clearing avatar
     

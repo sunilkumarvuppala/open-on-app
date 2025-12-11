@@ -5,11 +5,15 @@ import 'package:openon_app/core/data/token_storage.dart';
 import 'package:openon_app/core/data/user_mapper.dart';
 import 'package:openon_app/core/data/capsule_mapper.dart';
 import 'package:openon_app/core/data/recipient_mapper.dart';
+import 'package:openon_app/core/data/connection_repository.dart';
 import 'package:openon_app/core/errors/app_exceptions.dart';
 import 'package:openon_app/core/models/models.dart';
+import 'package:openon_app/core/models/connection_models.dart';
 import 'package:openon_app/core/utils/logger.dart';
 import 'package:openon_app/core/utils/validation.dart';
 import 'package:openon_app/core/constants/app_constants.dart';
+import 'package:openon_app/core/data/stream_polling_mixin.dart';
+import 'dart:async';
 
 /// API-based Auth Repository
 class ApiAuthRepository implements AuthRepository {
@@ -224,7 +228,6 @@ class ApiCapsuleRepository implements CapsuleRepository {
 
       final box = asSender ? 'outbox' : 'inbox';
       
-      // Log for debugging
       Logger.info('Fetching capsules: userId=$userId, box=$box, asSender=$asSender');
       
       final response = await _apiClient.get(
@@ -494,31 +497,18 @@ class ApiRecipientRepository implements RecipientRepository {
 
       Logger.info('Received ${response.length} recipients from API');
       
-      // Log raw response for debugging
-      if (response.isNotEmpty) {
-        Logger.debug('First recipient raw JSON: ${response[0]}');
-      } else {
-        Logger.info('API returned empty recipients list');
-      }
-
       final recipients = response
           .map((json) {
             try {
-              Logger.debug('Mapping recipient JSON: $json');
-              final recipient = RecipientMapper.fromJson(json as Map<String, dynamic>);
-              Logger.debug('Mapped recipient: id=${recipient.id}, name=${recipient.name}');
-              return recipient;
+              return RecipientMapper.fromJson(json as Map<String, dynamic>);
             } catch (e, stackTrace) {
-              Logger.error('Failed to map recipient JSON: $json', error: e, stackTrace: stackTrace);
+              Logger.error('Failed to map recipient JSON', error: e, stackTrace: stackTrace);
               rethrow;
             }
           })
           .toList();
 
-      Logger.info('Successfully mapped ${recipients.length} recipients');
-      if (recipients.isNotEmpty) {
-        Logger.info('First recipient: ${recipients[0].name} (${recipients[0].id})');
-      }
+      Logger.debug('Successfully mapped ${recipients.length} recipients');
       return recipients;
     } catch (e, stackTrace) {
       Logger.error('Failed to get recipients', error: e, stackTrace: stackTrace);
@@ -605,6 +595,422 @@ class ApiRecipientRepository implements RecipientRepository {
       );
     }
   }
+}
 
+/// API-based Connection Repository
+/// Uses FastAPI backend instead of Supabase directly
+class ApiConnectionRepository with StreamPollingMixin implements ConnectionRepository {
+  final ApiClient _apiClient = ApiClient();
+  final ApiAuthRepository _authRepo = ApiAuthRepository();
+  
+  static const Duration _pollInterval = Duration(seconds: 5);
+
+  /// Transform snake_case response from FastAPI to camelCase for Flutter models
+  /// Handles UUID objects, datetime objects, and null values
+  Map<String, dynamic> _transformConnectionRequest(Map<String, dynamic> json) {
+    try {
+      // Helper to safely convert values to strings
+      String? _toString(dynamic value) {
+        if (value == null) return null;
+        if (value is String) return value;
+        if (value is DateTime) return value.toIso8601String();
+        return value.toString();
+      }
+
+      // Build user profile from individual fields if available
+      Map<String, dynamic>? fromUserProfile;
+      final fromUserId = _toString(json['from_user_id']) ?? _toString(json['fromUserId']) ?? '';
+      
+      if (fromUserId.isNotEmpty) {
+        final firstName = json['from_user_first_name'] as String? ?? json['fromUserFirstName'] as String?;
+        final lastName = json['from_user_last_name'] as String? ?? json['fromUserLastName'] as String?;
+        final username = json['from_user_username'] as String? ?? json['fromUserUsername'] as String?;
+        final avatarUrl = json['from_user_avatar_url'] as String? ?? json['fromUserAvatarUrl'] as String?;
+        
+        if (firstName != null || lastName != null || username != null) {
+          final displayName = [firstName, lastName].whereType<String>().join(' ').trim();
+          fromUserProfile = {
+            'userId': fromUserId,
+            'displayName': displayName.isNotEmpty ? displayName : (username ?? 'User'),
+            'username': username,
+            'avatarUrl': avatarUrl,
+          };
+        }
+      }
+
+      return {
+        'id': _toString(json['id']) ?? '',
+        'fromUserId': fromUserId,
+        'toUserId': _toString(json['to_user_id']) ?? _toString(json['toUserId']) ?? '',
+        'status': _toString(json['status']) ?? 'pending',
+        'message': json['message'] as String?,
+        'declinedReason': json['declined_reason'] as String? ?? json['declinedReason'] as String?,
+        'actedAt': _toString(json['acted_at']) ?? _toString(json['actedAt']),
+        'createdAt': _toString(json['created_at']) ?? _toString(json['createdAt']) ?? DateTime.now().toIso8601String(),
+        'updatedAt': _toString(json['updated_at']) ?? _toString(json['updatedAt']) ?? DateTime.now().toIso8601String(),
+        'fromUserProfile': fromUserProfile ?? json['from_user_profile'] ?? json['fromUserProfile'],
+        'toUserProfile': json['to_user_profile'] ?? json['toUserProfile'],
+      };
+    } catch (e, stackTrace) {
+      Logger.error('Error transforming connection request response', error: e, stackTrace: stackTrace);
+      Logger.error('Original JSON: $json');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<ConnectionRequest> sendConnectionRequest({
+    required String toUserId,
+    String? message,
+  }) async {
+    try {
+      final response = await _apiClient.post(
+        ApiConfig.connectionRequests,
+        {
+          'to_user_id': toUserId,
+          if (message != null && message.isNotEmpty) 'message': message,
+        },
+      );
+
+      final transformed = _transformConnectionRequest(response);
+      return ConnectionRequest.fromJson(transformed);
+    } catch (e, stackTrace) {
+      Logger.error('Failed to send connection request', error: e, stackTrace: stackTrace);
+      if (e is AppException) {
+        rethrow;
+      }
+      // Check if it's a JSON parsing error
+      if (e.toString().contains('fromJson') || e.toString().contains('JSON')) {
+        Logger.error('JSON parsing error. Response was: ${e.toString()}');
+        throw RepositoryException(
+          'Invalid response format from server. Please try again.',
+          originalError: e,
+          stackTrace: stackTrace,
+        );
+      }
+      throw RepositoryException(
+        'Failed to send connection request: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  @override
+  Future<ConnectionRequest> respondToRequest({
+    required String requestId,
+    required bool accept,
+    String? declinedReason,
+  }) async {
+    try {
+      final response = await _apiClient.patch(
+        ApiConfig.connectionRequestById(requestId),
+        {
+          'status': accept ? 'accepted' : 'declined',
+          if (declinedReason != null && declinedReason.isNotEmpty)
+            'declined_reason': declinedReason,
+        },
+      );
+
+      final transformed = _transformConnectionRequest(response);
+      return ConnectionRequest.fromJson(transformed);
+    } catch (e, stackTrace) {
+      Logger.error('Failed to respond to request', error: e, stackTrace: stackTrace);
+      if (e is AppException) {
+        rethrow;
+      }
+      throw RepositoryException(
+        'Failed to respond to connection request: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  @override
+  Future<PendingRequests> getPendingRequests() async {
+    try {
+      final incomingResponse = await _apiClient.get(ApiConfig.incomingRequests);
+      final outgoingResponse = await _apiClient.get(ApiConfig.outgoingRequests);
+
+
+      final incomingList = (incomingResponse['requests'] as List?)
+              ?.map((json) {
+                try {
+                  return ConnectionRequest.fromJson(_transformConnectionRequest(json as Map<String, dynamic>));
+                } catch (e, stackTrace) {
+                  Logger.error('Error parsing incoming request', error: e, stackTrace: stackTrace);
+                  Logger.error('Problematic JSON: $json');
+                  rethrow;
+                }
+              })
+              .toList() ??
+          [];
+      final outgoingList = (outgoingResponse['requests'] as List?)
+              ?.map((json) {
+                try {
+                  return ConnectionRequest.fromJson(_transformConnectionRequest(json as Map<String, dynamic>));
+                } catch (e, stackTrace) {
+                  Logger.error('Error parsing outgoing request', error: e, stackTrace: stackTrace);
+                  Logger.error('Problematic JSON: $json');
+                  rethrow;
+                }
+              })
+              .toList() ??
+          [];
+
+      return PendingRequests(
+        incoming: incomingList,
+        outgoing: outgoingList,
+      );
+    } catch (e, stackTrace) {
+      Logger.error('Failed to get pending requests', error: e, stackTrace: stackTrace);
+      if (e is AppException) {
+        rethrow;
+      }
+      throw RepositoryException(
+        'Failed to get pending requests: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  @override
+  Future<List<Connection>> getConnections() async {
+    try {
+      final response = await _apiClient.get(ApiConfig.connections);
+
+      final connectionsList = (response['connections'] as List?)
+              ?.map((json) {
+                final connJson = json as Map<String, dynamic>;
+                // The API returns user_id_1 and user_id_2, but Connection model needs
+                // otherUserId and otherUserProfile. We'll need to fetch user profiles.
+                // For now, return a basic connection - we can enhance this later
+                final userId1 = connJson['user_id_1']?.toString() ?? connJson['userId1']?.toString() ?? '';
+                final userId2 = connJson['user_id_2']?.toString() ?? connJson['userId2']?.toString() ?? '';
+                final connectedAtStr = connJson['connected_at']?.toString() ?? connJson['connectedAt']?.toString() ?? DateTime.now().toIso8601String();
+                
+                return Connection(
+                  userId1: userId1,
+                  userId2: userId2,
+                  connectedAt: DateTime.parse(connectedAtStr),
+                  otherUserId: '', // Will be set by caller
+                  otherUserProfile: const ConnectionUserProfile(
+                    userId: '',
+                    displayName: 'Unknown',
+                  ),
+                );
+              })
+              .toList() ??
+          [];
+
+      return connectionsList;
+    } catch (e, stackTrace) {
+      Logger.error('Failed to get connections', error: e, stackTrace: stackTrace);
+      if (e is AppException) {
+        rethrow;
+      }
+      throw RepositoryException(
+        'Failed to get connections: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  @override
+  Future<List<ConnectionUserProfile>> searchUsers(String query, {String? userId}) async {
+    // Use the existing user search endpoint (same as AddRecipientScreen)
+    try {
+      final users = await ApiUserService().searchUsers(query);
+      return users.map((user) {
+        final displayName = user.name.isNotEmpty ? user.name : user.username;
+        return ConnectionUserProfile(
+          userId: user.id,
+          displayName: displayName,
+          avatarUrl: user.avatarUrl,
+          username: user.username,
+        );
+      }).toList();
+    } catch (e, stackTrace) {
+      Logger.error('Failed to search users', error: e, stackTrace: stackTrace);
+      if (e is AppException) {
+        rethrow;
+      }
+      throw RepositoryException(
+        'Failed to search users: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  @override
+  Future<bool> areConnected(String userId1, String userId2) async {
+    try {
+      final connections = await getConnections();
+      return connections.any((conn) =>
+          (conn.userId1 == userId1 && conn.userId2 == userId2) ||
+          (conn.userId1 == userId2 && conn.userId2 == userId1));
+    } catch (e, stackTrace) {
+      Logger.error('Failed to check connection status', error: e, stackTrace: stackTrace);
+      return false;
+    }
+  }
+
+  @override
+  Future<void> blockUser(String userId) async {
+    // TODO: Implement blocking when backend endpoint is available
+    throw UnimplementedError('Blocking not yet implemented in API');
+  }
+
+  @override
+  Future<void> unblockUser(String userId) async {
+    // TODO: Implement unblocking when backend endpoint is available
+    throw UnimplementedError('Unblocking not yet implemented in API');
+  }
+
+  @override
+  Stream<List<ConnectionRequest>> watchIncomingRequests() {
+    return createPollingStream<List<ConnectionRequest>>(
+      loadData: _loadIncomingRequestsData,
+      pollInterval: _pollInterval,
+    );
+  }
+  
+  Future<List<ConnectionRequest>> _loadIncomingRequestsData() async {
+    Logger.debug('Loading incoming requests from API...');
+    final response = await _apiClient.get(ApiConfig.incomingRequests);
+    
+    final requestsRaw = response['requests'];
+    if (requestsRaw is! List) {
+      Logger.warning('Invalid response format for incoming requests');
+      return [];
+    }
+    
+    final requestsList = requestsRaw
+        .map((json) {
+          try {
+            final transformed = _transformConnectionRequest(json as Map<String, dynamic>);
+            return ConnectionRequest.fromJson(transformed);
+          } catch (e, stackTrace) {
+            Logger.error('Error parsing incoming request', error: e, stackTrace: stackTrace);
+            return null;
+          }
+        })
+        .whereType<ConnectionRequest>()
+        .toList();
+    
+    Logger.debug('Successfully parsed ${requestsList.length} incoming requests');
+    return requestsList;
+  }
+  
+
+  @override
+  Stream<List<ConnectionRequest>> watchOutgoingRequests() {
+    return createPollingStream<List<ConnectionRequest>>(
+      loadData: _loadOutgoingRequestsData,
+      pollInterval: _pollInterval,
+    );
+  }
+  
+  Future<List<ConnectionRequest>> _loadOutgoingRequestsData() async {
+    Logger.debug('Loading outgoing requests from API...');
+    final response = await _apiClient.get(ApiConfig.outgoingRequests);
+    
+    final requestsRaw = response['requests'];
+    if (requestsRaw is! List) {
+      Logger.warning('Invalid response format for outgoing requests');
+      return [];
+    }
+    
+    final requestsList = requestsRaw
+        .map((json) {
+          try {
+            final transformed = _transformConnectionRequest(json as Map<String, dynamic>);
+            return ConnectionRequest.fromJson(transformed);
+          } catch (e, stackTrace) {
+            Logger.error('Error parsing outgoing request', error: e, stackTrace: stackTrace);
+            return null;
+          }
+        })
+        .whereType<ConnectionRequest>()
+        .toList();
+    
+    Logger.debug('Successfully parsed ${requestsList.length} outgoing requests');
+    return requestsList;
+  }
+
+  @override
+  Stream<List<Connection>> watchConnections() {
+    return createPollingStream<List<Connection>>(
+      loadData: _loadConnectionsData,
+      pollInterval: _pollInterval,
+    );
+  }
+  
+  Future<List<Connection>> _loadConnectionsData() async {
+    Logger.debug('Loading connections from API...');
+    final response = await _apiClient.get(ApiConfig.connections);
+    
+    // Get current user ID to determine which user is the "other" user
+    final currentUser = await _authRepo.getCurrentUser();
+    final currentUserId = currentUser?.id ?? '';
+    
+    final connectionsRaw = response['connections'];
+    if (connectionsRaw is! List) {
+      Logger.warning('Invalid response format for connections');
+      return [];
+    }
+    
+    final connectionsList = connectionsRaw
+        .map((json) {
+          try {
+            final connJson = json as Map<String, dynamic>;
+            final userId1 = connJson['user_id_1']?.toString() ?? connJson['userId1']?.toString() ?? '';
+            final userId2 = connJson['user_id_2']?.toString() ?? connJson['userId2']?.toString() ?? '';
+            final connectedAtStr = connJson['connected_at']?.toString() ?? connJson['connectedAt']?.toString() ?? DateTime.now().toIso8601String();
+            
+            // Determine which user is the "other" user
+            final otherUserId = userId1 == currentUserId ? userId2 : userId1;
+            
+            // Build profile from individual fields
+            final firstName = connJson['other_user_first_name'] as String?;
+            final lastName = connJson['other_user_last_name'] as String?;
+            final username = connJson['other_user_username'] as String?;
+            final avatarUrl = connJson['other_user_avatar_url'] as String?;
+            
+            final displayName = [firstName, lastName].whereType<String>().join(' ').trim();
+            final profileDisplayName = displayName.isNotEmpty 
+                ? displayName 
+                : (username ?? 'User ${otherUserId.substring(0, 8)}...');
+            
+            final otherUserProfile = ConnectionUserProfile(
+              userId: otherUserId,
+              displayName: profileDisplayName,
+              username: username,
+              avatarUrl: avatarUrl,
+            );
+            
+            return Connection(
+              userId1: userId1,
+              userId2: userId2,
+              connectedAt: DateTime.parse(connectedAtStr),
+              otherUserId: otherUserId,
+              otherUserProfile: otherUserProfile,
+            );
+          } catch (e, stackTrace) {
+            Logger.error('Error parsing connection', error: e, stackTrace: stackTrace);
+            Logger.error('Problematic JSON: $json');
+            return null;
+          }
+        })
+        .whereType<Connection>()
+        .toList();
+    
+    Logger.debug('Successfully parsed ${connectionsList.length} connections');
+    return connectionsList;
+  }
 }
 
