@@ -3,10 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:openon_app/core/constants/app_constants.dart';
 import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/providers/providers.dart';
+import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
+import 'package:openon_app/core/utils/logger.dart';
 
 class OpenedLetterScreen extends ConsumerStatefulWidget {
   final Capsule capsule;
@@ -19,6 +22,7 @@ class OpenedLetterScreen extends ConsumerStatefulWidget {
 
 class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
   String? _selectedReaction;
+  bool _isSendingReaction = false;
   
   @override
   void initState() {
@@ -27,18 +31,28 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
   }
   
   Future<void> _handleReaction(String emoji) async {
-    setState(() => _selectedReaction = emoji);
+    if (_isSendingReaction || _selectedReaction == emoji) return;
+    
+    setState(() {
+      _selectedReaction = emoji;
+      _isSendingReaction = true;
+    });
     
     try {
       final repo = ref.read(capsuleRepositoryProvider);
       await repo.addReaction(widget.capsule.id, emoji);
       
+      Logger.info('Reaction $emoji sent for capsule ${widget.capsule.id}');
+      
       if (mounted) {
+        final colorScheme = ref.read(selectedColorSchemeProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Reaction sent to ${widget.capsule.senderName} ♥'),
+            content: Text(
+              '${AppConstants.reactionSentMessage} ${widget.capsule.senderName} ♥',
+            ),
             backgroundColor: AppColors.success,
-            duration: const Duration(seconds: 2),
+            duration: AppConstants.animationDurationMedium,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
@@ -46,18 +60,42 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
           ),
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to send reaction',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      
+      // Revert reaction on error
       if (mounted) {
+        setState(() => _selectedReaction = widget.capsule.reaction);
+        
+        final colorScheme = ref.read(selectedColorSchemeProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Failed to send reaction'),
-            backgroundColor: AppColors.error,
+            content: Text(
+              AppConstants.failedToSendReaction,
+              style: TextStyle(
+                color: DynamicTheme.getSnackBarTextColor(colorScheme),
+              ),
+            ),
+            backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: DynamicTheme.getSnackBarTextColor(colorScheme),
+              onPressed: () => _handleReaction(emoji),
+            ),
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSendingReaction = false);
       }
     }
   }
@@ -84,18 +122,21 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
                       Icons.arrow_back,
                       color: DynamicTheme.getPrimaryIconColor(colorScheme),
                     ),
-                    onPressed: () => context.pop(),
+                    onPressed: () {
+                      // Navigate directly to receiver home
+                      // This skips the opening animation screen and provides better UX
+                      context.go(Routes.receiverHome);
+                    },
                   ),
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.share),
                     onPressed: () {
-                      // TODO: Share opened letter
                       final colorScheme = ref.read(selectedColorSchemeProvider);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            'Share feature coming soon',
+                            AppConstants.shareFeatureComingSoon,
                             style: TextStyle(
                               color: DynamicTheme.getSnackBarTextColor(colorScheme),
                             ),
@@ -130,7 +171,7 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
                         ),
                         child: const Icon(
                           Icons.mail,
-                          size: 48,
+                          size: AppConstants.openedLetterEnvelopeIconSize,
                           color: AppColors.white,
                         ),
                       ),
@@ -155,14 +196,14 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
                       child: Column(
                         children: [
                           Text(
-                            'From ${capsule.senderName}',
+                            '${AppConstants.fromPrefix} ${capsule.senderName}',
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                   color: AppTheme.textGrey,
                                 ),
                           ),
                           SizedBox(height: AppTheme.spacingXs),
                           Text(
-                            'Opened on ${DateFormat('MMMM d, y \'at\' h:mm a').format(openedAt)}',
+                            '${AppConstants.openedOnPrefix} ${DateFormat('MMMM d, y \'at\' h:mm a').format(openedAt)}',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                   color: AppTheme.textGrey,
                                 ),
@@ -182,17 +223,22 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
                         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
+                            color: Colors.black.withOpacity(
+                              AppConstants.openedLetterCardShadowOpacity,
+                            ),
+                            blurRadius: AppConstants.openedLetterCardShadowBlur,
+                            offset: Offset(
+                              0,
+                              AppConstants.openedLetterCardShadowOffsetY,
+                            ),
                           ),
                         ],
                       ),
                       child: Text(
                         capsule.content,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              height: 1.8,
-                              fontSize: 16,
+                              height: AppConstants.openedLetterContentLineHeight,
+                              fontSize: AppConstants.openedLetterContentFontSize,
                             ),
                       ),
                     ),
@@ -225,7 +271,7 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
                     
                     // Reaction prompt
                     Text(
-                      'How does this make you feel?',
+                      AppConstants.howDoesThisMakeYouFeel,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                             color: AppColors.textDark,
@@ -249,21 +295,22 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
                 color: AppColors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
+                    color: Colors.black.withOpacity(
+                      AppConstants.openedLetterCardShadowOpacity,
+                    ),
+                    blurRadius: AppConstants.openedLetterCardShadowBlur,
+                    offset: Offset(
+                      0,
+                      AppConstants.openedLetterBottomBarShadowOffsetY,
+                    ),
                   ),
                 ],
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildReactionButton('❤️'),
-                  _buildReactionButton('😭'),
-                  _buildReactionButton('🤗'),
-                  _buildReactionButton('😍'),
-                  _buildReactionButton('🥰'),
-                ],
+                children: AppConstants.reactionEmojis
+                    .map((emoji) => _buildReactionButton(emoji))
+                    .toList(),
               ),
             ),
           ],
@@ -274,31 +321,43 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
   
   Widget _buildReactionButton(String emoji) {
     final isSelected = _selectedReaction == emoji;
+    final isDisabled = _isSendingReaction;
     final colorScheme = ref.watch(selectedColorSchemeProvider);
     
     return GestureDetector(
-      onTap: () => _handleReaction(emoji),
+      onTap: isDisabled ? null : () => _handleReaction(emoji),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 60,
-        height: 60,
+        duration: AppConstants.animationDurationShort,
+        width: AppConstants.openedLetterReactionButtonSize,
+        height: AppConstants.openedLetterReactionButtonSize,
         decoration: BoxDecoration(
           color: isSelected
-              ? colorScheme.primary1.withOpacity(0.1)
-              : AppColors.lightGray.withOpacity(0.5),
+              ? colorScheme.primary1.withOpacity(
+                  AppConstants.openedLetterReactionSelectedOpacity,
+                )
+              : AppColors.lightGray.withOpacity(
+                  AppConstants.openedLetterReactionUnselectedOpacity,
+                ),
           shape: BoxShape.circle,
           border: Border.all(
             color: isSelected ? colorScheme.primary1 : Colors.transparent,
-            width: 2,
+            width: AppConstants.openedLetterReactionBorderWidth,
           ),
         ),
         child: Center(
           child: AnimatedScale(
-            scale: isSelected ? 1.2 : 1.0,
-            duration: const Duration(milliseconds: 200),
-            child: Text(
-              emoji,
-              style: const TextStyle(fontSize: 28),
+            scale: isSelected
+                ? AppConstants.openedLetterReactionSelectedScale
+                : 1.0,
+            duration: AppConstants.animationDurationShort,
+            child: Opacity(
+              opacity: isDisabled ? AppConstants.opacityMediumHigh : 1.0,
+              child: Text(
+                emoji,
+                style: const TextStyle(
+                  fontSize: AppConstants.openedLetterReactionEmojiSize,
+                ),
+              ),
             ),
           ),
         ),

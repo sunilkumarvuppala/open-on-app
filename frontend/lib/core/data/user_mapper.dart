@@ -15,6 +15,8 @@ class UserMapper {
   static User fromJson(Map<String, dynamic> json) {
     // Backend returns 'user_id' (UUID) from UserProfileResponse, but may also have 'id'
     final idValue = json['user_id'] ?? json['id'];
+    final firstNameValue = json['first_name'];
+    final lastNameValue = json['last_name'];
     final fullNameValue = json['full_name'];
     final usernameValue = json['username'];
     final emailValue = json['email'];
@@ -30,9 +32,23 @@ class UserMapper {
       }
     }
     
+    // Prefer first_name from backend, otherwise extract from full_name, fallback to username
+    String? displayName;
+    if (_safeString(firstNameValue) != null) {
+      // Use first_name directly if available
+      displayName = _safeString(firstNameValue);
+    } else if (_safeString(fullNameValue) != null) {
+      // Extract first name from full_name if first_name not available
+      final fullName = _safeString(fullNameValue)!;
+      final parts = fullName.split(' ');
+      displayName = parts.isNotEmpty ? parts[0] : fullName;
+    } else {
+      displayName = _safeString(usernameValue);
+    }
+    
     return User(
       id: userIdString ?? '',
-      name: _safeString(fullNameValue) ?? _safeString(usernameValue) ?? '',
+      name: displayName ?? '',
       email: _safeString(emailValue) ?? '',
       username: _safeString(usernameValue) ?? '',
       avatar: _safeString(avatarValue) ?? '',

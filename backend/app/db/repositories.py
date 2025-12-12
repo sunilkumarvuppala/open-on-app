@@ -536,10 +536,14 @@ class CapsuleRepository(BaseRepository[Capsule]):
             recipient_conditions.append(email_condition)
         
         # Connection-based matching condition
+        # For connection-based recipients (email IS NULL), match by:
+        # 1. Connection exists between current user and sender
+        # 2. Recipient name matches user's display name (case-insensitive, trimmed)
+        # This allows letters sent via connections to appear in the receiver's inbox
         if user_display_name:
             connection_condition = and_(
                 Recipient.email.is_(None),
-                Recipient.name == bindparam('user_display_name'),
+                func.trim(func.lower(Recipient.name)) == func.trim(func.lower(bindparam('user_display_name'))),
                 connection_subquery
             )
             recipient_conditions.append(connection_condition)

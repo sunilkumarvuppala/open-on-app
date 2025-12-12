@@ -59,232 +59,239 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final fabColor = colorScheme.primary2;
 
     return Scaffold(
-        extendBody: true,
-        body: MagicDustBackground(
-          baseColor: colorScheme.primary1,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: softGradient,
-            ),
-            child: SafeArea(
+      extendBody: true,
+      body: MagicDustBackground(
+        baseColor: colorScheme.primary1,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: softGradient,
+          ),
+          child: SafeArea(
             child: Column(
               children: [
-              // Header
-              Padding(
-                padding: EdgeInsets.all(AppTheme.spacingLg),
-                child: Row(
-                  children: [
-                    // User Avatar
-                    GestureDetector(
-                      onTap: () => context.push(Routes.profile),
-                      child: userAsync.when(
-                        data: (user) => UserAvatar(
-                          name: user?.name ?? AppConstants.defaultUserName,
-                          imageUrl: user?.avatarUrl,
-                          imagePath: user?.localAvatarPath,
-                          size: AppConstants.userAvatarSize,
-                        ),
-                        loading: () => const CircularProgressIndicator(),
-                        error: (_, __) => const UserAvatar(
-                          name: AppConstants.defaultUserName,
-                          size: AppConstants.userAvatarSize,
+                // Header
+                Padding(
+                  padding: EdgeInsets.all(AppTheme.spacingLg),
+                  child: Row(
+                    children: [
+                      // User Avatar
+                      GestureDetector(
+                        onTap: () => context.push(Routes.profile),
+                        child: userAsync.when(
+                          data: (user) => UserAvatar(
+                            name: user?.name ?? AppConstants.defaultUserName,
+                            imageUrl: user?.avatarUrl,
+                            imagePath: user?.localAvatarPath,
+                            size: AppConstants.userAvatarSize,
+                          ),
+                          loading: () => const CircularProgressIndicator(),
+                          error: (_, __) => const UserAvatar(
+                            name: AppConstants.defaultUserName,
+                            size: AppConstants.userAvatarSize,
+                          ),
                         ),
                       ),
-                    ),
-                    SizedBox(width: AppTheme.spacingMd),
-                    
-                    // Greeting
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          userAsync.when(
-                            data: (user) => Text(
-                              'Hi, ${user?.firstName ?? 'there'} 👋',
-                              style: Theme.of(context).textTheme.titleLarge,
+                      SizedBox(width: AppTheme.spacingMd),
+
+                      // Greeting
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            userAsync.when(
+                              data: (user) => Text(
+                                'Hi, ${user?.firstName ?? 'there'} 👋',
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                              loading: () => const Text('Hi 👋'),
+                              error: (_, __) => const Text('Hi 👋'),
                             ),
-                            loading: () => const Text('Hi 👋'),
-                            error: (_, __) => const Text('Hi 👋'),
-                          ),
-                          Text(
-                            'Your time capsules',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ],
+                            Text(
+                              'Your outgoing letters',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    
-                    // Notifications icon
-                    IconButton(
-                      icon: Icon(
-                        Icons.notifications_outlined,
-                        color: colorScheme.primary1,
-                      ),
-                      onPressed: () {
-                        // Feature: Notifications screen - to be implemented
-                        final colorScheme = ref.read(selectedColorSchemeProvider);
-                        
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Notifications coming soon!',
-                              style: TextStyle(
-                                color: DynamicTheme.getSnackBarTextColor(colorScheme),
+
+                      // Notifications icon
+                      IconButton(
+                        icon: Icon(
+                          Icons.notifications_outlined,
+                          color: colorScheme.primary1,
+                        ),
+                        onPressed: () {
+                          // Feature: Notifications screen - to be implemented
+                          final colorScheme =
+                              ref.read(selectedColorSchemeProvider);
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Notifications coming soon!',
+                                style: TextStyle(
+                                  color: DynamicTheme.getSnackBarTextColor(
+                                      colorScheme),
+                                ),
+                              ),
+                              backgroundColor:
+                                  DynamicTheme.getSnackBarBackgroundColor(
+                                      colorScheme),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(AppTheme.radiusMd),
                               ),
                             ),
-                            backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                            ),
-                          ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Subtle Header Separator
+                Container(
+                  height: AppConstants.headerSeparatorHeight,
+                  margin: EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        Colors.white.withOpacity(0.0),
+                        Colors.white.withOpacity(0.1),
+                        Colors.white.withOpacity(0.0),
+                      ],
+                      stops: const [0.0, 0.5, 1.0],
+                    ),
+                  ),
+                ),
+
+                // Create New Letter Button
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
+                  child: Center(
+                    child: _CreateLetterButton(
+                      colorScheme: colorScheme,
+                      onPressed: () => context.push(Routes.createCapsule),
+                    ),
+                  ),
+                ),
+
+                // Drafts Button
+                Padding(
+                  padding: EdgeInsets.only(
+                    top: AppTheme.spacingXs, // Moved closer to Create button
+                    left: AppTheme.spacingLg,
+                    right: AppTheme.spacingLg,
+                  ),
+                  child: Center(
+                    child: Consumer(
+                      builder: (context, ref, child) {
+                        final draftsCount = ref.watch(draftsCountProvider);
+                        return _DraftsButton(
+                          draftsCount: draftsCount,
+                          colorScheme: colorScheme,
+                          onTap: () => context.push(Routes.drafts),
                         );
                       },
                     ),
-                  ],
-                ),
-              ),
-              
-              // Subtle Header Separator
-              Container(
-                height: AppConstants.headerSeparatorHeight,
-                margin: EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [
-                      Colors.white.withOpacity(0.0),
-                      Colors.white.withOpacity(0.1),
-                      Colors.white.withOpacity(0.0),
-                    ],
-                    stops: const [0.0, 0.5, 1.0],
                   ),
                 ),
-              ),
-              
-              // Create New Letter Button
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
-                child: Center(
-                  child: _CreateLetterButton(
+
+                SizedBox(height: AppTheme.spacingLg),
+
+                // Tabs
+                Container(
+                  margin: EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
+                  decoration: BoxDecoration(
+                    color: colorScheme.isDarkTheme
+                        ? Colors.white.withOpacity(AppTheme
+                            .opacityLow) // Semi-transparent white for dark theme
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                    border: DynamicTheme.getTabContainerBorder(colorScheme),
+                  ),
+                  child: _AnimatedMagicalTabBar(
+                    tabController: _tabController,
+                    gradient: DynamicTheme.dreamyGradient(colorScheme),
                     colorScheme: colorScheme,
-                    onPressed: () => context.push(Routes.createCapsule),
+                    tabs: [
+                      Tab(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(Icons.auto_awesome, size: 14),
+                            SizedBox(width: AppConstants.tabSpacing),
+                            Flexible(
+                              child: Text(
+                                'Unfolding',
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(Icons.lock_outline,
+                                size: 14), // Already outline version
+                            SizedBox(width: AppConstants.tabSpacing),
+                            Flexible(
+                              child: Text(
+                                'Sealed',
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(Icons.favorite_outline, size: 14),
+                            SizedBox(width: AppConstants.tabSpacing),
+                            Flexible(
+                              child: Text(
+                                'Revealed',
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              
-              // Drafts Button
-              Padding(
-                padding: EdgeInsets.only(
-                  top: AppTheme.spacingXs, // Moved closer to Create button
-                  left: AppTheme.spacingLg,
-                  right: AppTheme.spacingLg,
-                ),
-                child: Center(
-                  child: Consumer(
-                    builder: (context, ref, child) {
-                      final draftsCount = ref.watch(draftsCountProvider);
-                      return _DraftsButton(
-                        draftsCount: draftsCount,
-                        colorScheme: colorScheme,
-                        onTap: () => context.push(Routes.drafts),
-                      );
-                    },
+
+                SizedBox(height: AppTheme.spacingMd),
+
+                // Tab Content
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: const [
+                      _UnlockingSoonTab(),
+                      _UpcomingTab(),
+                      _OpenedTab(),
+                    ],
                   ),
                 ),
-              ),
-              
-              SizedBox(height: AppTheme.spacingLg),
-              
-              // Tabs
-              Container(
-                margin: EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
-                decoration: BoxDecoration(
-                  color: colorScheme.isDarkTheme
-                  ? Colors.white.withOpacity(AppTheme.opacityLow) // Semi-transparent white for dark theme
-                  : Colors.white,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                  border: DynamicTheme.getTabContainerBorder(colorScheme),
-                ),
-                child: _AnimatedMagicalTabBar(
-                  tabController: _tabController,
-                  gradient: DynamicTheme.dreamyGradient(colorScheme),
-                  colorScheme: colorScheme,
-                  tabs: [
-                    Tab(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(Icons.auto_awesome, size: 14),
-                          SizedBox(width: AppConstants.tabSpacing),
-                          Flexible(
-                            child: Text(
-                              'Unfolding',
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Tab(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(Icons.lock_outline, size: 14), // Already outline version
-                          SizedBox(width: AppConstants.tabSpacing),
-                          Flexible(
-                            child: Text(
-                              'Sealed',
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Tab(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(Icons.favorite_outline, size: 14),
-                          SizedBox(width: AppConstants.tabSpacing),
-                          Flexible(
-                            child: Text(
-                              'Revealed',
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              SizedBox(height: AppTheme.spacingMd),
-              
-              // Tab Content
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: const [
-                    _UnlockingSoonTab(),
-                    _UpcomingTab(),
-                    _OpenedTab(),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-          ),
-        ),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           context.push(Routes.recipients);
@@ -296,7 +303,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           children: [
             Icon(Icons.people_outline, size: 18, color: Colors.white),
             SizedBox(width: AppConstants.tabSpacing),
-            Text('+', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            Text('+',
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white)),
           ],
         ),
       ),
@@ -361,9 +372,10 @@ class _DraftsButtonState extends State<_DraftsButton>
     // Use theme-aware colors
     final iconColor = DynamicTheme.getButtonTextColor(widget.colorScheme);
     final textColor = DynamicTheme.getButtonTextColor(widget.colorScheme);
-    final backgroundColor = DynamicTheme.getButtonBackgroundColor(widget.colorScheme);
+    final backgroundColor =
+        DynamicTheme.getButtonBackgroundColor(widget.colorScheme);
     final borderColor = DynamicTheme.getButtonBorderColor(widget.colorScheme);
-    
+
     return GestureDetector(
       onTapDown: _handleTapDown,
       onTapUp: _handleTapUp,
@@ -373,7 +385,7 @@ class _DraftsButtonState extends State<_DraftsButton>
         animation: _glowController,
         builder: (context, child) {
           final glowOpacity = _glowController.value * 0.15; // Very subtle glow
-          
+
           return Container(
             padding: EdgeInsets.symmetric(
               horizontal: AppTheme.spacingSm + 4,
@@ -382,14 +394,15 @@ class _DraftsButtonState extends State<_DraftsButton>
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppTheme.radiusLg),
               color: backgroundColor,
-                  border: Border.all(
-                    color: borderColor,
-                    width: AppTheme.borderWidthStandard,
-                  ),
+              border: Border.all(
+                color: borderColor,
+                width: AppTheme.borderWidthStandard,
+              ),
               boxShadow: [
                 // Inner shadow effect (0.5% opacity) - using subtle shadow
                 BoxShadow(
-                  color: Colors.black.withOpacity(AppTheme.shadowOpacityVerySubtle),
+                  color: Colors.black
+                      .withOpacity(AppTheme.shadowOpacityVerySubtle),
                   blurRadius: 2,
                   offset: const Offset(0, 1),
                   spreadRadius: 0,
@@ -397,7 +410,8 @@ class _DraftsButtonState extends State<_DraftsButton>
                 // Subtle glow when tapped
                 if (_isPressed || _glowController.value > 0)
                   BoxShadow(
-                    color: DynamicTheme.getButtonGlowColor(widget.colorScheme, opacity: glowOpacity),
+                    color: DynamicTheme.getButtonGlowColor(widget.colorScheme,
+                        opacity: glowOpacity),
                     blurRadius: 8,
                     spreadRadius: 2,
                   ),
@@ -417,10 +431,10 @@ class _DraftsButtonState extends State<_DraftsButton>
                     Text(
                       'Drafts (${widget.draftsCount})',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: textColor,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 13,
-                      ),
+                            color: textColor,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 13,
+                          ),
                     ),
                   ],
                 ),
@@ -482,7 +496,7 @@ class _AnimatedMagicalTabBarState extends State<_AnimatedMagicalTabBar>
       vsync: this,
       duration: AppConstants.sparkleAnimationDuration,
     )..repeat();
-    
+
     // Breathing glow animation - slow, gentle pulse
     _breathingController = AnimationController(
       vsync: this,
@@ -514,12 +528,14 @@ class _AnimatedMagicalTabBarState extends State<_AnimatedMagicalTabBar>
             indicatorSize: TabBarIndicatorSize.tab,
             labelColor: Colors.white,
             unselectedLabelColor: widget.colorScheme.isDarkTheme
-                ? Colors.white.withOpacity(AppTheme.opacityVeryHigh) // Semi-transparent white for visibility
+                ? Colors.white.withOpacity(AppTheme
+                    .opacityVeryHigh) // Semi-transparent white for visibility
                 : AppTheme.textGrey,
             dividerColor: Colors.transparent,
             isScrollable: false,
             tabAlignment: TabAlignment.fill,
-            labelPadding: EdgeInsets.symmetric(horizontal: AppConstants.tabLabelPadding),
+            labelPadding:
+                EdgeInsets.symmetric(horizontal: AppConstants.tabLabelPadding),
             tabs: widget.tabs,
           );
         },
@@ -592,9 +608,10 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
 
     // Breathing glow effect - pulses in and out
     // Breathing value goes from 0 to 1, creating a smooth pulse
-    final breathingOpacity = 0.15 + (breathingValue * 0.15); // 0.15 to 0.3 opacity
+    final breathingOpacity =
+        0.15 + (breathingValue * 0.15); // 0.15 to 0.3 opacity
     final breathingBlur = 8 + (breathingValue * 8); // 8 to 16 blur radius
-    
+
     _breathingGlowPaint
       ..color = colorScheme.primary1.withOpacity(breathingOpacity)
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, breathingBlur);
@@ -630,7 +647,8 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
     const int sparkleCount = 3; // Reduced from 4 to 3 for better performance
     final double centerX = rect.center.dx;
     final double centerY = rect.center.dy;
-    final double maxRadius = math.min(rect.width, rect.height) * 0.3; // Reduced from 0.35
+    final double maxRadius =
+        math.min(rect.width, rect.height) * 0.3; // Reduced from 0.35
 
     for (int i = 0; i < sparkleCount; i++) {
       final double angle = time + (i * 2 * math.pi / sparkleCount);
@@ -638,7 +656,8 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
       final double x = centerX + math.cos(angle) * radius;
       final double y = centerY + math.sin(angle) * radius;
       final double opacity = (math.sin(time * 3 + i) + 1) / 2;
-      final double size = 2.5 + math.sin(time * 4 + i) * 1.5; // Reduced from 3 + 2.5
+      final double size =
+          2.5 + math.sin(time * 4 + i) * 1.5; // Reduced from 3 + 2.5
 
       // Reuse paint objects
       _accentGlowPaint
@@ -669,7 +688,7 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
         size * 0.6,
         _centerGlowPaint,
       );
-      
+
       // Inner circle
       _innerCirclePaint.color = Colors.white.withOpacity(opacity * 0.8);
       canvas.drawCircle(
@@ -715,9 +734,11 @@ class _UpcomingTab extends ConsumerWidget {
             final capsule = capsules[index];
             return Padding(
               key: ValueKey('upcoming_${capsule.id}'),
-              padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
+              padding:
+                  EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
               child: InkWell(
-                onTap: () => context.push('/capsule/${capsule.id}', extra: capsule),
+                onTap: () =>
+                    context.push('/capsule/${capsule.id}', extra: capsule),
                 borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                 child: _CapsuleCard(capsule: capsule),
               ),
@@ -764,9 +785,11 @@ class _UnlockingSoonTab extends ConsumerWidget {
             final capsule = capsules[index];
             return Padding(
               key: ValueKey('unlocking_soon_${capsule.id}'),
-              padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
+              padding:
+                  EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
               child: InkWell(
-                onTap: () => context.push('/capsule/${capsule.id}', extra: capsule),
+                onTap: () =>
+                    context.push('/capsule/${capsule.id}', extra: capsule),
                 borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                 child: _CapsuleCard(capsule: capsule),
               ),
@@ -813,9 +836,11 @@ class _OpenedTab extends ConsumerWidget {
             final capsule = capsules[index];
             return Padding(
               key: ValueKey('opened_${capsule.id}'),
-              padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
+              padding:
+                  EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
               child: InkWell(
-                onTap: () => context.push('/capsule/${capsule.id}/opened', extra: capsule),
+                onTap: () => context.push('/capsule/${capsule.id}/opened',
+                    extra: capsule),
                 borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                 child: _CapsuleCard(capsule: capsule),
               ),
@@ -845,203 +870,257 @@ class _CapsuleCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = ref.watch(selectedColorSchemeProvider);
-    final softGradient = DynamicTheme.softGradient(colorScheme);
-    final dreamyGradient = DynamicTheme.dreamyGradient(colorScheme);
 
     return RepaintBoundary(
-      child: Container(
-        margin: EdgeInsets.only(bottom: AppTheme.spacingSm),
-        decoration: BoxDecoration(
-          color: DynamicTheme.getCardBackgroundColor(colorScheme),
-          borderRadius: BorderRadius.circular(AppConstants.capsuleCardBorderRadius),
-          boxShadow: [
-            BoxShadow(
-              color: colorScheme.isDarkTheme
-                  ? Colors.black.withOpacity(AppConstants.shadowOpacityDark)
-                  : Colors.black.withOpacity(AppConstants.shadowOpacityLight),
-              blurRadius: AppConstants.capsuleCardShadowBlur,
-              spreadRadius: AppConstants.capsuleCardShadowSpread,
-              offset: const Offset(0, 2),
+      child: Stack(
+        children: [
+          Container(
+            margin:
+                EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
+            decoration: BoxDecoration(
+              color: DynamicTheme.getCardBackgroundColor(colorScheme),
+              borderRadius:
+                  BorderRadius.circular(AppConstants.capsuleCardBorderRadius),
+              boxShadow: [
+                BoxShadow(
+                  color: colorScheme.isDarkTheme
+                      ? Colors.black.withOpacity(AppConstants.shadowOpacityDark)
+                      : Colors.black
+                          .withOpacity(AppConstants.shadowOpacityLight),
+                  blurRadius: AppConstants.capsuleCardShadowBlur,
+                  spreadRadius: AppConstants.capsuleCardShadowSpread,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Padding(
-          padding: EdgeInsets.all(AppTheme.spacingMd),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Left: Square icon with rounded corners (reference style)
-              Container(
-                width: AppConstants.capsuleCardIconSize,
-                height: AppConstants.capsuleCardIconSize,
-                decoration: BoxDecoration(
-                  gradient: capsule.isOpened 
-                      ? softGradient 
-                      : dreamyGradient,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Icon(
-                      capsule.isOpened 
-                          ? Icons.mark_email_read_outlined 
-                          : Icons.mail_outline,
-                      color: Colors.white,
-                      size: AppConstants.capsuleCardIconInnerSize,
-                    ),
-                  ],
-                ),
-              ),
-              
-              SizedBox(width: AppTheme.spacingMd),
-              
-              // Middle: Text content - expanded to take most space
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Top row: Recipient name and badge (top-right)
-                    Row(
+            child: Padding(
+              padding: EdgeInsets.all(AppTheme.spacingMd),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Left: Recipient profile avatar
+                  UserAvatar(
+                    imageUrl: capsule.receiverAvatar.isNotEmpty ? capsule.receiverAvatar : null,
+                    name: capsule.recipientName,
+                    size: AppConstants.capsuleCardAvatarSize,
+                  ),
+                  SizedBox(width: AppTheme.spacingMd),
+                  // Middle: Text content - expanded to take most space
+                  Expanded(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Recipient name - takes available space
-                        Expanded(
+                        // Top section: Recipient name (bold) and Badge (top-right)
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Recipient name - takes available space
+                            Expanded(
+                              child: Text(
+                                'To ${capsule.recipientName}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(
+                                      color: DynamicTheme.getPrimaryTextColor(
+                                          colorScheme),
+                                      fontWeight: FontWeight.w700,
+                                      fontSize:
+                                          AppConstants.capsuleCardTitleFontSize,
+                                      height: AppConstants.textLineHeightTight,
+                                    ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            SizedBox(width: AppTheme.spacingSm),
+                            // Status badge - top-right corner
+                            AnimatedScale(
+                              scale: 1,
+                              duration: AppConstants.badgeAnimationDuration,
+                              curve: Curves.easeInOut,
+                              alignment: Alignment.topRight,
+                              child: capsule.isOpened
+                                  ? StatusPill.opened()
+                                  : capsule.isUnlocked
+                                      ? StatusPill.readyToOpen()
+                                      : capsule.isUnlockingSoon
+                                          ? AnimatedUnlockingSoonBadge(capsule: capsule)
+                                          : StatusPill.lockedDynamic(
+                                              colorScheme.primary1),
+                            ),
+                          ],
+                        ),
+
+                        SizedBox(height: AppConstants.capsuleCardTitleSpacing),
+
+                        // Subject (regular weight) - single line with ellipsis
+                        Flexible(
                           child: Text(
-                            'To ${capsule.recipientName}',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: DynamicTheme.getPrimaryTextColor(colorScheme),
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: AppConstants.capsuleCardTitleFontSize,
+                            capsule.label,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w400, // Regular weight
+                                  color: DynamicTheme.getPrimaryTextColor(
+                                      colorScheme),
+                                  fontSize: AppConstants.capsuleCardLabelFontSize,
                                   height: AppConstants.textLineHeightTight,
                                 ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
+                            softWrap: false, // Prevent wrapping
                           ),
                         ),
-                        SizedBox(width: AppTheme.spacingSm),
-                        // Status badge - top-right corner
-                        AnimatedScale(
-                          scale: 1,
-                          duration: AppConstants.badgeAnimationDuration,
-                          curve: Curves.easeInOut,
-                          alignment: Alignment.topRight,
-                          child: capsule.isOpened
-                              ? StatusPill.opened()
-                              : capsule.isUnlocked
-                                  ? StatusPill.readyToOpen()
-                                  : capsule.isUnlockingSoon
-                                      ? AnimatedUnlockingSoonBadge()
-                                      : StatusPill.lockedDynamic(colorScheme.primary1),
+
+                        SizedBox(height: AppConstants.capsuleCardLabelSpacing * 1.5),
+
+                        // Bottom left: Date
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              capsule.isOpened
+                                  ? Icons.check_circle_outline
+                                  : Icons.schedule_outlined,
+                              size: AppConstants.capsuleCardDateIconSize,
+                              color: DynamicTheme.getSecondaryTextColor(
+                                  colorScheme),
+                            ),
+                            SizedBox(
+                                width: AppConstants.capsuleCardDateIconSpacing),
+                            Flexible(
+                              child: Text(
+                                capsule.isOpened
+                                    ? 'Opened ${_dateFormat.format(capsule.openedAt!)}'
+                                    : '${_dateFormat.format(capsule.unlockTime)} ${_timeFormat.format(capsule.unlockTime)}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: DynamicTheme.getSecondaryTextColor(
+                                          colorScheme),
+                                      fontSize:
+                                          AppConstants.capsuleCardDateFontSize,
+                                      fontWeight: FontWeight.w500, // Medium weight
+                                      height: AppConstants.textLineHeightTight,
+                                    ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    
-                    SizedBox(height: AppConstants.capsuleCardTitleSpacing),
-                    
-                    // Subtitle: Label (bold, slightly smaller)
-                    Text(
-                      capsule.label,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: DynamicTheme.getPrimaryTextColor(colorScheme),
-                            fontSize: AppConstants.capsuleCardLabelFontSize,
-                            height: AppConstants.textLineHeightTight,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    
-                    SizedBox(height: AppConstants.capsuleCardLabelSpacing),
-                    
-                    // Date/time (smaller, lighter grey)
-                    Row(
-                      children: [
-                        Icon(
-                          capsule.isOpened 
-                              ? Icons.check_circle_outline 
-                              : Icons.schedule_outlined,
-                          size: AppConstants.capsuleCardDateIconSize,
-                          color: DynamicTheme.getSecondaryTextColor(colorScheme),
-                        ),
-                        SizedBox(width: AppConstants.capsuleCardDateIconSpacing),
-                        Expanded(
-                          child: Text(
-                            capsule.isOpened
-                                ? 'Opened ${_dateFormat.format(capsule.openedAt!)}'
-                                : '${_dateFormat.format(capsule.unlockTime)} ${_timeFormat.format(capsule.unlockTime)}',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: DynamicTheme.getSecondaryTextColor(colorScheme),
-                                  fontSize: AppConstants.capsuleCardDateFontSize,
-                                  height: AppConstants.textLineHeightTight,
-                                ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    
-                    // Countdown - below date/time
-                    if (!capsule.isOpened && !capsule.isUnlocked) ...[
-                      SizedBox(height: AppConstants.capsuleCardLabelSpacing),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.timer_outlined,
-                            size: AppConstants.capsuleCardCountdownIconSize,
-                            color: colorScheme.primary1,
-                          ),
-                          SizedBox(width: AppConstants.capsuleCardCountdownIconSpacing),
-                          CountdownDisplay(
-                            duration: capsule.timeUntilUnlock,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: colorScheme.primary1,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: AppConstants.capsuleCardCountdownFontSize,
-                                ),
+
+                        // Reaction - below badge if present
+                        if (capsule.reaction != null) ...[
+                          SizedBox(
+                              height: AppConstants.capsuleCardLabelSpacing),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.favorite_outline,
+                                size: AppConstants.capsuleCardCountdownIconSize,
+                                color: DynamicTheme.getSecondaryTextColor(
+                                    colorScheme),
+                              ),
+                              SizedBox(
+                                  width: AppConstants
+                                      .capsuleCardCountdownIconSpacing),
+                              Text(
+                                'Reaction: ${capsule.reaction}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: DynamicTheme.getSecondaryTextColor(
+                                          colorScheme),
+                                      fontSize: AppConstants
+                                          .capsuleCardCountdownFontSize,
+                                    ),
+                              ),
+                            ],
                           ),
                         ],
-                      ),
-                    ],
-                    
-                    // Reaction - below countdown if present
-                    if (capsule.reaction != null) ...[
-                      SizedBox(height: AppConstants.capsuleCardLabelSpacing),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.favorite_outline,
-                            size: AppConstants.capsuleCardCountdownIconSize,
-                            color: colorScheme.primary1,
-                          ),
-                          SizedBox(width: AppConstants.capsuleCardCountdownIconSpacing),
-                          Text(
-                            'Reaction: ${capsule.reaction}',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: DynamicTheme.getSecondaryTextColor(colorScheme),
-                                  fontSize: AppConstants.capsuleCardCountdownFontSize,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              
-              SizedBox(width: AppTheme.spacingSm),
-              
-              // Right: Small chevron icon (reference style)
-              Icon(
-                Icons.chevron_right_outlined,
-                color: DynamicTheme.getSecondaryIconColor(colorScheme),
-                size: AppConstants.capsuleCardChevronSize,
-              ),
-            ],
+            ),
           ),
-        ),
+          // Heartbeat animation - only show on ready capsules (bottom right of card)
+          if (capsule.isUnlocked && !capsule.isOpened)
+            Positioned(
+              bottom: AppConstants.heartbeatBottomMargin,
+              right: AppConstants.heartbeatRightMargin,
+              child: HeartbeatAnimation(
+                size: AppConstants.heartbeatIconSize,
+                margin: EdgeInsets
+                    .zero, // No margin since we're positioning it manually
+              ),
+            ),
+          // Opened letter pulse animation - only show on opened capsules (bottom right of card)
+          if (capsule.isOpened)
+            Positioned(
+              bottom: AppConstants.openedLetterPulseBottomMargin,
+              right: AppConstants.openedLetterPulseRightMargin,
+              child: OpenedLetterPulse(
+                size: AppConstants.openedLetterPulseIconSize,
+                margin: EdgeInsets
+                    .zero, // No margin since we're positioning it manually
+              ),
+            ),
+          // Sealed letter animation - only show on locked capsules (bottom right of card)
+          // Animate only if unlock time is less than threshold away, otherwise show static lock icon
+          // This creates anticipation as the unlock time approaches
+          if (!capsule.isUnlocked && !capsule.isOpened)
+            Positioned(
+              bottom: AppConstants.sealedLetterBottomMargin,
+              right: AppConstants.sealedLetterRightMargin,
+              child: _buildSealedLetterIcon(capsule),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Builds the sealed letter icon (animated or static) based on time until unlock
+  ///
+  /// Returns animated lock icon if unlock time is less than threshold,
+  /// otherwise returns static lock icon for better performance and visual clarity.
+  ///
+  /// This method handles edge cases:
+  /// - Capsules already unlocked (should not appear due to parent condition)
+  /// - Negative durations (handled by Duration comparison - negative means already unlocked)
+  /// - Zero duration (treated as not meeting threshold)
+  Widget _buildSealedLetterIcon(Capsule capsule) {
+    final timeUntilUnlock = capsule.timeUntilUnlock;
+
+    // Only animate if time until unlock is positive (future) and less than threshold
+    // Using Duration comparison for precise time-based logic
+    // Duration.zero or negative durations indicate already unlocked/ready capsules
+    final shouldAnimate = timeUntilUnlock > Duration.zero &&
+        timeUntilUnlock < AppConstants.sealedLetterAnimationThreshold;
+
+    if (shouldAnimate) {
+      return SealedLetterAnimation(
+        size: AppConstants.sealedLetterIconSize,
+        margin:
+            EdgeInsets.zero, // No margin since we're positioning it manually
+      );
+    }
+
+    // Static icon for capsules with unlock time >= threshold
+    // Matches animated icon appearance exactly for visual consistency
+    return Opacity(
+      opacity: AppConstants.sealedLetterOpacity,
+      child: Icon(
+        Icons.lock_outline,
+        size: AppConstants.sealedLetterIconSize,
+        color: Color(AppConstants.sealedLetterColorValue),
       ),
     );
   }

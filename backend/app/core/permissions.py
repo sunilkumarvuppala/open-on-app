@@ -142,13 +142,24 @@ async def verify_capsule_access(
     is_sender = capsule.sender_id == user_id
     
     is_recipient = False
-    if not is_sender and user_email:
+    if not is_sender:
         recipient_repo = RecipientRepository(session)
         recipient = await recipient_repo.get_by_id(capsule.recipient_id)
-        if recipient and recipient.email:
-            user_email_lower = user_email.lower().strip()
-            recipient_email_lower = recipient.email.lower().strip()
-            is_recipient = user_email_lower == recipient_email_lower
+        
+        if recipient:
+            # Email-based recipient: match email
+            if recipient.email and user_email:
+                user_email_lower = user_email.lower().strip()
+                recipient_email_lower = recipient.email.lower().strip()
+                is_recipient = user_email_lower == recipient_email_lower
+            # Connection-based recipient: check if sender and user are connected
+            elif not recipient.email:
+                is_recipient = await verify_users_are_connected(
+                    session,
+                    capsule.sender_id,
+                    user_id,
+                    raise_on_not_connected=False
+                )
     
     if not is_sender and not is_recipient:
         raise HTTPException(
@@ -249,29 +260,56 @@ async def verify_capsule_recipient(
             detail="Recipient not found for this capsule"
         )
     
-    if not recipient.email:
-        logger.error(
-            f"Recipient {capsule.recipient_id} has no email set for capsule {capsule_id}. "
-            f"User attempting to open: {user_id} ({user_email}). "
-            f"Recipient name: {recipient.name}, owner_id: {recipient.owner_id}"
-        )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Recipient email not set. Cannot verify recipient permission."
-        )
+    # ===== Email-based Recipients =====
+    # If recipient has email, verify by email matching
+    if recipient.email:
+        user_email_lower = user_email.lower().strip()
+        recipient_email_lower = recipient.email.lower().strip()
+        
+        if user_email_lower != recipient_email_lower:
+            logger.warning(
+                f"Email mismatch for capsule {capsule_id}. "
+                f"User email: {user_email_lower}, Recipient email: {recipient_email_lower}. "
+                f"User ID: {user_id}, Recipient ID: {capsule.recipient_id}, Recipient owner: {recipient.owner_id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not the recipient of this capsule"
+            )
+        
+        return True
     
-    user_email_lower = user_email.lower().strip()
-    recipient_email_lower = recipient.email.lower().strip()
+    # ===== Connection-based Recipients =====
+    # If recipient doesn't have email, it's a connection-based recipient
+    # Verify that the sender and current user are connected
+    # This allows users to open capsules sent to them via connections
+    logger.info(
+        f"Recipient {capsule.recipient_id} has no email for capsule {capsule_id}. "
+        f"Verifying connection between sender {capsule.sender_id} and user {user_id}"
+    )
     
-    if user_email_lower != recipient_email_lower:
+    # Check if sender and current user are connected
+    is_connected = await verify_users_are_connected(
+        session,
+        capsule.sender_id,
+        user_id,
+        raise_on_not_connected=False
+    )
+    
+    if not is_connected:
         logger.warning(
-            f"Email mismatch for capsule {capsule_id}. "
-            f"User email: {user_email_lower}, Recipient email: {recipient_email_lower}. "
-            f"User ID: {user_id}, Recipient ID: {capsule.recipient_id}, Recipient owner: {recipient.owner_id}"
+            f"Connection verification failed for capsule {capsule_id}. "
+            f"Sender {capsule.sender_id} and user {user_id} are not connected. "
+            f"Recipient name: {recipient.name}, owner_id: {recipient.owner_id}"
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You are not the recipient of this capsule"
         )
+    
+    logger.info(
+        f"Connection verified for capsule {capsule_id}. "
+        f"User {user_id} is connected to sender {capsule.sender_id}"
+    )
     
     return True

@@ -1,5 +1,9 @@
 # Backend Documentation Index
 
+> **Backend documentation navigation hub.**  
+> For documentation overview, see [../README.md](../README.md).  
+> For master navigation, see [../INDEX.md](../INDEX.md).
+
 Welcome to the OpenOn Backend documentation! This index helps you navigate all backend-related documentation.
 
 ## 📚 Documentation Structure

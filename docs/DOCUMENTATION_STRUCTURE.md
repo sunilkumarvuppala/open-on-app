@@ -1,5 +1,9 @@
 # Documentation Structure Guide
 
+> **Note**: This is the primary guide for documentation organization.  
+> For documentation overview, see [README.md](./README.md).  
+> For master navigation, see [INDEX.md](./INDEX.md).
+
 ## Overview
 
 This document explains the organization and structure of all OpenOn documentation. It serves as a guide for maintaining consistency and ensuring comprehensive coverage.
@@ -44,8 +48,12 @@ docs/
 ├── SEQUENCE_DIAGRAMS.md         # User flow diagrams
 ├── CHANGES_2025.md              # Comprehensive changes documentation ⭐
 ├── REFACTORING.md               # Refactoring documentation
+├── REFACTORING_GUIDE.md         # Refactoring patterns & best practices
 ├── PERFORMANCE_OPTIMIZATIONS.md # Performance guide
 ├── CONTRIBUTING.md              # Contribution guidelines
+├── DOCUMENTATION_STRUCTURE.md   # Documentation organization guide
+├── NAVIGATION_GUIDE.md          # Quick navigation reference
+├── CHANGELOG.md                 # Documentation changelog
 │
 ├── backend/                     # Backend documentation
 │   ├── INDEX.md                 # Backend navigation index
@@ -163,7 +171,6 @@ docs/
 
 **Files**:
 - `backend/SECURITY.md` - Backend security
-- `SECURITY_AUDIT.md` (root) - Security audit report
 - `supabase/DATABASE_SCHEMA.md` - RLS policies
 
 ---
@@ -318,8 +325,7 @@ Error Handling
    - `CHANGES_2025.md` - Comprehensive changes record
 
 3. **Security Documentation**:
-   - `SECURITY_AUDIT.md` (root) - Security audit report
-   - `FINAL_CODE_REVIEW.md` (root) - Code review summary
+   - `backend/SECURITY.md` - Backend security practices
 
 ### Removed Documentation
 

@@ -7,6 +7,7 @@ import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/models/connection_models.dart';
 import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/color_scheme_service.dart';
+import 'package:openon_app/core/utils/logger.dart';
 
 // Configuration: Set to true to use API, false to use mocks
 const bool useApiRepositories = true;
@@ -122,11 +123,61 @@ final incomingOpeningSoonCapsulesProvider = FutureProvider.family<List<Capsule>,
   final capsulesAsync = ref.watch(incomingCapsulesProvider(userId));
   
   return capsulesAsync.when(
-    data: (capsules) => capsules
-        .where((c) => c.status == CapsuleStatus.unlockingSoon)
-        .toList(),
+    data: (capsules) {
+      try {
+        return capsules
+            .where((c) => 
+                c.status == CapsuleStatus.unlockingSoon || 
+                c.status == CapsuleStatus.locked)
+            .toList();
+      } catch (e, stackTrace) {
+        Logger.error(
+          'Error filtering opening soon capsules',
+          error: e,
+          stackTrace: stackTrace,
+        );
+        return <Capsule>[];
+      }
+    },
     loading: () => <Capsule>[],
-    error: (_, __) => <Capsule>[],
+    error: (error, stackTrace) {
+      Logger.error(
+        'Error loading opening soon capsules for user $userId',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return <Capsule>[];
+    },
+  );
+});
+
+final incomingReadyCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, userId) async {
+  final capsulesAsync = ref.watch(incomingCapsulesProvider(userId));
+  
+  return capsulesAsync.when(
+    data: (capsules) {
+      try {
+        return capsules
+            .where((c) => c.status == CapsuleStatus.ready)
+            .toList();
+      } catch (e, stackTrace) {
+        Logger.error(
+          'Error filtering ready capsules',
+          error: e,
+          stackTrace: stackTrace,
+        );
+        return <Capsule>[];
+      }
+    },
+    loading: () => <Capsule>[],
+    error: (error, stackTrace) {
+      Logger.error(
+        'Error loading ready capsules for user $userId',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return <Capsule>[];
+    },
   );
 });
 
@@ -134,11 +185,29 @@ final incomingOpenedCapsulesProvider = FutureProvider.family<List<Capsule>, Stri
   final capsulesAsync = ref.watch(incomingCapsulesProvider(userId));
   
   return capsulesAsync.when(
-    data: (capsules) => capsules
-        .where((c) => c.status == CapsuleStatus.opened)
-        .toList(),
+    data: (capsules) {
+      try {
+        return capsules
+            .where((c) => c.status == CapsuleStatus.opened)
+            .toList();
+      } catch (e, stackTrace) {
+        Logger.error(
+          'Error filtering opened capsules',
+          error: e,
+          stackTrace: stackTrace,
+        );
+        return <Capsule>[];
+      }
+    },
     loading: () => <Capsule>[],
-    error: (_, __) => <Capsule>[],
+    error: (error, stackTrace) {
+      Logger.error(
+        'Error loading opened capsules for user $userId',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return <Capsule>[];
+    },
   );
 });
 

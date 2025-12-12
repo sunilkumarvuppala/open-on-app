@@ -90,17 +90,20 @@ class ConnectionService:
         Returns:
             True if in cooldown, False otherwise
         """
+        # Use parameterized query with make_interval for security
+        # CONNECTION_COOLDOWN_DAYS is a constant, but we still use parameterized query for best practices
         result = await self.session.execute(
-            text(f"""
+            text("""
                 SELECT 1 FROM public.connection_requests
                 WHERE from_user_id = :from_id
                   AND to_user_id = :to_id
                   AND status = 'declined'
-                  AND acted_at > NOW() - INTERVAL '{CONNECTION_COOLDOWN_DAYS} days'
+                  AND acted_at > NOW() - make_interval(days => :cooldown_days)
             """),
             {
                 "from_id": from_user_id,
-                "to_id": to_user_id
+                "to_id": to_user_id,
+                "cooldown_days": CONNECTION_COOLDOWN_DAYS
             }
         )
         return result.scalar() is not None

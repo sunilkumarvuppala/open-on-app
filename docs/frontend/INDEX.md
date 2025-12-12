@@ -1,5 +1,9 @@
 # Frontend Documentation Index
 
+> **Frontend documentation navigation hub.**  
+> For documentation overview, see [../README.md](../README.md).  
+> For master navigation, see [../INDEX.md](../INDEX.md).
+
 Welcome to the OpenOn Frontend documentation index! This file provides quick navigation to all frontend-related documentation.
 
 ## 📚 Documentation Structure

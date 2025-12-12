@@ -8,6 +8,7 @@ const _uuid = Uuid();
 enum CapsuleStatus {
   locked,
   unlockingSoon,
+  ready,
   opened,
 }
 
@@ -44,15 +45,19 @@ class Capsule {
   })  : id = id ?? _uuid.v4(),
         createdAt = createdAt ?? DateTime.now();
   
+  /// Get current time (cached per status calculation to avoid multiple calls)
+  DateTime get _now => DateTime.now();
+  
   CapsuleStatus get status {
-    final now = DateTime.now();
+    final now = _now;
     
     if (openedAt != null) {
       return CapsuleStatus.opened;
     }
     
-    if (unlockAt.isBefore(now)) {
-      return CapsuleStatus.opened; // Can be opened
+    // If unlock time has passed but not opened, it's ready
+    if (unlockAt.isBefore(now) || unlockAt.isAtSameMomentAs(now)) {
+      return CapsuleStatus.ready;
     }
     
     final daysUntilUnlock = unlockAt.difference(now).inDays;
@@ -63,19 +68,29 @@ class Capsule {
     return CapsuleStatus.locked;
   }
   
-  bool get isLocked => unlockAt.isAfter(DateTime.now()) && openedAt == null;
+  bool get isLocked {
+    final now = _now;
+    return unlockAt.isAfter(now) && openedAt == null;
+  }
   
-  bool get isUnlocked => unlockAt.isBefore(DateTime.now()) && openedAt == null;
+  bool get isUnlocked {
+    final now = _now;
+    return unlockAt.isBefore(now) && openedAt == null;
+  }
   
   bool get isOpened => openedAt != null;
   
   bool get isUnlockingSoon {
     if (isOpened || isUnlocked) return false;
-    final daysUntilUnlock = unlockAt.difference(DateTime.now()).inDays;
+    final now = _now;
+    final daysUntilUnlock = unlockAt.difference(now).inDays;
     return daysUntilUnlock <= AppConstants.unlockingSoonDaysThreshold;
   }
   
-  bool get canOpen => unlockAt.isBefore(DateTime.now()) && openedAt == null;
+  bool get canOpen {
+    final now = _now;
+    return unlockAt.isBefore(now) && openedAt == null;
+  }
   
   String get recipientName => receiverName;
   
@@ -83,11 +98,12 @@ class Capsule {
   
   Duration get timeUntilUnlock {
     if (!isLocked) return Duration.zero;
-    return unlockAt.difference(DateTime.now());
+    final now = _now;
+    return unlockAt.difference(now);
   }
   
   String get countdownText {
-    if (!isLocked) return 'Ready to open';
+    if (!isLocked) return AppConstants.readyToOpenText;
     
     final duration = timeUntilUnlock;
     final days = duration.inDays;
