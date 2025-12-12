@@ -100,22 +100,37 @@ class RecipientsScreen extends ConsumerWidget {
                   // Debug button to show more info
                   ElevatedButton(
                     onPressed: () {
+                      final colorScheme = ref.read(selectedColorSchemeProvider);
                       showDialog(
                         context: context,
                         builder: (context) => AlertDialog(
-                          title: const Text('Debug Info'),
+                          backgroundColor: DynamicTheme.getDialogBackgroundColor(colorScheme),
+                          title: Text(
+                            'Debug Info',
+                            style: TextStyle(
+                              color: DynamicTheme.getDialogTitleColor(colorScheme),
+                            ),
+                          ),
                           content: SingleChildScrollView(
                             child: Text(
                               'Error: $error\n\n'
                               'User ID: ${user.id}\n'
                               'Stack: $stack',
-                              style: const TextStyle(fontSize: 12),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: DynamicTheme.getDialogContentColor(colorScheme),
+                              ),
                             ),
                           ),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(context),
-                              child: const Text('Close'),
+                              child: Text(
+                                'Close',
+                                style: TextStyle(
+                                  color: DynamicTheme.getDialogButtonColor(colorScheme),
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -235,21 +250,21 @@ class RecipientsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme),
+        backgroundColor: DynamicTheme.getDialogBackgroundColor(colorScheme),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         ),
         title: Text(
           'Delete Recipient',
           style: TextStyle(
-            color: DynamicTheme.getPrimaryTextColor(colorScheme),
+            color: DynamicTheme.getDialogTitleColor(colorScheme),
             fontWeight: FontWeight.w600,
           ),
         ),
         content: Text(
           'Are you sure you want to delete ${recipient.name}?',
           style: TextStyle(
-            color: DynamicTheme.getSecondaryTextColor(colorScheme),
+            color: DynamicTheme.getDialogContentColor(colorScheme),
           ),
         ),
         actions: [
@@ -258,7 +273,7 @@ class RecipientsScreen extends ConsumerWidget {
             child: Text(
               'Cancel',
               style: TextStyle(
-                color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                color: DynamicTheme.getDialogButtonColor(colorScheme),
               ),
             ),
           ),

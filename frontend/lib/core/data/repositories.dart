@@ -136,7 +136,7 @@ class MockCapsuleRepository implements CapsuleRepository {
           ? _capsules.where((c) => c.senderId == userId).toList()
           : _capsules.where((c) => c.receiverId == userId).toList();
 
-      filteredCapsules.sort((a, b) => a.unlockAt.compareTo(b.unlockAt));
+      // Don't sort here - sorting is handled by providers based on tab requirements
       return filteredCapsules;
     } catch (e, stackTrace) {
       Logger.error(

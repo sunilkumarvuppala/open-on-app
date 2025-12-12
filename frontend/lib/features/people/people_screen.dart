@@ -10,6 +10,8 @@ import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/utils/logger.dart';
 import 'package:openon_app/core/constants/app_constants.dart';
+import 'package:openon_app/core/widgets/common_widgets.dart';
+import 'package:openon_app/core/theme/app_text_styles.dart';
 import 'package:openon_app/animations/effects/confetti_burst.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -94,7 +96,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen>
               child: Icon(
                 Icons.person_add_rounded,
                 color: colorScheme.accent,
-                size: 20,
+                size: AppConstants.connectionCardDialogIconSize,
               ),
             ),
             tooltip: 'Add Connection',
@@ -505,7 +507,7 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
       margin: EdgeInsets.only(bottom: AppTheme.spacingMd),
       decoration: BoxDecoration(
         color: DynamicTheme.getCardBackgroundColor(colorScheme),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         boxShadow: [
           BoxShadow(
             color: colorScheme.isDarkTheme
@@ -519,81 +521,67 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           onTap: () => _showUserProfileDialog(context, connection, colorScheme),
           child: Padding(
             padding: EdgeInsets.all(AppTheme.spacingMd),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 // Avatar with status indicator
                 Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: colorScheme.accent.withValues(alpha: 0.3),
-                          width: 2,
-                        ),
-                      ),
-                      child: CircleAvatar(
-                        radius: 32,
-                        backgroundColor: colorScheme.primary1,
-                        backgroundImage: profile.avatarUrl != null
-                            ? CachedNetworkImageProvider(profile.avatarUrl!)
-                            : null,
-                        child: profile.avatarUrl == null
-                            ? Text(
-                                profile.displayName.isNotEmpty
-                                    ? profile.displayName[0].toUpperCase()
-                                    : '?',
-                                style: const TextStyle(
-                                  color: AppColors.white,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              )
-                            : null,
-                      ),
+                    UserAvatar(
+                      imageUrl: profile.avatarUrl,
+                      name: profile.displayName,
+                      size: AppConstants.connectionCardAvatarRadius * 2,
                     ),
                     // Online indicator (can be enhanced with real status)
                     Positioned(
-                      right: 0,
-                      bottom: 0,
+                      right: -AppConstants.connectionCardStatusIndicatorBorderWidth,
+                      bottom: -AppConstants.connectionCardStatusIndicatorBorderWidth,
                       child: Container(
-                        width: 14,
-                        height: 14,
+                        width: AppConstants.connectionCardStatusIndicatorSize,
+                        height: AppConstants.connectionCardStatusIndicatorSize,
                         decoration: BoxDecoration(
-                          color: AppColors.success,
+                          color: AppTheme.successGreen,
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: DynamicTheme.getCardBackgroundColor(colorScheme),
-                            width: 2,
+                            width: AppConstants.connectionCardStatusIndicatorBorderWidth,
                           ),
                         ),
                       ),
                     ),
                   ],
                 ),
-                SizedBox(width: AppTheme.spacingMd),
+                SizedBox(width: AppTheme.spacingSm),
+                // User info - takes available space
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         profile.displayName,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                               color: DynamicTheme.getPrimaryTextColor(colorScheme),
                               fontWeight: FontWeight.w600,
+                              fontSize: 15,
                             ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      SizedBox(height: 4),
+                      SizedBox(height: 2),
                       if (profile.username != null)
                         Text(
                           '@${profile.username}',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: DynamicTheme.getSecondaryTextColor(colorScheme),
                               ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         )
                       else
                         Text(
@@ -601,44 +589,46 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: DynamicTheme.getSecondaryTextColor(colorScheme),
                               ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                     ],
                   ),
                 ),
-                // Action button
-                Container(
-                  decoration: BoxDecoration(
-                    color: colorScheme.accent.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(20),
-                      onTap: () => _handleSendLetter(context, ref, connection, colorScheme),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.mail_outline_rounded,
-                              size: 18,
-                              color: colorScheme.accent,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Send',
-                              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                    color: colorScheme.accent,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                            ),
-                          ],
-                        ),
+                SizedBox(width: AppTheme.spacingXs),
+                // Action button - fixed width to prevent layout shifts
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                    onTap: () => _handleSendLetter(context, ref, connection, colorScheme),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppTheme.spacingSm,
+                        vertical: AppTheme.spacingXs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorScheme.accent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.mail_outline_rounded,
+                            size: AppConstants.connectionCardButtonIconSize,
+                            color: colorScheme.accent,
+                          ),
+                          SizedBox(width: AppTheme.spacingXs),
+                          Text(
+                            'Send',
+                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                  color: colorScheme.accent,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -748,12 +738,10 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        contentPadding: EdgeInsets.all(AppTheme.spacingLg),
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (context) => AppDialogBuilder.buildDialog(
+        context: context,
+        colorScheme: colorScheme,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -768,29 +756,24 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
                       profile.displayName.isNotEmpty
                           ? profile.displayName[0].toUpperCase()
                           : '?',
-                          style: TextStyle(
-                            color: DynamicTheme.getPrimaryIconColor(colorScheme),
-                            fontSize: 32,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      style: TextStyle(
+                        color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                        fontSize: 32,
+                        fontWeight: FontWeight.w600,
+                      ),
                     )
                   : null,
             ),
             SizedBox(height: AppTheme.spacingMd),
             Text(
               profile.displayName,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: DynamicTheme.getPrimaryTextColor(colorScheme),
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: AppTextStyles.displaySmall(colorScheme),
             ),
             if (profile.username != null) ...[
               SizedBox(height: 4),
               Text(
                 '@${profile.username}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: DynamicTheme.getSecondaryTextColor(colorScheme),
-                    ),
+                style: AppTextStyles.dialogContent(colorScheme),
               ),
             ],
             SizedBox(height: AppTheme.spacingLg),
@@ -798,7 +781,7 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
               padding: EdgeInsets.all(AppTheme.spacingMd),
               decoration: BoxDecoration(
                 color: colorScheme.accent.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -811,9 +794,9 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
                   SizedBox(width: AppTheme.spacingSm),
                   Text(
                     'Connected $timeAgo',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: DynamicTheme.getPrimaryTextColor(colorScheme),
-                        ),
+                    style: AppTextStyles.dialogContent(colorScheme).copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
@@ -825,9 +808,7 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
             onPressed: () => Navigator.of(context).pop(),
             child: Text(
               'Close',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: DynamicTheme.getPrimaryTextColor(colorScheme),
-                  ),
+              style: AppTextStyles.dialogButton(colorScheme),
             ),
           ),
         ],
@@ -1272,9 +1253,9 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
                           displayProfile.displayName.isNotEmpty
                               ? displayProfile.displayName[0].toUpperCase()
                               : '?',
-                          style: const TextStyle(
-                            color: AppColors.white,
-                            fontSize: 20,
+                          style: TextStyle(
+                            color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                            fontSize: AppConstants.connectionCardAvatarTextSize,
                             fontWeight: FontWeight.w600,
                           ),
                         )
@@ -1323,7 +1304,7 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
                   children: [
                     Icon(
                       Icons.message_outlined,
-                      size: 16,
+                      size: AppConstants.connectionCardSmallIconSize,
                       color: colorScheme.accent,
                     ),
                     SizedBox(width: AppTheme.spacingSm),
@@ -1464,7 +1445,7 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
                         }
                       }
                     },
-                    icon: const Icon(Icons.check_rounded, size: 18),
+                    icon: Icon(Icons.check_rounded, size: AppConstants.connectionCardButtonIconSize),
                     label: const Text('Accept'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colorScheme.accent,
@@ -1491,9 +1472,9 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme),
+        backgroundColor: DynamicTheme.getDialogBackgroundColor(colorScheme),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(AppTheme.radiusXl),
         ),
         title: Row(
           children: [
@@ -1502,7 +1483,7 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
             Text(
               'Connected! ✨',
               style: TextStyle(
-                color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                color: DynamicTheme.getDialogTitleColor(colorScheme),
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -1512,7 +1493,7 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
           'You\'re now connected with ${request.fromUserProfile?.displayName ?? 'this user'}! '
           'You can now send and receive letters.',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                color: DynamicTheme.getDialogContentColor(colorScheme),
               ),
         ),
         actions: [
@@ -1520,12 +1501,18 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
             onPressed: () => Navigator.of(context).pop(),
             style: ElevatedButton.styleFrom(
               backgroundColor: colorScheme.accent,
-              foregroundColor: AppColors.white,
+              foregroundColor: DynamicTheme.getButtonTextColor(colorScheme),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text('Done'),
+            child: Text(
+              'Done',
+              style: TextStyle(
+                color: DynamicTheme.getButtonTextColor(colorScheme),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -1561,7 +1548,7 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
         statusIcon = Icons.schedule_rounded;
         break;
       case ConnectionRequestStatus.accepted:
-        statusColor = AppColors.success;
+        statusColor = AppTheme.successGreen;
         statusText = 'Accepted';
         statusIcon = Icons.check_circle_rounded;
         break;
@@ -1592,7 +1579,7 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
             onTap: () => _showRequestDetailsDialog(context, request, colorScheme),
           child: Padding(
             padding: EdgeInsets.all(AppTheme.spacingMd),
@@ -1609,9 +1596,9 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
                           displayProfile.displayName.isNotEmpty
                               ? displayProfile.displayName[0].toUpperCase()
                               : '?',
-                          style: const TextStyle(
-                            color: AppColors.white,
-                            fontSize: 20,
+                          style: TextStyle(
+                            color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                            fontSize: AppConstants.connectionCardAvatarTextSize,
                             fontWeight: FontWeight.w600,
                           ),
                         )
@@ -1653,7 +1640,7 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
                   ),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusXl),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1723,9 +1710,9 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme),
+        backgroundColor: DynamicTheme.getDialogBackgroundColor(colorScheme),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(AppTheme.radiusXl),
         ),
         contentPadding: EdgeInsets.all(AppTheme.spacingLg),
         title: Row(
@@ -1743,7 +1730,7 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
                           : '?',
                           style: TextStyle(
                             color: DynamicTheme.getPrimaryIconColor(colorScheme),
-                            fontSize: 18,
+                            fontSize: AppConstants.connectionCardButtonIconSize,
                             fontWeight: FontWeight.w600,
                           ),
                     )
@@ -1757,7 +1744,7 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
                   Text(
                     displayProfile.displayName,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                          color: DynamicTheme.getDialogTitleColor(colorScheme),
                           fontWeight: FontWeight.w700,
                         ),
                   ),
@@ -1765,7 +1752,7 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
                     Text(
                       '@${displayProfile.username}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                            color: DynamicTheme.getDialogContentColor(colorScheme),
                           ),
                     ),
                 ],
@@ -1784,7 +1771,7 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
               ),
               decoration: BoxDecoration(
                 color: statusColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(AppTheme.radiusXl),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -1806,14 +1793,14 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
               children: [
                 Icon(
                   Icons.access_time_rounded,
-                  size: 16,
+                  size: AppConstants.connectionCardSmallIconSize,
                   color: DynamicTheme.getSecondaryIconColor(colorScheme),
                 ),
                 SizedBox(width: 6),
                 Text(
                   'Sent $sentTime',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                        color: DynamicTheme.getDialogContentColor(colorScheme),
                       ),
                 ),
               ],
@@ -1836,7 +1823,7 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
                           size: 16,
                           color: colorScheme.accent,
                         ),
-                        SizedBox(width: 6),
+                        SizedBox(width: AppTheme.chipSpacing),
                         Text(
                           'Message',
                           style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -1850,7 +1837,7 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
                     Text(
                       request.message!,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                            color: DynamicTheme.getDialogContentColor(colorScheme),
                           ),
                     ),
                   ],
@@ -1865,7 +1852,7 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
             child: Text(
               'Close',
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                    color: DynamicTheme.getDialogButtonColor(colorScheme),
                   ),
             ),
           ),

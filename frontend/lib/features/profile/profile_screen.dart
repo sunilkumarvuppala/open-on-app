@@ -5,6 +5,8 @@ import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
+import 'package:openon_app/core/widgets/common_widgets.dart';
+import 'package:openon_app/core/constants/app_constants.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -40,40 +42,11 @@ class ProfileScreen extends ConsumerWidget {
               Center(
                 child: Column(
                   children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: colorScheme.accent.withOpacity(AppTheme.opacityAlmostFull2),
-                          width: AppTheme.borderWidthStandard,
-                        ),
-                        boxShadow: [
-                          // Reduced glow
-                          BoxShadow(
-                            color: colorScheme.accent.withOpacity(AppTheme.opacityMediumHigh),
-                            blurRadius: AppTheme.glowBlurRadiusMedium,
-                            spreadRadius: AppTheme.glowSpreadRadiusSmall,
-                          ),
-                          // Subtle shadow
-                          BoxShadow(
-                            color: colorScheme.primary1.withOpacity(AppTheme.opacityMediumHigh),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: CircleAvatar(
-                        radius: 50,
-                        backgroundColor: colorScheme.primary1,
-                        child: Text(
-                          user.name[0].toUpperCase(),
-                          style: TextStyle(
-                            color: DynamicTheme.getPrimaryIconColor(colorScheme),
-                            fontSize: 36,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
+                    UserAvatar(
+                      imageUrl: user.avatarUrl,
+                      imagePath: user.localAvatarPath,
+                      name: user.name,
+                      size: 100,
                     ),
                     SizedBox(height: AppTheme.spacingMd),
                     Text(
@@ -258,21 +231,21 @@ class ProfileScreen extends ConsumerWidget {
                     final confirmed = await showDialog<bool>(
                       context: context,
                       builder: (context) => AlertDialog(
-                        backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme),
+                        backgroundColor: DynamicTheme.getDialogBackgroundColor(colorScheme),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                         ),
                         title: Text(
                           'Log out',
                           style: TextStyle(
-                            color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                            color: DynamicTheme.getDialogTitleColor(colorScheme),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         content: Text(
                           'Are you sure you want to log out?',
                           style: TextStyle(
-                            color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                            color: DynamicTheme.getDialogContentColor(colorScheme),
                           ),
                         ),
                         actions: [
@@ -281,7 +254,7 @@ class ProfileScreen extends ConsumerWidget {
                             child: Text(
                               'Cancel',
                               style: TextStyle(
-                                color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                                color: DynamicTheme.getDialogButtonColor(colorScheme),
                               ),
                             ),
                           ),

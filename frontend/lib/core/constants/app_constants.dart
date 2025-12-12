@@ -269,6 +269,26 @@ class AppConstants {
   static const double badgeFixedWidth = 110.0; // Fixed width for all status badges to ensure consistent alignment
   static const double badgeColorLightenFactor = 0.3; // Factor for lightening locked badge color (30% blend with light color)
   static const double badgeColorDarkenFactor = 0.2; // Factor for darkening opened badge color (20% blend with dark color)
+  
+  // Connection card dimensions
+  static const double connectionCardAvatarRadius = 24.0; // Avatar radius in connection cards (reduced from 28)
+  static const double connectionCardStatusIndicatorSize = 12.0; // Online/status indicator size (reduced from 14)
+  static const double connectionCardStatusIndicatorBorderWidth = 2.0; // Border width for status indicator
+  static const double connectionCardButtonIconSize = 16.0; // Icon size in action buttons (reduced from 18)
+  static const double connectionCardAvatarTextSize = 18.0; // Font size for avatar initials (reduced from 20)
+  static const double connectionCardDialogIconSize = 20.0; // Icon size in dialogs
+  static const double connectionCardSmallIconSize = 16.0; // Small icon size for status indicators
+  static const double connectionCardPadding = 12.0; // Padding inside connection cards (reduced from 16)
+  static const double connectionCardAvatarBorderWidth = 1.5; // Border width around avatar (reduced from 2)
+
+  // Dialog text colors - ensure consistent, theme-aware colors for all popups
+  // These constants ensure all dialogs use proper colors for visibility
+  static const int dialogTitleColorLight = 0xFF1A1A1A; // Very dark for light themes (high contrast)
+  static const int dialogTitleColorDark = 0xFFFFFFFF; // White for dark themes
+  static const int dialogContentColorLight = 0xFF4A4A4A; // Dark gray for light themes
+  static const int dialogContentColorDark = 0xFFFFFFFF; // White for dark themes
+  static const int dialogButtonColorLight = 0xFF9E9E9E; // Medium gray for light themes
+  static const int dialogButtonColorDark = 0xFFFFFFFF; // White for dark themes
 
   // Icon types for animations (using Material Icons)
   // Ready: sparkle/star for excitement, Opened: checkmark for completion, Sealed: lock for locked state

@@ -65,9 +65,12 @@ final upcomingCapsulesProvider = FutureProvider.family<List<Capsule>, String>((r
   return capsulesAsync.when(
     data: (capsules) {
       final threshold = AppConstants.unlockingSoonDaysThreshold;
-      return capsules
+      final filtered = capsules
           .where((c) => c.status == CapsuleStatus.locked && c.timeUntilUnlock.inDays > threshold)
           .toList();
+      // Sort by ascending order of time remaining (shortest time first)
+      filtered.sort((a, b) => a.timeUntilUnlock.compareTo(b.timeUntilUnlock));
+      return filtered;
     },
     loading: () => <Capsule>[],
     error: (_, __) => <Capsule>[],
@@ -78,9 +81,14 @@ final unlockingSoonCapsulesProvider = FutureProvider.family<List<Capsule>, Strin
   final capsulesAsync = ref.watch(capsulesProvider(userId));
   
   return capsulesAsync.when(
-    data: (capsules) => capsules
-        .where((c) => c.status == CapsuleStatus.unlockingSoon)
-        .toList(),
+    data: (capsules) {
+      final filtered = capsules
+          .where((c) => c.status == CapsuleStatus.unlockingSoon)
+          .toList();
+      // Sort by ascending order of time remaining (shortest time first)
+      filtered.sort((a, b) => a.timeUntilUnlock.compareTo(b.timeUntilUnlock));
+      return filtered;
+    },
     loading: () => <Capsule>[],
     error: (_, __) => <Capsule>[],
   );
@@ -90,9 +98,18 @@ final openedCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref
   final capsulesAsync = ref.watch(capsulesProvider(userId));
   
   return capsulesAsync.when(
-    data: (capsules) => capsules
-        .where((c) => c.status == CapsuleStatus.opened)
-        .toList(),
+    data: (capsules) {
+      final filtered = capsules
+          .where((c) => c.status == CapsuleStatus.opened)
+          .toList();
+      // Sort by most recently opened to earliest (newest openedAt first)
+      filtered.sort((a, b) {
+        final aOpened = a.openedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bOpened = b.openedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bOpened.compareTo(aOpened); // Descending order
+      });
+      return filtered;
+    },
     loading: () => <Capsule>[],
     error: (_, __) => <Capsule>[],
   );
@@ -110,9 +127,12 @@ final incomingLockedCapsulesProvider = FutureProvider.family<List<Capsule>, Stri
   return capsulesAsync.when(
     data: (capsules) {
       final threshold = AppConstants.unlockingSoonDaysThreshold;
-      return capsules
+      final filtered = capsules
           .where((c) => c.status == CapsuleStatus.locked && c.timeUntilUnlock.inDays > threshold)
           .toList();
+      // Sort by ascending order of time remaining (shortest time first)
+      filtered.sort((a, b) => a.timeUntilUnlock.compareTo(b.timeUntilUnlock));
+      return filtered;
     },
     loading: () => <Capsule>[],
     error: (_, __) => <Capsule>[],
@@ -125,11 +145,14 @@ final incomingOpeningSoonCapsulesProvider = FutureProvider.family<List<Capsule>,
   return capsulesAsync.when(
     data: (capsules) {
       try {
-        return capsules
+        final filtered = capsules
             .where((c) => 
                 c.status == CapsuleStatus.unlockingSoon || 
                 c.status == CapsuleStatus.locked)
             .toList();
+        // Sort by ascending order of time remaining (shortest time first)
+        filtered.sort((a, b) => a.timeUntilUnlock.compareTo(b.timeUntilUnlock));
+        return filtered;
       } catch (e, stackTrace) {
         Logger.error(
           'Error filtering opening soon capsules',
@@ -157,9 +180,12 @@ final incomingReadyCapsulesProvider = FutureProvider.family<List<Capsule>, Strin
   return capsulesAsync.when(
     data: (capsules) {
       try {
-        return capsules
+        final filtered = capsules
             .where((c) => c.status == CapsuleStatus.ready)
             .toList();
+        // Sort by most recent one added first (newest createdAt first, descending)
+        filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return filtered;
       } catch (e, stackTrace) {
         Logger.error(
           'Error filtering ready capsules',
@@ -187,9 +213,16 @@ final incomingOpenedCapsulesProvider = FutureProvider.family<List<Capsule>, Stri
   return capsulesAsync.when(
     data: (capsules) {
       try {
-        return capsules
-        .where((c) => c.status == CapsuleStatus.opened)
+        final filtered = capsules
+            .where((c) => c.status == CapsuleStatus.opened)
             .toList();
+        // Sort by most recently opened to earliest (newest openedAt first)
+        filtered.sort((a, b) {
+          final aOpened = a.openedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final bOpened = b.openedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+          return bOpened.compareTo(aOpened); // Descending order
+        });
+        return filtered;
       } catch (e, stackTrace) {
         Logger.error(
           'Error filtering opened capsules',

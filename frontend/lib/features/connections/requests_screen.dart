@@ -561,7 +561,13 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
               backgroundColor: colorScheme.accent,
               foregroundColor: DynamicTheme.getButtonTextColor(colorScheme),
             ),
-            child: const Text('Done'),
+            child: Text(
+              'Done',
+              style: TextStyle(
+                color: DynamicTheme.getButtonTextColor(colorScheme),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
