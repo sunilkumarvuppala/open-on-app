@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/models/connection_models.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
+import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/data/api_repositories.dart';
 import 'package:openon_app/core/constants/app_constants.dart';
@@ -269,7 +270,7 @@ class _AddConnectionScreenState extends ConsumerState<AddConnectionScreen> {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: AppTheme.spacingSm),
-              _buildSelectedUserCard(_selectedUser!),
+              _buildSelectedUserCard(_selectedUser!, colorScheme),
               const SizedBox(height: AppTheme.spacingMd),
               TextField(
                 controller: _messageController,
@@ -341,7 +342,7 @@ class _AddConnectionScreenState extends ConsumerState<AddConnectionScreen> {
     );
   }
 
-  Widget _buildSelectedUserCard(ConnectionUserProfile user) {
+  Widget _buildSelectedUserCard(ConnectionUserProfile user, AppColorScheme colorScheme) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppTheme.spacingMd),
@@ -368,13 +369,15 @@ class _AddConnectionScreenState extends ConsumerState<AddConnectionScreen> {
                 children: [
                   Text(
                     user.displayName,
-                    style: Theme.of(context).textTheme.titleLarge,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                        ),
                   ),
                   if (user.username != null)
                     Text(
                       '@${user.username}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey,
+                            color: DynamicTheme.getSecondaryTextColor(colorScheme),
                           ),
                     ),
                 ],

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/models/connection_models.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
+import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
 import 'package:openon_app/core/utils/logger.dart';
@@ -40,8 +41,16 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
     final outgoingAsync = ref.watch(outgoingRequestsProvider);
 
     return Scaffold(
+      backgroundColor: colorScheme.secondary2,
       appBar: AppBar(
-        title: const Text('Connection Requests'),
+        backgroundColor: colorScheme.secondary2,
+        elevation: 0,
+        title: Text(
+          'Connection Requests',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: DynamicTheme.getPrimaryTextColor(colorScheme),
+              ),
+        ),
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back,
@@ -100,6 +109,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
   }
 
   Widget _buildIncomingTab(AsyncValue<List<ConnectionRequest>> incomingAsync) {
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
     return incomingAsync.when(
       data: (requests) {
         if (requests.isEmpty) {
@@ -197,10 +207,12 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
   }
 
   Widget _buildIncomingRequestCard(ConnectionRequest request) {
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
     final profile = request.fromUserProfile;
     if (profile == null) return const SizedBox.shrink();
 
     return Card(
+      color: DynamicTheme.getCardBackgroundColor(colorScheme),
       margin: const EdgeInsets.only(bottom: AppTheme.spacingMd),
       child: Padding(
         padding: const EdgeInsets.all(AppTheme.spacingMd),
@@ -230,19 +242,21 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
                     children: [
                       Text(
                         profile.displayName,
-                        style: Theme.of(context).textTheme.titleMedium,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                            ),
                       ),
                       if (profile.username != null)
                         Text(
                           '@${profile.username}',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.grey,
+                                color: DynamicTheme.getSecondaryTextColor(colorScheme),
                               ),
                         ),
                       Text(
                         _formatTimeAgo(request.createdAt),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey,
+                              color: DynamicTheme.getSecondaryTextColor(colorScheme),
                             ),
                       ),
                     ],
@@ -255,12 +269,18 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
               Container(
                 padding: const EdgeInsets.all(AppTheme.spacingSm),
                 decoration: BoxDecoration(
-                  color: Colors.grey[200],
+                  color: DynamicTheme.getInfoBackgroundColor(colorScheme),
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: DynamicTheme.getInfoBorderColor(colorScheme),
+                    width: 1,
+                  ),
                 ),
                 child: Text(
                   request.message!,
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                      ),
                 ),
               ),
             ],
@@ -297,6 +317,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
   Widget _buildOutgoingRequestCard(ConnectionRequest request) {
     final profile = request.toUserProfile;
     if (profile == null) return const SizedBox.shrink();
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppTheme.spacingMd),
@@ -325,54 +346,64 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
                 children: [
                   Text(
                     profile.displayName,
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                        ),
                   ),
                   if (profile.username != null)
                     Text(
                       '@${profile.username}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey,
+                            color: DynamicTheme.getSecondaryTextColor(colorScheme),
                           ),
                     ),
                   Text(
                     _formatTimeAgo(request.createdAt),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey,
+                          color: DynamicTheme.getSecondaryTextColor(colorScheme),
                         ),
                   ),
                 ],
               ),
             ),
-            _buildStatusChip(request.status),
+            _buildStatusChip(request.status, colorScheme),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatusChip(ConnectionRequestStatus status) {
+  Widget _buildStatusChip(ConnectionRequestStatus status, AppColorScheme colorScheme) {
     Color color;
     String text;
+    Color textColor;
 
     switch (status) {
       case ConnectionRequestStatus.pending:
-        color = Colors.orange;
+        color = colorScheme.isDarkTheme 
+            ? Colors.orange.shade300 
+            : Colors.orange;
         text = 'Pending';
+        textColor = Colors.white;
         break;
       case ConnectionRequestStatus.accepted:
-        color = Colors.green;
+        color = AppTheme.successGreen;
         text = 'Accepted';
+        textColor = Colors.white;
         break;
       case ConnectionRequestStatus.declined:
-        color = Colors.grey;
+        color = colorScheme.isDarkTheme 
+            ? Colors.grey.shade400 
+            : Colors.grey.shade600;
         text = 'Declined';
+        textColor = Colors.white;
         break;
     }
 
     return Chip(
       label: Text(
         text,
-        style: const TextStyle(color: Colors.white, fontSize: 12),
+        style: TextStyle(color: textColor, fontSize: 12),
       ),
       backgroundColor: color,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -380,18 +411,21 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
   }
 
   Widget _buildSectionHeader(String title) {
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTheme.spacingSm),
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
+              color: DynamicTheme.getPrimaryTextColor(colorScheme),
             ),
       ),
     );
   }
 
   Widget _buildEmptyState(BuildContext context, String title, String message) {
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
     return Center(
       child: Padding(
         padding: EdgeInsets.all(AppTheme.spacingLg),
@@ -401,18 +435,20 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
             Icon(
               Icons.person_add_outlined,
               size: 64,
-              color: Colors.grey[400],
+              color: DynamicTheme.getSecondaryIconColor(colorScheme),
             ),
             const SizedBox(height: AppTheme.spacingMd),
             Text(
               title,
-              style: Theme.of(context).textTheme.titleLarge,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                  ),
             ),
             const SizedBox(height: AppTheme.spacingSm),
             Text(
               message,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey,
+                    color: DynamicTheme.getSecondaryTextColor(colorScheme),
                   ),
               textAlign: TextAlign.center,
             ),
@@ -450,7 +486,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
         showDialog(
           context: context,
           barrierDismissible: false,
-          barrierColor: Colors.black.withValues(alpha: 0.3),
+          barrierColor: Colors.black.withOpacity(0.3),
           builder: (dialogContext) => PopScope(
             canPop: false,
             child: ConfettiBurst(
@@ -466,10 +502,16 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
     } catch (e, stackTrace) {
       Logger.error('Error accepting request', error: e, stackTrace: stackTrace);
       if (mounted) {
+        final colorScheme = ref.read(selectedColorSchemeProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to accept request: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            content: Text(
+              'Failed to accept request: ${e.toString()}',
+              style: TextStyle(
+                color: DynamicTheme.getSnackBarTextColor(colorScheme),
+              ),
+            ),
+            backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme) ?? AppTheme.errorRed,
           ),
         );
       }
@@ -477,13 +519,27 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
   }
 
   void _showSuccessModal(ConnectionRequest request) {
+    final colorScheme = ref.read(selectedColorSchemeProvider);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Connected! ✨'),
+        backgroundColor: DynamicTheme.getDialogBackgroundColor(colorScheme),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Text(
+          'Connected! ✨',
+          style: TextStyle(
+            color: DynamicTheme.getDialogTitleColor(colorScheme),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         content: Text(
           'You\'re now connected with ${request.fromUserProfile?.displayName ?? 'this user'}! '
           'You can now send and receive letters.',
+          style: TextStyle(
+            color: DynamicTheme.getDialogContentColor(colorScheme),
+          ),
         ),
         actions: [
           TextButton(
@@ -492,10 +548,19 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
               // Optionally navigate to connections screen
               context.push('/connections');
             },
-            child: const Text('View Connections'),
+            child: Text(
+              'View Connections',
+              style: TextStyle(
+                color: DynamicTheme.getDialogButtonColor(colorScheme),
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: colorScheme.accent,
+              foregroundColor: DynamicTheme.getButtonTextColor(colorScheme),
+            ),
             child: const Text('Done'),
           ),
         ],
@@ -521,10 +586,16 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
     } catch (e, stackTrace) {
       Logger.error('Error declining request', error: e, stackTrace: stackTrace);
       if (mounted) {
+        final colorScheme = ref.read(selectedColorSchemeProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to decline request: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            content: Text(
+              'Failed to decline request: ${e.toString()}',
+              style: TextStyle(
+                color: DynamicTheme.getSnackBarTextColor(colorScheme),
+              ),
+            ),
+            backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme) ?? AppTheme.errorRed,
           ),
         );
       }

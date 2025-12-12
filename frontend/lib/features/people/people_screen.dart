@@ -145,7 +145,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen>
                           child: Text(
                             '$incomingCount',
                             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: AppColors.white,
+                                  color: Colors.white, // Error badge always uses white text on red background
                                   fontWeight: FontWeight.bold,
                                 ),
                           ),
@@ -176,9 +176,9 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.person_add_rounded, size: 18, color: Colors.white),
+            Icon(Icons.person_add_rounded, size: 18, color: DynamicTheme.getPrimaryIconColor(colorScheme)),
             SizedBox(width: AppConstants.tabSpacing),
-            Text('+', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            Text('+', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: DynamicTheme.getPrimaryIconColor(colorScheme))),
           ],
         ),
       ),
@@ -396,7 +396,7 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
               label: const Text('Add Connection'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: colorScheme.accent,
-                foregroundColor: AppColors.white,
+                foregroundColor: DynamicTheme.getButtonTextColor(colorScheme),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 12,
@@ -768,8 +768,8 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
                       profile.displayName.isNotEmpty
                           ? profile.displayName[0].toUpperCase()
                           : '?',
-                          style: const TextStyle(
-                            color: AppColors.white,
+                          style: TextStyle(
+                            color: DynamicTheme.getPrimaryIconColor(colorScheme),
                             fontSize: 32,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1135,7 +1135,7 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
               label: const Text('Add Connection'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: colorScheme.accent,
-                foregroundColor: AppColors.white,
+                foregroundColor: DynamicTheme.getButtonTextColor(colorScheme),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 12,
@@ -1741,8 +1741,8 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
                       displayProfile.displayName.isNotEmpty
                           ? displayProfile.displayName[0].toUpperCase()
                           : '?',
-                          style: const TextStyle(
-                            color: AppColors.white,
+                          style: TextStyle(
+                            color: DynamicTheme.getPrimaryIconColor(colorScheme),
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
                           ),

@@ -572,12 +572,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       ),
                     ),
                     child: _isLoading
-                        ? const SizedBox(
+                        ? SizedBox(
                             height: 24,
                             width: 24,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(DynamicTheme.getButtonTextColor(colorScheme)),
                             ),
                           )
                         : const Text('Create Account'),

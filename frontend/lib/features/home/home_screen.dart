@@ -301,13 +301,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.people_outline, size: 18, color: Colors.white),
+            Icon(Icons.people_outline, size: 18, color: DynamicTheme.getPrimaryIconColor(colorScheme)),
             SizedBox(width: AppConstants.tabSpacing),
             Text('+',
                 style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white)),
+                    color: DynamicTheme.getPrimaryIconColor(colorScheme))),
           ],
         ),
       ),
@@ -935,20 +935,23 @@ class _CapsuleCard extends ConsumerWidget {
                               ),
                             ),
                             SizedBox(width: AppTheme.spacingSm),
-                            // Status badge - top-right corner
-                            AnimatedScale(
-                              scale: 1,
-                              duration: AppConstants.badgeAnimationDuration,
-                              curve: Curves.easeInOut,
-                              alignment: Alignment.topRight,
-                              child: capsule.isOpened
-                                  ? StatusPill.opened()
-                                  : capsule.isUnlocked
-                                      ? StatusPill.readyToOpen()
-                                      : capsule.isUnlockingSoon
-                                          ? AnimatedUnlockingSoonBadge(capsule: capsule)
-                                          : StatusPill.lockedDynamic(
-                                              colorScheme.primary1),
+                            // Status badge - top-right corner with fixed width
+                            SizedBox(
+                              width: AppConstants.badgeFixedWidth,
+                              child: AnimatedScale(
+                                scale: 1,
+                                duration: AppConstants.badgeAnimationDuration,
+                                curve: Curves.easeInOut,
+                                alignment: Alignment.topRight,
+                                child: capsule.isOpened
+                                    ? StatusPill.opened(colorScheme)
+                                    : capsule.isUnlocked
+                                        ? StatusPill.readyToOpen()
+                                        : capsule.isUnlockingSoon
+                                            ? AnimatedUnlockingSoonBadge(capsule: capsule)
+                                            : StatusPill.lockedDynamic(
+                                                colorScheme.primary1, colorScheme),
+                              ),
                             ),
                           ],
                         ),
@@ -1080,7 +1083,7 @@ class _CapsuleCard extends ConsumerWidget {
             Positioned(
               bottom: AppConstants.sealedLetterBottomMargin,
               right: AppConstants.sealedLetterRightMargin,
-              child: _buildSealedLetterIcon(capsule),
+              child: _buildSealedLetterIcon(capsule, colorScheme),
             ),
         ],
       ),
@@ -1096,8 +1099,11 @@ class _CapsuleCard extends ConsumerWidget {
   /// - Capsules already unlocked (should not appear due to parent condition)
   /// - Negative durations (handled by Duration comparison - negative means already unlocked)
   /// - Zero duration (treated as not meeting threshold)
-  Widget _buildSealedLetterIcon(Capsule capsule) {
+  Widget _buildSealedLetterIcon(Capsule capsule, AppColorScheme colorScheme) {
     final timeUntilUnlock = capsule.timeUntilUnlock;
+
+    // Theme-aware lock icon color for better visibility
+    final lockIconColor = DynamicTheme.getPrimaryIconColor(colorScheme);
 
     // Only animate if time until unlock is positive (future) and less than threshold
     // Using Duration comparison for precise time-based logic
@@ -1108,6 +1114,7 @@ class _CapsuleCard extends ConsumerWidget {
     if (shouldAnimate) {
       return SealedLetterAnimation(
         size: AppConstants.sealedLetterIconSize,
+        color: lockIconColor,
         margin:
             EdgeInsets.zero, // No margin since we're positioning it manually
       );
@@ -1120,7 +1127,7 @@ class _CapsuleCard extends ConsumerWidget {
       child: Icon(
         Icons.lock_outline,
         size: AppConstants.sealedLetterIconSize,
-        color: Color(AppConstants.sealedLetterColorValue),
+        color: lockIconColor,
       ),
     );
   }
@@ -1164,17 +1171,17 @@ class _CreateLetterButton extends StatelessWidget {
           children: [
             Icon(
               Icons.mail_outline,
-              color: Colors.white,
+              color: DynamicTheme.getPrimaryIconColor(colorScheme),
               size: 20,
             ),
             SizedBox(width: AppTheme.spacingXs),
-            const Text(
+            Text(
               'Create a New Letter',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Colors.white,
+                color: DynamicTheme.getPrimaryTextColor(colorScheme),
               ),
             ),
           ],

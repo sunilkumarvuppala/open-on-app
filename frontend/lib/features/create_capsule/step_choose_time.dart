@@ -419,7 +419,7 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                   onPressed: _isValidTime ? _saveAndContinue : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colorScheme.primary1,
-                    foregroundColor: Colors.white,
+                    foregroundColor: DynamicTheme.getButtonTextColor(colorScheme),
                     padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
                     side: DynamicTheme.getButtonBorderSide(colorScheme),
                     shape: RoundedRectangleBorder(

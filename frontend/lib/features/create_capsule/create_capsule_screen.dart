@@ -257,10 +257,12 @@ class _CreateCapsuleScreenState extends ConsumerState<CreateCapsuleScreen> {
         vertical: AppTheme.spacingMd,
       ),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: DynamicTheme.getCardBackgroundColor(colorScheme),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: colorScheme.isDarkTheme
+                ? Colors.black.withOpacity(AppTheme.shadowOpacityHigh)
+                : Colors.black.withOpacity(0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),

@@ -188,7 +188,7 @@ final incomingOpenedCapsulesProvider = FutureProvider.family<List<Capsule>, Stri
     data: (capsules) {
       try {
         return capsules
-            .where((c) => c.status == CapsuleStatus.opened)
+        .where((c) => c.status == CapsuleStatus.opened)
             .toList();
       } catch (e, stackTrace) {
         Logger.error(

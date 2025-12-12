@@ -74,13 +74,13 @@ class StepPreview extends ConsumerWidget {
                         width: 80,
                         height: 80,
                         decoration: BoxDecoration(
-                          color: AppColors.white.withOpacity(0.2),
+                          color: DynamicTheme.getCardBackgroundColor(colorScheme, opacity: AppTheme.opacityHigh),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.mail_outline,
                           size: 40,
-                          color: AppColors.white,
+                          color: DynamicTheme.getPrimaryIconColor(colorScheme),
                         ),
                       ),
                       
@@ -89,8 +89,8 @@ class StepPreview extends ConsumerWidget {
                       // Label
                       Text(
                         label,
-                        style: const TextStyle(
-                          color: AppColors.white,
+                        style: TextStyle(
+                          color: DynamicTheme.getPrimaryTextColor(colorScheme),
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
                         ),
@@ -103,7 +103,7 @@ class StepPreview extends ConsumerWidget {
                       Text(
                         'To: ${recipient.name}',
                         style: TextStyle(
-                          color: AppColors.white.withOpacity(0.9),
+                          color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityFull),
                           fontSize: 14,
                         ),
                       ),
@@ -252,7 +252,7 @@ class StepPreview extends ConsumerWidget {
                   label: const Text('Send Letter'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colorScheme.primary1,
-                    foregroundColor: Colors.white,
+                    foregroundColor: DynamicTheme.getButtonTextColor(colorScheme),
                     padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
                     side: DynamicTheme.getButtonBorderSide(colorScheme),
                     shape: RoundedRectangleBorder(

@@ -9,7 +9,7 @@ import '../constants/app_constants.dart';
 import '../models/models.dart';
 
 /// Custom gradient button with consistent styling
-class GradientButton extends StatelessWidget {
+class GradientButton extends ConsumerWidget {
   final String text;
   final VoidCallback? onPressed;
   final bool isLoading;
@@ -24,7 +24,8 @@ class GradientButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
     return Container(
       height: 56,
       decoration: BoxDecoration(
@@ -43,21 +44,21 @@ class GradientButton extends StatelessWidget {
           ),
         ),
         child: isLoading
-            ? const SizedBox(
+            ? SizedBox(
                 height: 24,
                 width: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  valueColor: AlwaysStoppedAnimation<Color>(DynamicTheme.getPrimaryIconColor(colorScheme)),
                 ),
               )
             : Text(
                 text,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white,
+                  color: DynamicTheme.getPrimaryTextColor(colorScheme),
                 ),
               ),
       ),
@@ -124,7 +125,7 @@ class UserAvatar extends ConsumerWidget {
                           child: Text(
                             _getInitials(name),
                             style: TextStyle(
-                              color: Colors.white,
+                              color: DynamicTheme.getPrimaryIconColor(colorScheme),
                               fontSize: size * 0.4,
                               fontWeight: FontWeight.bold,
                             ),
@@ -141,7 +142,7 @@ class UserAvatar extends ConsumerWidget {
                           child: Text(
                             _getInitials(name),
                             style: TextStyle(
-                              color: Colors.white,
+                              color: DynamicTheme.getPrimaryIconColor(colorScheme),
                               fontSize: size * 0.4,
                               fontWeight: FontWeight.bold,
                             ),
@@ -192,10 +193,19 @@ class StatusPill extends StatelessWidget {
     );
   }
   
-  static StatusPill lockedDynamic(Color primaryColor) {
+  static StatusPill lockedDynamic(Color primaryColor, AppColorScheme colorScheme) {
+    // Lighten the primary color using theme-aware background color
+    final lightenColor = colorScheme.isDarkTheme 
+        ? colorScheme.secondary2 
+        : Colors.white;
+    final lightenedColor = Color.lerp(
+      primaryColor, 
+      lightenColor, 
+      AppConstants.badgeColorLightenFactor
+    );
     return StatusPill(
       text: 'Locked',
-      backgroundColor: primaryColor,
+      backgroundColor: lightenedColor ?? primaryColor,
     );
   }
 
@@ -208,10 +218,19 @@ class StatusPill extends StatelessWidget {
   }
 
 
-  factory StatusPill.opened() {
-    return const StatusPill(
+  static StatusPill opened(AppColorScheme colorScheme) {
+    // Darker green for opened badge using theme-aware dark color
+    final darkenColor = colorScheme.isDarkTheme 
+        ? colorScheme.primary2 
+        : Colors.black;
+    final darkenedColor = Color.lerp(
+      AppTheme.successGreen, 
+      darkenColor, 
+      AppConstants.badgeColorDarkenFactor
+    );
+    return StatusPill(
       text: 'Opened',
-      backgroundColor: AppTheme.successGreen,
+      backgroundColor: darkenedColor ?? AppTheme.successGreen,
     );
   }
 
@@ -236,10 +255,12 @@ class StatusPill extends StatelessWidget {
         color: backgroundColor,
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
       ),
+      alignment: Alignment.center,
       child: Text(
         text,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
         style: TextStyle(
           color: textColor,
           fontSize: 10,

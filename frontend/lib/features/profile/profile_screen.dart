@@ -67,8 +67,8 @@ class ProfileScreen extends ConsumerWidget {
                         backgroundColor: colorScheme.primary1,
                         child: Text(
                           user.name[0].toUpperCase(),
-                          style: const TextStyle(
-                            color: AppColors.white,
+                          style: TextStyle(
+                            color: DynamicTheme.getPrimaryIconColor(colorScheme),
                             fontSize: 36,
                             fontWeight: FontWeight.w600,
                           ),
@@ -101,7 +101,7 @@ class ProfileScreen extends ConsumerWidget {
                             content: Text(
                               'Edit profile feature coming soon',
                               style: TextStyle(
-                                color: colorScheme.isDarkTheme ? Colors.white : Colors.black,
+                                color: DynamicTheme.getSnackBarTextColor(colorScheme),
                               ),
                             ),
                             backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme),
