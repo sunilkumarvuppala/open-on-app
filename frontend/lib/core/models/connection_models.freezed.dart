@@ -1087,3 +1087,212 @@ abstract class _PendingRequests implements PendingRequests {
   _$$PendingRequestsImplCopyWith<_$PendingRequestsImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
+
+ConnectionDetail _$ConnectionDetailFromJson(Map<String, dynamic> json) {
+  return _ConnectionDetail.fromJson(json);
+}
+
+/// @nodoc
+mixin _$ConnectionDetail {
+  Connection get connection => throw _privateConstructorUsedError;
+  int get lettersSent =>
+      throw _privateConstructorUsedError; // Total letters sent by current user to this connection
+  int get lettersReceived => throw _privateConstructorUsedError;
+
+  /// Serializes this ConnectionDetail to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of ConnectionDetail
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $ConnectionDetailCopyWith<ConnectionDetail> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $ConnectionDetailCopyWith<$Res> {
+  factory $ConnectionDetailCopyWith(
+          ConnectionDetail value, $Res Function(ConnectionDetail) then) =
+      _$ConnectionDetailCopyWithImpl<$Res, ConnectionDetail>;
+  @useResult
+  $Res call({Connection connection, int lettersSent, int lettersReceived});
+
+  $ConnectionCopyWith<$Res> get connection;
+}
+
+/// @nodoc
+class _$ConnectionDetailCopyWithImpl<$Res, $Val extends ConnectionDetail>
+    implements $ConnectionDetailCopyWith<$Res> {
+  _$ConnectionDetailCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of ConnectionDetail
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? connection = null,
+    Object? lettersSent = null,
+    Object? lettersReceived = null,
+  }) {
+    return _then(_value.copyWith(
+      connection: null == connection
+          ? _value.connection
+          : connection // ignore: cast_nullable_to_non_nullable
+              as Connection,
+      lettersSent: null == lettersSent
+          ? _value.lettersSent
+          : lettersSent // ignore: cast_nullable_to_non_nullable
+              as int,
+      lettersReceived: null == lettersReceived
+          ? _value.lettersReceived
+          : lettersReceived // ignore: cast_nullable_to_non_nullable
+              as int,
+    ) as $Val);
+  }
+
+  /// Create a copy of ConnectionDetail
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $ConnectionCopyWith<$Res> get connection {
+    return $ConnectionCopyWith<$Res>(_value.connection, (value) {
+      return _then(_value.copyWith(connection: value) as $Val);
+    });
+  }
+}
+
+/// @nodoc
+abstract class _$$ConnectionDetailImplCopyWith<$Res>
+    implements $ConnectionDetailCopyWith<$Res> {
+  factory _$$ConnectionDetailImplCopyWith(_$ConnectionDetailImpl value,
+          $Res Function(_$ConnectionDetailImpl) then) =
+      __$$ConnectionDetailImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({Connection connection, int lettersSent, int lettersReceived});
+
+  @override
+  $ConnectionCopyWith<$Res> get connection;
+}
+
+/// @nodoc
+class __$$ConnectionDetailImplCopyWithImpl<$Res>
+    extends _$ConnectionDetailCopyWithImpl<$Res, _$ConnectionDetailImpl>
+    implements _$$ConnectionDetailImplCopyWith<$Res> {
+  __$$ConnectionDetailImplCopyWithImpl(_$ConnectionDetailImpl _value,
+      $Res Function(_$ConnectionDetailImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of ConnectionDetail
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? connection = null,
+    Object? lettersSent = null,
+    Object? lettersReceived = null,
+  }) {
+    return _then(_$ConnectionDetailImpl(
+      connection: null == connection
+          ? _value.connection
+          : connection // ignore: cast_nullable_to_non_nullable
+              as Connection,
+      lettersSent: null == lettersSent
+          ? _value.lettersSent
+          : lettersSent // ignore: cast_nullable_to_non_nullable
+              as int,
+      lettersReceived: null == lettersReceived
+          ? _value.lettersReceived
+          : lettersReceived // ignore: cast_nullable_to_non_nullable
+              as int,
+    ));
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$ConnectionDetailImpl implements _ConnectionDetail {
+  const _$ConnectionDetailImpl(
+      {required this.connection,
+      required this.lettersSent,
+      required this.lettersReceived});
+
+  factory _$ConnectionDetailImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ConnectionDetailImplFromJson(json);
+
+  @override
+  final Connection connection;
+  @override
+  final int lettersSent;
+// Total letters sent by current user to this connection
+  @override
+  final int lettersReceived;
+
+  @override
+  String toString() {
+    return 'ConnectionDetail(connection: $connection, lettersSent: $lettersSent, lettersReceived: $lettersReceived)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$ConnectionDetailImpl &&
+            (identical(other.connection, connection) ||
+                other.connection == connection) &&
+            (identical(other.lettersSent, lettersSent) ||
+                other.lettersSent == lettersSent) &&
+            (identical(other.lettersReceived, lettersReceived) ||
+                other.lettersReceived == lettersReceived));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, connection, lettersSent, lettersReceived);
+
+  /// Create a copy of ConnectionDetail
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$ConnectionDetailImplCopyWith<_$ConnectionDetailImpl> get copyWith =>
+      __$$ConnectionDetailImplCopyWithImpl<_$ConnectionDetailImpl>(
+          this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$ConnectionDetailImplToJson(
+      this,
+    );
+  }
+}
+
+abstract class _ConnectionDetail implements ConnectionDetail {
+  const factory _ConnectionDetail(
+      {required final Connection connection,
+      required final int lettersSent,
+      required final int lettersReceived}) = _$ConnectionDetailImpl;
+
+  factory _ConnectionDetail.fromJson(Map<String, dynamic> json) =
+      _$ConnectionDetailImpl.fromJson;
+
+  @override
+  Connection get connection;
+  @override
+  int get lettersSent; // Total letters sent by current user to this connection
+  @override
+  int get lettersReceived;
+
+  /// Create a copy of ConnectionDetail
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$ConnectionDetailImplCopyWith<_$ConnectionDetailImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}

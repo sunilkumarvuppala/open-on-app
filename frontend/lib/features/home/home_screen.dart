@@ -1120,15 +1120,11 @@ class _CapsuleCard extends ConsumerWidget {
       );
     }
 
-    // Static icon for capsules with unlock time >= threshold
+    // Static emoji icon for capsules with unlock time >= threshold
     // Matches animated icon appearance exactly for visual consistency
-    return Opacity(
+    return LockEmojiWithOutline(
+      iconSize: AppConstants.sealedLetterIconSize,
       opacity: AppConstants.sealedLetterOpacity,
-      child: Icon(
-        Icons.lock_outline,
-        size: AppConstants.sealedLetterIconSize,
-        color: lockIconColor,
-      ),
     );
   }
 }

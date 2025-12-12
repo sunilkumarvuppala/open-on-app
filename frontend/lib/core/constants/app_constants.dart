@@ -34,6 +34,20 @@ class AppConstants {
   static const double tabLabelPadding = 4.0;
   static const double tabSpacing = 3.0;
   static const double separatorLineWidth = 1.0;
+  
+  // Connection Detail Screen dimensions
+  static const double connectionDetailAvatarSize = 64.0;
+  static const double connectionDetailButtonHeight = 56.0;
+  static const double connectionDetailButtonIconSize = 18.0;
+  static const double connectionDetailButtonTextSize = 16.0;
+  static const double connectionDetailButtonIconSpacing = 8.0;
+  static const double connectionDetailStatDividerHeight = 40.0;
+  static const double connectionDetailStatDividerWidth = 1.0;
+  
+  // Profile Avatar Button dimensions
+  static const double profileAvatarButtonSize = 32.0;
+  static const double profileAvatarButtonPadding = 8.0;
+  static const double profileAvatarButtonLoadingStrokeWidth = 2.0;
 
   // Animation durations
   static const Duration animationDurationShort = Duration(milliseconds: 200);
@@ -230,6 +244,10 @@ class AppConstants {
   // Heartbeat color: Dark red (#C62828) - darker than standard red for better visibility
   static const int heartbeatColorValue = 0xFFC62828;
   static const double heartbeatOpacity = 0.7; // Reduced opacity for subtle appearance
+  
+  // Icon outline constants (for white outline effect)
+  static const double iconOutlineWidth = 0.5; // Base white outline thickness for icons
+  static const double lockEmojiOutlineSizeMultiplier = 2.0; // Multiplier for lock emoji outline (needs larger outline for visibility)
 
   // Opened letter pulse animation constants
   static const double openedLetterPulseIconSize = 20.4; // Reduced by 15% from 24.0
@@ -301,6 +319,26 @@ class AppConstants {
   static const String howDoesThisMakeYouFeel = 'How does this make you feel?';
   static const String fromPrefix = 'From';
   static const String openedOnPrefix = 'Opened on';
+  
+  // Connection Detail Screen strings
+  static const String connectionDetailTitle = 'Connection';
+  static const String writeLetterButtonText = 'Write letter';
+  static const String lettersSentLabel = 'Letters sent';
+  static const String lettersReceivedLabel = 'Letters received';
+  static const String relationshipSummaryTitle = 'Relationship Summary';
+  static const String relationshipSummaryMessage = 'Some words are still waiting for the right moment.';
+  static const String lettersPlaceholderText = 'Letters will appear here when they are opened.';
+  static const String connectedSincePrefix = 'Connected since';
+  static const String pleaseLogInMessage = 'Please log in to send a letter';
+  static const String failedToPrepareLetterMessage = 'Failed to prepare letter';
+  static const String failedToLoadConnectionDetailsMessage = 'Failed to load connection details';
+  static const String connectionNotFoundMessage = 'Connection not found';
+  
+  // Default relationship type
+  static const String defaultRelationshipType = 'friend';
+  
+  // Date format strings
+  static const String connectionDateFormat = 'MMM dd, yyyy';
 
   // Asset paths
   static const String avatarPriya = 'assets/images/avatar_priya.png';

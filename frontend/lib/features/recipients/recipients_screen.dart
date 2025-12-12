@@ -41,6 +41,9 @@ class RecipientsScreen extends ConsumerWidget {
               ),
               onPressed: () => context.pop(),
             ),
+            actions: [
+              ProfileAvatarButton(),
+            ],
           ),
           body: recipientsAsync.when(
             data: (recipients) {

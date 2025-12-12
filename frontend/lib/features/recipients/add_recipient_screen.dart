@@ -11,6 +11,7 @@ import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/data/api_repositories.dart';
 import 'package:openon_app/core/constants/app_constants.dart';
 import 'package:openon_app/core/utils/error_handler.dart';
+import 'package:openon_app/core/widgets/common_widgets.dart';
 
 class AddRecipientScreen extends ConsumerStatefulWidget {
   final Recipient? recipient;
@@ -233,6 +234,9 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
           ),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          ProfileAvatarButton(),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(

@@ -2,6 +2,7 @@ import 'package:openon_app/core/data/supabase_config.dart';
 import 'package:openon_app/core/models/connection_models.dart';
 import 'package:openon_app/core/errors/app_exceptions.dart';
 import 'package:openon_app/core/utils/logger.dart';
+import 'package:openon_app/core/utils/validation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Repository for managing connection requests and connections
@@ -46,6 +47,11 @@ abstract class ConnectionRepository {
 
   /// Get real-time stream of connections
   Stream<List<Connection>> watchConnections();
+
+  /// Get connection detail with letter statistics
+  /// [connectionId] is the other user's ID in the connection
+  /// [userId] is optional - if not provided, will try to get from Supabase auth
+  Future<ConnectionDetail> getConnectionDetail(String connectionId, {String? userId});
 }
 
 /// Supabase implementation of ConnectionRepository
@@ -650,5 +656,258 @@ class SupabaseConnectionRepository implements ConnectionRepository {
           }
           return connections;
         });
+  }
+
+  @override
+  Future<ConnectionDetail> getConnectionDetail(String connectionId, {String? userId}) async {
+    try {
+      // Security: Validate connectionId format (UUID)
+      try {
+        Validation.validateConnectionId(connectionId);
+      } catch (e) {
+        Logger.error('Invalid connection ID format', error: e);
+        throw ValidationException('Invalid connection ID format');
+      }
+      
+      // Try to get current user ID from multiple sources
+      // Prefer passed userId, then SupabaseConfig, then Supabase auth
+      String? currentUserId = userId;
+      
+      if (currentUserId == null) {
+        currentUserId = SupabaseConfig.currentUserId;
+      }
+      
+      // Fallback: try to get from Supabase auth directly
+      if (currentUserId == null) {
+        try {
+          currentUserId = _supabase.auth.currentUser?.id;
+        } catch (e) {
+          Logger.warning('Could not get user from Supabase auth', error: e);
+        }
+      }
+      
+      if (currentUserId == null) {
+        Logger.error('No user ID available for connection detail');
+        throw AuthenticationException('Not authenticated. Please log in to view connection details.');
+      }
+
+      // Security: Validate currentUserId format
+      try {
+        Validation.validateUserId(currentUserId);
+      } catch (e) {
+        Logger.error('Invalid user ID format', error: e);
+        throw AuthenticationException('Invalid user authentication');
+      }
+
+      Logger.info('Getting connection detail for connectionId: $connectionId, currentUserId: $currentUserId');
+
+      // Query connection directly from database instead of using getConnections() RPC
+      // This works better when using FastAPI auth (auth.uid() might be null)
+      final user1 = currentUserId.compareTo(connectionId) < 0 ? currentUserId : connectionId;
+      final user2 = currentUserId.compareTo(connectionId) < 0 ? connectionId : currentUserId;
+      
+      Logger.info('Querying connection with user1: $user1, user2: $user2');
+      
+      // Query the connection directly
+      final connectionResponse = await _supabase
+          .from('connections')
+          .select('user_id_1, user_id_2, connected_at')
+          .eq('user_id_1', user1)
+          .eq('user_id_2', user2)
+          .maybeSingle();
+      
+      if (connectionResponse == null) {
+        Logger.warning('Connection not found in database between $currentUserId and $connectionId');
+        throw NetworkException('Connection not found. This user may not be in your connections list.');
+      }
+      
+      final connectedAt = DateTime.parse(connectionResponse['connected_at'] as String);
+      
+      // Get the other user's profile
+      final otherUserProfileResponse = await _supabase
+          .from('user_profiles')
+          .select('user_id, first_name, last_name, username, avatar_url')
+          .eq('user_id', connectionId)
+          .maybeSingle();
+      
+      if (otherUserProfileResponse == null) {
+        Logger.warning('User profile not found for connectionId: $connectionId');
+        throw NetworkException('User profile not found.');
+      }
+      
+      final firstName = otherUserProfileResponse['first_name'] as String? ?? '';
+      final lastName = otherUserProfileResponse['last_name'] as String? ?? '';
+      final username = otherUserProfileResponse['username'] as String? ?? '';
+      final avatarUrl = otherUserProfileResponse['avatar_url'] as String?;
+      
+      String displayName = '';
+      if (firstName.isNotEmpty && lastName.isNotEmpty) {
+        displayName = '$firstName $lastName';
+      } else if (firstName.isNotEmpty) {
+        displayName = firstName;
+      } else if (lastName.isNotEmpty) {
+        displayName = lastName;
+      } else if (username.isNotEmpty) {
+        displayName = username;
+      } else {
+        displayName = 'User';
+      }
+      
+      final otherUserProfile = ConnectionUserProfile(
+        userId: connectionId,
+        displayName: displayName,
+        avatarUrl: avatarUrl,
+        username: username.isNotEmpty ? username : null,
+      );
+      
+      final connection = Connection(
+        userId1: user1,
+        userId2: user2,
+        connectedAt: connectedAt,
+        otherUserId: connectionId,
+        otherUserProfile: otherUserProfile,
+      );
+      
+      Logger.info('Found connection: ${connection.otherUserProfile.displayName}');
+
+      // Find recipient entries for both users
+      // Current user's recipient for the other user (connection-based recipients have NULL email)
+      final allCurrentUserRecipients = await _supabase
+          .from('recipients')
+          .select('id, name, email')
+          .eq('owner_id', currentUserId);
+
+      String? currentUserRecipientId;
+      // Sanitize display name for security
+      final sanitizedOtherDisplayName = Validation.sanitizeString(
+        connection.otherUserProfile.displayName,
+      ).toLowerCase();
+      for (final recipient in allCurrentUserRecipients) {
+        final name = recipient['name'] as String?;
+        final email = recipient['email'] as String?;
+        // Match by name if email is null (connection-based recipients)
+        // Also try exact match or partial match (sanitized for security)
+        if (email == null && name != null) {
+          final sanitizedRecipientName = Validation.sanitizeString(name).toLowerCase();
+          if (sanitizedRecipientName == sanitizedOtherDisplayName ||
+              sanitizedRecipientName.contains(sanitizedOtherDisplayName) ||
+              sanitizedOtherDisplayName.contains(sanitizedRecipientName)) {
+            currentUserRecipientId = recipient['id'] as String;
+            Logger.info('Found recipient for connection: $currentUserRecipientId');
+            break;
+          }
+        }
+      }
+      
+      if (currentUserRecipientId == null) {
+        Logger.warning('Could not find recipient for connection ${connection.otherUserId}. Recipients checked: ${allCurrentUserRecipients.length}');
+      }
+
+      // Other user's recipient for current user (to find letters received)
+      final currentUserProfile = await _supabase
+          .from('user_profiles')
+          .select('first_name, last_name, username')
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+      
+      String? currentUserName;
+      if (currentUserProfile != null) {
+        final firstName = currentUserProfile['first_name'] as String? ?? '';
+        final lastName = currentUserProfile['last_name'] as String? ?? '';
+        currentUserName = '$firstName $lastName'.trim();
+        if (currentUserName.isEmpty) {
+          currentUserName = currentUserProfile['username'] as String?;
+        }
+      }
+
+      String? otherUserRecipientId;
+      if (currentUserName != null && currentUserName.isNotEmpty) {
+        final allOtherUserRecipients = await _supabase
+            .from('recipients')
+            .select('id, name, email')
+            .eq('owner_id', connectionId);
+
+        final currentNameLower = currentUserName.toLowerCase();
+        for (final recipient in allOtherUserRecipients) {
+          final name = recipient['name'] as String?;
+          final email = recipient['email'] as String?;
+          // Match by name if email is null (connection-based recipients)
+          if (email == null && name != null) {
+            final recipientName = name.toLowerCase();
+            if (recipientName == currentNameLower ||
+                recipientName.contains(currentNameLower) ||
+                currentNameLower.contains(recipientName)) {
+              otherUserRecipientId = recipient['id'] as String;
+              Logger.info('Found other user recipient: $otherUserRecipientId');
+              break;
+            }
+          }
+        }
+        
+        if (otherUserRecipientId == null) {
+          Logger.warning('Could not find other user recipient. Recipients checked: ${allOtherUserRecipients.length}');
+        }
+      }
+
+      // Count letters sent (current user -> connection)
+      // Query: capsules where sender_id = currentUserId AND recipient_id = currentUserRecipientId
+      // Exclude soft-deleted capsules
+      int lettersSent = 0;
+      if (currentUserRecipientId != null) {
+        try {
+          final sentResponse = await _supabase
+              .from('capsules')
+              .select('id, deleted_at')
+              .eq('sender_id', currentUserId)
+              .eq('recipient_id', currentUserRecipientId)
+              .isFilter('deleted_at', null); // Exclude soft-deleted
+          lettersSent = sentResponse.length;
+          Logger.info('Found $lettersSent letters sent to recipient $currentUserRecipientId');
+        } catch (e) {
+          Logger.warning('Error counting sent letters', error: e);
+        }
+      } else {
+        Logger.warning('Cannot count sent letters: recipient not found for connection');
+      }
+
+      // Count letters received (connection -> current user)
+      // Query: capsules where sender_id = connectionId AND recipient_id = otherUserRecipientId
+      // The otherUserRecipientId is the recipient owned by the connection user that represents current user
+      // Exclude soft-deleted capsules
+      int lettersReceived = 0;
+      if (otherUserRecipientId != null) {
+        try {
+          final receivedResponse = await _supabase
+              .from('capsules')
+              .select('id, deleted_at')
+              .eq('sender_id', connectionId)
+              .eq('recipient_id', otherUserRecipientId)
+              .isFilter('deleted_at', null); // Exclude soft-deleted
+          lettersReceived = receivedResponse.length;
+          Logger.info('Found $lettersReceived letters received from sender $connectionId');
+        } catch (e) {
+          Logger.warning('Error counting received letters', error: e);
+        }
+      } else {
+        Logger.warning('Cannot count received letters: other user recipient not found');
+      }
+      
+      Logger.info('Final letter counts - Sent: $lettersSent, Received: $lettersReceived');
+
+      return ConnectionDetail(
+        connection: connection,
+        lettersSent: lettersSent,
+        lettersReceived: lettersReceived,
+      );
+    } on PostgrestException catch (e) {
+      Logger.error('Supabase error getting connection detail', error: e);
+      throw NetworkException(e.message ?? 'Failed to get connection detail');
+    } catch (e, stackTrace) {
+      Logger.error('Error getting connection detail', error: e, stackTrace: stackTrace);
+      if (e is AppException) {
+        rethrow;
+      }
+      throw NetworkException('Failed to get connection detail: ${e.toString()}');
+    }
   }
 }

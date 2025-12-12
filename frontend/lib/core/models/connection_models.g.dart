@@ -112,3 +112,20 @@ Map<String, dynamic> _$$PendingRequestsImplToJson(
       'incoming': instance.incoming,
       'outgoing': instance.outgoing,
     };
+
+_$ConnectionDetailImpl _$$ConnectionDetailImplFromJson(
+        Map<String, dynamic> json) =>
+    _$ConnectionDetailImpl(
+      connection:
+          Connection.fromJson(json['connection'] as Map<String, dynamic>),
+      lettersSent: (json['lettersSent'] as num).toInt(),
+      lettersReceived: (json['lettersReceived'] as num).toInt(),
+    );
+
+Map<String, dynamic> _$$ConnectionDetailImplToJson(
+        _$ConnectionDetailImpl instance) =>
+    <String, dynamic>{
+      'connection': instance.connection,
+      'lettersSent': instance.lettersSent,
+      'lettersReceived': instance.lettersReceived,
+    };
