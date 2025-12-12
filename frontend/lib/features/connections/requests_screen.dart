@@ -58,6 +58,9 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
           ),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          ProfileAvatarButton(),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: [

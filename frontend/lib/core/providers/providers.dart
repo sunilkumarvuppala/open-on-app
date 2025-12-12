@@ -8,6 +8,7 @@ import 'package:openon_app/core/models/connection_models.dart';
 import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/color_scheme_service.dart';
 import 'package:openon_app/core/utils/logger.dart';
+import 'package:openon_app/core/errors/app_exceptions.dart';
 
 // Configuration: Set to true to use API, false to use mocks
 const bool useApiRepositories = true;
@@ -379,6 +380,24 @@ final outgoingRequestsProvider = StreamProvider<List<ConnectionRequest>>((ref) {
 final connectionsProvider = StreamProvider<List<Connection>>((ref) {
   final repo = ref.watch(connectionRepositoryProvider);
   return repo.watchConnections();
+});
+
+final connectionDetailProvider = FutureProvider.family<ConnectionDetail, String>((ref, connectionId) async {
+  final repo = ref.watch(connectionRepositoryProvider);
+  
+  // Get current user to ensure we're authenticated and pass user ID
+  final userAsync = ref.watch(currentUserProvider);
+  final user = await userAsync.when(
+    data: (data) => Future.value(data),
+    loading: () => Future.value(null),
+    error: (_, __) => Future.value(null),
+  );
+  
+  if (user == null) {
+    throw AuthenticationException('Not authenticated. Please log in to view connection details.');
+  }
+  
+  return repo.getConnectionDetail(connectionId, userId: user.id);
 });
 
 final incomingRequestsCountProvider = Provider<int>((ref) {

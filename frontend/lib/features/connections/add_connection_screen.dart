@@ -11,6 +11,7 @@ import 'package:openon_app/core/data/api_repositories.dart';
 import 'package:openon_app/core/constants/app_constants.dart';
 import 'package:openon_app/core/utils/logger.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:openon_app/core/widgets/common_widgets.dart';
 
 class AddConnectionScreen extends ConsumerStatefulWidget {
   const AddConnectionScreen({super.key});
@@ -204,6 +205,9 @@ class _AddConnectionScreenState extends ConsumerState<AddConnectionScreen> {
           ),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          ProfileAvatarButton(),
+        ],
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(AppTheme.spacingMd),

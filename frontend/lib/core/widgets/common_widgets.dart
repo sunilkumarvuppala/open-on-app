@@ -1,12 +1,15 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../providers/providers.dart';
 import '../theme/dynamic_theme.dart';
 import '../theme/color_scheme.dart';
 import '../constants/app_constants.dart';
 import '../models/models.dart';
+import '../router/app_router.dart';
 
 /// Custom gradient button with consistent styling
 class GradientButton extends ConsumerWidget {
@@ -169,6 +172,59 @@ class UserAvatar extends ConsumerWidget {
     if (parts.isEmpty) return '?';
     if (parts.length == 1) return parts[0][0].toUpperCase();
     return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+  }
+}
+
+/// Profile avatar button for AppBar - navigates to profile screen
+/// 
+/// Security: Validates user authentication before navigation
+/// Performance: Uses const constructor and memoized user data
+class ProfileAvatarButton extends ConsumerWidget {
+  final double size;
+
+  const ProfileAvatarButton({
+    super.key,
+    this.size = AppConstants.profileAvatarButtonSize,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userAsync = ref.watch(currentUserProvider);
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
+
+    return Padding(
+      padding: EdgeInsets.only(right: AppConstants.profileAvatarButtonPadding),
+      child: GestureDetector(
+        onTap: () {
+          // Security: Only navigate if user is authenticated
+          userAsync.whenData((user) {
+            if (user != null && context.mounted) {
+              context.push(Routes.profile);
+            }
+          });
+        },
+        child: userAsync.when(
+          data: (user) => UserAvatar(
+            name: user?.name ?? AppConstants.defaultUserName,
+            imageUrl: user?.avatarUrl,
+            imagePath: user?.localAvatarPath,
+            size: size,
+          ),
+          loading: () => SizedBox(
+            width: size,
+            height: size,
+            child: CircularProgressIndicator(
+              strokeWidth: AppConstants.profileAvatarButtonLoadingStrokeWidth,
+              color: DynamicTheme.getPrimaryIconColor(colorScheme),
+            ),
+          ),
+          error: (_, __) => UserAvatar(
+            name: AppConstants.defaultUserName,
+            size: size,
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -855,10 +911,24 @@ class _HeartbeatAnimationState extends State<HeartbeatAnimation>
             alignment: Alignment.center,
             child: Opacity(
               opacity: AppConstants.heartbeatOpacity,
-              child: Icon(
-                widget.icon ?? Icons.favorite, // Heart icon for ready capsules
-                size: iconSize,
-                color: iconColor,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // White outline icon (slightly larger, behind)
+                  Icon(
+                    widget.icon == Icons.favorite 
+                        ? Icons.favorite_outline 
+                        : (widget.icon ?? Icons.favorite_outline),
+                    size: iconSize + AppConstants.iconOutlineWidth,
+                    color: Colors.white,
+                  ),
+                  // Filled icon (on top)
+                  Icon(
+                    widget.icon ?? Icons.favorite, // Heart icon for ready capsules
+                    size: iconSize,
+                    color: iconColor,
+                  ),
+                ],
               ),
             ),
           );
@@ -976,9 +1046,53 @@ class _OpenedLetterPulseState extends State<OpenedLetterPulse>
   }
 }
 
+/// Lock emoji with white outline widget - reusable component
+/// Provides consistent lock emoji styling with white outline across the app
+class LockEmojiWithOutline extends StatelessWidget {
+  final double iconSize;
+  final double opacity;
+
+  const LockEmojiWithOutline({
+    super.key,
+    required this.iconSize,
+    this.opacity = AppConstants.sealedLetterOpacity,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final outlineSize = iconSize + (AppConstants.iconOutlineWidth * AppConstants.lockEmojiOutlineSizeMultiplier);
+    
+    return Opacity(
+      opacity: opacity,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // White outline emoji (slightly larger, behind)
+          Text(
+            '🔒',
+            style: TextStyle(
+              fontSize: outlineSize,
+              height: 1.0,
+              color: Colors.white,
+            ),
+          ),
+          // Lock emoji (on top)
+          Text(
+            '🔒',
+            style: TextStyle(
+              fontSize: iconSize,
+              height: 1.0,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Sealed letter animation widget - rapid rotation for locked/sealed letters
 /// Creates a rapid left-right rotation effect, then pauses and repeats
-/// Uses lock icon to indicate sealed state
+/// Uses lock emoji to indicate sealed state
 class SealedLetterAnimation extends StatefulWidget {
   final Color? color;
   final double? size;
@@ -1070,7 +1184,6 @@ class _SealedLetterAnimationState extends State<SealedLetterAnimation>
   @override
   Widget build(BuildContext context) {
     final iconSize = widget.size ?? AppConstants.sealedLetterIconSize;
-    final iconColor = widget.color ?? Color(AppConstants.sealedLetterColorValue);
     final margin = widget.margin;
 
     // If margin is null, wrap in Positioned for standalone use
@@ -1082,13 +1195,9 @@ class _SealedLetterAnimationState extends State<SealedLetterAnimation>
         builder: (context, child) {
           return Transform.rotate(
             angle: _rotation.value * AppConstants.sealedLetterRotationAngle,
-            child: Opacity(
+            child: LockEmojiWithOutline(
+              iconSize: iconSize,
               opacity: AppConstants.sealedLetterOpacity,
-              child: Icon(
-                widget.icon ?? Icons.lock_outline, // Lock icon for sealed/locked letters
-                size: iconSize,
-                color: iconColor,
-              ),
             ),
           );
         },

@@ -11,7 +11,6 @@ import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/utils/logger.dart';
 import 'package:openon_app/core/constants/app_constants.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
-import 'package:openon_app/core/theme/app_text_styles.dart';
 import 'package:openon_app/animations/effects/confetti_burst.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -86,25 +85,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen>
           ],
         ),
         actions: [
-          IconButton(
-            icon: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: colorScheme.accent.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.person_add_rounded,
-                color: colorScheme.accent,
-                size: AppConstants.connectionCardDialogIconSize,
-              ),
-            ),
-            tooltip: 'Add Connection',
-            onPressed: () {
-              context.push(Routes.addConnection);
-            },
-          ),
-          const SizedBox(width: 8),
+          ProfileAvatarButton(),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
@@ -522,7 +503,10 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-          onTap: () => _showUserProfileDialog(context, connection, colorScheme),
+          onTap: () {
+            // Navigate to full connection detail screen
+            context.push('/connection/${connection.otherUserId}');
+          },
           child: Padding(
             padding: EdgeInsets.all(AppTheme.spacingMd),
             child: Row(
@@ -728,93 +712,6 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
     }
   }
 
-  void _showUserProfileDialog(
-    BuildContext context,
-    Connection connection,
-    AppColorScheme colorScheme,
-  ) {
-    final profile = connection.otherUserProfile;
-    final timeAgo = _formatTimeAgo(connection.connectedAt);
-
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.5),
-      builder: (context) => AppDialogBuilder.buildDialog(
-        context: context,
-        colorScheme: colorScheme,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircleAvatar(
-              radius: 40,
-              backgroundColor: colorScheme.primary1,
-              backgroundImage: profile.avatarUrl != null
-                  ? CachedNetworkImageProvider(profile.avatarUrl!)
-                  : null,
-              child: profile.avatarUrl == null
-                  ? Text(
-                      profile.displayName.isNotEmpty
-                          ? profile.displayName[0].toUpperCase()
-                          : '?',
-                      style: TextStyle(
-                        color: DynamicTheme.getPrimaryIconColor(colorScheme),
-                        fontSize: 32,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    )
-                  : null,
-            ),
-            SizedBox(height: AppTheme.spacingMd),
-            Text(
-              profile.displayName,
-              style: AppTextStyles.displaySmall(colorScheme),
-            ),
-            if (profile.username != null) ...[
-              SizedBox(height: 4),
-              Text(
-                '@${profile.username}',
-                style: AppTextStyles.dialogContent(colorScheme),
-              ),
-            ],
-            SizedBox(height: AppTheme.spacingLg),
-            Container(
-              padding: EdgeInsets.all(AppTheme.spacingMd),
-              decoration: BoxDecoration(
-                color: colorScheme.accent.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.check_circle_rounded,
-                    color: colorScheme.accent,
-                    size: 20,
-                  ),
-                  SizedBox(width: AppTheme.spacingSm),
-                  Text(
-                    'Connected $timeAgo',
-                    style: AppTextStyles.dialogContent(colorScheme).copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Close',
-              style: AppTextStyles.dialogButton(colorScheme),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   String _formatTimeAgo(DateTime dateTime) {
     final now = DateTime.now();

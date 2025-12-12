@@ -1010,5 +1010,153 @@ class ApiConnectionRepository with StreamPollingMixin implements ConnectionRepos
     Logger.debug('Successfully parsed ${connectionsList.length} connections');
     return connectionsList;
   }
+
+  @override
+  Future<ConnectionDetail> getConnectionDetail(String connectionId, {String? userId}) async {
+    try {
+      // Security: Validate connectionId format (UUID)
+      try {
+        Validation.validateConnectionId(connectionId);
+      } catch (e) {
+        Logger.error('Invalid connection ID format', error: e);
+        throw ValidationException('Invalid connection ID format');
+      }
+      
+      // Get current user ID
+      final currentUser = await _authRepo.getCurrentUser();
+      final currentUserId = userId ?? currentUser?.id;
+      
+      if (currentUserId == null) {
+        throw AuthenticationException('Not authenticated. Please log in to view connection details.');
+      }
+      
+      // Security: Validate currentUserId format
+      try {
+        Validation.validateUserId(currentUserId);
+      } catch (e) {
+        Logger.error('Invalid user ID format', error: e);
+        throw AuthenticationException('Invalid user authentication');
+      }
+      
+      Logger.info('Getting connection detail via API for connectionId: $connectionId, currentUserId: $currentUserId');
+      
+      // Use _loadConnectionsData() which properly loads and parses connections from API
+      final connections = await _loadConnectionsData();
+      Logger.info('Loaded ${connections.length} connections from API');
+      
+      if (connections.isEmpty) {
+        Logger.warning('No connections found in API response');
+        throw NetworkException('No connections found. Please ensure you are connected with this user.');
+      }
+      
+      // Find the connection matching the connectionId
+      final connection = connections.firstWhere(
+        (c) => c.otherUserId == connectionId,
+        orElse: () {
+          final availableIds = connections.map((c) => c.otherUserId).toList();
+          Logger.warning('Connection not found. Looking for: $connectionId, Available: $availableIds');
+          throw NetworkException('Connection not found. This user may not be in your connections list.');
+        },
+      );
+      
+      Logger.info('Found connection: ${connection.otherUserProfile.displayName}');
+      
+      // Calculate letter counts by querying capsules
+      // Get recipients to find the recipient IDs that link the two users
+      final recipientRepo = ApiRecipientRepository();
+      final currentUserRecipients = await recipientRepo.getRecipients(currentUserId);
+      
+      Logger.info('Checking ${currentUserRecipients.length} recipients for connection $connectionId');
+      
+      // Find recipient for the other user (connection-based recipients have linkedUserId)
+      String? currentUserRecipientId;
+      for (final recipient in currentUserRecipients) {
+        if (recipient.linkedUserId == connectionId) {
+          currentUserRecipientId = recipient.id;
+          Logger.info('Found recipient for connection by linkedUserId: ${recipient.id} (name: ${recipient.name})');
+          break;
+        }
+      }
+      
+      // If not found by linkedUserId, try matching by name (sanitized for security)
+      if (currentUserRecipientId == null) {
+        final sanitizedOtherDisplayName = Validation.sanitizeString(
+          connection.otherUserProfile.displayName,
+        ).toLowerCase();
+        Logger.info('Trying name match for: "$sanitizedOtherDisplayName"');
+        for (final recipient in currentUserRecipients) {
+          final sanitizedRecipientName = Validation.sanitizeString(recipient.name).toLowerCase();
+          if (sanitizedRecipientName == sanitizedOtherDisplayName ||
+              sanitizedRecipientName.contains(sanitizedOtherDisplayName) ||
+              sanitizedOtherDisplayName.contains(sanitizedRecipientName)) {
+            currentUserRecipientId = recipient.id;
+            Logger.info('Found recipient by name match: ${recipient.id} (name: ${recipient.name})');
+            break;
+          }
+        }
+      }
+      
+      if (currentUserRecipientId == null) {
+        Logger.warning('Could not find recipient for connection $connectionId. Available recipients: ${currentUserRecipients.map((r) => '${r.name} (linkedUserId: ${r.linkedUserId})').join(", ")}');
+      }
+      
+      // Get capsules to calculate counts
+      final capsuleRepo = ApiCapsuleRepository();
+      
+      // Letters sent: total outbox capsules where recipient_id matches
+      // Outbox = all capsules sent by current user (sender_id = currentUserId)
+      // Filter by recipient_id = currentUserRecipientId to get only letters to this connection
+      int lettersSent = 0;
+      if (currentUserRecipientId != null) {
+        try {
+          final outboxCapsules = await capsuleRepo.getCapsules(
+            userId: currentUserId,
+            asSender: true,
+          );
+          Logger.info('Retrieved ${outboxCapsules.length} total outbox capsules');
+          lettersSent = outboxCapsules
+              .where((c) => c.receiverId == currentUserRecipientId)
+              .length;
+          Logger.info('Found $lettersSent letters sent to recipient $currentUserRecipientId (out of ${outboxCapsules.length} total sent)');
+        } catch (e) {
+          Logger.warning('Error counting sent letters', error: e);
+        }
+      } else {
+        Logger.warning('Cannot count sent letters: recipient not found for connection');
+      }
+      
+      // Letters received: total inbox capsules where sender_id matches connectionId
+      // Inbox = all capsules received by current user (already filtered by backend)
+      // Filter by sender_id = connectionId to get only letters from this connection
+      int lettersReceived = 0;
+      try {
+        final inboxCapsules = await capsuleRepo.getCapsules(
+          userId: currentUserId,
+          asSender: false,
+        );
+        Logger.info('Retrieved ${inboxCapsules.length} total inbox capsules');
+        lettersReceived = inboxCapsules
+            .where((c) => c.senderId == connectionId)
+            .length;
+        Logger.info('Found $lettersReceived letters received from sender $connectionId (out of ${inboxCapsules.length} total received)');
+      } catch (e) {
+        Logger.warning('Error counting received letters', error: e);
+      }
+      
+      Logger.info('Final letter counts - Sent: $lettersSent, Received: $lettersReceived');
+      
+      return ConnectionDetail(
+        connection: connection,
+        lettersSent: lettersSent,
+        lettersReceived: lettersReceived,
+      );
+    } catch (e, stackTrace) {
+      Logger.error('Error getting connection detail via API', error: e, stackTrace: stackTrace);
+      if (e is AppException) {
+        rethrow;
+      }
+      throw NetworkException('Failed to get connection detail: ${e.toString()}');
+    }
+  }
 }
 

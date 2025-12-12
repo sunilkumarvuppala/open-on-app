@@ -6,6 +6,7 @@ import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/utils/error_handler.dart';
+import 'package:openon_app/core/widgets/common_widgets.dart';
 import 'package:openon_app/features/create_capsule/step_choose_recipient.dart';
 import 'package:openon_app/features/create_capsule/step_write_letter.dart';
 import 'package:openon_app/features/create_capsule/step_choose_time.dart';
@@ -203,6 +204,9 @@ class _CreateCapsuleScreenState extends ConsumerState<CreateCapsuleScreen> {
             }
           },
         ),
+        actions: [
+          ProfileAvatarButton(),
+        ],
       ),
       body: Column(
         children: [

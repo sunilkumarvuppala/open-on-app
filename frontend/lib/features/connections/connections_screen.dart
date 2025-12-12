@@ -43,6 +43,7 @@ class ConnectionsScreen extends ConsumerWidget {
               context.push('/connections/add');
             },
           ),
+          ProfileAvatarButton(),
         ],
       ),
       body: connectionsAsync.when(
@@ -85,6 +86,10 @@ class ConnectionsScreen extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: AppTheme.spacingMd),
         color: DynamicTheme.getCardBackgroundColor(colorScheme),
       child: ListTile(
+        onTap: () {
+          // Navigate to connection detail screen
+          context.push('/connection/${connection.otherUserId}');
+        },
         leading: CircleAvatar(
           radius: 28,
           backgroundImage: profile.avatarUrl != null
@@ -118,26 +123,9 @@ class ConnectionsScreen extends ConsumerWidget {
                       color: DynamicTheme.getSecondaryTextColor(colorScheme),
                     ),
               ),
-        trailing: IconButton(
-          icon: Icon(
-            Icons.send,
-            color: DynamicTheme.getPrimaryIconColor(colorScheme),
-          ),
-          onPressed: () {
-            // Navigate to create capsule with this user as recipient
-            // This would need to be implemented based on your capsule creation flow
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Send letter feature coming soon',
-                  style: TextStyle(
-                    color: DynamicTheme.getSnackBarTextColor(colorScheme),
-                  ),
-                ),
-                backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
-              ),
-            );
-          },
+        trailing: Icon(
+          Icons.chevron_right,
+          color: DynamicTheme.getSecondaryIconColor(colorScheme),
         ),
       ),
     );

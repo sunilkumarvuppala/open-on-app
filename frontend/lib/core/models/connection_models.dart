@@ -74,3 +74,16 @@ class PendingRequests with _$PendingRequests {
   factory PendingRequests.fromJson(Map<String, dynamic> json) =>
       _$PendingRequestsFromJson(json);
 }
+
+/// Connection detail with letter statistics
+@freezed
+class ConnectionDetail with _$ConnectionDetail {
+  const factory ConnectionDetail({
+    required Connection connection,
+    required int lettersSent, // Total letters sent by current user to this connection
+    required int lettersReceived, // Total letters received from this connection
+  }) = _ConnectionDetail;
+
+  factory ConnectionDetail.fromJson(Map<String, dynamic> json) =>
+      _$ConnectionDetailFromJson(json);
+}

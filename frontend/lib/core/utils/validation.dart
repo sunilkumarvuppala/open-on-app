@@ -161,5 +161,43 @@ class Validation {
   static String sanitizeUsername(String username) {
     return username.trim().toLowerCase();
   }
+
+  /// Validates UUID format (for user IDs, connection IDs, etc.)
+  /// Returns true if valid UUID format, false otherwise
+  static bool isValidUUID(String id) {
+    if (id.isEmpty) return false;
+    // UUID v4 format: 8-4-4-4-12 hexadecimal characters
+    final uuidRegex = RegExp(
+      r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+      caseSensitive: false,
+    );
+    return uuidRegex.hasMatch(id);
+  }
+
+  /// Validates and sanitizes connection ID
+  /// Throws ValidationException if invalid
+  static String validateConnectionId(String connectionId) {
+    final sanitized = connectionId.trim();
+    if (sanitized.isEmpty) {
+      throw const ValidationException('Connection ID cannot be empty');
+    }
+    if (!isValidUUID(sanitized)) {
+      throw const ValidationException('Invalid connection ID format');
+    }
+    return sanitized;
+  }
+
+  /// Validates and sanitizes user ID
+  /// Throws ValidationException if invalid
+  static String validateUserId(String userId) {
+    final sanitized = userId.trim();
+    if (sanitized.isEmpty) {
+      throw const ValidationException('User ID cannot be empty');
+    }
+    if (!isValidUUID(sanitized)) {
+      throw const ValidationException('Invalid user ID format');
+    }
+    return sanitized;
+  }
 }
 

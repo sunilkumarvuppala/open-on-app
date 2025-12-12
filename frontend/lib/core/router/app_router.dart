@@ -20,6 +20,7 @@ import 'package:openon_app/features/drafts/drafts_screen.dart';
 import 'package:openon_app/features/connections/add_connection_screen.dart';
 import 'package:openon_app/features/connections/requests_screen.dart';
 import 'package:openon_app/features/connections/connections_screen.dart';
+import 'package:openon_app/features/connections/connection_detail_screen.dart';
 import 'package:openon_app/features/people/people_screen.dart';
 
 /// Route names
@@ -41,6 +42,7 @@ class Routes {
   static const connections = '/connections';
   static const addConnection = '/connections/add';
   static const connectionRequests = '/connections/requests';
+  static const connectionDetail = '/connection/:connectionId';
   static const people = '/people';
 }
 
@@ -166,6 +168,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.connectionRequests,
         builder: (context, state) => const RequestsScreen(),
+      ),
+      GoRoute(
+        path: Routes.connectionDetail,
+        builder: (context, state) {
+          final connectionId = state.pathParameters['connectionId']!;
+          return ConnectionDetailScreen(connectionId: connectionId);
+        },
       ),
     ],
   );
