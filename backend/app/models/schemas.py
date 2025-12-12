@@ -452,7 +452,10 @@ class CapsuleResponse(CapsuleBase):
     - Inherits all fields from CapsuleBase
     - id: Capsule UUID
     - sender_id: UUID of user who sent the capsule (references auth.users)
+    - sender_name: Display name of sender (from user_profiles, or 'Anonymous' if is_anonymous)
+    - sender_avatar_url: Avatar URL of sender (None if is_anonymous)
     - recipient_id: UUID of recipient (references recipients table)
+    - recipient_name: Name of recipient (from recipients table)
     - status: Current capsule status (sealed, ready, opened, expired)
     - unlocks_at: When capsule becomes available to open
     - opened_at: When receiver opened the capsule (if opened)
@@ -463,16 +466,100 @@ class CapsuleResponse(CapsuleBase):
     Note:
         All timestamps are timezone-aware (UTC)
         Status follows Supabase schema (no DRAFT state)
+        sender_name and sender_avatar_url respect is_anonymous flag
     """
     id: UUID
-    sender_id: UUID
+    sender_id: Optional[UUID] = None  # None if is_anonymous
+    sender_name: Optional[str] = None  # 'Anonymous' if is_anonymous, otherwise sender's display name
+    sender_avatar_url: Optional[str] = None  # None if is_anonymous
     recipient_id: UUID
+    recipient_name: Optional[str] = None  # Name from recipients table
     status: CapsuleStatus
     unlocks_at: datetime
     opened_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
+    
+    @classmethod
+    def from_orm_with_profile(cls, capsule, sender_profile=None, recipient=None):
+        """
+        Create CapsuleResponse from ORM model with populated sender/recipient info.
+        
+        Args:
+            capsule: Capsule database model instance
+            sender_profile: Optional UserProfile for sender (if not provided, will use relationship)
+            recipient: Optional Recipient model (if not provided, will use relationship)
+        
+        Returns:
+            CapsuleResponse with populated sender_name and recipient_name
+        """
+        # Get sender profile from relationship if not provided
+        if sender_profile is None:
+            sender_profile = capsule.sender_profile if hasattr(capsule, 'sender_profile') else None
+        
+        # Get recipient from relationship if not provided
+        if recipient is None:
+            recipient = capsule.recipient if hasattr(capsule, 'recipient') else None
+        
+        # Build sender name (respects is_anonymous)
+        sender_name = None
+        sender_avatar_url = None
+        sender_id = None
+        
+        if capsule.is_anonymous:
+            sender_name = 'Anonymous'
+            sender_id = None
+            sender_avatar_url = None
+        elif sender_profile:
+            # Build display name from first_name and last_name
+            name_parts = []
+            if sender_profile.first_name:
+                name_parts.append(sender_profile.first_name)
+            if sender_profile.last_name:
+                name_parts.append(sender_profile.last_name)
+            
+            if name_parts:
+                sender_name = ' '.join(name_parts)
+            elif sender_profile.username:
+                sender_name = sender_profile.username
+            else:
+                sender_name = f"User {str(capsule.sender_id)[:8]}"
+            
+            sender_id = capsule.sender_id
+            sender_avatar_url = sender_profile.avatar_url
+        
+        # Get recipient name
+        recipient_name = None
+        if recipient:
+            recipient_name = recipient.name
+        
+        # Create response dict
+        response_data = {
+            'id': capsule.id,
+            'sender_id': sender_id,
+            'sender_name': sender_name,
+            'sender_avatar_url': sender_avatar_url,
+            'recipient_id': capsule.recipient_id,
+            'recipient_name': recipient_name,
+            'title': capsule.title,
+            'body_text': capsule.body_text,
+            'body_rich_text': capsule.body_rich_text,
+            'is_anonymous': capsule.is_anonymous,
+            'is_disappearing': capsule.is_disappearing,
+            'disappearing_after_open_seconds': capsule.disappearing_after_open_seconds,
+            'theme_id': capsule.theme_id,
+            'animation_id': capsule.animation_id,
+            'expires_at': capsule.expires_at,
+            'status': capsule.status,
+            'unlocks_at': capsule.unlocks_at,
+            'opened_at': capsule.opened_at,
+            'deleted_at': capsule.deleted_at,
+            'created_at': capsule.created_at,
+            'updated_at': capsule.updated_at,
+        }
+        
+        return cls(**response_data)
     
     class Config:
         from_attributes = True

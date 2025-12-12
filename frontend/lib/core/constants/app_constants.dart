@@ -134,6 +134,50 @@ class AppConstants {
   static const double avatarIconSize = 36.0;
   static const double searchResultsMaxHeight = 200.0;
   static const double searchIndicatorSize = 20.0;
+  
+  // Capsule card dimensions
+  static const double capsuleCardIconSize = 64.0;
+  static const double capsuleCardIconInnerSize = 32.0;
+  static const double capsuleCardChevronSize = 18.0;
+  static const double capsuleCardBadgeIndicatorSize = 10.0;
+  static const double capsuleCardBadgeBorderWidth = 1.5;
+  
+  // Capsule card text sizes
+  static const double capsuleCardTitleFontSize = 16.0;
+  static const double capsuleCardLabelFontSize = 14.0;
+  static const double capsuleCardDateFontSize = 12.0;
+  static const double capsuleCardCountdownFontSize = 11.0;
+  
+  // Capsule card spacing
+  static const double capsuleCardTitleSpacing = 4.0;
+  static const double capsuleCardLabelSpacing = 6.0;
+  static const double capsuleCardDateIconSize = 13.0;
+  static const double capsuleCardCountdownIconSize = 11.0;
+  static const double capsuleCardDateIconSpacing = 5.0;
+  static const double capsuleCardCountdownIconSpacing = 3.0;
+  
+  // Animation durations
+  static const Duration badgeAnimationDuration = Duration(milliseconds: 200);
+  
+  // Text line heights
+  static const double textLineHeightTight = 1.2;
+  static const double textLineHeightNormal = 1.0;
+  
+  // Border radius
+  static const double capsuleCardBorderRadius = 16.0;
+  
+  // Shadow properties
+  static const double capsuleCardShadowBlur = 8.0;
+  static const double capsuleCardShadowSpread = 0.0;
+  // Note: Offset cannot be const in this context, use const Offset(0, 2) directly in widgets
+  
+  // Opacity values
+  static const double shadowOpacityDark = 0.3;
+  static const double shadowOpacityLight = 0.08;
+  
+  // Badge indicator positioning
+  static const double badgeIndicatorTop = 6.0;
+  static const double badgeIndicatorRight = 6.0;
 
   // Asset paths
   static const String avatarPriya = 'assets/images/avatar_priya.png';

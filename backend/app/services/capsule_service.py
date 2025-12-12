@@ -1,0 +1,256 @@
+"""
+Capsule service layer for business logic and validation.
+
+This service encapsulates all capsule-related business logic, validation,
+and state management to eliminate duplicate code across API endpoints.
+
+Responsibilities:
+- Capsule creation validation
+- Content validation and sanitization
+- Unlock time validation
+- Status transition validation
+- Permission checks
+"""
+from typing import Optional
+from datetime import datetime, timezone
+from uuid import UUID
+from fastapi import HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.repositories import CapsuleRepository, RecipientRepository
+from app.db.models import CapsuleStatus
+from app.core.logging import get_logger
+from app.core.permissions import verify_recipient_ownership, verify_users_are_connected
+from app.utils.helpers import sanitize_text
+from app.core.config import settings
+
+logger = get_logger(__name__)
+
+
+class CapsuleService:
+    """Service layer for capsule business logic and validation."""
+    
+    def __init__(self, session: AsyncSession):
+        """Initialize capsule service with database session."""
+        self.session = session
+        self.capsule_repo = CapsuleRepository(session)
+        self.recipient_repo = RecipientRepository(session)
+    
+    async def validate_recipient_for_capsule(
+        self,
+        recipient_id: UUID,
+        sender_id: UUID
+    ) -> None:
+        """
+        Validate recipient exists and sender has permission to send.
+        
+        Args:
+            recipient_id: Recipient ID to validate
+            sender_id: User ID of the sender
+            
+        Raises:
+            HTTPException: If recipient not found or permission denied
+        """
+        # Verify recipient exists and belongs to sender
+        await verify_recipient_ownership(
+            self.session,
+            recipient_id,
+            sender_id
+        )
+        
+        recipient = await self.recipient_repo.get_by_id(recipient_id)
+        if not recipient:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Recipient not found"
+            )
+        
+        # Verify recipient belongs to sender
+        if recipient.owner_id != sender_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only send letters to your own recipients"
+            )
+        
+        # For legacy recipients with email, verify mutual connection
+        if recipient.email:
+            from sqlalchemy import text
+            result = await self.session.execute(
+                text("""
+                    SELECT id FROM auth.users
+                    WHERE email = :email
+                """),
+                {"email": recipient.email.lower().strip()}
+            )
+            recipient_user_id = result.scalar_one_or_none()
+            
+            if recipient_user_id:
+                await verify_users_are_connected(
+                    self.session,
+                    sender_id,
+                    recipient_user_id,
+                    raise_on_not_connected=True
+                )
+    
+    def validate_content(
+        self,
+        body_text: Optional[str],
+        body_rich_text: Optional[str]
+    ) -> None:
+        """
+        Validate capsule content.
+        
+        Args:
+            body_text: Plain text content
+            body_rich_text: Rich text content
+            
+        Raises:
+            HTTPException: If content validation fails
+        """
+        if not body_text and not body_rich_text:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Either body_text or body_rich_text is required"
+            )
+    
+    def sanitize_content(
+        self,
+        title: Optional[str],
+        body_text: Optional[str]
+    ) -> tuple[Optional[str], Optional[str]]:
+        """
+        Sanitize capsule title and body text.
+        
+        Args:
+            title: Title to sanitize
+            body_text: Body text to sanitize
+            
+        Returns:
+            Tuple of (sanitized_title, sanitized_body_text)
+        """
+        sanitized_title = None
+        if title:
+            sanitized_title = sanitize_text(
+                title.strip(),
+                max_length=settings.max_title_length
+            )
+        
+        sanitized_body_text = None
+        if body_text:
+            sanitized_body_text = sanitize_text(
+                body_text.strip(),
+                max_length=settings.max_content_length
+            )
+        
+        return sanitized_title, sanitized_body_text
+    
+    def validate_unlock_time(self, unlocks_at: datetime) -> datetime:
+        """
+        Validate and normalize unlock time.
+        
+        Args:
+            unlocks_at: Unlock datetime to validate
+            
+        Returns:
+            Normalized UTC datetime
+            
+        Raises:
+            HTTPException: If unlock time is invalid
+        """
+        # Ensure timezone-aware and convert to UTC
+        if unlocks_at.tzinfo is None:
+            unlocks_at = unlocks_at.replace(tzinfo=timezone.utc)
+        else:
+            unlocks_at = unlocks_at.astimezone(timezone.utc)
+        
+        # Validate future time
+        now = datetime.now(timezone.utc)
+        if unlocks_at <= now:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Unlock time must be in the future"
+            )
+        
+        return unlocks_at
+    
+    def validate_disappearing_message(
+        self,
+        is_disappearing: bool,
+        disappearing_after_open_seconds: Optional[int]
+    ) -> None:
+        """
+        Validate disappearing message configuration.
+        
+        Args:
+            is_disappearing: Whether message is disappearing
+            disappearing_after_open_seconds: Seconds until deletion after opening
+            
+        Raises:
+            HTTPException: If validation fails
+        """
+        if is_disappearing and not disappearing_after_open_seconds:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="disappearing_after_open_seconds is required when is_disappearing is true"
+            )
+    
+    async def validate_capsule_for_update(
+        self,
+        capsule_id: UUID,
+        sender_id: UUID
+    ) -> None:
+        """
+        Validate capsule can be updated.
+        
+        Args:
+            capsule_id: Capsule ID to validate
+            sender_id: User ID attempting update
+            
+        Raises:
+            HTTPException: If update is not allowed
+        """
+        capsule = await self.capsule_repo.get_by_id(capsule_id)
+        
+        if not capsule:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Capsule not found"
+            )
+        
+        if capsule.sender_id != sender_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the sender can edit this capsule"
+            )
+        
+        if capsule.status == CapsuleStatus.OPENED:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot edit capsule that has been opened"
+            )
+    
+    async def validate_capsule_for_opening(
+        self,
+        capsule_id: UUID
+    ) -> None:
+        """
+        Validate capsule can be opened.
+        
+        Args:
+            capsule_id: Capsule ID to validate
+            
+        Raises:
+            HTTPException: If capsule cannot be opened
+        """
+        capsule = await self.capsule_repo.get_by_id(capsule_id)
+        
+        if not capsule:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Capsule not found"
+            )
+        
+        if capsule.status != CapsuleStatus.READY:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Capsule is not ready yet (current status: {capsule.status.value})"
+            )
