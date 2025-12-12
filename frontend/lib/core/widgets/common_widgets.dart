@@ -648,3 +648,365 @@ class _BadgeShimmerPainter extends CustomPainter {
   }
 }
 
+/// Heartbeat animation widget - animated heart icon in bottom right
+/// Mimics a realistic heartbeat pattern: small beat (lub), pause, big beat (dub), longer pause
+/// Uses heart icon to indicate excitement/readiness
+class HeartbeatAnimation extends StatefulWidget {
+  final Color? color;
+  final double? size;
+  final EdgeInsets? margin;
+  final VoidCallback? onTap;
+  final IconData? icon;
+
+  const HeartbeatAnimation({
+    super.key,
+    this.color,
+    this.size,
+    this.margin,
+    this.onTap,
+    this.icon,
+  });
+
+  @override
+  State<HeartbeatAnimation> createState() => _HeartbeatAnimationState();
+}
+
+class _HeartbeatAnimationState extends State<HeartbeatAnimation>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    _controller = AnimationController(
+      duration: AppConstants.heartbeatCycleDuration,
+      vsync: this,
+    )..repeat();
+
+    // Create realistic heartbeat pattern: small beat (lub), pause, big beat (dub), longer pause
+    // Pattern: 0.0-0.167 (small beat up), 0.167-0.333 (small beat down), 
+    // 0.333-0.417 (pause), 0.417-0.667 (big beat up), 0.667-0.833 (big beat down), 
+    // 0.833-1.0 (longer pause)
+    _scaleAnimation = TweenSequence<double>([
+      // First small beat (lub) - scale up to small size
+      TweenSequenceItem(
+        tween: Tween<double>(
+          begin: AppConstants.heartbeatIconSizeMin / AppConstants.heartbeatIconSize,
+          end: AppConstants.heartbeatIconSizeSmall / AppConstants.heartbeatIconSize,
+        ).chain(CurveTween(curve: Curves.easeOut)),
+        weight: 8.33, // 0.0 - 0.0833 (small beat up - 100ms of 1200ms)
+      ),
+      // First small beat (lub) - scale down
+      TweenSequenceItem(
+        tween: Tween<double>(
+          begin: AppConstants.heartbeatIconSizeSmall / AppConstants.heartbeatIconSize,
+          end: AppConstants.heartbeatIconSizeMin / AppConstants.heartbeatIconSize,
+        ).chain(CurveTween(curve: Curves.easeIn)),
+        weight: 8.33, // 0.0833 - 0.1667 (small beat down - 100ms)
+      ),
+      // Short pause after small beat
+      TweenSequenceItem(
+        tween: Tween<double>(
+          begin: AppConstants.heartbeatIconSizeMin / AppConstants.heartbeatIconSize,
+          end: AppConstants.heartbeatIconSizeMin / AppConstants.heartbeatIconSize,
+        ),
+        weight: 8.33, // 0.1667 - 0.25 (pause - 100ms)
+      ),
+      // Second big beat (dub) - scale up to big size
+      TweenSequenceItem(
+        tween: Tween<double>(
+          begin: AppConstants.heartbeatIconSizeMin / AppConstants.heartbeatIconSize,
+          end: AppConstants.heartbeatIconSizeBig / AppConstants.heartbeatIconSize,
+        ).chain(CurveTween(curve: Curves.easeOut)),
+        weight: 12.5, // 0.25 - 0.375 (big beat up - 150ms)
+      ),
+      // Second big beat (dub) - scale down
+      TweenSequenceItem(
+        tween: Tween<double>(
+          begin: AppConstants.heartbeatIconSizeBig / AppConstants.heartbeatIconSize,
+          end: AppConstants.heartbeatIconSizeMin / AppConstants.heartbeatIconSize,
+        ).chain(CurveTween(curve: Curves.easeIn)),
+        weight: 12.5, // 0.375 - 0.5 (big beat down - 150ms)
+      ),
+      // Longer pause after big beat
+      TweenSequenceItem(
+        tween: Tween<double>(
+          begin: AppConstants.heartbeatIconSizeMin / AppConstants.heartbeatIconSize,
+          end: AppConstants.heartbeatIconSizeMin / AppConstants.heartbeatIconSize,
+        ),
+        weight: 50.0, // 0.5 - 1.0 (longer pause - 600ms)
+      ),
+    ]).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final iconSize = widget.size ?? AppConstants.heartbeatIconSize;
+    final iconColor = widget.color ?? Color(AppConstants.heartbeatColorValue);
+    final margin = widget.margin;
+
+    // If margin is null, wrap in Positioned for standalone use
+    // If margin is provided (including EdgeInsets.zero), use as-is for embedded use
+    final child = GestureDetector(
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            alignment: Alignment.center,
+            child: Icon(
+              widget.icon ?? Icons.favorite, // Heart icon for ready capsules
+              size: iconSize,
+              color: iconColor,
+            ),
+          );
+        },
+      ),
+    );
+
+    // If no margin specified, wrap in Positioned for standalone use
+    if (margin == null) {
+      return Positioned(
+        bottom: AppConstants.heartbeatBottomMargin,
+        right: AppConstants.heartbeatRightMargin,
+        child: child,
+      );
+    }
+
+    // If margin is provided (even if zero), return child directly for embedded use
+    return child;
+  }
+}
+
+/// Opened letter pulse animation widget - gentle breathing pulse for opened letters
+/// Creates a calm, gentle pulsing effect to indicate the letter has been opened
+/// Uses checkmark circle icon to indicate completion
+class OpenedLetterPulse extends StatefulWidget {
+  final Color? color;
+  final double? size;
+  final EdgeInsets? margin;
+  final VoidCallback? onTap;
+  final IconData? icon;
+
+  const OpenedLetterPulse({
+    super.key,
+    this.color,
+    this.size,
+    this.margin,
+    this.onTap,
+    this.icon,
+  });
+
+  @override
+  State<OpenedLetterPulse> createState() => _OpenedLetterPulseState();
+}
+
+class _OpenedLetterPulseState extends State<OpenedLetterPulse>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    _controller = AnimationController(
+      duration: AppConstants.openedLetterPulseCycleDuration,
+      vsync: this,
+    )..repeat(reverse: true); // Reverse creates smooth breathing effect
+
+    // Create gentle breathing pulse: slow, smooth expansion and contraction
+    _scaleAnimation = Tween<double>(
+      begin: AppConstants.openedLetterPulseIconSizeMin / AppConstants.openedLetterPulseIconSize,
+      end: AppConstants.openedLetterPulseIconSizeMax / AppConstants.openedLetterPulseIconSize,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut, // Smooth, gentle curve for breathing effect
+    ));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final iconSize = widget.size ?? AppConstants.openedLetterPulseIconSize;
+    final iconColor = widget.color ?? Color(AppConstants.openedLetterPulseColorValue);
+    final margin = widget.margin;
+
+    // If margin is null, wrap in Positioned for standalone use
+    // If margin is provided (including EdgeInsets.zero), use as-is for embedded use
+    final child = GestureDetector(
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            alignment: Alignment.center,
+            child: Icon(
+              widget.icon ?? Icons.check_circle, // Checkmark circle for opened letters
+              size: iconSize,
+              color: iconColor,
+            ),
+          );
+        },
+      ),
+    );
+
+    // If no margin specified, wrap in Positioned for standalone use
+    if (margin == null) {
+      return Positioned(
+        bottom: AppConstants.openedLetterPulseBottomMargin,
+        right: AppConstants.openedLetterPulseRightMargin,
+        child: child,
+      );
+    }
+
+    // If margin is provided (even if zero), return child directly for embedded use
+    return child;
+  }
+}
+
+/// Sealed letter animation widget - rapid rotation for locked/sealed letters
+/// Creates a rapid left-right rotation effect, then pauses and repeats
+/// Uses lock icon to indicate sealed state
+class SealedLetterAnimation extends StatefulWidget {
+  final Color? color;
+  final double? size;
+  final EdgeInsets? margin;
+  final VoidCallback? onTap;
+  final IconData? icon;
+
+  const SealedLetterAnimation({
+    super.key,
+    this.color,
+    this.size,
+    this.margin,
+    this.onTap,
+    this.icon,
+  });
+
+  @override
+  State<SealedLetterAnimation> createState() => _SealedLetterAnimationState();
+}
+
+class _SealedLetterAnimationState extends State<SealedLetterAnimation>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _rotation;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    _controller = AnimationController(
+      duration: AppConstants.sealedLetterCycleDuration,
+      vsync: this,
+    )..repeat(); // Continuous rotation animation
+
+    // Create rapid left-right rotation pattern: rotate left-right-left-right, then pause
+    // Pattern: 4 rapid rotations (left-right-left-right) then pause at center
+    // Calculate weights based on actual durations for precise timing
+    // Total shake duration: 4 rotations * shakeDuration
+    // Total cycle: shake duration + pause duration
+    final totalShakeMs = AppConstants.sealedLetterShakeDuration.inMilliseconds * 4;
+    final pauseMs = AppConstants.sealedLetterPauseDuration.inMilliseconds;
+    final totalCycleMs = totalShakeMs + pauseMs;
+    
+    // Calculate weights as percentages of total cycle duration
+    // Each shake segment gets equal weight (shakeDuration / totalCycle)
+    final shakeWeight = (AppConstants.sealedLetterShakeDuration.inMilliseconds / totalCycleMs) * 100.0;
+    final pauseWeight = (pauseMs / totalCycleMs) * 100.0;
+    
+    _rotation = TweenSequence<double>([
+      // Rotate left
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.0, end: -1.0)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: shakeWeight,
+      ),
+      // Rotate right
+      TweenSequenceItem(
+        tween: Tween<double>(begin: -1.0, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: shakeWeight,
+      ),
+      // Rotate left again
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.0, end: -1.0)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: shakeWeight,
+      ),
+      // Rotate right again
+      TweenSequenceItem(
+        tween: Tween<double>(begin: -1.0, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: shakeWeight,
+      ),
+      // Return to center and pause
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.0, end: 0.0)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: pauseWeight,
+      ),
+    ]).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final iconSize = widget.size ?? AppConstants.sealedLetterIconSize;
+    final iconColor = widget.color ?? Color(AppConstants.sealedLetterColorValue);
+    final margin = widget.margin;
+
+    // If margin is null, wrap in Positioned for standalone use
+    // If margin is provided (including EdgeInsets.zero), use as-is for embedded use
+    final child = GestureDetector(
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _rotation,
+        builder: (context, child) {
+          return Transform.rotate(
+            angle: _rotation.value * AppConstants.sealedLetterRotationAngle,
+            child: Icon(
+              widget.icon ?? Icons.lock_outline, // Lock icon for sealed/locked letters
+              size: iconSize,
+              color: iconColor,
+            ),
+          );
+        },
+      ),
+    );
+
+    // If no margin specified, wrap in Positioned for standalone use
+    if (margin == null) {
+      return Positioned(
+        bottom: AppConstants.sealedLetterBottomMargin,
+        right: AppConstants.sealedLetterRightMargin,
+        child: child,
+      );
+    }
+
+    // If margin is provided (even if zero), return child directly for embedded use
+    return child;
+  }
+}
+

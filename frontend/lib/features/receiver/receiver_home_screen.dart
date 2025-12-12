@@ -485,45 +485,20 @@ class _LockedTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(currentUserProvider);
     final userId = userAsync.asData?.value?.id ?? '';
-    final capsulesAsync = ref.watch(incomingLockedCapsulesProvider(userId));
+    final capsulesAsync = ref.watch(incomingReadyCapsulesProvider(userId));
 
     return capsulesAsync.when(
       data: (capsules) {
         if (capsules.isEmpty) {
-          return EmptyState(
-            icon: Icons.mail_outline,
-            title: 'No incoming capsules yet',
-            message: 'When someone sends you a time capsule, it will appear here ❤️',
-            action: GradientButton(
-              text: 'Share your link to receive capsules',
-              onPressed: () {
-                // TODO: Implement share link functionality
-                final colorScheme = ref.read(selectedColorSchemeProvider);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Share link feature coming soon!',
-                      style: TextStyle(
-                        color: DynamicTheme.getSnackBarTextColor(colorScheme),
-                      ),
-                    ),
-                    backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                    ),
-                  ),
-                );
-              },
-              gradient: DynamicTheme.warmGradient(
-                ref.watch(selectedColorSchemeProvider),
-              ),
-            ),
+          return const EmptyState(
+            icon: Icons.auto_awesome,
+            title: 'No ready capsules',
+            message: 'Capsules that are ready to open will appear here ✨',
           );
         }
 
         return ListView.builder(
-          key: const PageStorageKey('incoming_locked_capsules'),
+          key: const PageStorageKey('incoming_ready_capsules'),
           padding: EdgeInsets.symmetric(
             horizontal: AppTheme.spacingLg,
             vertical: AppTheme.spacingSm,
@@ -532,8 +507,8 @@ class _LockedTab extends ConsumerWidget {
           itemBuilder: (context, index) {
             final capsule = capsules[index];
             return Padding(
-              key: ValueKey('incoming_locked_${capsule.id}'),
-              padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
+              key: ValueKey('incoming_ready_${capsule.id}'),
+              padding: EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
               child: InkWell(
                 onTap: () => context.push('/capsule/${capsule.id}', extra: capsule),
                 borderRadius: BorderRadius.circular(AppTheme.radiusLg),
@@ -546,7 +521,7 @@ class _LockedTab extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, stack) => ErrorDisplay(
         message: 'Failed to load capsules',
-        onRetry: () => ref.invalidate(incomingLockedCapsulesProvider(userId)),
+        onRetry: () => ref.invalidate(incomingReadyCapsulesProvider(userId)),
       ),
     );
   }
@@ -582,7 +557,7 @@ class _OpeningSoonTab extends ConsumerWidget {
             final capsule = capsules[index];
             return Padding(
               key: ValueKey('incoming_opening_soon_${capsule.id}'),
-              padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
+              padding: EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
               child: InkWell(
                 onTap: () => context.push('/capsule/${capsule.id}', extra: capsule),
                 borderRadius: BorderRadius.circular(AppTheme.radiusLg),
@@ -631,7 +606,7 @@ class _OpenedTab extends ConsumerWidget {
             final capsule = capsules[index];
             return Padding(
               key: ValueKey('incoming_opened_${capsule.id}'),
-              padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
+              padding: EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
               child: InkWell(
                 onTap: () => context.push('/capsule/${capsule.id}/opened', extra: capsule),
                 borderRadius: BorderRadius.circular(AppTheme.radiusLg),
@@ -660,6 +635,40 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
   static final _dateFormat = DateFormat('MMM dd, yyyy');
   static final _timeFormat = DateFormat('h:mm a');
 
+  /// Builds the sealed letter icon (animated or static) based on time until unlock
+  /// 
+  /// Returns animated lock icon if unlock time is less than threshold,
+  /// otherwise returns static lock icon for better performance and visual clarity.
+  /// 
+  /// This method handles edge cases:
+  /// - Capsules already unlocked (should not appear due to parent condition)
+  /// - Negative durations (handled by Duration comparison - negative means already unlocked)
+  /// - Zero duration (treated as not meeting threshold)
+  Widget _buildSealedLetterIcon(Capsule capsule) {
+    final timeUntilUnlock = capsule.timeUntilUnlock;
+    
+    // Only animate if time until unlock is positive (future) and less than threshold
+    // Using Duration comparison for precise time-based logic
+    // Duration.zero or negative durations indicate already unlocked/ready capsules
+    final shouldAnimate = timeUntilUnlock > Duration.zero && 
+                          timeUntilUnlock < AppConstants.sealedLetterAnimationThreshold;
+    
+    if (shouldAnimate) {
+      return SealedLetterAnimation(
+        size: AppConstants.sealedLetterIconSize,
+        margin: EdgeInsets.zero, // No margin since we're positioning it manually
+      );
+    }
+    
+    // Static icon for capsules with unlock time >= threshold
+    // Matches animated icon appearance exactly for visual consistency
+    return Icon(
+      Icons.lock_outline,
+      size: AppConstants.sealedLetterIconSize,
+      color: Color(AppConstants.sealedLetterColorValue),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = ref.watch(selectedColorSchemeProvider);
@@ -667,23 +676,25 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
     final dreamyGradient = DynamicTheme.dreamyGradient(colorScheme);
 
     return RepaintBoundary(
-      child: Container(
-      margin: EdgeInsets.only(bottom: AppTheme.spacingSm),
-      decoration: BoxDecoration(
-        color: DynamicTheme.getCardBackgroundColor(colorScheme),
-        borderRadius: BorderRadius.circular(AppConstants.capsuleCardBorderRadius),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.isDarkTheme
-                ? Colors.black.withOpacity(AppConstants.shadowOpacityDark)
-                : Colors.black.withOpacity(AppConstants.shadowOpacityLight),
-            blurRadius: AppConstants.capsuleCardShadowBlur,
-            spreadRadius: AppConstants.capsuleCardShadowSpread,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
+      child: Stack(
+        children: [
+          Container(
+            margin: EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
+            decoration: BoxDecoration(
+              color: DynamicTheme.getCardBackgroundColor(colorScheme),
+              borderRadius: BorderRadius.circular(AppConstants.capsuleCardBorderRadius),
+              boxShadow: [
+                BoxShadow(
+                  color: colorScheme.isDarkTheme
+                      ? Colors.black.withOpacity(AppConstants.shadowOpacityDark)
+                      : Colors.black.withOpacity(AppConstants.shadowOpacityLight),
+                  blurRadius: AppConstants.capsuleCardShadowBlur,
+                  spreadRadius: AppConstants.capsuleCardShadowSpread,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Padding(
         padding: EdgeInsets.all(AppTheme.spacingMd),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -856,6 +867,37 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
           ],
         ),
       ),
+            ),
+          // Heartbeat animation - only show on ready capsules (bottom right of card)
+          if (capsule.isUnlocked && !capsule.isOpened)
+            Positioned(
+              bottom: AppConstants.heartbeatBottomMargin,
+              right: AppConstants.heartbeatRightMargin,
+              child: HeartbeatAnimation(
+                size: AppConstants.heartbeatIconSize,
+                margin: EdgeInsets.zero, // No margin since we're positioning it manually
+              ),
+            ),
+          // Opened letter pulse animation - only show on opened capsules (bottom right of card)
+          if (capsule.isOpened)
+            Positioned(
+              bottom: AppConstants.openedLetterPulseBottomMargin,
+              right: AppConstants.openedLetterPulseRightMargin,
+              child: OpenedLetterPulse(
+                size: AppConstants.openedLetterPulseIconSize,
+                margin: EdgeInsets.zero, // No margin since we're positioning it manually
+              ),
+            ),
+          // Sealed letter animation - only show on locked capsules (bottom right of card)
+          // Animate only if unlock time is less than threshold away, otherwise show static lock icon
+          // This creates anticipation as the unlock time approaches
+          if (!capsule.isUnlocked && !capsule.isOpened)
+            Positioned(
+              bottom: AppConstants.sealedLetterBottomMargin,
+              right: AppConstants.sealedLetterRightMargin,
+              child: _buildSealedLetterIcon(capsule),
+            ),
+        ],
       ),
     );
   }

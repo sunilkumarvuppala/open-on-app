@@ -117,7 +117,11 @@ async def create_capsule(
         f"for recipient {capsule.recipient_id}"
     )
     
-    return CapsuleResponse.from_orm_with_profile(capsule)
+    # Eagerly load recipient to avoid lazy loading in async context
+    recipient_repo = RecipientRepository(session)
+    recipient = await recipient_repo.get_by_id(capsule.recipient_id)
+    
+    return CapsuleResponse.from_orm_with_profile(capsule, recipient=recipient)
 
 
 @router.get("", response_model=CapsuleListResponse)
