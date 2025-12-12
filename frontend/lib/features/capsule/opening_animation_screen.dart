@@ -121,7 +121,7 @@ class _OpeningAnimationScreenState extends ConsumerState<OpeningAnimationScreen>
                 child: Text(
                   'Skip',
                   style: TextStyle(
-                    color: AppColors.white,
+                    color: DynamicTheme.getPrimaryTextColor(colorScheme),
                     fontSize: AppConstants.openingAnimationSkipButtonFontSize,
                   ),
                 ),
@@ -145,7 +145,7 @@ class _OpeningAnimationScreenState extends ConsumerState<OpeningAnimationScreen>
                         height: AppConstants.openingAnimationCardHeight,
                         padding: EdgeInsets.all(AppTheme.spacingXl),
                         decoration: BoxDecoration(
-                          color: AppColors.white,
+                          color: DynamicTheme.getCardBackgroundColor(colorScheme),
                           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                           boxShadow: [
                             BoxShadow(
@@ -172,7 +172,7 @@ class _OpeningAnimationScreenState extends ConsumerState<OpeningAnimationScreen>
                             Text(
                               widget.capsule.label,
                               style: TextStyle(
-                                color: colorScheme.primary1,
+                                color: DynamicTheme.getPrimaryTextColor(colorScheme),
                                 fontSize: AppConstants.openingAnimationTitleFontSize,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -182,7 +182,7 @@ class _OpeningAnimationScreenState extends ConsumerState<OpeningAnimationScreen>
                             Text(
                               '${AppConstants.fromPrefix} ${widget.capsule.senderName}',
                               style: TextStyle(
-                                color: AppTheme.textGrey,
+                                color: DynamicTheme.getSecondaryTextColor(colorScheme),
                                 fontSize: AppConstants.openingAnimationSubtitleFontSize,
                               ),
                               textAlign: TextAlign.center,

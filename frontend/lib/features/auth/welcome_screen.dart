@@ -35,13 +35,13 @@ class WelcomeScreen extends ConsumerWidget {
                   width: 120,
                   height: 120,
                   decoration: BoxDecoration(
-                    color: AppColors.white.withOpacity(0.2),
+                    color: DynamicTheme.getCardBackgroundColor(colorScheme, opacity: AppTheme.opacityHigh),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.mail_outline,
                     size: 60,
-                    color: AppColors.white,
+                    color: DynamicTheme.getPrimaryIconColor(colorScheme),
                   ),
                 ),
                 
@@ -52,7 +52,7 @@ class WelcomeScreen extends ConsumerWidget {
                   'Send letters that unlock\nat the perfect moment',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                        color: AppColors.white,
+                        color: DynamicTheme.getPrimaryTextColor(colorScheme),
                         fontWeight: FontWeight.w700,
                         height: 1.3,
                       ),
@@ -65,7 +65,7 @@ class WelcomeScreen extends ConsumerWidget {
                   'Create emotional time capsules for the people you love',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppColors.white.withOpacity(0.9),
+                        color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityFull),
                         fontSize: 16,
                       ),
                 ),
@@ -76,7 +76,7 @@ class WelcomeScreen extends ConsumerWidget {
                   'Watch the magic unfold when the time is right',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.white.withOpacity(0.8),
+                        color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityAlmostFull2),
                       ),
                 ),
                 
@@ -88,19 +88,20 @@ class WelcomeScreen extends ConsumerWidget {
                   child: ElevatedButton(
                     onPressed: () => context.push(Routes.signup),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.white,
-                      foregroundColor: colorScheme.primary1,
+                      backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme),
+                      foregroundColor: DynamicTheme.getButtonTextColor(colorScheme),
                       padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
                       side: DynamicTheme.getButtonBorderSide(colorScheme),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                       ),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Get Started',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
+                        color: DynamicTheme.getButtonTextColor(colorScheme),
                       ),
                     ),
                   ),
@@ -113,18 +114,22 @@ class WelcomeScreen extends ConsumerWidget {
                   child: OutlinedButton(
                     onPressed: () => context.push(Routes.login),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.white,
-                      side: const BorderSide(color: AppColors.white, width: 2),
+                      foregroundColor: DynamicTheme.getOutlinedButtonTextColor(colorScheme),
+                      side: BorderSide(
+                        color: DynamicTheme.getOutlinedButtonBorderColor(colorScheme),
+                        width: 2,
+                      ),
                       padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                       ),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Log In',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
+                        color: DynamicTheme.getOutlinedButtonTextColor(colorScheme),
                       ),
                     ),
                   ),

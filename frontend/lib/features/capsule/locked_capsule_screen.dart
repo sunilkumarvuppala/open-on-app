@@ -146,8 +146,8 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
                         // Label
                         Text(
                           capsule.label,
-                          style: const TextStyle(
-                            color: AppColors.white,
+                          style: TextStyle(
+                            color: DynamicTheme.getPrimaryTextColor(colorScheme),
                             fontSize: 24,
                             fontWeight: FontWeight.w600,
                           ),
@@ -159,7 +159,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
                         Text(
                           'From ${capsule.senderName}',
                           style: TextStyle(
-                            color: AppColors.white.withOpacity(0.8),
+                            color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityAlmostFull2),
                             fontSize: 16,
                           ),
                         ),
@@ -173,7 +173,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
                             width: 200,
                             height: 200,
                             decoration: BoxDecoration(
-                              color: AppColors.white.withOpacity(0.1),
+                              color: DynamicTheme.getCardBackgroundColor(colorScheme, opacity: AppTheme.opacityMedium),
                               shape: BoxShape.circle,
                             ),
                             child: Stack(
@@ -185,14 +185,14 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
                                     value: 1.0 - (capsule.timeUntilUnlock.inSeconds / capsule.unlockAt.difference(capsule.createdAt).inSeconds),
                                     strokeWidth: 6,
                                     valueColor: AlwaysStoppedAnimation<Color>(colorScheme.secondary1),
-                                    backgroundColor: AppColors.white.withOpacity(0.2),
+                                    backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme, opacity: AppTheme.opacityHigh),
                                   ),
                                 
                                 // Envelope icon
                                 Icon(
                                   canOpen ? Icons.mail_outline : Icons.lock_outline,
                                   size: 70,
-                                  color: AppColors.white,
+                                  color: DynamicTheme.getPrimaryIconColor(colorScheme),
                                 ),
                               ],
                             ),
@@ -203,10 +203,10 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
                         
                         // Countdown or ready message
                         if (canOpen) ...[
-                          const Text(
+                          Text(
                             'Ready to open!',
                             style: TextStyle(
-                              color: AppColors.white,
+                              color: DynamicTheme.getPrimaryTextColor(colorScheme),
                               fontSize: 28,
                               fontWeight: FontWeight.w700,
                             ),
@@ -215,7 +215,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
                           Text(
                             'Tap the envelope to reveal your letter',
                             style: TextStyle(
-                              color: AppColors.white.withOpacity(0.9),
+                              color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityFull),
                               fontSize: 16,
                             ),
                             textAlign: TextAlign.center,
@@ -223,8 +223,8 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
                         ] else ...[
                           Text(
                             capsule.countdownText,
-                            style: const TextStyle(
-                              color: AppColors.white,
+                            style: TextStyle(
+                              color: DynamicTheme.getPrimaryTextColor(colorScheme),
                               fontSize: 48,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 2,
@@ -234,7 +234,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
                           Text(
                             'Until unlock',
                             style: TextStyle(
-                              color: AppColors.white.withOpacity(0.8),
+                              color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityAlmostFull2),
                               fontSize: 18,
                             ),
                           ),
@@ -242,7 +242,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
                           Text(
                             'Opens on ${DateFormat('MMMM d, y \'at\' h:mm a').format(capsule.unlockAt)}',
                             style: TextStyle(
-                              color: AppColors.white.withOpacity(0.7),
+                              color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityAlmostFull),
                               fontSize: 14,
                             ),
                             textAlign: TextAlign.center,
@@ -266,8 +266,8 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
                       icon: const Icon(Icons.share),
                       label: const Text('Share Countdown'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.white,
-                        foregroundColor: colorScheme.primary1,
+                        backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme),
+                        foregroundColor: DynamicTheme.getButtonTextColor(colorScheme),
                         padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
                         side: DynamicTheme.getButtonBorderSide(colorScheme),
                         shape: RoundedRectangleBorder(

@@ -169,10 +169,10 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
                           gradient: gradient,
                           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.mail,
                           size: AppConstants.openedLetterEnvelopeIconSize,
-                          color: AppColors.white,
+                          color: DynamicTheme.getPrimaryIconColor(colorScheme),
                         ),
                       ),
                     ),
@@ -198,14 +198,14 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
                           Text(
                             '${AppConstants.fromPrefix} ${capsule.senderName}',
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: AppTheme.textGrey,
+                                  color: DynamicTheme.getSecondaryTextColor(colorScheme),
                                 ),
                           ),
                           SizedBox(height: AppTheme.spacingXs),
                           Text(
                             '${AppConstants.openedOnPrefix} ${DateFormat('MMMM d, y \'at\' h:mm a').format(openedAt)}',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppTheme.textGrey,
+                                  color: DynamicTheme.getSecondaryTextColor(colorScheme),
                                 ),
                           ),
                         ],
@@ -219,7 +219,7 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
                       width: double.infinity,
                       padding: EdgeInsets.all(AppTheme.spacingLg),
                       decoration: BoxDecoration(
-                        color: AppColors.white,
+                        color: DynamicTheme.getCardBackgroundColor(colorScheme),
                         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                         boxShadow: [
                           BoxShadow(
@@ -239,6 +239,7 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                               height: AppConstants.openedLetterContentLineHeight,
                               fontSize: AppConstants.openedLetterContentFontSize,
+                              color: DynamicTheme.getPrimaryTextColor(colorScheme),
                             ),
                       ),
                     ),
@@ -271,10 +272,10 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
                     
                     // Reaction prompt
                     Text(
-                      AppConstants.howDoesThisMakeYouFeel,
+                        AppConstants.howDoesThisMakeYouFeel,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: AppColors.textDark,
+                              color: DynamicTheme.getPrimaryTextColor(colorScheme),
                           ),
                       textAlign: TextAlign.center,
                     ),
@@ -292,7 +293,7 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
                 vertical: AppTheme.spacingMd,
               ),
               decoration: BoxDecoration(
-                color: AppColors.white,
+                color: DynamicTheme.getCardBackgroundColor(colorScheme),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(
@@ -352,8 +353,8 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
             duration: AppConstants.animationDurationShort,
             child: Opacity(
               opacity: isDisabled ? AppConstants.opacityMediumHigh : 1.0,
-              child: Text(
-                emoji,
+            child: Text(
+              emoji,
                 style: const TextStyle(
                   fontSize: AppConstants.openedLetterReactionEmojiSize,
                 ),

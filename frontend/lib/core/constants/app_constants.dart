@@ -264,6 +264,11 @@ class AppConstants {
   static const int badgeSparkleCount = 2; // Number of sparkles in badge shimmer
   static const double badgeShimmerWidth = 40.0; // Width of shimmer sweep
   static const double badgeShimmerAngle = -0.7853981633974483; // -π/4 radians (diagonal angle for shimmer)
+  
+  // Badge dimensions and styling
+  static const double badgeFixedWidth = 110.0; // Fixed width for all status badges to ensure consistent alignment
+  static const double badgeColorLightenFactor = 0.3; // Factor for lightening locked badge color (30% blend with light color)
+  static const double badgeColorDarkenFactor = 0.2; // Factor for darkening opened badge color (20% blend with dark color)
 
   // Icon types for animations (using Material Icons)
   // Ready: sparkle/star for excitement, Opened: checkmark for completion, Sealed: lock for locked state

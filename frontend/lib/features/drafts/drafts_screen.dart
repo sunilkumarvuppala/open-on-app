@@ -153,7 +153,7 @@ class DraftsScreen extends ConsumerWidget {
     return Padding(
       padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
       child: Material(
-        color: Colors.white,
+        color: DynamicTheme.getCardBackgroundColor(colorScheme),
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         child: InkWell(
           onTap: () {
@@ -169,7 +169,9 @@ class DraftsScreen extends ConsumerWidget {
               borderRadius: BorderRadius.circular(AppTheme.radiusLg),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: colorScheme.isDarkTheme
+                      ? Colors.black.withOpacity(AppTheme.shadowOpacityHigh)
+                      : Colors.black.withOpacity(0.05),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -196,7 +198,7 @@ class DraftsScreen extends ConsumerWidget {
                       icon: Icon(
                         Icons.delete_outline,
                         size: 20,
-                        color: AppTheme.textGrey.withOpacity(0.6),
+                        color: DynamicTheme.getSecondaryIconColor(colorScheme),
                       ),
                       onPressed: () {
                         HapticFeedback.mediumImpact();
@@ -213,7 +215,7 @@ class DraftsScreen extends ConsumerWidget {
                 Text(
                   draft.snippet,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textGrey,
+                    color: DynamicTheme.getSecondaryTextColor(colorScheme),
                     height: 1.4,
                   ),
                   maxLines: 2,
@@ -227,13 +229,13 @@ class DraftsScreen extends ConsumerWidget {
                     Icon(
                       Icons.access_time,
                       size: 14,
-                      color: AppTheme.textGrey.withOpacity(0.6),
+                      color: DynamicTheme.getSecondaryIconColor(colorScheme),
                     ),
                     SizedBox(width: 4),
                     Text(
                       'Edited $lastEditedText',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textGrey.withOpacity(0.7),
+                        color: DynamicTheme.getSecondaryTextColor(colorScheme),
                       ),
                     ),
                   ],

@@ -274,7 +274,7 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                       onPressed: selectedRecipient != null ? widget.onNext : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colorScheme.primary1,
-                        foregroundColor: Colors.white,
+                        foregroundColor: DynamicTheme.getButtonTextColor(colorScheme),
                         side: DynamicTheme.getButtonBorderSide(colorScheme),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppTheme.radiusLg),

@@ -14,8 +14,16 @@ class ColorSchemeScreen extends ConsumerWidget {
     final currentScheme = ref.watch(selectedColorSchemeProvider);
 
     return Scaffold(
+      backgroundColor: currentScheme.secondary2,
       appBar: AppBar(
-        title: const Text('Choose Color Theme'),
+        backgroundColor: currentScheme.secondary2,
+        elevation: 0,
+        title: Text(
+          'Choose Color Theme',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: DynamicTheme.getPrimaryTextColor(currentScheme),
+              ),
+        ),
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back,

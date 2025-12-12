@@ -273,14 +273,14 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
                             color: colorScheme.primary1,
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: AppColors.white,
+                              color: DynamicTheme.getCardBackgroundColor(colorScheme),
                               width: 2,
                             ),
                           ),
                           child: Icon(
                             Icons.camera_alt,
                             size: 20,
-                            color: AppColors.white,
+                            color: DynamicTheme.getPrimaryIconColor(colorScheme),
                           ),
                         ),
                       ),
@@ -618,12 +618,12 @@ class _AddRecipientScreenState extends ConsumerState<AddRecipientScreen> {
                       ),
                     ),
                     child: _isLoading
-                        ? const SizedBox(
+                        ? SizedBox(
                             height: 24,
                             width: 24,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(DynamicTheme.getPrimaryIconColor(colorScheme)),
                             ),
                           )
                         : Text(isEditing ? 'Update Recipient' : 'Add Recipient'),
