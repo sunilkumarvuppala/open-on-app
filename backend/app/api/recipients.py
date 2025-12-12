@@ -134,10 +134,10 @@ async def list_recipients(
     Returns recipients ordered by most recently connected first.
     """
     from sqlalchemy import text
-    from uuid import uuid5, NAMESPACE_DNS
     from app.db.models import RecipientRelationship
     
     skip, limit = calculate_pagination(page, page_size)
+    recipient_repo = RecipientRepository(session)
     
     # Query connections directly (single source of truth)
     connections_result = await session.execute(
@@ -182,23 +182,63 @@ async def list_recipients(
         avatar_url = row[6] if len(row) > 6 else None
         connected_at = row[2]  # connected_at
         
-        # Build display name
+        # Build display name from profile
         display_name = " ".join(filter(None, [first_name, last_name])).strip()
         if not display_name:
             display_name = username or f"User {str(other_user_id)[:8]}"
         
-        # Generate deterministic UUID for recipient (matches what we use when auto-creating)
-        virtual_id = uuid5(NAMESPACE_DNS, f"connection_{current_user.user_id}_{other_user_id}")
+        # Look up actual recipient in database by owner_id and name
+        # Recipients are auto-created when connections are established
+        # We need to find the actual database record to get the real ID
+        recipient = None
+        recipients_list = await recipient_repo.get_by_owner(current_user.user_id)
+        for r in recipients_list:
+            # Match by name (recipients are created with the connected user's display name)
+            # Also check if email is NULL (connection-based recipients have NULL email)
+            if r.email is None and r.name == display_name:
+                recipient = r
+                break
+            # Also try matching by name similarity (in case names don't match exactly)
+            if r.email is None and (
+                (first_name and first_name in r.name) or
+                (last_name and last_name in r.name) or
+                (username and username in r.name)
+            ):
+                recipient = r
+                break
         
+        # If recipient doesn't exist in database, create it
+        # This can happen if connection was established but recipient creation failed
+        if not recipient:
+            logger.warning(
+                f"Recipient not found in database for connection between {current_user.user_id} and {other_user_id}. "
+                f"Recipient should have been auto-created. Creating now..."
+            )
+            try:
+                recipient = await recipient_repo.create(
+                    owner_id=current_user.user_id,
+                    name=display_name,
+                    email=None,  # NULL email indicates connection-based recipient
+                    avatar_url=avatar_url,
+                    relationship=RecipientRelationship.FRIEND
+                )
+                await session.flush()  # Flush to ensure recipient is available
+                logger.info(f"Created missing recipient {recipient.id} for user {current_user.user_id}")
+            except Exception as e:
+                logger.error(f"Failed to create recipient: {e}")
+                # If creation fails, we can't proceed - this is an error condition
+                continue  # Skip this connection
+        
+        # Use actual database recipient ID
         recipient_response = RecipientResponse(
-            id=virtual_id,
+            id=recipient.id,  # Use actual database ID, not virtual ID
             owner_id=current_user.user_id,
-            name=display_name,
+            name=recipient.name or display_name,
             email=None,  # Connections don't have email
-            avatar_url=avatar_url,
-            relationship=RecipientRelationship.FRIEND,
-            created_at=connected_at,
-            updated_at=connected_at,
+            avatar_url=recipient.avatar_url or avatar_url,
+            relationship=recipient.relationship or RecipientRelationship.FRIEND,
+            created_at=recipient.created_at or connected_at,
+            updated_at=recipient.updated_at or connected_at,
             linked_user_id=other_user_id
         )
         recipient_responses.append(recipient_response)

@@ -100,9 +100,15 @@ class CapsuleRepository(BaseRepository[Capsule]):
         super().__init__(Capsule, session)
     
     async def get_by_id(self, id: UUID) -> Optional[Capsule]:
-        """Get capsule by ID (UUID)."""
+        """Get capsule by ID (UUID) with eager loaded relationships."""
+        from sqlalchemy.orm import selectinload
         result = await self.session.execute(
-            select(Capsule).where(Capsule.id == id)
+            select(Capsule)
+            .options(
+                selectinload(Capsule.sender_profile),
+                selectinload(Capsule.recipient)
+            )
+            .where(Capsule.id == id)
         )
         return result.scalar_one_or_none()
     
@@ -127,10 +133,18 @@ class CapsuleRepository(BaseRepository[Capsule]):
         """
         from app.core.config import settings
         
-        query = select(Capsule).where(
-            and_(
-                Capsule.sender_id == sender_id,
-                Capsule.deleted_at.is_(None)  # Exclude soft-deleted
+        from sqlalchemy.orm import selectinload
+        query = (
+            select(Capsule)
+            .options(
+                selectinload(Capsule.sender_profile),
+                selectinload(Capsule.recipient)
+            )
+            .where(
+                and_(
+                    Capsule.sender_id == sender_id,
+                    Capsule.deleted_at.is_(None)  # Exclude soft-deleted
+                )
             )
         )
         
@@ -234,8 +248,13 @@ class CapsuleRepository(BaseRepository[Capsule]):
         # Query capsules where recipient email matches (case-insensitive, handle NULL)
         # Use LOWER() for case-insensitive comparison and ensure email is not NULL
         from sqlalchemy import func
+        from sqlalchemy.orm import selectinload
         query = (
             select(Capsule)
+            .options(
+                selectinload(Capsule.sender_profile),
+                selectinload(Capsule.recipient)
+            )
             .join(Recipient, Capsule.recipient_id == Recipient.id)
             .where(
                 and_(
@@ -286,6 +305,298 @@ class CapsuleRepository(BaseRepository[Capsule]):
         
         result = await self.session.execute(query)
         return result.scalar() or 0
+    
+    async def get_by_recipient_connection(
+        self,
+        user_id: UUID,
+        user_display_name: str,
+        status: Optional[CapsuleStatus] = None,
+        skip: int = 0,
+        limit: Optional[int] = None
+    ) -> list[Capsule]:
+        """
+        Get capsules for connection-based recipients (where recipient.email IS NULL).
+        
+        This is used for inbox queries when recipients are connection-based.
+        Finds capsules where:
+        - Recipient.email IS NULL (connection-based recipient)
+        - There's a connection between sender and current user
+        - Recipient name matches current user's display name
+        
+        Args:
+            user_id: Current user's ID (the receiver)
+            user_display_name: Current user's display name (for matching recipient name)
+            status: Optional status filter
+            skip: Number of records to skip (for pagination)
+            limit: Maximum number of records to return
+            
+        Returns:
+            List of capsules for connection-based recipients
+        """
+        from app.core.config import settings
+        from sqlalchemy import select, and_, or_, func, text, bindparam, table, column
+        from app.db.models import Recipient
+        
+        # Create table reference for connections (no model exists)
+        connections_table = table(
+            'connections',
+            column('user_id_1'),
+            column('user_id_2')
+        )
+        
+        # Build connection exists subquery using parameterized bindings
+        # Connection exists if: (user_id_1 = user_id AND user_id_2 = sender_id) 
+        #                    OR (user_id_2 = user_id AND user_id_1 = sender_id)
+        connection_subquery = (
+            select(1)
+            .select_from(connections_table)
+            .where(
+                or_(
+                    and_(
+                        connections_table.c.user_id_1 == bindparam('user_id'),
+                        connections_table.c.user_id_2 == Capsule.sender_id
+                    ),
+                    and_(
+                        connections_table.c.user_id_2 == bindparam('user_id'),
+                        connections_table.c.user_id_1 == Capsule.sender_id
+                    )
+                )
+            )
+        ).exists()
+        
+        # Build the main query with eager loading
+        from sqlalchemy.orm import selectinload
+        query = (
+            select(Capsule)
+            .options(
+                selectinload(Capsule.sender_profile),
+                selectinload(Capsule.recipient)
+            )
+            .join(Recipient, Capsule.recipient_id == Recipient.id)
+            .where(
+                and_(
+                    Recipient.email.is_(None),  # Connection-based recipients have NULL email
+                    Recipient.name == user_display_name,  # Match by display name
+                    Capsule.deleted_at.is_(None),  # Exclude soft-deleted
+                    connection_subquery  # Connection exists between sender and receiver
+                )
+            )
+        )
+        
+        # Apply status filter if provided
+        if status:
+            query = query.where(Capsule.status == status)
+        
+        # Apply pagination
+        query = query.order_by(Capsule.created_at.desc()).offset(skip)
+        if limit is not None:
+            query = query.limit(limit)
+        else:
+            query = query.limit(settings.default_page_size)
+        
+        # Execute with parameters
+        result = await self.session.execute(
+            query,
+            {"user_id": user_id}
+        )
+        return list(result.scalars().all())
+    
+    async def count_by_recipient_connection(
+        self,
+        user_id: UUID,
+        user_display_name: str,
+        status: Optional[CapsuleStatus] = None
+    ) -> int:
+        """Count capsules for connection-based recipients."""
+        from sqlalchemy import select, and_, or_, func, bindparam, table, column
+        from app.db.models import Recipient
+        
+        # Create table reference for connections
+        connections_table = table(
+            'connections',
+            column('user_id_1'),
+            column('user_id_2')
+        )
+        
+        # Build connection exists subquery
+        connection_subquery = (
+            select(1)
+            .select_from(connections_table)
+            .where(
+                or_(
+                    and_(
+                        connections_table.c.user_id_1 == bindparam('user_id'),
+                        connections_table.c.user_id_2 == Capsule.sender_id
+                    ),
+                    and_(
+                        connections_table.c.user_id_2 == bindparam('user_id'),
+                        connections_table.c.user_id_1 == Capsule.sender_id
+                    )
+                )
+            )
+        ).exists()
+        
+        query = (
+            select(func.count())
+            .select_from(Capsule)
+            .join(Recipient, Capsule.recipient_id == Recipient.id)
+            .where(
+                and_(
+                    Recipient.email.is_(None),
+                    Recipient.name == user_display_name,
+                    Capsule.deleted_at.is_(None),
+                    connection_subquery
+                )
+            )
+        )
+        
+        if status:
+            query = query.where(Capsule.status == status)
+        
+        result = await self.session.execute(
+            query,
+            {"user_id": user_id}
+        )
+        return result.scalar() or 0
+    
+    async def get_inbox_capsules(
+        self,
+        user_id: UUID,
+        user_email: Optional[str],
+        user_display_name: Optional[str],
+        status: Optional[CapsuleStatus] = None,
+        skip: int = 0,
+        limit: Optional[int] = None
+    ) -> tuple[list[Capsule], int]:
+        """
+        Get inbox capsules using optimized unified query.
+        
+        Handles both email-based and connection-based recipients in a single
+        database query with proper pagination at the database level.
+        
+        Args:
+            user_id: Current user's ID (the receiver)
+            user_email: Current user's email (for email-based matching)
+            user_display_name: Current user's display name (for connection-based matching)
+            status: Optional status filter
+            skip: Number of records to skip (for pagination)
+            limit: Maximum number of records to return
+            
+        Returns:
+            Tuple of (capsules list, total count)
+        """
+        from app.core.config import settings
+        from sqlalchemy import select, and_, or_, func, bindparam, table, column
+        from app.db.models import Recipient
+        
+        # Create table reference for connections
+        connections_table = table(
+            'connections',
+            column('user_id_1'),
+            column('user_id_2')
+        )
+        
+        # Build connection exists subquery
+        connection_subquery = (
+            select(1)
+            .select_from(connections_table)
+            .where(
+                or_(
+                    and_(
+                        connections_table.c.user_id_1 == bindparam('user_id'),
+                        connections_table.c.user_id_2 == Capsule.sender_id
+                    ),
+                    and_(
+                        connections_table.c.user_id_2 == bindparam('user_id'),
+                        connections_table.c.user_id_1 == Capsule.sender_id
+                    )
+                )
+            )
+        ).exists()
+        
+        # Build recipient matching conditions
+        # Capsule matches if: (email matches) OR (connection-based recipient matches)
+        recipient_conditions = []
+        
+        # Email-based matching condition
+        if user_email:
+            email_condition = and_(
+                Recipient.email.isnot(None),
+                func.lower(Recipient.email) == func.lower(bindparam('user_email'))
+            )
+            recipient_conditions.append(email_condition)
+        
+        # Connection-based matching condition
+        if user_display_name:
+            connection_condition = and_(
+                Recipient.email.is_(None),
+                Recipient.name == bindparam('user_display_name'),
+                connection_subquery
+            )
+            recipient_conditions.append(connection_condition)
+        
+        # Combine recipient conditions with OR (capsule matches if either condition is true)
+        if not recipient_conditions:
+            # No matching conditions, return empty result
+            return [], 0
+        
+        recipient_match = or_(*recipient_conditions) if len(recipient_conditions) > 1 else recipient_conditions[0]
+        
+        # Final condition includes soft-delete check
+        final_condition = and_(
+            Capsule.deleted_at.is_(None),  # Always exclude soft-deleted
+            recipient_match
+        )
+        
+        # Build the main query with eager loading
+        from sqlalchemy.orm import selectinload
+        query = (
+            select(Capsule)
+            .options(
+                selectinload(Capsule.sender_profile),
+                selectinload(Capsule.recipient)
+            )
+            .join(Recipient, Capsule.recipient_id == Recipient.id)
+            .where(final_condition)
+        )
+        
+        # Apply status filter if provided
+        if status:
+            query = query.where(Capsule.status == status)
+        
+        # Build count query (same conditions, just count)
+        count_query = (
+            select(func.count())
+            .select_from(Capsule)
+            .join(Recipient, Capsule.recipient_id == Recipient.id)
+            .where(final_condition)
+        )
+        if status:
+            count_query = count_query.where(Capsule.status == status)
+        
+        # Prepare parameters
+        params = {"user_id": user_id}
+        if user_email:
+            params["user_email"] = user_email
+        if user_display_name:
+            params["user_display_name"] = user_display_name
+        
+        # Execute count query
+        count_result = await self.session.execute(count_query, params)
+        total = count_result.scalar() or 0
+        
+        # Apply pagination to main query
+        query = query.order_by(Capsule.created_at.desc()).offset(skip)
+        if limit is not None:
+            query = query.limit(limit)
+        else:
+            query = query.limit(settings.default_page_size)
+        
+        # Execute main query
+        result = await self.session.execute(query, params)
+        capsules = list(result.scalars().all())
+        
+        return capsules, total
     
     async def get_by_recipient_ids(
         self,

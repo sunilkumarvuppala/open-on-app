@@ -224,20 +224,24 @@ class StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return AnimatedContainer(
+      duration: AppConstants.badgeAnimationDuration,
+      curve: Curves.easeInOut,
       padding: const EdgeInsets.symmetric(
-        horizontal: AppTheme.spacingMd,
+        horizontal: AppTheme.spacingSm,
         vertical: AppTheme.spacingSm,
       ),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
       ),
       child: Text(
         text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: textColor,
-          fontSize: 12,
+          fontSize: 10,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -437,7 +441,7 @@ class _AnimatedUnlockingSoonBadgeState
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             child: Stack(
               children: [
-                // Base badge with fixed color
+                // Base badge with fixed color - using StatusPill like "Ready to Open"
                 StatusPill(
                   text: 'Unlocking Soon',
                   backgroundColor: badgeColor,

@@ -119,10 +119,24 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
     return combined.isAfter(minTime);
   }
   
+  String? get _validationMessage {
+    final combined = _combinedDateTime;
+    if (combined == null) return null;
+    
+    final now = DateTime.now();
+    final minTime = now.add(const Duration(minutes: 5));
+    
+    if (!combined.isAfter(minTime)) {
+      return 'Please select a time at least 5 minutes in the future';
+    }
+    
+    return null;
+  }
+  
   void _saveAndContinue() {
     if (!_isValidTime) {
       setState(() {
-        _errorMessage = 'Please select a time at least 5 minutes in the future';
+        _errorMessage = _validationMessage;
       });
       return;
     }
@@ -306,7 +320,7 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                   ),
                 ),
                 
-                if (_combinedDateTime != null) ...[
+                if (_combinedDateTime != null && _isValidTime) ...[
                   SizedBox(height: AppTheme.spacingMd),
                   Container(
                     padding: EdgeInsets.all(AppTheme.spacingMd),
@@ -338,7 +352,8 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                   ),
                 ],
                 
-                if (_errorMessage != null) ...[
+                // Show validation error message when time is invalid or when explicitly set
+                if ((_validationMessage != null || _errorMessage != null)) ...[
                   SizedBox(height: AppTheme.spacingMd),
                   Container(
                     padding: EdgeInsets.all(AppTheme.spacingSm),
@@ -353,7 +368,7 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                         SizedBox(width: AppTheme.spacingSm),
                         Expanded(
                           child: Text(
-                            _errorMessage!,
+                            _validationMessage ?? _errorMessage ?? '',
                             style: TextStyle(color: AppColors.error, fontSize: 14),
                           ),
                         ),
