@@ -103,8 +103,8 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
                 _buildNavItem(
                   context: context,
                   icon: Icons.inbox_outlined,
-                  activeIcon: Icons.inbox_outlined,
-                  label: 'Inbox',
+                  activeIcon: Icons.inbox,
+                  label: 'Receive',
                   index: 0,
                   colorScheme: colorScheme,
                   animationController: _animationController,
@@ -112,8 +112,8 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
                 _buildNavItem(
                   context: context,
                   icon: Icons.send_outlined,
-                  activeIcon: Icons.send_outlined,
-                  label: 'Outbox',
+                  activeIcon: Icons.send,
+                  label: 'Send',
                   index: 1,
                   colorScheme: colorScheme,
                   animationController: _animationController,

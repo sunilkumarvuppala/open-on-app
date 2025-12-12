@@ -5,6 +5,7 @@ class AppConstants {
 
   // Capsule status thresholds
   static const int unlockingSoonDaysThreshold = 7;
+  static const int arrowDisplayDaysThreshold = 3; // Show arrow only if unlock time is within 3 days
   static const int maxContentLength = 10000;
   static const int maxTitleLength = 200;
   static const int maxLabelLength = 100;
@@ -139,8 +140,11 @@ class AppConstants {
   static const double capsuleCardIconSize = 64.0;
   static const double capsuleCardIconInnerSize = 32.0;
   static const double capsuleCardChevronSize = 18.0;
+  static const double capsuleCardChevronSizeSmall = 14.0; // Smaller, less prominent arrow
+  static const double capsuleCardChevronOpacity = 0.5; // Reduced opacity for subtle "sealed envelope" feel
   static const double capsuleCardBadgeIndicatorSize = 10.0;
   static const double capsuleCardBadgeBorderWidth = 1.5;
+  static const double capsuleCardAvatarSize = 48.0; // Profile avatar size on capsule cards
   
   // Capsule card text sizes
   static const double capsuleCardTitleFontSize = 16.0;
@@ -213,45 +217,53 @@ class AppConstants {
   static const List<String> reactionEmojis = ['❤️', '😭', '🤗', '😍', '🥰'];
 
   // Heartbeat animation constants
-  static const double heartbeatIconSize = 24.0;
-  static const double heartbeatIconSizeMin = 20.0; // Minimum scale (83% of base) - resting size
-  static const double heartbeatIconSizeSmall = 25.0; // Small beat size (104% of base) - "lub"
-  static const double heartbeatIconSizeBig = 30.0; // Big beat size (125% of base) - "dub"
+  static const double heartbeatIconSize = 20.4; // Reduced by 15% from 24.0
+  static const double heartbeatIconSizeMin = 17.0; // Minimum scale (83% of base) - resting size, reduced by 15%
+  static const double heartbeatIconSizeSmall = 21.25; // Small beat size (104% of base) - "lub", reduced by 15%
+  static const double heartbeatIconSizeBig = 25.5; // Big beat size (125% of base) - "dub", reduced by 15%
   static const Duration heartbeatSmallBeatDuration = Duration(milliseconds: 200); // Small beat duration
   static const Duration heartbeatBigBeatDuration = Duration(milliseconds: 300); // Big beat duration
   static const Duration heartbeatPauseDuration = Duration(milliseconds: 150); // Pause between beats
   static const Duration heartbeatCycleDuration = Duration(milliseconds: 1200); // Full cycle (lub-pause-dub-longpause)
   static const double heartbeatBottomMargin = 16.0;
-  static const double heartbeatRightMargin = 16.0;
+  static const double heartbeatRightMargin = 19.5; // Moved 3.5px inward from right edge (was 16.0)
   // Heartbeat color: Dark red (#C62828) - darker than standard red for better visibility
   static const int heartbeatColorValue = 0xFFC62828;
+  static const double heartbeatOpacity = 0.7; // Reduced opacity for subtle appearance
 
   // Opened letter pulse animation constants
-  static const double openedLetterPulseIconSize = 24.0;
-  static const double openedLetterPulseIconSizeMin = 22.0; // Minimum scale (92% of base) - gentle pulse
-  static const double openedLetterPulseIconSizeMax = 26.0; // Maximum scale (108% of base) - gentle expansion
+  static const double openedLetterPulseIconSize = 20.4; // Reduced by 15% from 24.0
+  static const double openedLetterPulseIconSizeMin = 18.7; // Minimum scale (92% of base) - gentle pulse, reduced by 15%
+  static const double openedLetterPulseIconSizeMax = 22.1; // Maximum scale (108% of base) - gentle expansion, reduced by 15%
   static const Duration openedLetterPulseCycleDuration = Duration(milliseconds: 2000); // Slow, gentle breathing cycle
   static const double openedLetterPulseBottomMargin = 16.0;
-  static const double openedLetterPulseRightMargin = 16.0;
+  static const double openedLetterPulseRightMargin = 19.5; // Moved 3.5px inward from right edge (was 16.0)
   // Opened letter pulse color: Soft green (#4CAF50) - success/completion color
   static const int openedLetterPulseColorValue = 0xFF4CAF50;
+  static const double openedLetterPulseOpacity = 0.7; // Reduced opacity for subtle appearance
 
   // Capsule list spacing constants
-  static const double capsuleListItemSpacing = 3; // Spacing between capsule items in lists (tight layout for better density)
+  static const double capsuleListItemSpacing = 5.0; // Spacing between capsule items in lists (tight layout for better density)
 
   // Sealed letter animation constants (for locked capsules)
-  static const double sealedLetterIconSize = 24.0;
+  static const double sealedLetterIconSize = 20.4; // Reduced by 15% from 24.0
   static const double sealedLetterRotationAngle = 0.3; // Rotation angle in radians (about 17 degrees) - left and right
   static const Duration sealedLetterShakeDuration = Duration(milliseconds: 150); // Duration of each rapid left-right rotation
   static const Duration sealedLetterPauseDuration = Duration(milliseconds: 400); // Pause duration before repeating
   static const Duration sealedLetterCycleDuration = Duration(milliseconds: 1000); // Full cycle (4 shakes + pause = 4*150 + 400 = 1000ms)
   static const double sealedLetterBottomMargin = 16.0;
-  static const double sealedLetterRightMargin = 16.0;
+  static const double sealedLetterRightMargin = 19.5; // Moved 3.5px inward from right edge (was 16.0)
   // Sealed letter color: Deep purple/indigo (#5C6BC0) - mysterious, locked appearance
   static const int sealedLetterColorValue = 0xFF5C6BC0;
+  static const double sealedLetterOpacity = 0.7; // Reduced opacity for subtle appearance
   // Animation threshold: only animate if unlock time is less than this duration away
   // Using Duration for precise comparison (6 hours = 21600 seconds)
   static const Duration sealedLetterAnimationThreshold = Duration(hours: 6);
+  
+  // Badge shimmer animation constants
+  static const int badgeSparkleCount = 2; // Number of sparkles in badge shimmer
+  static const double badgeShimmerWidth = 40.0; // Width of shimmer sweep
+  static const double badgeShimmerAngle = -0.7853981633974483; // -π/4 radians (diagonal angle for shimmer)
 
   // Icon types for animations (using Material Icons)
   // Ready: sparkle/star for excitement, Opened: checkmark for completion, Sealed: lock for locked state

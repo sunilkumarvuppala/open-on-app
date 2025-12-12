@@ -107,7 +107,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                               error: (_, __) => const Text('Hi 👋'),
                             ),
                             Text(
-                              'Your time capsules',
+                              'Your outgoing letters',
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
                           ],
@@ -870,8 +870,6 @@ class _CapsuleCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = ref.watch(selectedColorSchemeProvider);
-    final softGradient = DynamicTheme.softGradient(colorScheme);
-    final dreamyGradient = DynamicTheme.dreamyGradient(colorScheme);
 
     return RepaintBoundary(
       child: Stack(
@@ -898,40 +896,22 @@ class _CapsuleCard extends ConsumerWidget {
             child: Padding(
               padding: EdgeInsets.all(AppTheme.spacingMd),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Left: Square icon with rounded corners (reference style)
-                  Container(
-                    width: AppConstants.capsuleCardIconSize,
-                    height: AppConstants.capsuleCardIconSize,
-                    decoration: BoxDecoration(
-                      gradient:
-                          capsule.isOpened ? softGradient : dreamyGradient,
-                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                    ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Icon(
-                          capsule.isOpened
-                              ? Icons.mark_email_read_outlined
-                              : Icons.mail_outline,
-                          color: Colors.white,
-                          size: AppConstants.capsuleCardIconInnerSize,
-                        ),
-                      ],
-                    ),
+                  // Left: Recipient profile avatar
+                  UserAvatar(
+                    imageUrl: capsule.receiverAvatar.isNotEmpty ? capsule.receiverAvatar : null,
+                    name: capsule.recipientName,
+                    size: AppConstants.capsuleCardAvatarSize,
                   ),
-
                   SizedBox(width: AppTheme.spacingMd),
-
                   // Middle: Text content - expanded to take most space
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Top row: Recipient name and badge (top-right)
+                        // Top section: Recipient name (bold) and Badge (top-right)
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -966,7 +946,7 @@ class _CapsuleCard extends ConsumerWidget {
                                   : capsule.isUnlocked
                                       ? StatusPill.readyToOpen()
                                       : capsule.isUnlockingSoon
-                                          ? AnimatedUnlockingSoonBadge()
+                                          ? AnimatedUnlockingSoonBadge(capsule: capsule)
                                           : StatusPill.lockedDynamic(
                                               colorScheme.primary1),
                             ),
@@ -975,27 +955,31 @@ class _CapsuleCard extends ConsumerWidget {
 
                         SizedBox(height: AppConstants.capsuleCardTitleSpacing),
 
-                        // Subtitle: Label (bold, slightly smaller)
-                        Text(
-                          capsule.label,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyLarge
-                              ?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: DynamicTheme.getPrimaryTextColor(
-                                    colorScheme),
-                                fontSize: AppConstants.capsuleCardLabelFontSize,
-                                height: AppConstants.textLineHeightTight,
-                              ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        // Subject (regular weight) - single line with ellipsis
+                        Flexible(
+                          child: Text(
+                            capsule.label,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w400, // Regular weight
+                                  color: DynamicTheme.getPrimaryTextColor(
+                                      colorScheme),
+                                  fontSize: AppConstants.capsuleCardLabelFontSize,
+                                  height: AppConstants.textLineHeightTight,
+                                ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false, // Prevent wrapping
+                          ),
                         ),
 
-                        SizedBox(height: AppConstants.capsuleCardLabelSpacing),
+                        SizedBox(height: AppConstants.capsuleCardLabelSpacing * 1.5),
 
-                        // Date/time (smaller, lighter grey)
+                        // Bottom left: Date
                         Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
                               capsule.isOpened
@@ -1007,7 +991,7 @@ class _CapsuleCard extends ConsumerWidget {
                             ),
                             SizedBox(
                                 width: AppConstants.capsuleCardDateIconSpacing),
-                            Expanded(
+                            Flexible(
                               child: Text(
                                 capsule.isOpened
                                     ? 'Opened ${_dateFormat.format(capsule.openedAt!)}'
@@ -1020,6 +1004,7 @@ class _CapsuleCard extends ConsumerWidget {
                                           colorScheme),
                                       fontSize:
                                           AppConstants.capsuleCardDateFontSize,
+                                      fontWeight: FontWeight.w500, // Medium weight
                                       height: AppConstants.textLineHeightTight,
                                     ),
                                 maxLines: 1,
@@ -1029,37 +1014,7 @@ class _CapsuleCard extends ConsumerWidget {
                           ],
                         ),
 
-                        // Countdown - below date/time
-                        if (!capsule.isOpened && !capsule.isUnlocked) ...[
-                          SizedBox(
-                              height: AppConstants.capsuleCardLabelSpacing),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.timer_outlined,
-                                size: AppConstants.capsuleCardCountdownIconSize,
-                                color: colorScheme.primary1,
-                              ),
-                              SizedBox(
-                                  width: AppConstants
-                                      .capsuleCardCountdownIconSpacing),
-                              CountdownDisplay(
-                                duration: capsule.timeUntilUnlock,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: colorScheme.primary1,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: AppConstants
-                                          .capsuleCardCountdownFontSize,
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ],
-
-                        // Reaction - below countdown if present
+                        // Reaction - below badge if present
                         if (capsule.reaction != null) ...[
                           SizedBox(
                               height: AppConstants.capsuleCardLabelSpacing),
@@ -1068,7 +1023,8 @@ class _CapsuleCard extends ConsumerWidget {
                               Icon(
                                 Icons.favorite_outline,
                                 size: AppConstants.capsuleCardCountdownIconSize,
-                                color: colorScheme.primary1,
+                                color: DynamicTheme.getSecondaryTextColor(
+                                    colorScheme),
                               ),
                               SizedBox(
                                   width: AppConstants
@@ -1090,15 +1046,6 @@ class _CapsuleCard extends ConsumerWidget {
                         ],
                       ],
                     ),
-                  ),
-
-                  SizedBox(width: AppTheme.spacingSm),
-
-                  // Right: Small chevron icon (reference style)
-                  Icon(
-                    Icons.chevron_right_outlined,
-                    color: DynamicTheme.getSecondaryIconColor(colorScheme),
-                    size: AppConstants.capsuleCardChevronSize,
                   ),
                 ],
               ),
@@ -1168,10 +1115,13 @@ class _CapsuleCard extends ConsumerWidget {
 
     // Static icon for capsules with unlock time >= threshold
     // Matches animated icon appearance exactly for visual consistency
-    return Icon(
-      Icons.lock_outline,
-      size: AppConstants.sealedLetterIconSize,
-      color: Color(AppConstants.sealedLetterColorValue),
+    return Opacity(
+      opacity: AppConstants.sealedLetterOpacity,
+      child: Icon(
+        Icons.lock_outline,
+        size: AppConstants.sealedLetterIconSize,
+        color: Color(AppConstants.sealedLetterColorValue),
+      ),
     );
   }
 }

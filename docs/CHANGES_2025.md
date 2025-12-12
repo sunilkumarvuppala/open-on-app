@@ -706,8 +706,8 @@ supabase db reset  # Or apply migrations manually
 
 1. **Connections Feature**: [CONNECTIONS.md](./frontend/features/CONNECTIONS.md)
 2. **Changes Documentation**: This file
-3. **Security Audit**: [SECURITY_AUDIT.md](../SECURITY_AUDIT.md)
-4. **Final Code Review**: [FINAL_CODE_REVIEW.md](../FINAL_CODE_REVIEW.md)
+3. **Security**: See [backend/SECURITY.md](./backend/SECURITY.md)
+4. **Refactoring**: See [REFACTORING.md](./REFACTORING.md)
 
 ### Updated Documentation
 

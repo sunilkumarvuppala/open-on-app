@@ -41,7 +41,7 @@ flutter run
 
 ## 📚 Documentation
 
-**📖 Complete Documentation**: See [docs/README.md](./docs/README.md) for overview or [docs/INDEX.md](./docs/INDEX.md) for master index
+**📖 Complete Documentation**: See [docs/README.md](./docs/README.md) for documentation overview (start here!)
 
 **🚀 Quick Start**:
 - **New developers**: Start with [docs/ONBOARDING.md](./docs/ONBOARDING.md)

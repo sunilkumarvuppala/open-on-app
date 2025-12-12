@@ -170,12 +170,19 @@ async def list_capsules(
         user_profile_repo = UserProfileRepository(session)
         user_profile = await user_profile_repo.get_by_id(current_user.user_id)
         
-        # Build user display name
+        # Build user display name (normalized for matching)
+        # This must match how recipient names are stored when connections are created
         user_display_name = None
         if user_profile:
-            user_display_name = " ".join(filter(None, [user_profile.first_name, user_profile.last_name])).strip()
+            # Build display name from first_name and last_name (same logic as connection service)
+            name_parts = []
+            if user_profile.first_name:
+                name_parts.append(user_profile.first_name.strip())
+            if user_profile.last_name:
+                name_parts.append(user_profile.last_name.strip())
+            user_display_name = " ".join(name_parts).strip()
             if not user_display_name:
-                user_display_name = user_profile.username or f"User {str(current_user.user_id)[:8]}"
+                user_display_name = (user_profile.username or f"User {str(current_user.user_id)[:8]}").strip()
         
         # Use optimized unified query that handles both email-based and connection-based recipients
         # This applies pagination at the database level for better performance
@@ -240,7 +247,13 @@ async def get_capsule(
     )
     
     # Get capsule (already verified to exist by verify_capsule_access)
+    # get_by_id eagerly loads sender_profile and recipient relationships
     capsule = await capsule_repo.get_by_id(capsule_id)
+    if not capsule:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Capsule not found"
+        )
     
     # Recipients can only view if status is ready or opened
     if is_recipient and not is_sender:
@@ -250,6 +263,7 @@ async def get_capsule(
                 detail=f"Capsule is not ready yet (current status: {capsule.status.value})"
             )
     
+    # get_by_id already eagerly loads relationships, so from_orm_with_profile is safe
     return CapsuleResponse.from_orm_with_profile(capsule)
 
 
@@ -303,7 +317,16 @@ async def update_capsule(
     
     logger.info(f"Capsule {capsule_id} updated by user {current_user.user_id}")
     
-    return CapsuleResponse.model_validate(updated_capsule)
+    # Reload capsule with relationships to ensure all data is available
+    # update() returns capsule but relationships may not be loaded
+    capsule_with_relations = await capsule_repo.get_by_id(capsule_id)
+    if not capsule_with_relations:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Capsule not found after update"
+        )
+    
+    return CapsuleResponse.from_orm_with_profile(capsule_with_relations)
 
 
 @router.post("/{capsule_id}/open", response_model=CapsuleResponse)
@@ -355,7 +378,17 @@ async def open_capsule(
     
     logger.info(f"Capsule {capsule_id} opened by user {current_user.user_id}")
     
-    return CapsuleResponse.model_validate(updated_capsule)
+    # Eagerly load recipient to avoid lazy loading in async context
+    # get_by_id already loads relationships, but transition_status uses update() which doesn't
+    # Reload capsule with relationships to ensure all data is available
+    capsule_with_relations = await capsule_repo.get_by_id(capsule_id)
+    if not capsule_with_relations:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Capsule not found after update"
+        )
+    
+    return CapsuleResponse.from_orm_with_profile(capsule_with_relations)
 
 
 @router.delete("/{capsule_id}", response_model=MessageResponse)

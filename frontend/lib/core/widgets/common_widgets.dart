@@ -6,6 +6,7 @@ import '../providers/providers.dart';
 import '../theme/dynamic_theme.dart';
 import '../theme/color_scheme.dart';
 import '../constants/app_constants.dart';
+import '../models/models.dart';
 
 /// Custom gradient button with consistent styling
 class GradientButton extends StatelessWidget {
@@ -93,13 +94,13 @@ class UserAvatar extends ConsumerWidget {
         shape: BoxShape.circle,
         gradient: gradient,
         border: Border.all(
-          color: colorScheme.accent.withOpacity(0.8),
+          color: colorScheme.accent.withOpacity(0.65), // Reduced from 0.8 (18.75% reduction) for softer appearance
           width: 1.0,
         ),
         boxShadow: [
-          // Reduced glow
+          // Reduced glow - softer to match border
           BoxShadow(
-            color: colorScheme.accent.withOpacity(0.2),
+            color: colorScheme.accent.withOpacity(0.15), // Reduced from 0.2 for softer glow
             blurRadius: 12,
             spreadRadius: 1,
           ),
@@ -385,8 +386,14 @@ class CountdownDisplay extends StatelessWidget {
 }
 
 /// Animated unlocking soon badge with lightweight sparkle twinkle animation
+/// Displays countdown time instead of "Unlocking Soon" text
 class AnimatedUnlockingSoonBadge extends ConsumerStatefulWidget {
-  const AnimatedUnlockingSoonBadge({super.key});
+  final Capsule capsule;
+
+  const AnimatedUnlockingSoonBadge({
+    super.key,
+    required this.capsule,
+  });
 
   @override
   ConsumerState<AnimatedUnlockingSoonBadge> createState() =>
@@ -398,6 +405,8 @@ class _AnimatedUnlockingSoonBadgeState
     with TickerProviderStateMixin {
   late AnimationController _sparkleController;
   late AnimationController _shimmerController;
+  late AnimationController _countdownController;
+  final math.Random _random = math.Random();
 
   @override
   void initState() {
@@ -408,18 +417,70 @@ class _AnimatedUnlockingSoonBadgeState
       duration: AppConstants.sparkleAnimationDuration,
     )..repeat();
     
-    // Shimmer animation: 3 seconds for shimmer pass
+    // Shimmer animation: random intervals (2-5 seconds) for less distracting effect
     _shimmerController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 3),
+      duration: _getRandomShimmerDuration(),
+    );
+    _startShimmerAnimation();
+    
+    // Countdown update: trigger rebuild every second to update countdown text
+    _countdownController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
     )..repeat();
+  }
+
+  /// Generates a random duration between 2-5 seconds for shimmer animation
+  Duration _getRandomShimmerDuration() {
+    // Random duration between 2-5 seconds (2000-5000ms)
+    final milliseconds = 2000 + _random.nextInt(3000);
+    return Duration(milliseconds: milliseconds);
+  }
+
+  /// Starts shimmer animation with random duration, then schedules next random interval
+  void _startShimmerAnimation() {
+    _shimmerController.forward().then((_) {
+      if (mounted) {
+        _shimmerController.reset();
+        // Set new random duration for next shimmer
+        _shimmerController.duration = _getRandomShimmerDuration();
+        // Schedule next shimmer with random delay (2-5 seconds)
+        Future.delayed(_getRandomShimmerDuration(), () {
+          if (mounted) {
+            _startShimmerAnimation();
+          }
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
     _sparkleController.dispose();
     _shimmerController.dispose();
+    _countdownController.dispose();
     super.dispose();
+  }
+
+  /// Formats countdown duration for badge display (compact format)
+  String _formatCountdownForBadge(Duration duration) {
+    final days = duration.inDays;
+    final hours = duration.inHours.remainder(24);
+    final minutes = duration.inMinutes.remainder(60);
+
+    String timeText;
+    if (days > 0) {
+      timeText = '${days}d ${hours}h';
+    } else if (hours > 0) {
+      timeText = '${hours}h ${minutes}m';
+    } else if (minutes > 0) {
+      timeText = '${minutes}m';
+    } else {
+      return 'Opens now';
+    }
+    
+    return 'Opens in $timeText';
   }
 
   @override
@@ -431,19 +492,27 @@ class _AnimatedUnlockingSoonBadgeState
     
     return RepaintBoundary(
       child: AnimatedBuilder(
-        animation: Listenable.merge([_sparkleController, _shimmerController]),
+        animation: Listenable.merge([
+          _sparkleController,
+          _shimmerController,
+          _countdownController, // Include countdown controller to trigger rebuilds
+        ]),
         builder: (context, child) {
           // Calculate animation value inside builder (same as tabs)
           final animationValue = _sparkleController.value * 2 * math.pi;
           final shimmerProgress = _shimmerController.value;
           
+          // Recalculate countdown text on each rebuild (updates every second)
+          final currentTimeUntilUnlock = widget.capsule.timeUntilUnlock;
+          final currentCountdownText = _formatCountdownForBadge(currentTimeUntilUnlock);
+          
           return ClipRRect(
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             child: Stack(
               children: [
-                // Base badge with fixed color - using StatusPill like "Ready to Open"
+                // Base badge with countdown text - using StatusPill like "Ready to Open"
                 StatusPill(
-                  text: 'Unlocking Soon',
+                  text: currentCountdownText,
                   backgroundColor: badgeColor,
                   textColor: textColor,
                 ),
@@ -505,8 +574,8 @@ class _BadgeSparklePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final rect = Rect.fromLTWH(0, 0, size.width, size.height);
     
-    // Use 2 sparkles for horizontal sweep
-    const int sparkleCount = 2;
+    // Use sparkles for horizontal sweep
+    final int sparkleCount = AppConstants.badgeSparkleCount;
     final double centerY = rect.center.dy;
     
     // Convert animation value (0 to 2π) to progress (0 to 1)
@@ -591,7 +660,7 @@ class _BadgeShimmerPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     // Calculate shimmer position (diagonal from top-right to bottom-left)
     final diagonal = math.sqrt(size.width * size.width + size.height * size.height);
-    const shimmerWidth = 40.0;
+    final shimmerWidth = AppConstants.badgeShimmerWidth;
     final shimmerStart = -shimmerWidth;
     final shimmerEnd = diagonal + shimmerWidth;
     final shimmerPosition = shimmerStart + (shimmerEnd - shimmerStart) * progress;
@@ -609,7 +678,7 @@ class _BadgeShimmerPainter extends CustomPainter {
     );
     
     // Angle for diagonal shimmer (from top-right to bottom-left)
-    const angle = -math.pi / 4;
+    final angle = AppConstants.badgeShimmerAngle;
     
     // Create paint with gradient shader
     final paint = Paint()
@@ -763,10 +832,13 @@ class _HeartbeatAnimationState extends State<HeartbeatAnimation>
           return Transform.scale(
             scale: _scaleAnimation.value,
             alignment: Alignment.center,
-            child: Icon(
-              widget.icon ?? Icons.favorite, // Heart icon for ready capsules
-              size: iconSize,
-              color: iconColor,
+            child: Opacity(
+              opacity: AppConstants.heartbeatOpacity,
+              child: Icon(
+                widget.icon ?? Icons.favorite, // Heart icon for ready capsules
+                size: iconSize,
+                color: iconColor,
+              ),
             ),
           );
         },
@@ -856,10 +928,13 @@ class _OpenedLetterPulseState extends State<OpenedLetterPulse>
           return Transform.scale(
             scale: _scaleAnimation.value,
             alignment: Alignment.center,
-            child: Icon(
-              widget.icon ?? Icons.check_circle, // Checkmark circle for opened letters
-              size: iconSize,
-              color: iconColor,
+            child: Opacity(
+              opacity: AppConstants.openedLetterPulseOpacity,
+              child: Icon(
+                widget.icon ?? Icons.check_circle, // Checkmark circle for opened letters
+                size: iconSize,
+                color: iconColor,
+              ),
             ),
           );
         },
@@ -986,10 +1061,13 @@ class _SealedLetterAnimationState extends State<SealedLetterAnimation>
         builder: (context, child) {
           return Transform.rotate(
             angle: _rotation.value * AppConstants.sealedLetterRotationAngle,
-            child: Icon(
-              widget.icon ?? Icons.lock_outline, // Lock icon for sealed/locked letters
-              size: iconSize,
-              color: iconColor,
+            child: Opacity(
+              opacity: AppConstants.sealedLetterOpacity,
+              child: Icon(
+                widget.icon ?? Icons.lock_outline, // Lock icon for sealed/locked letters
+                size: iconSize,
+                color: iconColor,
+              ),
             ),
           );
         },
