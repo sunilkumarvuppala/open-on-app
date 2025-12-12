@@ -246,9 +246,7 @@ class ApiCapsuleRepository implements CapsuleRepository {
           .map((json) => CapsuleMapper.fromJson(json as Map<String, dynamic>))
           .toList();
 
-      // Sort by unlock time
-      capsules.sort((a, b) => a.unlockAt.compareTo(b.unlockAt));
-
+      // Don't sort here - sorting is handled by providers based on tab requirements
       return capsules;
     } catch (e, stackTrace) {
       Logger.error('Failed to get capsules', error: e, stackTrace: stackTrace);

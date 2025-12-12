@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
+import 'package:openon_app/core/constants/app_constants.dart';
 
 /// Dynamic theme builder that uses the selected color scheme
 class DynamicTheme {
@@ -612,28 +613,46 @@ class DynamicTheme {
     );
   }
 
-  /// Get dialog background color
+  /// Get dialog background color - theme-aware with proper contrast
   static Color getDialogBackgroundColor(AppColorScheme scheme) {
-    return scheme.isDarkTheme ? scheme.secondary2 : Colors.white;
+    if (scheme.isDarkTheme) {
+      // For dark themes, use a lighter version of secondary2 for contrast
+      // Blend with white to create a visible but theme-appropriate surface
+      final blended = Color.lerp(scheme.secondary2, Colors.white, 0.25);
+      return blended ?? scheme.secondary2;
+    }
+    // For light themes, use pure white
+    return Colors.white;
   }
 
-  /// Get dialog title text color
+  /// Get dialog title text color - theme-aware with proper contrast
   static Color getDialogTitleColor(AppColorScheme scheme) {
-    return scheme.isDarkTheme ? Colors.white : scheme.primary1;
+    if (scheme.isDarkTheme) {
+      // Light text on dark background for dark themes
+      return const Color(AppConstants.dialogTitleColorDark);
+    }
+    // Use primary color for light themes for brand consistency
+    return scheme.primary1;
   }
 
-  /// Get dialog content text color
+  /// Get dialog content text color - theme-aware with proper contrast
   static Color getDialogContentColor(AppColorScheme scheme) {
-    return scheme.isDarkTheme 
-        ? Colors.white.withOpacity(AppTheme.opacityFull) 
-        : const Color(0xFF4A4A4A);
+    if (scheme.isDarkTheme) {
+      // Light text on dark background for dark themes
+      return const Color(AppConstants.dialogContentColorDark).withOpacity(AppTheme.opacityFull);
+    }
+    // Dark gray for light themes
+    return const Color(AppConstants.dialogContentColorLight);
   }
 
-  /// Get dialog button text color (for cancel/secondary actions)
+  /// Get dialog button text color (for cancel/secondary actions) - theme-aware with proper contrast
   static Color getDialogButtonColor(AppColorScheme scheme) {
-    return scheme.isDarkTheme 
-        ? Colors.white.withOpacity(AppTheme.opacityFull) 
-        : const Color(0xFF9E9E9E);
+    if (scheme.isDarkTheme) {
+      // Light text on dark background for dark themes
+      return const Color(AppConstants.dialogButtonColorDark).withOpacity(AppTheme.opacityFull);
+    }
+    // Medium gray for light themes
+    return const Color(AppConstants.dialogButtonColorLight);
   }
 }
 

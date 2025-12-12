@@ -108,7 +108,7 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
     final gradient = DynamicTheme.dreamyGradient(colorScheme);
     
     return Scaffold(
-      backgroundColor: AppColors.offWhite,
+      backgroundColor: colorScheme.secondary2,
       body: SafeArea(
         child: Column(
           children: [
@@ -122,6 +122,10 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
                       Icons.arrow_back,
                       color: DynamicTheme.getPrimaryIconColor(colorScheme),
                     ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme).withOpacity(0.5),
+                      foregroundColor: DynamicTheme.getPrimaryIconColor(colorScheme),
+                    ),
                     onPressed: () {
                       // Navigate directly to receiver home
                       // This skips the opening animation screen and provides better UX
@@ -130,7 +134,14 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.share),
+                    icon: Icon(
+                      Icons.share,
+                      color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme).withOpacity(0.5),
+                      foregroundColor: DynamicTheme.getPrimaryIconColor(colorScheme),
+                    ),
                     onPressed: () {
                       final colorScheme = ref.read(selectedColorSchemeProvider);
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -239,7 +250,10 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                               height: AppConstants.openedLetterContentLineHeight,
                               fontSize: AppConstants.openedLetterContentFontSize,
-                              color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                              color: colorScheme.isDarkTheme 
+                                  ? Colors.white 
+                                  : const Color(0xFF2A2A2A), // Darker text for better contrast on light backgrounds
+                              fontWeight: FontWeight.w400,
                             ),
                       ),
                     ),
@@ -266,7 +280,10 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
                     SizedBox(height: AppTheme.spacingXl),
                     
                     // Divider
-                    const Divider(),
+                    Divider(
+                      color: DynamicTheme.getDividerColor(colorScheme),
+                      thickness: 1,
+                    ),
                     
                     SizedBox(height: AppTheme.spacingLg),
                     
@@ -275,7 +292,9 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
                         AppConstants.howDoesThisMakeYouFeel,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
-                              color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                            color: colorScheme.isDarkTheme 
+                                ? Colors.white 
+                                : const Color(0xFF1A1A1A), // Very dark for maximum contrast
                           ),
                       textAlign: TextAlign.center,
                     ),
