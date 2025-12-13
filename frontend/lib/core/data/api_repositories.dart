@@ -230,19 +230,28 @@ class ApiCapsuleRepository implements CapsuleRepository {
       
       Logger.info('Fetching capsules: userId=$userId, box=$box, asSender=$asSender');
       
-      // Use default page size instead of max to reduce load time
-      // Max page size (100) is too large and causes performance issues
+      // Use a reasonable page size that balances performance and UX
+      // Loading too many capsules (100) causes performance issues
+      // But we need enough to show most users' capsules without pagination
+      // Using 50 as a middle ground - fast enough but shows most users' capsules
+      final pageSize = 50; // Balance between performance (20) and completeness (100)
       final response = await _apiClient.get(
         ApiConfig.capsules,
         queryParams: {
           'box': box,
           'page': AppConstants.defaultPage.toString(),
-          'page_size': AppConstants.defaultPageSize.toString(), // Use default (20) instead of max (100)
+          'page_size': pageSize.toString(),
         },
       );
 
       final capsulesList = response['capsules'] as List<dynamic>? ?? [];
-      Logger.info('Received ${capsulesList.length} capsules from API');
+      final total = response['total'] as int? ?? capsulesList.length;
+      Logger.info('Received ${capsulesList.length} capsules from API (total: $total)');
+      
+      // Log warning if there are more capsules than loaded (UX consideration)
+      if (total > pageSize) {
+        Logger.info('User has $total capsules but only $pageSize loaded. Consider implementing pagination.');
+      }
       
       final capsules = capsulesList
           .map((json) => CapsuleMapper.fromJson(json as Map<String, dynamic>))

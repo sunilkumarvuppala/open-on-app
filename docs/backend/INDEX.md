@@ -112,6 +112,9 @@ docs/backend/
 ### Understanding the Codebase
 → See [ARCHITECTURE.md](./ARCHITECTURE.md) and [CODE_STRUCTURE.md](./CODE_STRUCTURE.md)
 
+### Optimizing Database Performance
+→ See [../supabase/DATABASE_OPTIMIZATIONS.md](../supabase/DATABASE_OPTIMIZATIONS.md)
+
 ### Integrating with the API
 → See [API_REFERENCE.md](./API_REFERENCE.md)
 
