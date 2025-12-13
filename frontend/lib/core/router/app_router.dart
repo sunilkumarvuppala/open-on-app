@@ -17,6 +17,7 @@ import 'package:openon_app/features/capsule/opened_letter_screen.dart';
 import 'package:openon_app/features/profile/profile_screen.dart';
 import 'package:openon_app/features/profile/color_scheme_screen.dart';
 import 'package:openon_app/features/drafts/drafts_screen.dart';
+import 'package:openon_app/features/drafts/draft_letter_screen.dart';
 import 'package:openon_app/features/connections/add_connection_screen.dart';
 import 'package:openon_app/features/connections/requests_screen.dart';
 import 'package:openon_app/features/connections/connections_screen.dart';
@@ -39,6 +40,8 @@ class Routes {
   static const profile = '/profile';
   static const colorScheme = '/profile/color-scheme';
   static const drafts = '/drafts';
+  static const draftNew = '/draft/new';
+  static String draftById(String draftId) => '/draft/$draftId';
   static const connections = '/connections';
   static const addConnection = '/connections/add';
   static const connectionRequests = '/connections/requests';
@@ -122,7 +125,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: Routes.createCapsule,
-        builder: (context, state) => const CreateCapsuleScreen(),
+        builder: (context, state) {
+          final draftData = state.extra as DraftNavigationData?;
+          return CreateCapsuleScreen(draftData: draftData);
+        },
       ),
       GoRoute(
         path: '/capsule/:id',
@@ -156,6 +162,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.drafts,
         builder: (context, state) => const DraftsScreen(),
+      ),
+      GoRoute(
+        path: Routes.draftNew,
+        builder: (context, state) => const DraftLetterScreen(),
+      ),
+      GoRoute(
+        path: '/draft/:draftId',
+        builder: (context, state) {
+          final draftId = state.pathParameters['draftId']!;
+          return DraftLetterScreen(draftId: draftId);
+        },
       ),
       GoRoute(
         path: Routes.connections,

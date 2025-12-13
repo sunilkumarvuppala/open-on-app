@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
@@ -32,10 +33,22 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
         
         return recipientsAsync.when(
           data: (recipients) {
-            final filteredRecipients = recipients.where((r) {
+            // Remove duplicates by ID (in case backend returns duplicates)
+            final uniqueRecipients = <String, Recipient>{};
+            for (final recipient in recipients) {
+              if (!uniqueRecipients.containsKey(recipient.id)) {
+                uniqueRecipients[recipient.id] = recipient;
+              }
+            }
+            final deduplicatedRecipients = uniqueRecipients.values.toList();
+            
+            // Apply search filter
+            final filteredRecipients = deduplicatedRecipients.where((r) {
               if (_searchQuery.isEmpty) return true;
-              return r.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                  r.relationship.toLowerCase().contains(_searchQuery.toLowerCase());
+              final name = r.name.toLowerCase();
+              final relationship = r.relationship.toLowerCase();
+              final query = _searchQuery.toLowerCase();
+              return name.contains(query) || relationship.contains(query);
             }).toList();
             
             return Column(

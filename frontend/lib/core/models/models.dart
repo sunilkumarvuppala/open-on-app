@@ -245,6 +245,7 @@ class DraftCapsule {
   final String? photoPath;
   final DateTime? unlockAt;
   final String? label;
+  final String? draftId; // Track the draft ID if one was created during auto-save
   
   const DraftCapsule({
     this.recipient,
@@ -252,6 +253,7 @@ class DraftCapsule {
     this.photoPath,
     this.unlockAt,
     this.label,
+    this.draftId,
   });
   
   bool get isValid {
@@ -268,6 +270,7 @@ class DraftCapsule {
     String? photoPath,
     DateTime? unlockAt,
     String? label,
+    String? draftId,
     bool clearPhoto = false,
   }) {
     return DraftCapsule(
@@ -276,6 +279,7 @@ class DraftCapsule {
       photoPath: clearPhoto ? null : (photoPath ?? this.photoPath),
       unlockAt: unlockAt ?? this.unlockAt,
       label: label ?? this.label,
+      draftId: draftId ?? this.draftId,
     );
   }
   
@@ -313,24 +317,44 @@ class DraftCapsule {
 }
 
 /// Draft model - represents a saved draft letter
+/// 
+/// Drafts are private, editable letters that haven't been sealed yet.
+/// They are stored locally and remotely for crash safety.
+/// 
+/// Fields:
+/// - id: Unique draft identifier
+/// - userId: Owner of the draft
+/// - title: Optional title/label for the draft
+/// - body: Draft content (plain text only)
+/// - recipientName: Optional recipient name (for display)
+/// - recipientAvatar: Optional recipient avatar URL/path (for display)
+/// - lastEdited: Last modification timestamp
+/// 
+/// Note: Drafts do NOT include recipient_id, unlock_at, or status.
+/// These are added later when converting to a capsule.
 class Draft {
   final String id;
+  final String userId;
   final String? title;
   final String body;
+  final String? recipientName;
+  final String? recipientAvatar;
   final DateTime lastEdited;
   
   Draft({
     String? id,
+    required this.userId,
     this.title,
     required this.body,
+    this.recipientName,
+    this.recipientAvatar,
     DateTime? lastEdited,
   })  : id = id ?? _uuid.v4(),
         lastEdited = lastEdited ?? DateTime.now();
   
-  String get displayTitle =>
-      title?.trim().isEmpty ?? true
-          ? AppConstants.untitledDraftTitle
-          : title!;
+  String get displayTitle => title?.trim().isNotEmpty == true 
+      ? title!.trim() 
+      : AppConstants.untitledDraftTitle;
   
   String get snippet {
     final trimmed = body.trim();
@@ -341,14 +365,20 @@ class Draft {
   
   Draft copyWith({
     String? id,
+    String? userId,
     String? title,
     String? body,
+    String? recipientName,
+    String? recipientAvatar,
     DateTime? lastEdited,
   }) {
     return Draft(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       title: title ?? this.title,
       body: body ?? this.body,
+      recipientName: recipientName ?? this.recipientName,
+      recipientAvatar: recipientAvatar ?? this.recipientAvatar,
       lastEdited: lastEdited ?? this.lastEdited,
     );
   }

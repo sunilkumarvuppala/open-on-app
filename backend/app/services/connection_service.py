@@ -16,8 +16,6 @@ from app.core.constants import (
     MAX_DAILY_CONNECTION_REQUESTS,
     CONNECTION_COOLDOWN_DAYS
 )
-from app.db.repositories import RecipientRepository
-from app.db.models import RecipientRelationship
 
 logger = get_logger(__name__)
 
@@ -27,7 +25,7 @@ class ConnectionService:
     
     def __init__(self, session: AsyncSession):
         self.session = session
-        self.recipient_repo = RecipientRepository(session)
+        # Recipients are now connections - no separate repository needed
     
     async def check_existing_connection(
         self,
@@ -175,66 +173,13 @@ class ConnectionService:
         from_user_id: UUID,
         to_user_id: UUID
     ) -> None:
-        """Create recipient entries for both users when connection is established."""
-        # Get user profiles for both users
-        profile_result = await self.session.execute(
-            text("""
-                SELECT user_id, first_name, last_name, username, avatar_url
-                FROM public.user_profiles
-                WHERE user_id = :user1 OR user_id = :user2
-            """),
-            {"user1": from_user_id, "user2": to_user_id}
-        )
-        profiles = {row[0]: row for row in profile_result.fetchall()}
+        """
+        No-op: Recipients are now connections.
         
-        # Create recipient entry for from_user (so they can send to to_user)
-        if to_user_id in profiles:
-            to_profile = profiles[to_user_id]
-            to_name = " ".join(filter(None, [to_profile[1], to_profile[2]])).strip()
-            if not to_name:
-                to_name = to_profile[3] or f"User {str(to_user_id)[:8]}"
-            
-            # Check if recipient already exists
-            existing_check = await self.session.execute(
-                text("""
-                    SELECT id FROM public.recipients
-                    WHERE owner_id = :owner_id 
-                    AND (name = :name OR email IS NULL)
-                    LIMIT 1
-                """),
-                {"owner_id": from_user_id, "name": to_name}
-            )
-            if not existing_check.scalar_one_or_none():
-                await self.recipient_repo.create(
-                    owner_id=from_user_id,
-                    name=to_name,
-                    email=None,  # NULL email indicates connection-based recipient
-                    avatar_url=to_profile[4],
-                    relationship=RecipientRelationship.FRIEND
-                )
-        
-        # Create recipient entry for to_user (so they can send to from_user)
-        if from_user_id in profiles:
-            from_profile = profiles[from_user_id]
-            from_name = " ".join(filter(None, [from_profile[1], from_profile[2]])).strip()
-            if not from_name:
-                from_name = from_profile[3] or f"User {str(from_user_id)[:8]}"
-            
-            # Check if recipient already exists
-            existing_check = await self.session.execute(
-                text("""
-                    SELECT id FROM public.recipients
-                    WHERE owner_id = :owner_id 
-                    AND (name = :name OR email IS NULL)
-                    LIMIT 1
-                """),
-                {"owner_id": to_user_id, "name": from_name}
-            )
-            if not existing_check.scalar_one_or_none():
-                await self.recipient_repo.create(
-                    owner_id=to_user_id,
-                    name=from_name,
-                    email=None,  # NULL email indicates connection-based recipient
-                    avatar_url=from_profile[4],
-                    relationship=RecipientRelationship.FRIEND
-                )
+        Previously created recipient entries when connections were established.
+        Now recipients = connections, so no separate recipient entries are needed.
+        The recipients API endpoint returns connections directly.
+        """
+        # Recipients are now just connections - no need to create separate entries
+        # The list_recipients endpoint queries connections directly
+        pass

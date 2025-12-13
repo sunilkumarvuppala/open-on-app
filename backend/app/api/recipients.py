@@ -127,22 +127,23 @@ async def list_recipients(
     """
     List all recipients for the current user.
     
-    UNIFIED: Recipients = Connections. This endpoint queries connections directly
-    and returns them as recipients. The recipients table is only used as a cache
-    for the capsule foreign key constraint.
+    RECIPIENTS = CONNECTIONS: This endpoint returns connections directly as recipients.
+    No recipient table is used - connections are the single source of truth.
     
-    Returns recipients ordered by most recently connected first.
+    Returns recipients (connections) ordered by most recently connected first.
     """
     from sqlalchemy import text
     from app.db.models import RecipientRelationship
     
     skip, limit = calculate_pagination(page, page_size)
-    recipient_repo = RecipientRepository(session)
     
     # Query connections directly (single source of truth)
+    # No recipient table lookup needed - connections are the source of truth
+    # Use DISTINCT ON to ensure we only get one row per unique other_user_id
+    # This prevents duplicates if there are multiple connections with the same user
     connections_result = await session.execute(
         text("""
-            SELECT 
+            SELECT DISTINCT ON (other_user_id)
                 c.user_id_1, 
                 c.user_id_2, 
                 c.connected_at,
@@ -161,7 +162,9 @@ async def list_recipients(
                 (c.user_id_2 = :user_id AND up.user_id = c.user_id_1)
             )
             WHERE c.user_id_1 = :user_id OR c.user_id_2 = :user_id
-            ORDER BY c.connected_at DESC
+            ORDER BY 
+                other_user_id,
+                c.connected_at DESC
             LIMIT :limit OFFSET :skip
         """),
         {
@@ -172,8 +175,11 @@ async def list_recipients(
     )
     connections_rows = connections_result.fetchall()
     
-    # Convert connections to RecipientResponse objects
-    recipient_responses = []
+    # Convert connections directly to RecipientResponse objects
+    # Use a set to track which user IDs we've already added (prevents duplicates)
+    seen_user_ids: set[UUID] = set()
+    recipient_responses: list[RecipientResponse] = []
+    
     for row in connections_rows:
         other_user_id = row[7]  # other_user_id
         first_name = row[3] if len(row) > 3 else None
@@ -187,59 +193,33 @@ async def list_recipients(
         if not display_name:
             display_name = username or f"User {str(other_user_id)[:8]}"
         
-        # Look up actual recipient in database by owner_id and name
-        # Recipients are auto-created when connections are established
-        # We need to find the actual database record to get the real ID
-        recipient = None
-        recipients_list = await recipient_repo.get_by_owner(current_user.user_id)
-        for r in recipients_list:
-            # Match by name (recipients are created with the connected user's display name)
-            # Also check if email is NULL (connection-based recipients have NULL email)
-            if r.email is None and r.name == display_name:
-                recipient = r
-                break
-            # Also try matching by name similarity (in case names don't match exactly)
-            if r.email is None and (
-                (first_name and first_name in r.name) or
-                (last_name and last_name in r.name) or
-                (username and username in r.name)
-            ):
-                recipient = r
-                break
-        
-        # If recipient doesn't exist in database, create it
-        # This can happen if connection was established but recipient creation failed
-        if not recipient:
-            logger.warning(
-                f"Recipient not found in database for connection between {current_user.user_id} and {other_user_id}. "
-                f"Recipient should have been auto-created. Creating now..."
+        # Deduplication: Only add each user once (by user ID)
+        if other_user_id in seen_user_ids:
+            logger.debug(
+                f"Skipping duplicate connection for user {other_user_id}"
             )
-            try:
-                recipient = await recipient_repo.create(
-                    owner_id=current_user.user_id,
-                    name=display_name,
-                    email=None,  # NULL email indicates connection-based recipient
-                    avatar_url=avatar_url,
-                    relationship=RecipientRelationship.FRIEND
-                )
-                await session.flush()  # Flush to ensure recipient is available
-                logger.info(f"Created missing recipient {recipient.id} for user {current_user.user_id}")
-            except Exception as e:
-                logger.error(f"Failed to create recipient: {e}")
-                # If creation fails, we can't proceed - this is an error condition
-                continue  # Skip this connection
+            continue
         
-        # Use actual database recipient ID
+        # Mark as seen
+        seen_user_ids.add(other_user_id)
+        
+        # Generate a deterministic ID from the user ID for the recipient
+        # This ensures the same connection always has the same recipient ID
+        # Format: Use other_user_id as the base, but we need a UUID
+        # For now, we'll use other_user_id directly as the "recipient ID"
+        # In the response schema, linked_user_id will be the actual user ID
+        
+        # Build response object directly from connection data
         recipient_response = RecipientResponse(
-            id=recipient.id,  # Use actual database ID, not virtual ID
+            id=other_user_id,  # Use other_user_id as the recipient ID (connections = recipients)
             owner_id=current_user.user_id,
-            name=recipient.name or display_name,
+            name=display_name,
             email=None,  # Connections don't have email
-            avatar_url=recipient.avatar_url or avatar_url,
-            relationship=recipient.relationship or RecipientRelationship.FRIEND,
-            created_at=recipient.created_at or connected_at,
-            updated_at=recipient.updated_at or connected_at,
-            linked_user_id=other_user_id
+            avatar_url=avatar_url,
+            relationship=RecipientRelationship.FRIEND,  # Default relationship for connections
+            created_at=connected_at,
+            updated_at=connected_at,
+            linked_user_id=other_user_id  # The actual user ID this recipient represents
         )
         recipient_responses.append(recipient_response)
     

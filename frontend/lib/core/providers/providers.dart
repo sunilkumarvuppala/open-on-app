@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openon_app/core/constants/app_constants.dart';
 import 'package:openon_app/core/data/repositories.dart';
@@ -279,6 +280,10 @@ class DraftCapsuleNotifier extends StateNotifier<DraftCapsule> {
     state = state.copyWith(label: label);
   }
   
+  void setDraftId(String draftId) {
+    state = state.copyWith(draftId: draftId);
+  }
+  
   void reset() {
     state = const DraftCapsule();
   }
@@ -312,33 +317,293 @@ class ColorSchemeNotifier extends StateNotifier<AppColorScheme> {
 // Loading state provider
 final isLoadingProvider = StateProvider<bool>((ref) => false);
 
-// Drafts provider - in-memory storage (can be replaced with Supabase later)
-class DraftsNotifier extends StateNotifier<List<Draft>> {
-  DraftsNotifier() : super([]);
-  
-  void addDraft(Draft draft) {
-    state = [...state, draft];
-  }
-  
-  void updateDraft(String id, Draft updatedDraft) {
-    state = state.map((draft) => draft.id == id ? updatedDraft : draft).toList();
-  }
-  
-  void deleteDraft(String id) {
-    state = state.where((draft) => draft.id != id).toList();
-  }
-  
-  void clearDrafts() {
-    state = [];
+// Draft repository provider
+final draftRepositoryProvider = Provider<DraftRepository>((ref) {
+  return LocalDraftRepository();
+});
+
+// Draft save status enum
+enum DraftSaveStatus {
+  idle,
+  saving,
+  saved,
+  error,
+}
+
+// Draft letter state (for active draft editing)
+class DraftLetterState {
+  final String? draftId;
+  final String? title;
+  final String content;
+  final bool isLoading;
+  final DraftSaveStatus saveStatus;
+  final String? error;
+
+  DraftLetterState({
+    this.draftId,
+    this.title,
+    required this.content,
+    this.isLoading = false,
+    this.saveStatus = DraftSaveStatus.idle,
+    this.error,
+  });
+
+  DraftLetterState copyWith({
+    String? draftId,
+    String? title,
+    String? content,
+    bool? isLoading,
+    DraftSaveStatus? saveStatus,
+    String? error,
+  }) {
+    return DraftLetterState(
+      draftId: draftId ?? this.draftId,
+      title: title ?? this.title,
+      content: content ?? this.content,
+      isLoading: isLoading ?? this.isLoading,
+      saveStatus: saveStatus ?? this.saveStatus,
+      error: error ?? this.error,
+    );
   }
 }
 
-final draftsProvider = StateNotifierProvider<DraftsNotifier, List<Draft>>((ref) {
-  return DraftsNotifier();
+// Draft letter provider (for editing a single draft)
+final draftLetterProvider = StateNotifierProvider.family<DraftLetterNotifier, DraftLetterState, ({String userId, String? draftId})>((ref, params) {
+  final repo = ref.watch(draftRepositoryProvider);
+  return DraftLetterNotifier(
+    ref: ref,
+    repo: repo,
+    userId: params.userId,
+    draftId: params.draftId,
+  );
 });
 
-final draftsCountProvider = Provider<int>((ref) {
-  return ref.watch(draftsProvider).length;
+class DraftLetterNotifier extends StateNotifier<DraftLetterState> {
+  final Ref _ref;
+  final DraftRepository _repo;
+  final String _userId;
+  final String? _draftId;
+  
+  Timer? _debounceTimer;
+  bool _isSaving = false; // Lock to prevent concurrent saves
+  static const Duration _debounceDuration = Duration(milliseconds: 800);
+
+  DraftLetterNotifier({
+    required Ref ref,
+    required DraftRepository repo,
+    required String userId,
+    String? draftId,
+  })  : _ref = ref,
+        _repo = repo,
+        _userId = userId,
+        _draftId = draftId,
+        super(DraftLetterState(content: '')) {
+    _loadDraft();
+  }
+
+  Future<void> _loadDraft() async {
+    if (_draftId == null) {
+      // New draft - nothing to load
+      return;
+    }
+
+    state = state.copyWith(isLoading: true);
+    
+    try {
+      final draft = await _repo.getDraft(_draftId!);
+      if (draft != null) {
+        state = state.copyWith(
+          draftId: draft.id,
+          title: draft.title,
+          content: draft.body,
+          isLoading: false,
+        );
+      } else {
+        state = state.copyWith(isLoading: false);
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to load draft',
+      );
+    }
+  }
+
+  /// Update content with debounced auto-save
+  void updateContent(String content) {
+    // Update state immediately (for responsive UI)
+    state = state.copyWith(content: content);
+    
+    // Cancel previous debounce timer
+    _debounceTimer?.cancel();
+    
+    // Set new debounce timer
+    _debounceTimer = Timer(_debounceDuration, () {
+      _saveDraft(state.content);
+    });
+  }
+  
+  /// Update title with debounced auto-save
+  void updateTitle(String title) {
+    // Update state immediately (for responsive UI)
+    state = state.copyWith(title: title);
+    
+    // Cancel previous debounce timer
+    _debounceTimer?.cancel();
+    
+    // Set new debounce timer
+    _debounceTimer = Timer(_debounceDuration, () {
+      _saveDraft(state.content);
+    });
+  }
+
+  /// Save draft immediately (no debounce)
+  /// Used for navigation, app lifecycle events, etc.
+  Future<void> saveImmediately() async {
+    _debounceTimer?.cancel();
+    await _saveDraft(state.content);
+  }
+
+  Future<void> _saveDraft(String content) async {
+    // Prevent concurrent saves (race condition protection)
+    if (_isSaving) {
+      Logger.debug('Save already in progress, skipping duplicate save');
+      return;
+    }
+    
+    // Don't save empty drafts
+    if (content.trim().isEmpty) {
+      return;
+    }
+
+    _isSaving = true;
+    state = state.copyWith(saveStatus: DraftSaveStatus.saving);
+
+    try {
+      Draft draft;
+      
+      if (state.draftId == null) {
+        // Create new draft
+        // Note: DraftLetterNotifier doesn't have recipient info, so pass null
+        draft = await _repo.createDraft(
+          userId: _userId,
+          title: state.title,
+          content: content,
+          recipientName: null,
+          recipientAvatar: null,
+        );
+        // Set draft ID immediately after creation to prevent race conditions
+        state = state.copyWith(draftId: draft.id);
+      } else {
+        // Update existing draft
+        // Note: DraftLetterNotifier doesn't have recipient info, so pass null
+        draft = await _repo.updateDraft(
+          state.draftId!,
+          content,
+          title: state.title,
+          recipientName: null,
+          recipientAvatar: null,
+        );
+      }
+
+      state = state.copyWith(saveStatus: DraftSaveStatus.saved);
+      
+      // Note: Drafts list will refresh automatically when accessed
+      // No need to invalidate here since we're using FutureProvider.family
+      
+      // Clear saved status after a short delay
+      Future.delayed(const Duration(seconds: 2), () {
+        if (state.saveStatus == DraftSaveStatus.saved) {
+          state = state.copyWith(saveStatus: DraftSaveStatus.idle);
+        }
+      });
+    } catch (e) {
+      state = state.copyWith(
+        saveStatus: DraftSaveStatus.error,
+        error: 'Failed to save draft',
+      );
+      
+      // Clear error status after a delay
+      Future.delayed(const Duration(seconds: 3), () {
+        if (state.saveStatus == DraftSaveStatus.error) {
+          state = state.copyWith(
+            saveStatus: DraftSaveStatus.idle,
+            error: null,
+          );
+        }
+      });
+    } finally {
+      _isSaving = false;
+    }
+  }
+
+  Future<void> deleteDraft() async {
+    if (state.draftId == null) return;
+    
+    try {
+      await _repo.deleteDraft(state.draftId!, _userId);
+      _ref.invalidate(draftsProvider);
+    } catch (e) {
+      // Error handling is done in the UI
+      rethrow;
+    }
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+}
+
+// Drafts list provider (family provider that takes userId)
+final draftsProvider = FutureProvider.family<List<Draft>, String>((ref, userId) async {
+  final repo = ref.watch(draftRepositoryProvider);
+  return repo.getDrafts(userId);
+});
+
+// Drafts notifier for mutations (delete, etc.)
+class DraftsNotifier extends StateNotifier<AsyncValue<List<Draft>>> {
+  final Ref _ref;
+  final DraftRepository _repo;
+  final String _userId;
+
+  DraftsNotifier(this._ref, this._repo, this._userId) : super(const AsyncValue.loading()) {
+    loadDrafts();
+  }
+
+  Future<void> loadDrafts() async {
+    state = const AsyncValue.loading();
+    
+    try {
+      final drafts = await _repo.getDrafts(_userId);
+      state = AsyncValue.data(drafts);
+    } catch (e, stackTrace) {
+      state = AsyncValue.error(e, stackTrace);
+    }
+  }
+
+  Future<void> deleteDraft(String draftId) async {
+    try {
+      await _repo.deleteDraft(draftId, _userId);
+      await loadDrafts(); // Reload after deletion
+      // Also invalidate the FutureProvider so screens watching it refresh
+      _ref.invalidate(draftsProvider(_userId));
+    } catch (e) {
+      // Error is handled by AsyncValue
+      rethrow;
+    }
+  }
+}
+
+final draftsNotifierProvider = StateNotifierProvider.family<DraftsNotifier, AsyncValue<List<Draft>>, String>((ref, userId) {
+  final repo = ref.watch(draftRepositoryProvider);
+  return DraftsNotifier(ref, repo, userId);
+});
+
+final draftsCountProvider = Provider.family<int, String>((ref, userId) {
+  final draftsAsync = ref.watch(draftsProvider(userId));
+  return draftsAsync.asData?.value.length ?? 0;
 });
 
 // Connection providers

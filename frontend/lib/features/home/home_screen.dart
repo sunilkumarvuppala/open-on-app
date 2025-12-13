@@ -189,7 +189,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   child: Center(
                     child: Consumer(
                       builder: (context, ref, child) {
-                        final draftsCount = ref.watch(draftsCountProvider);
+                        final userAsync = ref.watch(currentUserProvider);
+                        final userId = userAsync.asData?.value?.id ?? '';
+                        final draftsCount = ref.watch(draftsCountProvider(userId));
                         return _DraftsButton(
                           draftsCount: draftsCount,
                           colorScheme: colorScheme,
