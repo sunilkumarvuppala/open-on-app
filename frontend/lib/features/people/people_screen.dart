@@ -244,7 +244,29 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
               ),
             ),
             error: (error, stack) {
+              // Only show error if we've been loading for a while
+              // This prevents showing error immediately on first load
               Logger.error('Error loading connections', error: error, stackTrace: stack);
+              
+              // Check if this is a transient error by checking if we have any cached data
+              final cachedData = connectionsAsync.asData?.value;
+              if (cachedData != null && cachedData.isNotEmpty) {
+                // We have cached data, show it instead of error
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(connectionsProvider);
+                  },
+                  child: ListView.builder(
+                    padding: EdgeInsets.all(AppTheme.spacingMd),
+                    itemCount: cachedData.length,
+                    itemBuilder: (context, index) {
+                      final connection = cachedData[index];
+                      return _buildConnectionCard(context, ref, connection, colorScheme);
+                    },
+                  ),
+                );
+              }
+              
               return _buildErrorState(context, colorScheme, () {
                 ref.invalidate(connectionsProvider);
               });
@@ -505,6 +527,7 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           onTap: () {
             // Navigate to full connection detail screen
+            // The provider will use cached user data to reduce delay
             context.push('/connection/${connection.otherUserId}');
           },
           child: Padding(

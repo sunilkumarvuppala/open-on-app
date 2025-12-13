@@ -379,25 +379,35 @@ final outgoingRequestsProvider = StreamProvider<List<ConnectionRequest>>((ref) {
 
 final connectionsProvider = StreamProvider<List<Connection>>((ref) {
   final repo = ref.watch(connectionRepositoryProvider);
+  // Keep provider alive to prevent unnecessary rebuilds
+  ref.keepAlive();
   return repo.watchConnections();
 });
 
 final connectionDetailProvider = FutureProvider.family<ConnectionDetail, String>((ref, connectionId) async {
   final repo = ref.watch(connectionRepositoryProvider);
   
-  // Get current user to ensure we're authenticated and pass user ID
-  final userAsync = ref.watch(currentUserProvider);
-  final user = await userAsync.when(
-    data: (data) => Future.value(data),
-    loading: () => Future.value(null),
+  // Get current user - use cached value if available to avoid delay
+  final userAsync = ref.read(currentUserProvider);
+  final user = userAsync.asData?.value;
+  
+  // If user is not cached, wait for it (but this should be rare)
+  final userId = user?.id ?? await userAsync.when(
+    data: (data) => Future.value(data?.id),
+    loading: () async {
+      // Wait a bit for user to load, but don't wait too long
+      await Future.delayed(const Duration(milliseconds: 100));
+      final retryAsync = ref.read(currentUserProvider);
+      return retryAsync.asData?.value?.id;
+    },
     error: (_, __) => Future.value(null),
   );
   
-  if (user == null) {
+  if (userId == null) {
     throw AuthenticationException('Not authenticated. Please log in to view connection details.');
   }
   
-  return repo.getConnectionDetail(connectionId, userId: user.id);
+  return repo.getConnectionDetail(connectionId, userId: userId);
 });
 
 final incomingRequestsCountProvider = Provider<int>((ref) {
