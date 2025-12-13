@@ -73,8 +73,9 @@ END;
 $$;
 
 -- Grant execute permission to authenticated users
+-- Note: The function signature is (TEXT, UUID) with DEFAULT NULL for UUID
+-- PostgreSQL allows calling it as search_users(TEXT) due to the default parameter
 GRANT EXECUTE ON FUNCTION public.search_users(TEXT, UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.search_users(TEXT) TO authenticated;
 
 -- Add comment
 COMMENT ON FUNCTION public.search_users(TEXT, UUID) IS 

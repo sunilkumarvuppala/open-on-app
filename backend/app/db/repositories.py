@@ -505,23 +505,33 @@ class CapsuleRepository(BaseRepository[Capsule]):
             column('user_id_2')
         )
         
-        # Build connection exists subquery
-        connection_subquery = (
+        # Optimized connection exists subquery
+        # Split into two EXISTS checks - each can use its respective index
+        # PostgreSQL can optimize EXISTS with indexes better than OR conditions
+        connection_exists_1 = (
             select(1)
             .select_from(connections_table)
             .where(
-                or_(
-                    and_(
-                        connections_table.c.user_id_1 == bindparam('user_id'),
-                        connections_table.c.user_id_2 == Capsule.sender_id
-                    ),
-                    and_(
-                        connections_table.c.user_id_2 == bindparam('user_id'),
-                        connections_table.c.user_id_1 == Capsule.sender_id
-                    )
+                and_(
+                    connections_table.c.user_id_1 == bindparam('user_id'),
+                    connections_table.c.user_id_2 == Capsule.sender_id
                 )
             )
         ).exists()
+        
+        connection_exists_2 = (
+            select(1)
+            .select_from(connections_table)
+            .where(
+                and_(
+                    connections_table.c.user_id_2 == bindparam('user_id'),
+                    connections_table.c.user_id_1 == Capsule.sender_id
+                )
+            )
+        ).exists()
+        
+        # Combine with OR - each EXISTS can use its index efficiently
+        connection_subquery = or_(connection_exists_1, connection_exists_2)
         
         # Build recipient matching conditions
         # Capsule matches if: (email matches) OR (connection-based recipient matches)

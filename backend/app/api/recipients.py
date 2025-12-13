@@ -137,34 +137,51 @@ async def list_recipients(
     
     skip, limit = calculate_pagination(page, page_size)
     
-    # Query connections directly (single source of truth)
-    # No recipient table lookup needed - connections are the source of truth
-    # Use DISTINCT ON to ensure we only get one row per unique other_user_id
-    # This prevents duplicates if there are multiple connections with the same user
+    # Optimized query using UNION instead of OR for better index usage
+    # DISTINCT ON is applied after UNION to handle duplicates efficiently
     connections_result = await session.execute(
         text("""
             SELECT DISTINCT ON (other_user_id)
-                c.user_id_1, 
-                c.user_id_2, 
-                c.connected_at,
-                up.first_name,
-                up.last_name,
-                up.username,
-                up.avatar_url,
-                CASE 
-                    WHEN c.user_id_1 = :user_id THEN c.user_id_2
-                    ELSE c.user_id_1
-                END as other_user_id
-            FROM public.connections c
-            LEFT JOIN public.user_profiles up ON (
-                (c.user_id_1 = :user_id AND up.user_id = c.user_id_2)
-                OR
-                (c.user_id_2 = :user_id AND up.user_id = c.user_id_1)
-            )
-            WHERE c.user_id_1 = :user_id OR c.user_id_2 = :user_id
+                user_id_1,
+                user_id_2,
+                connected_at,
+                first_name,
+                last_name,
+                username,
+                avatar_url,
+                other_user_id
+            FROM (
+                SELECT 
+                    c.user_id_1, 
+                    c.user_id_2, 
+                    c.connected_at,
+                    up.first_name,
+                    up.last_name,
+                    up.username,
+                    up.avatar_url,
+                    c.user_id_2 as other_user_id
+                FROM public.connections c
+                LEFT JOIN public.user_profiles up ON up.user_id = c.user_id_2
+                WHERE c.user_id_1 = :user_id
+                
+                UNION ALL
+                
+                SELECT 
+                    c.user_id_1, 
+                    c.user_id_2, 
+                    c.connected_at,
+                    up.first_name,
+                    up.last_name,
+                    up.username,
+                    up.avatar_url,
+                    c.user_id_1 as other_user_id
+                FROM public.connections c
+                LEFT JOIN public.user_profiles up ON up.user_id = c.user_id_1
+                WHERE c.user_id_2 = :user_id
+            ) AS combined
             ORDER BY 
                 other_user_id,
-                c.connected_at DESC
+                connected_at DESC
             LIMIT :limit OFFSET :skip
         """),
         {

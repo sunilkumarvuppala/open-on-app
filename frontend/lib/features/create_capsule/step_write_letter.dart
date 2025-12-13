@@ -113,7 +113,8 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
         
         Logger.debug('Draft created from letter screen: ${draft.id}');
         
-        // Invalidate drafts provider to refresh the list (async, non-blocking)
+        // Only invalidate on creation (not on every update) to reduce unnecessary refreshes
+        // Updates happen frequently during typing, so we avoid invalidating on every update
         ref.invalidate(draftsProvider(user.id));
       } else {
         // Update existing draft
@@ -130,8 +131,8 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
         // Ensure DraftCapsule has the draft ID
         ref.read(draftCapsuleProvider.notifier).setDraftId(_currentDraftId!);
         
-        // Invalidate drafts provider to refresh the list (async, non-blocking)
-        ref.invalidate(draftsProvider(user.id));
+        // Don't invalidate on every update - this causes unnecessary list refreshes
+        // The draft list will refresh when user navigates to drafts screen
       }
     } catch (e) {
       Logger.error('Failed to auto-save draft from letter screen', error: e);

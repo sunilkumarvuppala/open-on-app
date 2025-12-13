@@ -138,28 +138,24 @@ class DraftStorage {
         await prefs.setString(listKey, jsonEncode(deduplicatedIds));
       }
       
+      // Load all drafts in parallel for better performance
+      // This is much faster than sequential loading
+      final draftFutures = deduplicatedIds.map((draftId) => getDraft(draftId));
+      final draftResults = await Future.wait(draftFutures);
+      
       final drafts = <Draft>[];
       final seenDraftIds = <String>{}; // Track by ID to prevent duplicates
       
-      for (final draftId in deduplicatedIds) {
-        // Additional safety check: don't load the same draft twice
-        if (seenDraftIds.contains(draftId)) {
-          Logger.warning('Skipping duplicate draft ID: $draftId');
-          continue;
-        }
+      for (final draft in draftResults) {
+        if (draft == null) continue;
         
-        final draft = await getDraft(draftId);
-        if (draft != null) {
-          // Final deduplication check: ensure we don't add the same draft twice
-          if (!seenDraftIds.contains(draft.id)) {
-            seenDraftIds.add(draft.id);
-            Logger.debug('Loaded draft: $draftId, content length: ${draft.body.length}');
-            drafts.add(draft);
-          } else {
-            Logger.warning('Draft with ID $draftId already loaded (duplicate)');
-          }
+        // Final deduplication check: ensure we don't add the same draft twice
+        if (!seenDraftIds.contains(draft.id)) {
+          seenDraftIds.add(draft.id);
+          Logger.debug('Loaded draft: ${draft.id}, content length: ${draft.body.length}');
+          drafts.add(draft);
         } else {
-          Logger.warning('Draft ID in list but not found: $draftId');
+          Logger.warning('Draft with ID ${draft.id} already loaded (duplicate)');
         }
       }
       

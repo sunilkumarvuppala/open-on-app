@@ -422,48 +422,21 @@ class _CreateCapsuleScreenState extends ConsumerState<CreateCapsuleScreen> {
         );
         Logger.info('Letter updated as draft from create capsule screen');
       } else {
-        // Check if there's already a draft with this content (fallback check)
-        final existingDrafts = await repo.getDrafts(user.id);
-        Draft? matchingDraft;
-        try {
-          matchingDraft = existingDrafts.firstWhere(
-            (d) => d.body.trim() == content.trim(),
-          );
-        } catch (e) {
-          // No matching draft found
-          matchingDraft = null;
-        }
+        // No existing draft ID - create new one
+        // Don't check for duplicates - it's expensive and not necessary
+        // If user wants to save, create a new draft
+        final newDraft = await repo.createDraft(
+          userId: user.id,
+          title: draft.label,
+          content: content,
+          recipientName: draft.recipient?.name,
+          recipientAvatar: draft.recipient?.avatar,
+        );
         
-        if (matchingDraft != null) {
-          // Found existing draft - update it
-          Logger.debug('Found existing draft with same content: ${matchingDraft.id}');
-          await repo.updateDraft(
-            matchingDraft.id,
-            content,
-            title: draft.label,
-            recipientName: draft.recipient?.name,
-            recipientAvatar: draft.recipient?.avatar,
-          );
-          
-          // Store draft ID in DraftCapsule for future reference
-          ref.read(draftCapsuleProvider.notifier).setDraftId(matchingDraft.id);
-          
-          Logger.info('Letter updated as draft from create capsule screen');
-        } else {
-          // No existing draft - create new one
-          final newDraft = await repo.createDraft(
-            userId: user.id,
-            title: draft.label,
-            content: content,
-            recipientName: draft.recipient?.name,
-            recipientAvatar: draft.recipient?.avatar,
-          );
-          
-          // Store draft ID in DraftCapsule for future reference
-          ref.read(draftCapsuleProvider.notifier).setDraftId(newDraft.id);
-          
-          Logger.info('Letter saved as draft from create capsule screen');
-        }
+        // Store draft ID in DraftCapsule for future reference
+        ref.read(draftCapsuleProvider.notifier).setDraftId(newDraft.id);
+        
+        Logger.info('Letter saved as draft from create capsule screen');
       }
       
       // Invalidate drafts provider to refresh the list

@@ -230,12 +230,14 @@ class ApiCapsuleRepository implements CapsuleRepository {
       
       Logger.info('Fetching capsules: userId=$userId, box=$box, asSender=$asSender');
       
+      // Use default page size instead of max to reduce load time
+      // Max page size (100) is too large and causes performance issues
       final response = await _apiClient.get(
         ApiConfig.capsules,
         queryParams: {
           'box': box,
           'page': AppConstants.defaultPage.toString(),
-          'page_size': AppConstants.maxPageSize.toString(),
+          'page_size': AppConstants.defaultPageSize.toString(), // Use default (20) instead of max (100)
         },
       );
 
