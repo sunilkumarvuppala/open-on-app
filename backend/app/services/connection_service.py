@@ -4,7 +4,7 @@ Connection service layer for business logic.
 This service encapsulates connection-related business logic to reduce
 duplication and improve maintainability.
 """
-from typing import Optional
+from typing import Optional, Any
 from uuid import UUID
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -174,12 +174,80 @@ class ConnectionService:
         to_user_id: UUID
     ) -> None:
         """
-        No-op: Recipients are now connections.
+        Create recipient entries for both users when connection is established.
         
-        Previously created recipient entries when connections were established.
-        Now recipients = connections, so no separate recipient entries are needed.
-        The recipients API endpoint returns connections directly.
+        This ensures recipient records exist in the database so capsules can be created.
+        Recipients are created with linked_user_id set to the connection user ID.
         """
-        # Recipients are now just connections - no need to create separate entries
-        # The list_recipients endpoint queries connections directly
-        pass
+        from app.db.repositories import RecipientRepository, UserProfileRepository
+        from app.db.models import RecipientRelationship
+        
+        recipient_repo = RecipientRepository(self.session)
+        user_profile_repo = UserProfileRepository(self.session)
+        
+        # Get user profiles for display names
+        user1_profile = await user_profile_repo.get_by_id(from_user_id)
+        user2_profile = await user_profile_repo.get_by_id(to_user_id)
+        
+        # Build display names
+        def get_display_name(profile: Optional[Any]) -> str:
+            if profile:
+                name_parts = [p for p in [profile.first_name, profile.last_name] if p]
+                if name_parts:
+                    return " ".join(name_parts)
+                if profile.username:
+                    return profile.username
+            return f"User {str(from_user_id)[:8]}"
+        
+        user1_display_name = get_display_name(user1_profile) if user1_profile else f"User {str(from_user_id)[:8]}"
+        user2_display_name = get_display_name(user2_profile) if user2_profile else f"User {str(to_user_id)[:8]}"
+        
+        # Create recipient for user1 -> user2 (if doesn't exist)
+        # CRITICAL: Check again after potential concurrent creation
+        existing_recipient_1 = await recipient_repo.get_by_owner_and_linked_user(
+            owner_id=from_user_id,
+            linked_user_id=to_user_id
+        )
+        if not existing_recipient_1:
+            try:
+                await recipient_repo.create(
+                    owner_id=from_user_id,
+                    name=user2_display_name,
+                    email=None,  # Connection-based recipients have no email
+                    avatar_url=user2_profile.avatar_url if user2_profile else None,
+                    linked_user_id=to_user_id,
+                    relationship=RecipientRelationship.FRIEND,
+                )
+                logger.info(f"Created recipient for user {from_user_id} -> {to_user_id}")
+            except IntegrityError as e:
+                # Unique constraint violation - recipient was created by concurrent request
+                # This is expected and safe to ignore
+                logger.info(
+                    f"Recipient already exists for {from_user_id} -> {to_user_id} "
+                    f"(created by concurrent request): {e}"
+                )
+        
+        # Create recipient for user2 -> user1 (if doesn't exist)
+        # CRITICAL: Check again after potential concurrent creation
+        existing_recipient_2 = await recipient_repo.get_by_owner_and_linked_user(
+            owner_id=to_user_id,
+            linked_user_id=from_user_id
+        )
+        if not existing_recipient_2:
+            try:
+                await recipient_repo.create(
+                    owner_id=to_user_id,
+                    name=user1_display_name,
+                    email=None,  # Connection-based recipients have no email
+                    avatar_url=user1_profile.avatar_url if user1_profile else None,
+                    linked_user_id=from_user_id,
+                    relationship=RecipientRelationship.FRIEND,
+                )
+                logger.info(f"Created recipient for user {to_user_id} -> {from_user_id}")
+            except IntegrityError as e:
+                # Unique constraint violation - recipient was created by concurrent request
+                # This is expected and safe to ignore
+                logger.info(
+                    f"Recipient already exists for {to_user_id} -> {from_user_id} "
+                    f"(created by concurrent request): {e}"
+                )

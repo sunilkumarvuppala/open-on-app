@@ -805,10 +805,16 @@ class ConnectionRequestResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     # User profile info for display
+    # from_user_* fields: Profile of the sender (for incoming requests)
     from_user_first_name: Optional[str] = None
     from_user_last_name: Optional[str] = None
     from_user_username: Optional[str] = None
     from_user_avatar_url: Optional[str] = None
+    # to_user_* fields: Profile of the recipient (for outgoing requests)
+    to_user_first_name: Optional[str] = None
+    to_user_last_name: Optional[str] = None
+    to_user_username: Optional[str] = None
+    to_user_avatar_url: Optional[str] = None
 
 
 class ConnectionRequestUpdate(BaseModel):

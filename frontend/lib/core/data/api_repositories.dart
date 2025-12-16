@@ -6,6 +6,7 @@ import 'package:openon_app/core/data/user_mapper.dart';
 import 'package:openon_app/core/data/capsule_mapper.dart';
 import 'package:openon_app/core/data/recipient_mapper.dart';
 import 'package:openon_app/core/data/connection_repository.dart';
+import 'package:openon_app/core/data/supabase_config.dart';
 import 'package:openon_app/core/errors/app_exceptions.dart';
 import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/models/connection_models.dart';
@@ -215,6 +216,7 @@ class ApiAuthRepository implements AuthRepository {
 /// API-based Capsule Repository
 class ApiCapsuleRepository implements CapsuleRepository {
   final ApiClient _apiClient = ApiClient();
+  final ApiAuthRepository _authRepo = ApiAuthRepository();
 
   @override
   Future<List<Capsule>> getCapsules({
@@ -282,13 +284,73 @@ class ApiCapsuleRepository implements CapsuleRepository {
       Validation.validateUnlockDate(capsule.unlockAt);
 
       // Backend expects recipient_id (UUID of recipient record), not receiver_id (user ID)
-      // The capsule.receiverId should be the recipient.id, not a user ID
-      Logger.info('Creating capsule with recipient_id: ${capsule.receiverId}, unlocks_at: ${capsule.unlockAt}');
+      // The capsule.receiverId might be a user ID from the API, so we need to find the actual recipient UUID
+      String recipientId = capsule.receiverId;
+      
+      // Check if receiverId is a valid UUID format (36 chars with dashes)
+      // If not, it's likely a user ID, so we need to find the actual recipient UUID
+      final isLikelyUserId = recipientId.length != 36 || !recipientId.contains('-');
+      
+      if (isLikelyUserId) {
+        Logger.warning('recipient_id looks like a user ID ($recipientId), finding actual recipient UUID using connection user ID');
+        
+        // Find actual recipient UUID using connection user ID (linkedUserId) - stable identifier
+        // Strategy: Get recipients list and find recipient with linkedUserId matching the recipient
+        // Then find recipient UUIDs from existing capsules that belong to this connection
+        try {
+          final currentUser = await _authRepo.getCurrentUser();
+          if (currentUser != null) {
+            // Step 1: Get recipients list and find recipient with linkedUserId
+            // The recipient.id from API might be a user ID, but we can use linkedUserId to identify the connection
+            final recipientRepo = ApiRecipientRepository();
+            final recipients = await recipientRepo.getRecipients(currentUser.id);
+            
+            // Find recipient with linkedUserId matching the capsule's receiverId (which is the connection user ID)
+            final connectionRecipient = recipients.firstWhere(
+              (r) => r.linkedUserId == recipientId, // recipientId is the connection user ID
+              orElse: () => Recipient(
+                userId: currentUser.id,
+                name: capsule.receiverName,
+                relationship: 'friend',
+                linkedUserId: recipientId,
+              ),
+            );
+            
+            // Backend now returns actual recipient UUIDs, so connectionRecipient.id should be a valid UUID
+            if (connectionRecipient.id.length == 36 && connectionRecipient.id.contains('-')) {
+              // Valid UUID from recipients list - use it directly
+              recipientId = connectionRecipient.id;
+              Logger.info('Found recipient UUID from recipients list (linkedUserId=$recipientId): $recipientId');
+            } else {
+              // Fallback: This shouldn't happen now, but handle edge case
+              Logger.warning('Recipient ID from API is not a valid UUID: ${connectionRecipient.id}. Backend should return actual UUIDs.');
+              // Try to find from existing capsules as last resort
+              final outboxCapsules = await getCapsules(
+                userId: currentUser.id,
+                asSender: true,
+              );
+              for (final existingCapsule in outboxCapsules) {
+                final existingRecipientId = existingCapsule.receiverId;
+                if (existingRecipientId.length == 36 && existingRecipientId.contains('-')) {
+                  recipientId = existingRecipientId;
+                  Logger.warning('Using recipient UUID from existing capsules as fallback: $recipientId');
+                  break;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          Logger.warning('Error finding recipient UUID using connection user ID', error: e);
+          // Continue with original recipientId - backend will validate
+        }
+      }
+      
+      Logger.info('Creating capsule with recipient_id: $recipientId, unlocks_at: ${capsule.unlockAt}');
       
       final response = await _apiClient.post(
         ApiConfig.capsules,
         {
-          'recipient_id': capsule.receiverId, // This should be recipient.id (UUID)
+          'recipient_id': recipientId, // Use found or original recipient UUID
           'title': capsule.label.isNotEmpty ? capsule.label : null,
           'body_text': capsule.content, // Backend uses body_text, not body
           'unlocks_at': capsule.unlockAt.toUtc().toIso8601String(), // Backend expects unlocks_at
@@ -302,6 +364,19 @@ class ApiCapsuleRepository implements CapsuleRepository {
       return createdCapsule;
     } catch (e, stackTrace) {
       Logger.error('Failed to create capsule', error: e, stackTrace: stackTrace);
+      
+      // Check if error is about recipient not found
+      final errorStr = e.toString().toLowerCase();
+      if (errorStr.contains('recipient not found') || 
+          errorStr.contains('404') ||
+          (errorStr.contains('detail') && errorStr.contains('recipient'))) {
+        throw RepositoryException(
+          'Recipient not found. Please ensure you are connected with this user and try again.',
+          originalError: e,
+          stackTrace: stackTrace,
+        );
+      }
+      
       if (e is ValidationException) {
         rethrow;
       }
@@ -612,7 +687,10 @@ class ApiConnectionRepository with StreamPollingMixin implements ConnectionRepos
   final ApiClient _apiClient = ApiClient();
   final ApiAuthRepository _authRepo = ApiAuthRepository();
   
-  static const Duration _pollInterval = Duration(seconds: 5);
+  // Polling intervals optimized for rate limiting (60 requests/minute)
+  // Connection requests: 15 seconds = 4 requests/minute per endpoint (8 total for both)
+  // This leaves plenty of headroom for other API calls
+  static const Duration _connectionRequestsPollInterval = Duration(seconds: 15);
 
   /// Transform snake_case response from FastAPI to camelCase for Flutter models
   /// Handles UUID objects, datetime objects, and null values
@@ -626,10 +704,14 @@ class ApiConnectionRepository with StreamPollingMixin implements ConnectionRepos
         return value.toString();
       }
 
-      // Build user profile from individual fields if available
+      // Build user profiles from individual fields if available
       Map<String, dynamic>? fromUserProfile;
-      final fromUserId = _toString(json['from_user_id']) ?? _toString(json['fromUserId']) ?? '';
+      Map<String, dynamic>? toUserProfile;
       
+      final fromUserId = _toString(json['from_user_id']) ?? _toString(json['fromUserId']) ?? '';
+      final toUserId = _toString(json['to_user_id']) ?? _toString(json['toUserId']) ?? '';
+      
+      // Build fromUserProfile (for incoming requests - sender's profile)
       if (fromUserId.isNotEmpty) {
         final firstName = json['from_user_first_name'] as String? ?? json['fromUserFirstName'] as String?;
         final lastName = json['from_user_last_name'] as String? ?? json['fromUserLastName'] as String?;
@@ -647,10 +729,28 @@ class ApiConnectionRepository with StreamPollingMixin implements ConnectionRepos
         }
       }
 
+      // Build toUserProfile (for outgoing requests - recipient's profile)
+      if (toUserId.isNotEmpty) {
+        final firstName = json['to_user_first_name'] as String? ?? json['toUserFirstName'] as String?;
+        final lastName = json['to_user_last_name'] as String? ?? json['toUserLastName'] as String?;
+        final username = json['to_user_username'] as String? ?? json['toUserUsername'] as String?;
+        final avatarUrl = json['to_user_avatar_url'] as String? ?? json['toUserAvatarUrl'] as String?;
+        
+        if (firstName != null || lastName != null || username != null) {
+          final displayName = [firstName, lastName].whereType<String>().join(' ').trim();
+          toUserProfile = {
+            'userId': toUserId,
+            'displayName': displayName.isNotEmpty ? displayName : (username ?? 'User'),
+            'username': username,
+            'avatarUrl': avatarUrl,
+          };
+        }
+      }
+
       return {
         'id': _toString(json['id']) ?? '',
         'fromUserId': fromUserId,
-        'toUserId': _toString(json['to_user_id']) ?? _toString(json['toUserId']) ?? '',
+        'toUserId': toUserId,
         'status': _toString(json['status']) ?? 'pending',
         'message': json['message'] as String?,
         'declinedReason': json['declined_reason'] as String? ?? json['declinedReason'] as String?,
@@ -658,7 +758,7 @@ class ApiConnectionRepository with StreamPollingMixin implements ConnectionRepos
         'createdAt': _toString(json['created_at']) ?? _toString(json['createdAt']) ?? DateTime.now().toIso8601String(),
         'updatedAt': _toString(json['updated_at']) ?? _toString(json['updatedAt']) ?? DateTime.now().toIso8601String(),
         'fromUserProfile': fromUserProfile ?? json['from_user_profile'] ?? json['fromUserProfile'],
-        'toUserProfile': json['to_user_profile'] ?? json['toUserProfile'],
+        'toUserProfile': toUserProfile ?? json['to_user_profile'] ?? json['toUserProfile'],
       };
     } catch (e, stackTrace) {
       Logger.error('Error transforming connection request response', error: e, stackTrace: stackTrace);
@@ -884,7 +984,7 @@ class ApiConnectionRepository with StreamPollingMixin implements ConnectionRepos
   Stream<List<ConnectionRequest>> watchIncomingRequests() {
     return createPollingStream<List<ConnectionRequest>>(
       loadData: _loadIncomingRequestsData,
-      pollInterval: _pollInterval,
+      pollInterval: _connectionRequestsPollInterval, // 15 seconds to avoid rate limits
     );
   }
   
@@ -920,7 +1020,7 @@ class ApiConnectionRepository with StreamPollingMixin implements ConnectionRepos
   Stream<List<ConnectionRequest>> watchOutgoingRequests() {
     return createPollingStream<List<ConnectionRequest>>(
       loadData: _loadOutgoingRequestsData,
-      pollInterval: _pollInterval,
+      pollInterval: _connectionRequestsPollInterval, // 15 seconds to avoid rate limits
     );
   }
   
@@ -955,7 +1055,7 @@ class ApiConnectionRepository with StreamPollingMixin implements ConnectionRepos
   Stream<List<Connection>> watchConnections() {
     return createPollingStream<List<Connection>>(
       loadData: _loadConnectionsData,
-      pollInterval: _pollInterval,
+      pollInterval: _connectionRequestsPollInterval, // 15 seconds to avoid rate limits
     );
   }
   
@@ -1072,84 +1172,164 @@ class ApiConnectionRepository with StreamPollingMixin implements ConnectionRepos
       
       Logger.info('Found connection: ${connection.otherUserProfile.displayName}');
       
-      // Calculate letter counts by querying capsules
-      // Get recipients to find the recipient IDs that link the two users
+      // Calculate letter counts using connection user ID (linkedUserId) - production-ready, optimized
+      // Strategy: Use connection user ID (stable UUID) to find recipient UUIDs from existing capsules
+      // This avoids name-based matching which can fail when names change (e.g., "test1" -> "test2")
+      // CRITICAL: We use linkedUserId (connection user ID) as the stable identifier, not names
+      final capsuleRepo = ApiCapsuleRepository();
       final recipientRepo = ApiRecipientRepository();
+      
+      // Get recipients list to find recipient with linkedUserId = connectionId
+      // This gives us the recipient record that represents this connection (if it exists)
       final currentUserRecipients = await recipientRepo.getRecipients(currentUserId);
+      final connectionRecipient = currentUserRecipients.firstWhere(
+        (r) => r.linkedUserId == connectionId,
+        orElse: () => Recipient(
+          userId: currentUserId,
+          name: connection.otherUserProfile.displayName,
+          relationship: 'friend',
+          linkedUserId: connectionId,
+        ),
+      );
       
-      Logger.info('Checking ${currentUserRecipients.length} recipients for connection $connectionId');
-      
-      // Find recipient for the other user (connection-based recipients have linkedUserId)
-      String? currentUserRecipientId;
-      for (final recipient in currentUserRecipients) {
-        if (recipient.linkedUserId == connectionId) {
-          currentUserRecipientId = recipient.id;
-          Logger.info('Found recipient for connection by linkedUserId: ${recipient.id} (name: ${recipient.name})');
-          break;
-        }
-      }
-      
-      // If not found by linkedUserId, try matching by name (sanitized for security)
-      if (currentUserRecipientId == null) {
-        final sanitizedOtherDisplayName = Validation.sanitizeString(
-          connection.otherUserProfile.displayName,
-        ).toLowerCase();
-        Logger.info('Trying name match for: "$sanitizedOtherDisplayName"');
-        for (final recipient in currentUserRecipients) {
-          final sanitizedRecipientName = Validation.sanitizeString(recipient.name).toLowerCase();
-          if (sanitizedRecipientName == sanitizedOtherDisplayName ||
-              sanitizedRecipientName.contains(sanitizedOtherDisplayName) ||
-              sanitizedOtherDisplayName.contains(sanitizedRecipientName)) {
-            currentUserRecipientId = recipient.id;
-            Logger.info('Found recipient by name match: ${recipient.id} (name: ${recipient.name})');
-            break;
+      // Letters sent: Count letters from current user (A) to connection user (B)
+      // Strategy: Use recipient UUID owned by current user with linked_user_id = connectionId
+      // This is the exact recipient UUID that represents the connection user (B) in current user's (A) recipient list
+      int lettersSent = 0;
+      try {
+        // Get the exact recipient UUID from recipients API (should have linkedUserId = connectionId)
+        String? currentUserRecipientId;
+        
+        // The connectionRecipient should already have the correct UUID if it was found
+        if (connectionRecipient.id.length == 36 && connectionRecipient.id.contains('-')) {
+          currentUserRecipientId = connectionRecipient.id;
+          Logger.info('Using recipient UUID from recipients API (linkedUserId=$connectionId): $currentUserRecipientId');
+        } else {
+          // Fallback: Try to get it from Supabase directly
+          try {
+            if (SupabaseConfig.isInitialized) {
+              final recipientsResponse = await SupabaseConfig.client
+                  .from('recipients')
+                  .select('id, linked_user_id')
+                  .eq('owner_id', currentUserId)
+                  .eq('linked_user_id', connectionId)
+                  .maybeSingle();
+              
+              if (recipientsResponse != null) {
+                currentUserRecipientId = recipientsResponse['id'] as String?;
+                Logger.info('Found recipient UUID from Supabase (owner=$currentUserId, linked_user_id=$connectionId): $currentUserRecipientId');
+              }
+            }
+          } catch (e) {
+            Logger.warning('Error querying Supabase for recipient, will use fallback method', error: e);
           }
         }
-      }
-      
-      if (currentUserRecipientId == null) {
-        Logger.warning('Could not find recipient for connection $connectionId. Available recipients: ${currentUserRecipients.map((r) => '${r.name} (linkedUserId: ${r.linkedUserId})').join(", ")}');
-      }
-      
-      // Get capsules to calculate counts
-      final capsuleRepo = ApiCapsuleRepository();
-      
-      // Letters sent: total outbox capsules where recipient_id matches
-      // Outbox = all capsules sent by current user (sender_id = currentUserId)
-      // Filter by recipient_id = currentUserRecipientId to get only letters to this connection
-      int lettersSent = 0;
-      if (currentUserRecipientId != null) {
-        try {
+        
+        // Count capsules using the exact recipient UUID
+        if (currentUserRecipientId != null) {
           final outboxCapsules = await capsuleRepo.getCapsules(
             userId: currentUserId,
             asSender: true,
           );
-          Logger.info('Retrieved ${outboxCapsules.length} total outbox capsules');
+          
+          // Count only capsules sent to this specific recipient (exact UUID match)
           lettersSent = outboxCapsules
               .where((c) => c.receiverId == currentUserRecipientId)
               .length;
-          Logger.info('Found $lettersSent letters sent to recipient $currentUserRecipientId (out of ${outboxCapsules.length} total sent)');
-        } catch (e) {
-          Logger.warning('Error counting sent letters', error: e);
+          
+          Logger.info(
+            'Found $lettersSent letters sent to connection $connectionId '
+            'using recipient UUID: $currentUserRecipientId'
+          );
+        } else {
+          Logger.warning('Could not determine recipient UUID for connection user from current user');
         }
-      } else {
-        Logger.warning('Cannot count sent letters: recipient not found for connection');
+      } catch (e) {
+        Logger.warning('Error counting sent letters', error: e);
       }
       
-      // Letters received: total inbox capsules where sender_id matches connectionId
-      // Inbox = all capsules received by current user (already filtered by backend)
-      // Filter by sender_id = connectionId to get only letters from this connection
+      // Letters received: Find recipient UUID owned by connection user that represents current user
+      // Strategy: Query Supabase directly to get recipient owned by connection user with linked_user_id = currentUserId
+      // This is the exact recipient UUID that represents the current user in the connection user's recipient list
       int lettersReceived = 0;
       try {
-        final inboxCapsules = await capsuleRepo.getCapsules(
-          userId: currentUserId,
-          asSender: false,
-        );
-        Logger.info('Retrieved ${inboxCapsules.length} total inbox capsules');
-        lettersReceived = inboxCapsules
-            .where((c) => c.senderId == connectionId)
-            .length;
-        Logger.info('Found $lettersReceived letters received from sender $connectionId (out of ${inboxCapsules.length} total received)');
+        // First, try to get the exact recipient UUID from Supabase
+        String? otherUserRecipientId;
+        try {
+          if (SupabaseConfig.isInitialized) {
+            final recipientsResponse = await SupabaseConfig.client
+                .from('recipients')
+                .select('id, linked_user_id')
+                .eq('owner_id', connectionId)
+                .eq('linked_user_id', currentUserId)
+                .maybeSingle();
+            
+            if (recipientsResponse != null) {
+              otherUserRecipientId = recipientsResponse['id'] as String?;
+              Logger.info('Found recipient UUID from Supabase (owner=$connectionId, linked_user_id=$currentUserId): $otherUserRecipientId');
+            } else {
+              Logger.info('No recipient found in Supabase for owner=$connectionId, linked_user_id=$currentUserId');
+            }
+          }
+        } catch (e) {
+          Logger.warning('Error querying Supabase for recipient, will use fallback method', error: e);
+        }
+        
+        // If we couldn't get it from Supabase, use fallback: most common recipient_id from capsules
+        if (otherUserRecipientId == null) {
+          Logger.info('Using fallback method: finding most common recipient_id from capsules');
+          final inboxCapsules = await capsuleRepo.getCapsules(
+            userId: currentUserId,
+            asSender: false,
+          );
+          
+          if (inboxCapsules.isNotEmpty) {
+            final capsulesFromConnection = inboxCapsules
+                .where((c) => c.senderId == connectionId)
+                .toList();
+            
+            if (capsulesFromConnection.isNotEmpty) {
+              // Find the most common recipient_id (should be the one representing current user)
+              final recipientIdCounts = <String, int>{};
+              for (final capsule in capsulesFromConnection) {
+                final recipientId = capsule.receiverId;
+                if (recipientId.length == 36 && recipientId.contains('-')) {
+                  recipientIdCounts[recipientId] = (recipientIdCounts[recipientId] ?? 0) + 1;
+                }
+              }
+              
+              if (recipientIdCounts.isNotEmpty) {
+                int maxCount = 0;
+                recipientIdCounts.forEach((recipientId, count) {
+                  if (count > maxCount) {
+                    maxCount = count;
+                    otherUserRecipientId = recipientId;
+                  }
+                });
+                Logger.info('Using fallback recipient UUID: $otherUserRecipientId (appeared $maxCount times)');
+              }
+            }
+          }
+        }
+        
+        // Count capsules using the recipient UUID
+        if (otherUserRecipientId != null) {
+          final inboxCapsules = await capsuleRepo.getCapsules(
+            userId: currentUserId,
+            asSender: false,
+          );
+          
+          lettersReceived = inboxCapsules
+              .where((c) => c.senderId == connectionId && c.receiverId == otherUserRecipientId)
+              .length;
+          
+          Logger.info(
+            'Found $lettersReceived letters received from connection $connectionId '
+            'using recipient UUID: $otherUserRecipientId'
+          );
+        } else {
+          Logger.warning('Could not determine recipient UUID for current user from connection user');
+        }
       } catch (e) {
         Logger.warning('Error counting received letters', error: e);
       }

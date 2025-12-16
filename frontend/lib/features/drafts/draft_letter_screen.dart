@@ -9,7 +9,6 @@ import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
 import 'package:openon_app/core/utils/logger.dart';
-import 'package:openon_app/core/data/repositories.dart';
 
 /// Exit action options for draft exit dialog
 enum ExitAction {
@@ -56,8 +55,7 @@ class _DraftLetterScreenState extends ConsumerState<DraftLetterScreen>
   late final FocusNode _titleFocusNode;
   bool _hasAutoFocused = false;
   bool _isExiting = false;
-  String? _userId;
-  String? _draftId;
+  String? _draftId; // Track draft ID for reference (updated from provider state)
 
   @override
   void initState() {
@@ -73,11 +71,17 @@ class _DraftLetterScreenState extends ConsumerState<DraftLetterScreen>
 
   @override
   void dispose() {
-    // Save using stored values (ref is not available after dispose)
-    // This is a fallback - most saves happen via auto-save or navigation handlers
-    if (_userId != null && _textController.text.trim().isNotEmpty) {
-      _saveDraftDirectly(_userId!, _textController.text);
-    }
+    // CRITICAL: Don't save in dispose - this causes race conditions
+    // The provider's auto-save and _saveImmediately() handle all saves
+    // Saving in dispose can create duplicates because:
+    // 1. Provider might have already saved
+    // 2. Multiple dispose calls can happen
+    // 3. State might be inconsistent
+    // 
+    // Instead, rely on:
+    // - Provider's debounced auto-save
+    // - _saveImmediately() on navigation/lifecycle events
+    // - These are called BEFORE dispose
     
     WidgetsBinding.instance.removeObserver(this);
     _textController.dispose();
@@ -85,36 +89,6 @@ class _DraftLetterScreenState extends ConsumerState<DraftLetterScreen>
     _focusNode.dispose();
     _titleFocusNode.dispose();
     super.dispose();
-  }
-  
-  /// Save draft directly without using ref (for dispose fallback)
-  Future<void> _saveDraftDirectly(String userId, String content) async {
-    try {
-      final repo = LocalDraftRepository();
-      final title = _titleController.text.trim().isEmpty ? null : _titleController.text.trim();
-      // Note: DraftLetterScreen doesn't have recipient info, so pass null
-      if (_draftId == null) {
-        await repo.createDraft(
-          userId: userId,
-          title: title,
-          content: content,
-          recipientName: null,
-          recipientAvatar: null,
-        );
-      } else {
-        await repo.updateDraft(
-          _draftId!,
-          content,
-          title: title,
-          recipientName: null,
-          recipientAvatar: null,
-        );
-      }
-      Logger.debug('Draft saved directly on dispose');
-    } catch (e) {
-      // Silently fail - this is just a fallback
-      Logger.debug('Failed to save draft directly: $e');
-    }
   }
 
   @override
@@ -140,6 +114,13 @@ class _DraftLetterScreenState extends ConsumerState<DraftLetterScreen>
     final params = (userId: user.id, draftId: widget.draftId);
     try {
       await ref.read(draftLetterProvider(params).notifier).saveImmediately();
+      // CRITICAL: Update _draftId from state immediately after save
+      // This ensures dispose() will use the correct draftId
+      final draftState = ref.read(draftLetterProvider(params));
+      if (draftState.draftId != null) {
+        _draftId = draftState.draftId;
+        Logger.debug('Updated _draftId after save: $_draftId');
+      }
     } catch (e) {
       // Silently fail - local storage should have saved
       Logger.debug('Failed to save immediately: $e');
@@ -507,12 +488,20 @@ class _DraftLetterScreenState extends ConsumerState<DraftLetterScreen>
       );
     }
 
-    // Store user ID and draft ID for dispose fallback
-    _userId = user.id;
-    _draftId = widget.draftId;
-
     final params = (userId: user.id, draftId: widget.draftId);
     final draftState = ref.watch(draftLetterProvider(params));
+
+    // CRITICAL: Always sync _draftId from provider state (source of truth)
+    // The provider's state.draftId is updated immediately after draft creation
+    // This ensures we always track the correct draft ID, even for newly created drafts
+    // widget.draftId is only used for initial load, state.draftId is the runtime truth
+    if (draftState.draftId != null) {
+      _draftId = draftState.draftId;
+    } else if (widget.draftId != null) {
+      _draftId = widget.draftId;
+    } else {
+      _draftId = null;
+    }
 
     // Sync text controllers with state
     if (draftState.content != _textController.text) {

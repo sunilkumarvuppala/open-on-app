@@ -472,21 +472,27 @@ class CapsuleRepository(BaseRepository[Capsule]):
         self,
         user_id: UUID,
         user_email: Optional[str],
-        user_display_name: Optional[str],
+        user_display_name: Optional[str],  # Kept for backward compatibility, not used in query
         status: Optional[CapsuleStatus] = None,
         skip: int = 0,
         limit: Optional[int] = None
     ) -> tuple[list[Capsule], int]:
         """
-        Get inbox capsules using optimized unified query.
+        Get inbox capsules using optimized unified query with UUID-based matching.
         
         Handles both email-based and connection-based recipients in a single
         database query with proper pagination at the database level.
         
+        CRITICAL: Uses UUID-based matching via linked_user_id for connection-based recipients.
+        This is production-ready for 1M+ users because:
+        - UUIDs are stable (don't change when names change)
+        - UUIDs are unique (no collisions)
+        - Direct index lookup (faster than name matching)
+        
         Args:
-            user_id: Current user's ID (the receiver)
+            user_id: Current user's UUID (the receiver) - used for linked_user_id matching
             user_email: Current user's email (for email-based matching)
-            user_display_name: Current user's display name (for connection-based matching)
+            user_display_name: DEPRECATED - kept for backward compatibility only
             status: Optional status filter
             skip: Number of records to skip (for pagination)
             limit: Maximum number of records to return
@@ -495,46 +501,11 @@ class CapsuleRepository(BaseRepository[Capsule]):
             Tuple of (capsules list, total count)
         """
         from app.core.config import settings
-        from sqlalchemy import select, and_, or_, func, bindparam, table, column
+        from sqlalchemy import select, and_, or_, func, bindparam
         from app.db.models import Recipient
         
-        # Create table reference for connections
-        connections_table = table(
-            'connections',
-            column('user_id_1'),
-            column('user_id_2')
-        )
-        
-        # Optimized connection exists subquery
-        # Split into two EXISTS checks - each can use its respective index
-        # PostgreSQL can optimize EXISTS with indexes better than OR conditions
-        connection_exists_1 = (
-            select(1)
-            .select_from(connections_table)
-            .where(
-                and_(
-                    connections_table.c.user_id_1 == bindparam('user_id'),
-                    connections_table.c.user_id_2 == Capsule.sender_id
-                )
-            )
-        ).exists()
-        
-        connection_exists_2 = (
-            select(1)
-            .select_from(connections_table)
-            .where(
-                and_(
-                    connections_table.c.user_id_2 == bindparam('user_id'),
-                    connections_table.c.user_id_1 == Capsule.sender_id
-                )
-            )
-        ).exists()
-        
-        # Combine with OR - each EXISTS can use its index efficiently
-        connection_subquery = or_(connection_exists_1, connection_exists_2)
-        
         # Build recipient matching conditions
-        # Capsule matches if: (email matches) OR (connection-based recipient matches)
+        # Capsule matches if: (email matches) OR (connection-based recipient matches by UUID)
         recipient_conditions = []
         
         # Email-based matching condition
@@ -545,18 +516,16 @@ class CapsuleRepository(BaseRepository[Capsule]):
             )
             recipient_conditions.append(email_condition)
         
-        # Connection-based matching condition
-        # For connection-based recipients (email IS NULL), match by:
-        # 1. Connection exists between current user and sender
-        # 2. Recipient name matches user's display name (case-insensitive, trimmed)
-        # This allows letters sent via connections to appear in the receiver's inbox
-        if user_display_name:
-            connection_condition = and_(
-                Recipient.email.is_(None),
-                func.trim(func.lower(Recipient.name)) == func.trim(func.lower(bindparam('user_display_name'))),
-                connection_subquery
-            )
-            recipient_conditions.append(connection_condition)
+        # Connection-based matching condition using UUID
+        # CRITICAL: Use linked_user_id (UUID) for accurate, scalable matching
+        # This finds recipients where linked_user_id == current_user_id
+        # (i.e., recipients created for connections where current user is the linked user)
+        # No need to check connections table - linked_user_id already indicates connection-based recipient
+        connection_condition = and_(
+            Recipient.email.is_(None),
+            Recipient.linked_user_id == bindparam('current_user_id')  # UUID comparison
+        )
+        recipient_conditions.append(connection_condition)
         
         # Combine recipient conditions with OR (capsule matches if either condition is true)
         if not recipient_conditions:
@@ -597,12 +566,10 @@ class CapsuleRepository(BaseRepository[Capsule]):
         if status:
             count_query = count_query.where(Capsule.status == status)
         
-        # Prepare parameters
-        params = {"user_id": user_id}
+        # Prepare parameters - all UUIDs are properly typed
+        params = {"current_user_id": user_id}  # UUID parameter
         if user_email:
             params["user_email"] = user_email
-        if user_display_name:
-            params["user_display_name"] = user_display_name
         
         # Execute count query
         count_result = await self.session.execute(count_query, params)
@@ -778,8 +745,33 @@ class RecipientRepository(BaseRepository[Recipient]):
             query = query.limit(limit)
         else:
             query = query.limit(settings.default_page_size)
+        
         result = await self.session.execute(query)
         return list(result.scalars().all())
+    
+    async def get_by_owner_and_linked_user(
+        self,
+        owner_id: UUID,
+        linked_user_id: UUID
+    ) -> Optional[Recipient]:
+        """Get recipient by owner and linked user ID (for connection-based recipients)."""
+        # Handle case where linked_user_id column doesn't exist yet (migration not run)
+        try:
+            result = await self.session.execute(
+                select(Recipient).where(
+                    and_(
+                        Recipient.owner_id == owner_id,
+                        Recipient.linked_user_id == linked_user_id
+                    )
+                )
+            )
+            return result.scalar_one_or_none()
+        except Exception as e:
+            error_str = str(e).lower()
+            if 'linked_user_id' in error_str and 'does not exist' in error_str:
+                # Migration not run yet - return None
+                return None
+            raise
     
     async def update(self, id: UUID, **kwargs) -> Optional[Recipient]:
         """Update recipient by ID (UUID)."""
