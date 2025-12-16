@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
+import 'package:openon_app/core/utils/logger.dart';
 
 class StepChooseRecipient extends ConsumerStatefulWidget {
   final VoidCallback onNext;
@@ -32,10 +34,55 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
         
         return recipientsAsync.when(
           data: (recipients) {
-            final filteredRecipients = recipients.where((r) {
+            // CRITICAL: Deduplicate by linked_user_id for connection-based recipients
+            // Multiple recipient records can exist with different IDs but same linked_user_id
+            // This happens when recipients are created multiple times (race conditions)
+            // For connection-based recipients (linkedUserId != null), use linkedUserId as unique key
+            // For email-based recipients (linkedUserId == null), use id as unique key
+            final uniqueRecipients = <String, Recipient>{};
+            final seenLinkedUserIds = <String>{};
+            
+            for (final recipient in recipients) {
+              // For connection-based recipients, deduplicate by linked_user_id
+              if (recipient.linkedUserId != null && recipient.linkedUserId!.isNotEmpty) {
+                final linkedUserIdKey = recipient.linkedUserId!;
+                if (!seenLinkedUserIds.contains(linkedUserIdKey)) {
+                  seenLinkedUserIds.add(linkedUserIdKey);
+                  uniqueRecipients[linkedUserIdKey] = recipient;
+                } else {
+                  Logger.warning(
+                    'Found duplicate recipient with same linked_user_id: ${recipient.linkedUserId} '
+                    '(ID: ${recipient.id}, Name: ${recipient.name}). Keeping first occurrence.'
+                  );
+                }
+              } else {
+                // For email-based recipients, deduplicate by id
+                if (!uniqueRecipients.containsKey(recipient.id)) {
+                  uniqueRecipients[recipient.id] = recipient;
+                } else {
+                  Logger.warning(
+                    'Found duplicate recipient with same id: ${recipient.id} '
+                    '(Name: ${recipient.name}). Keeping first occurrence.'
+                  );
+                }
+              }
+            }
+            final deduplicatedRecipients = uniqueRecipients.values.toList();
+            
+            if (deduplicatedRecipients.length != recipients.length) {
+              Logger.info(
+                'Deduplicated recipients: ${recipients.length} -> ${deduplicatedRecipients.length} '
+                '(removed ${recipients.length - deduplicatedRecipients.length} duplicates)'
+              );
+            }
+            
+            // Apply search filter
+            final filteredRecipients = deduplicatedRecipients.where((r) {
               if (_searchQuery.isEmpty) return true;
-              return r.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                  r.relationship.toLowerCase().contains(_searchQuery.toLowerCase());
+              final name = r.name.toLowerCase();
+              final relationship = r.relationship.toLowerCase();
+              final query = _searchQuery.toLowerCase();
+              return name.contains(query) || relationship.contains(query);
             }).toList();
             
             return Column(

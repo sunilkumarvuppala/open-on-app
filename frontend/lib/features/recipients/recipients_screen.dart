@@ -50,12 +50,54 @@ class RecipientsScreen extends ConsumerWidget {
               // Debug logging
               Logger.info('Recipients screen: Received ${recipients.length} recipients');
               
-              if (recipients.isEmpty) {
+              // CRITICAL: Deduplicate by linked_user_id for connection-based recipients
+              // Multiple recipient records can exist with different IDs but same linked_user_id
+              // This happens when recipients are created multiple times (race conditions)
+              // For connection-based recipients (linkedUserId != null), use linkedUserId as unique key
+              // For email-based recipients (linkedUserId == null), use id as unique key
+              final uniqueRecipients = <String, Recipient>{};
+              final seenLinkedUserIds = <String>{};
+              
+              for (final recipient in recipients) {
+                // For connection-based recipients, deduplicate by linked_user_id
+                if (recipient.linkedUserId != null && recipient.linkedUserId!.isNotEmpty) {
+                  final linkedUserIdKey = recipient.linkedUserId!;
+                  if (!seenLinkedUserIds.contains(linkedUserIdKey)) {
+                    seenLinkedUserIds.add(linkedUserIdKey);
+                    uniqueRecipients[linkedUserIdKey] = recipient;
+                  } else {
+                    Logger.warning(
+                      'Found duplicate recipient with same linked_user_id: ${recipient.linkedUserId} '
+                      '(ID: ${recipient.id}, Name: ${recipient.name}). Keeping first occurrence.'
+                    );
+                  }
+                } else {
+                  // For email-based recipients, deduplicate by id
+                  if (!uniqueRecipients.containsKey(recipient.id)) {
+                    uniqueRecipients[recipient.id] = recipient;
+                  } else {
+                    Logger.warning(
+                      'Found duplicate recipient with same id: ${recipient.id} '
+                      '(Name: ${recipient.name}). Keeping first occurrence.'
+                    );
+                  }
+                }
+              }
+              final deduplicatedRecipients = uniqueRecipients.values.toList();
+              
+              if (deduplicatedRecipients.length != recipients.length) {
+                Logger.info(
+                  'Deduplicated recipients: ${recipients.length} -> ${deduplicatedRecipients.length} '
+                  '(removed ${recipients.length - deduplicatedRecipients.length} duplicates)'
+                );
+              }
+              
+              if (deduplicatedRecipients.isEmpty) {
                 Logger.info('Recipients screen: Showing empty state');
                 return _buildEmptyState(context);
               }
               
-              Logger.info('Recipients screen: Building list with ${recipients.length} items');
+              Logger.info('Recipients screen: Building list with ${deduplicatedRecipients.length} items');
               
               return RefreshIndicator(
                 onRefresh: () async {
@@ -66,9 +108,9 @@ class RecipientsScreen extends ConsumerWidget {
                 },
                 child: ListView.builder(
                   padding: EdgeInsets.all(AppTheme.spacingMd),
-                  itemCount: recipients.length,
+                  itemCount: deduplicatedRecipients.length,
                   itemBuilder: (context, index) {
-                    final recipient = recipients[index];
+                    final recipient = deduplicatedRecipients[index];
                     Logger.debug('Recipients screen: Building card for recipient ${recipient.id}: ${recipient.name}');
                     return Padding(
                       padding: EdgeInsets.only(bottom: AppTheme.spacingMd),

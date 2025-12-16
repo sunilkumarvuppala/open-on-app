@@ -8,7 +8,6 @@ import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
 import 'package:openon_app/core/utils/logger.dart';
-import 'package:openon_app/animations/effects/confetti_burst.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class RequestsScreen extends ConsumerStatefulWidget {
@@ -56,7 +55,14 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
             Icons.arrow_back,
             color: DynamicTheme.getPrimaryIconColor(colorScheme),
           ),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              // If we can't pop, navigate to home or a safe route
+              context.go('/');
+            }
+          },
         ),
         actions: [
           ProfileAvatarButton(),
@@ -112,7 +118,6 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
   }
 
   Widget _buildIncomingTab(AsyncValue<List<ConnectionRequest>> incomingAsync) {
-    final colorScheme = ref.watch(selectedColorSchemeProvider);
     return incomingAsync.when(
       data: (requests) {
         if (requests.isEmpty) {
@@ -477,6 +482,8 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
   }
 
   Future<void> _acceptRequest(ConnectionRequest request) async {
+    if (!mounted) return;
+    
     try {
       final repo = ref.read(connectionRepositoryProvider);
       await repo.respondToRequest(
@@ -484,24 +491,20 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
         accept: true,
       );
 
-      if (mounted) {
-        // Show confetti animation in a full-screen overlay
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          barrierColor: Colors.black.withOpacity(0.3),
-          builder: (dialogContext) => PopScope(
-            canPop: false,
-            child: ConfettiBurst(
-              isActive: true,
-              onComplete: () {
-                Navigator.of(dialogContext).pop();
-                _showSuccessModal(request);
-              },
-            ),
-          ),
-        );
-      }
+      if (!mounted) return;
+
+      // Show success modal first (before invalidating providers to avoid rebuild conflicts)
+      _showSuccessModalWithConfetti(request);
+      
+      // Invalidate providers AFTER showing dialog to refresh lists
+      // Use post-frame callback to avoid rebuild conflicts during navigation
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.invalidate(incomingRequestsProvider);
+          ref.invalidate(outgoingRequestsProvider);
+          ref.invalidate(connectionsProvider);
+        }
+      });
     } catch (e, stackTrace) {
       Logger.error('Error accepting request', error: e, stackTrace: stackTrace);
       if (mounted) {
@@ -521,11 +524,19 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
     }
   }
 
-  void _showSuccessModal(ConnectionRequest request) {
+  void _showSuccessModalWithConfetti(ConnectionRequest request) {
+    if (!mounted) return;
+    
     final colorScheme = ref.read(selectedColorSchemeProvider);
+    final modalContext = context;
+    
+    // Use a simpler approach: just show the dialog without confetti to avoid navigation issues
+    // Confetti can be added back later if needed, but for now, prioritize stability
     showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
+      context: modalContext,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withOpacity(0.3),
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: DynamicTheme.getDialogBackgroundColor(colorScheme),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
@@ -547,9 +558,19 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop();
-              // Optionally navigate to connections screen
-              context.push('/connections');
+              // Close dialog first
+              Navigator.of(dialogContext).pop();
+              
+              // Navigate after dialog is fully closed using post-frame callback
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted && modalContext.mounted) {
+                  try {
+                    modalContext.push('/connections');
+                  } catch (e) {
+                    Logger.warning('Navigation error: $e');
+                  }
+                }
+              });
             },
             child: Text(
               'View Connections',
@@ -559,7 +580,9 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
             ),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: colorScheme.accent,
               foregroundColor: DynamicTheme.getButtonTextColor(colorScheme),
@@ -576,6 +599,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
       ),
     );
   }
+
 
   Future<void> _declineRequest(ConnectionRequest request) async {
     try {

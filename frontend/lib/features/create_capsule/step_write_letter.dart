@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
+import 'package:openon_app/core/utils/logger.dart';
 
 class StepWriteLetter extends ConsumerStatefulWidget {
   final VoidCallback onNext;
@@ -25,6 +27,10 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
   final TextEditingController _labelController = TextEditingController();
   final int _maxCharacters = 1000;
   final ImagePicker _picker = ImagePicker();
+  Timer? _debounceTimer;
+  String? _currentDraftId;
+  bool _isSaving = false; // Lock to prevent concurrent saves
+  static const Duration _debounceDuration = Duration(milliseconds: 800);
   
   @override
   void initState() {
@@ -32,13 +38,126 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
     final draft = ref.read(draftCapsuleProvider);
     _contentController.text = draft.content ?? '';
     _labelController.text = draft.label ?? '';
+    
+    // CRITICAL: Initialize _currentDraftId from draftCapsuleProvider
+    // This ensures that when opening an existing draft, we update it instead of creating a new one
+    _currentDraftId = draft.draftId;
+    if (_currentDraftId != null) {
+      Logger.debug('StepWriteLetter: Initialized with existing draft ID: $_currentDraftId');
+    }
+    
+    // Auto-save on text changes
+    _contentController.addListener(_onContentChanged);
+    _labelController.addListener(_onLabelChanged);
   }
   
   @override
   void dispose() {
+    _debounceTimer?.cancel();
+    _contentController.removeListener(_onContentChanged);
+    _labelController.removeListener(_onLabelChanged);
     _contentController.dispose();
     _labelController.dispose();
     super.dispose();
+  }
+  
+  void _onContentChanged() {
+    // Update draft capsule state immediately
+    ref.read(draftCapsuleProvider.notifier).setContent(_contentController.text);
+    
+    // Auto-save to draft repository (debounced)
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(_debounceDuration, () {
+      _saveDraft();
+    });
+  }
+  
+  void _onLabelChanged() {
+    // Update draft capsule state immediately
+    ref.read(draftCapsuleProvider.notifier).setLabel(_labelController.text);
+  }
+  
+  Future<void> _saveDraft() async {
+    // Prevent concurrent saves (race condition protection)
+    if (_isSaving) {
+      Logger.debug('Save already in progress, skipping duplicate save');
+      return;
+    }
+    
+    final content = _contentController.text.trim();
+    if (content.isEmpty) {
+      return; // Don't save empty drafts
+    }
+    
+    _isSaving = true;
+    try {
+      final userAsync = ref.read(currentUserProvider);
+      final user = userAsync.asData?.value;
+      if (user == null) {
+        _isSaving = false;
+        return;
+      }
+      
+      final repo = ref.read(draftRepositoryProvider);
+      final draftCapsule = ref.read(draftCapsuleProvider);
+      
+      // CRITICAL: Check both _currentDraftId and draftCapsule.draftId
+      // This ensures we use the correct draft ID even if _currentDraftId wasn't initialized
+      // (e.g., if draftId was set in CreateCapsuleScreen after StepWriteLetter initState)
+      final draftId = _currentDraftId ?? draftCapsule.draftId;
+      
+      if (draftId == null) {
+        // Create new draft - no need to check for duplicates on every auto-save
+        // This is much more performant than loading all drafts each time
+        final draft = await repo.createDraft(
+          userId: user.id,
+          title: draftCapsule.label,
+          content: content,
+          recipientName: draftCapsule.recipient?.name,
+          recipientAvatar: draftCapsule.recipient?.avatar,
+        );
+        // Set draft ID immediately after creation to prevent race conditions
+        _currentDraftId = draft.id;
+        
+        // Store in DraftCapsule so CreateCapsuleScreen knows about it
+        ref.read(draftCapsuleProvider.notifier).setDraftId(_currentDraftId!);
+        
+        Logger.debug('Draft created from letter screen: ${draft.id}');
+        
+        // Only invalidate on creation (not on every update) to reduce unnecessary refreshes
+        // Updates happen frequently during typing, so we avoid invalidating on every update
+        ref.invalidate(draftsProvider(user.id));
+      } else {
+        // Update existing draft
+        // Use the draftId we found (either from _currentDraftId or draftCapsule.draftId)
+        await repo.updateDraft(
+          draftId,
+          content,
+          title: draftCapsule.label,
+          recipientName: draftCapsule.recipient?.name,
+          recipientAvatar: draftCapsule.recipient?.avatar,
+        );
+        
+        // Ensure both _currentDraftId and DraftCapsule have the draft ID
+        _currentDraftId = draftId;
+        ref.read(draftCapsuleProvider.notifier).setDraftId(draftId);
+        
+        Logger.debug('Draft updated from letter screen: $draftId');
+        
+        // Don't invalidate on every update - this causes unnecessary list refreshes
+        // The draft list will refresh when user navigates to drafts screen
+      }
+    } catch (e) {
+      Logger.error('Failed to auto-save draft from letter screen', error: e);
+      // Silently fail - don't interrupt user's writing
+    } finally {
+      _isSaving = false;
+    }
+  }
+  
+  Future<void> _saveDraftImmediately() async {
+    _debounceTimer?.cancel();
+    await _saveDraft();
   }
   
   Future<void> _pickImage() async {
@@ -73,7 +192,10 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
     ref.read(draftCapsuleProvider.notifier).setPhoto(null);
   }
   
-  void _saveAndContinue() {
+  Future<void> _saveAndContinue() async {
+    // Save immediately before continuing
+    await _saveDraftImmediately();
+    
     ref.read(draftCapsuleProvider.notifier).setContent(_contentController.text);
     ref.read(draftCapsuleProvider.notifier).setLabel(_labelController.text);
     widget.onNext();
@@ -87,6 +209,13 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
     final characterCount = _contentController.text.length;
     final isValid = _contentController.text.trim().isNotEmpty;
     final colorScheme = ref.watch(selectedColorSchemeProvider);
+    
+    // Keep _currentDraftId in sync with draftCapsuleProvider
+    // This handles cases where draftId is set after initState (e.g., from CreateCapsuleScreen)
+    if (draft.draftId != null && draft.draftId != _currentDraftId) {
+      _currentDraftId = draft.draftId;
+      Logger.debug('StepWriteLetter: Synced _currentDraftId from provider: $_currentDraftId');
+    }
     
     // Theme-aware text colors
     final titleColor = DynamicTheme.getPrimaryTextColor(colorScheme);

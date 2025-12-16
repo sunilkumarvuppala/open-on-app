@@ -4,7 +4,7 @@ Connection service layer for business logic.
 This service encapsulates connection-related business logic to reduce
 duplication and improve maintainability.
 """
-from typing import Optional
+from typing import Optional, Any
 from uuid import UUID
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,8 +16,6 @@ from app.core.constants import (
     MAX_DAILY_CONNECTION_REQUESTS,
     CONNECTION_COOLDOWN_DAYS
 )
-from app.db.repositories import RecipientRepository
-from app.db.models import RecipientRelationship
 
 logger = get_logger(__name__)
 
@@ -27,7 +25,7 @@ class ConnectionService:
     
     def __init__(self, session: AsyncSession):
         self.session = session
-        self.recipient_repo = RecipientRepository(session)
+        # Recipients are now connections - no separate repository needed
     
     async def check_existing_connection(
         self,
@@ -175,66 +173,81 @@ class ConnectionService:
         from_user_id: UUID,
         to_user_id: UUID
     ) -> None:
-        """Create recipient entries for both users when connection is established."""
-        # Get user profiles for both users
-        profile_result = await self.session.execute(
-            text("""
-                SELECT user_id, first_name, last_name, username, avatar_url
-                FROM public.user_profiles
-                WHERE user_id = :user1 OR user_id = :user2
-            """),
-            {"user1": from_user_id, "user2": to_user_id}
-        )
-        profiles = {row[0]: row for row in profile_result.fetchall()}
+        """
+        Create recipient entries for both users when connection is established.
         
-        # Create recipient entry for from_user (so they can send to to_user)
-        if to_user_id in profiles:
-            to_profile = profiles[to_user_id]
-            to_name = " ".join(filter(None, [to_profile[1], to_profile[2]])).strip()
-            if not to_name:
-                to_name = to_profile[3] or f"User {str(to_user_id)[:8]}"
-            
-            # Check if recipient already exists
-            existing_check = await self.session.execute(
-                text("""
-                    SELECT id FROM public.recipients
-                    WHERE owner_id = :owner_id 
-                    AND (name = :name OR email IS NULL)
-                    LIMIT 1
-                """),
-                {"owner_id": from_user_id, "name": to_name}
-            )
-            if not existing_check.scalar_one_or_none():
-                await self.recipient_repo.create(
+        This ensures recipient records exist in the database so capsules can be created.
+        Recipients are created with linked_user_id set to the connection user ID.
+        """
+        from app.db.repositories import RecipientRepository, UserProfileRepository
+        from app.db.models import RecipientRelationship
+        
+        recipient_repo = RecipientRepository(self.session)
+        user_profile_repo = UserProfileRepository(self.session)
+        
+        # Get user profiles for display names
+        user1_profile = await user_profile_repo.get_by_id(from_user_id)
+        user2_profile = await user_profile_repo.get_by_id(to_user_id)
+        
+        # Build display names
+        def get_display_name(profile: Optional[Any]) -> str:
+            if profile:
+                name_parts = [p for p in [profile.first_name, profile.last_name] if p]
+                if name_parts:
+                    return " ".join(name_parts)
+                if profile.username:
+                    return profile.username
+            return f"User {str(from_user_id)[:8]}"
+        
+        user1_display_name = get_display_name(user1_profile) if user1_profile else f"User {str(from_user_id)[:8]}"
+        user2_display_name = get_display_name(user2_profile) if user2_profile else f"User {str(to_user_id)[:8]}"
+        
+        # Create recipient for user1 -> user2 (if doesn't exist)
+        # CRITICAL: Check again after potential concurrent creation
+        existing_recipient_1 = await recipient_repo.get_by_owner_and_linked_user(
+            owner_id=from_user_id,
+            linked_user_id=to_user_id
+        )
+        if not existing_recipient_1:
+            try:
+                await recipient_repo.create(
                     owner_id=from_user_id,
-                    name=to_name,
-                    email=None,  # NULL email indicates connection-based recipient
-                    avatar_url=to_profile[4],
-                    relationship=RecipientRelationship.FRIEND
+                    name=user2_display_name,
+                    email=None,  # Connection-based recipients have no email
+                    avatar_url=user2_profile.avatar_url if user2_profile else None,
+                    linked_user_id=to_user_id,
+                    relationship=RecipientRelationship.FRIEND,
+                )
+                logger.info(f"Created recipient for user {from_user_id} -> {to_user_id}")
+            except IntegrityError as e:
+                # Unique constraint violation - recipient was created by concurrent request
+                # This is expected and safe to ignore
+                logger.info(
+                    f"Recipient already exists for {from_user_id} -> {to_user_id} "
+                    f"(created by concurrent request): {e}"
                 )
         
-        # Create recipient entry for to_user (so they can send to from_user)
-        if from_user_id in profiles:
-            from_profile = profiles[from_user_id]
-            from_name = " ".join(filter(None, [from_profile[1], from_profile[2]])).strip()
-            if not from_name:
-                from_name = from_profile[3] or f"User {str(from_user_id)[:8]}"
-            
-            # Check if recipient already exists
-            existing_check = await self.session.execute(
-                text("""
-                    SELECT id FROM public.recipients
-                    WHERE owner_id = :owner_id 
-                    AND (name = :name OR email IS NULL)
-                    LIMIT 1
-                """),
-                {"owner_id": to_user_id, "name": from_name}
-            )
-            if not existing_check.scalar_one_or_none():
-                await self.recipient_repo.create(
+        # Create recipient for user2 -> user1 (if doesn't exist)
+        # CRITICAL: Check again after potential concurrent creation
+        existing_recipient_2 = await recipient_repo.get_by_owner_and_linked_user(
+            owner_id=to_user_id,
+            linked_user_id=from_user_id
+        )
+        if not existing_recipient_2:
+            try:
+                await recipient_repo.create(
                     owner_id=to_user_id,
-                    name=from_name,
-                    email=None,  # NULL email indicates connection-based recipient
-                    avatar_url=from_profile[4],
-                    relationship=RecipientRelationship.FRIEND
+                    name=user1_display_name,
+                    email=None,  # Connection-based recipients have no email
+                    avatar_url=user1_profile.avatar_url if user1_profile else None,
+                    linked_user_id=from_user_id,
+                    relationship=RecipientRelationship.FRIEND,
+                )
+                logger.info(f"Created recipient for user {to_user_id} -> {from_user_id}")
+            except IntegrityError as e:
+                # Unique constraint violation - recipient was created by concurrent request
+                # This is expected and safe to ignore
+                logger.info(
+                    f"Recipient already exists for {to_user_id} -> {from_user_id} "
+                    f"(created by concurrent request): {e}"
                 )

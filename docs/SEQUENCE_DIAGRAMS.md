@@ -30,7 +30,14 @@ This document shows the complete flow from user interaction to database operatio
    - [Update Recipient](#13-update-recipient)
    - [Delete Recipient](#14-delete-recipient)
 
-4. [Background Processes](#background-processes)
+4. [Draft Management Flows](#draft-management-flows)
+   - [Create Draft (Auto-Save)](#21-create-draft-auto-save)
+   - [Update Draft (Auto-Save)](#22-update-draft-auto-save)
+   - [Open Draft](#23-open-draft)
+   - [List Drafts](#24-list-drafts)
+   - [Delete Draft](#25-delete-draft)
+
+5. [Background Processes](#background-processes)
    - [Capsule State Automation](#15-capsule-state-automation)
 
 ---
@@ -1523,5 +1530,319 @@ sequenceDiagram
 
 ---
 
+## Draft Management Flows
+
+### 21. Create Draft (Auto-Save)
+
+**Description**: User types content in the letter creation screen, and after a debounce period (800ms), a draft is automatically created and saved locally.
+
+**Key Steps**:
+1. User types content in StepWriteLetter
+2. Debounce timer starts (800ms)
+3. If user continues typing, timer resets
+4. After 800ms of no typing, auto-save triggers
+5. Check if draftId exists (none for new draft)
+6. Create new draft via repository
+7. Store draftId in state
+8. Save to local storage (SharedPreferences)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant StepWriteLetter as StepWriteLetter<br/>(Flutter)
+    participant DraftCapsuleProvider as draftCapsuleProvider<br/>(Riverpod)
+    participant DraftRepo as DraftRepository<br/>(Flutter)
+    participant DraftStorage as DraftStorage<br/>(SharedPreferences)
+    participant LocalStorage as SharedPreferences<br/>(Local)
+
+    User->>StepWriteLetter: Type content
+    StepWriteLetter->>StepWriteLetter: _onContentChanged()<br/>Cancel previous debounce timer
+    StepWriteLetter->>StepWriteLetter: Start new debounce timer<br/>(800ms)
+    
+    User->>StepWriteLetter: Continue typing
+    StepWriteLetter->>StepWriteLetter: Cancel timer, start new one
+    
+    Note over StepWriteLetter: 800ms of no typing
+    StepWriteLetter->>StepWriteLetter: _saveDraft() called
+    
+    StepWriteLetter->>StepWriteLetter: Check _isSaving flag
+    alt Already saving
+        StepWriteLetter->>StepWriteLetter: Skip (prevent concurrent saves)
+    else Not saving
+        StepWriteLetter->>StepWriteLetter: Set _isSaving = true
+        StepWriteLetter->>DraftCapsuleProvider: ref.read(draftCapsuleProvider)
+        DraftCapsuleProvider-->>StepWriteLetter: draftCapsule (draftId: null)
+        
+        StepWriteLetter->>StepWriteLetter: Check _currentDraftId<br/>(null for new draft)
+        StepWriteLetter->>StepWriteLetter: Check draftCapsule.draftId<br/>(also null)
+        
+        Note over StepWriteLetter: No draftId exists → Create new draft
+        StepWriteLetter->>DraftRepo: createDraft(userId, title, content,<br/>recipientName, recipientAvatar)
+        DraftRepo->>DraftRepo: Create Draft object<br/>(generate UUID, set timestamps)
+        DraftRepo->>DraftStorage: saveDraft(userId, draft, isNewDraft: true)
+        
+        DraftStorage->>LocalStorage: setString("draft_<draftId>", draftJson)
+        LocalStorage-->>DraftStorage: Success
+        DraftStorage->>LocalStorage: Verify save
+        LocalStorage-->>DraftStorage: Verified
+        DraftStorage->>DraftStorage: _updateDraftList(userId, draftId)
+        DraftStorage->>LocalStorage: getString("drafts_<userId>")
+        LocalStorage-->>DraftStorage: Existing draft IDs (or null)
+        DraftStorage->>DraftStorage: Add draftId to list (if not exists)
+        DraftStorage->>LocalStorage: setString("drafts_<userId>", updatedListJson)
+        LocalStorage-->>DraftStorage: Success
+        DraftStorage-->>DraftRepo: Draft saved
+        DraftRepo-->>StepWriteLetter: Draft object (with ID)
+        
+        StepWriteLetter->>StepWriteLetter: Set _currentDraftId = draft.id
+        StepWriteLetter->>DraftCapsuleProvider: setDraftId(draft.id)
+        DraftCapsuleProvider->>DraftCapsuleProvider: Update state with draftId
+        
+        StepWriteLetter->>StepWriteLetter: Set _isSaving = false
+        StepWriteLetter->>StepWriteLetter: Invalidate draftsProvider<br/>(only on creation)
+    end
+```
+
+---
+
+### 22. Update Draft (Auto-Save)
+
+**Description**: User opens an existing draft and continues editing. Auto-save updates the existing draft instead of creating a new one.
+
+**Key Steps**:
+1. User opens draft from drafts screen
+2. CreateCapsuleScreen initializes with draftId
+3. StepWriteLetter initializes _currentDraftId from draftCapsuleProvider
+4. User edits content
+5. Auto-save triggers after debounce
+6. Check draftId (exists for existing draft)
+7. Update existing draft via repository
+8. Save to local storage
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant DraftsScreen as DraftsScreen<br/>(Flutter)
+    participant CreateCapsuleScreen as CreateCapsuleScreen<br/>(Flutter)
+    participant DraftCapsuleProvider as draftCapsuleProvider<br/>(Riverpod)
+    participant StepWriteLetter as StepWriteLetter<br/>(Flutter)
+    participant DraftRepo as DraftRepository<br/>(Flutter)
+    participant DraftStorage as DraftStorage<br/>(SharedPreferences)
+    participant LocalStorage as SharedPreferences<br/>(Local)
+
+    User->>DraftsScreen: Tap on draft card
+    DraftsScreen->>DraftsScreen: Create DraftNavigationData<br/>(draftId, content, title, etc.)
+    DraftsScreen->>CreateCapsuleScreen: context.push(Routes.createCapsule,<br/>extra: draftData)
+    
+    CreateCapsuleScreen->>CreateCapsuleScreen: initState()
+    CreateCapsuleScreen->>DraftCapsuleProvider: reset()
+    CreateCapsuleScreen->>DraftCapsuleProvider: setContent(draftData.content)
+    CreateCapsuleScreen->>DraftCapsuleProvider: setLabel(draftData.title)
+    CreateCapsuleScreen->>DraftCapsuleProvider: setDraftId(draftData.draftId)
+    DraftCapsuleProvider->>DraftCapsuleProvider: Update state with draftId
+    
+    CreateCapsuleScreen->>StepWriteLetter: Navigate to step 1 (Write Letter)
+    StepWriteLetter->>StepWriteLetter: initState()
+    StepWriteLetter->>DraftCapsuleProvider: ref.read(draftCapsuleProvider)
+    DraftCapsuleProvider-->>StepWriteLetter: draftCapsule (draftId: "abc123")
+    StepWriteLetter->>StepWriteLetter: Initialize _currentDraftId = draft.draftId<br/>CRITICAL: Must initialize from provider
+    
+    User->>StepWriteLetter: Edit content
+    StepWriteLetter->>StepWriteLetter: _onContentChanged()<br/>Start debounce timer (800ms)
+    
+    Note over StepWriteLetter: 800ms of no typing
+    StepWriteLetter->>StepWriteLetter: _saveDraft() called
+    StepWriteLetter->>StepWriteLetter: Check _isSaving flag
+    StepWriteLetter->>DraftCapsuleProvider: ref.read(draftCapsuleProvider)
+    DraftCapsuleProvider-->>StepWriteLetter: draftCapsule (draftId: "abc123")
+    
+    StepWriteLetter->>StepWriteLetter: Check _currentDraftId<br/>("abc123" exists)
+    StepWriteLetter->>StepWriteLetter: Check draftCapsule.draftId<br/>("abc123" exists)
+    StepWriteLetter->>StepWriteLetter: draftId = _currentDraftId ?? draftCapsule.draftId<br/>Result: "abc123"
+    
+    Note over StepWriteLetter: draftId exists → Update existing draft
+    StepWriteLetter->>DraftRepo: updateDraft("abc123", content,<br/>title, recipientName, recipientAvatar)
+    DraftRepo->>DraftStorage: getDraft("abc123")
+    DraftStorage->>LocalStorage: getString("draft_abc123")
+    LocalStorage-->>DraftStorage: Draft JSON
+    DraftStorage-->>DraftRepo: Existing Draft object
+    DraftRepo->>DraftRepo: Create updated Draft<br/>(copyWith with new content,<br/>update lastEdited timestamp)
+    DraftRepo->>DraftStorage: saveDraft(userId, updatedDraft,<br/>isNewDraft: false)
+    
+    DraftStorage->>LocalStorage: setString("draft_abc123", updatedDraftJson)
+    LocalStorage-->>DraftStorage: Success
+    DraftStorage->>LocalStorage: Verify save
+    LocalStorage-->>DraftStorage: Verified
+    DraftStorage->>DraftStorage: Verify draft in list<br/>(safety check, don't add if exists)
+    DraftStorage-->>DraftRepo: Draft updated
+    DraftRepo-->>StepWriteLetter: Updated Draft object
+    
+    StepWriteLetter->>StepWriteLetter: Ensure _currentDraftId = draftId
+    StepWriteLetter->>DraftCapsuleProvider: setDraftId("abc123")
+    StepWriteLetter->>StepWriteLetter: Set _isSaving = false
+    Note over StepWriteLetter: No provider invalidation<br/>(only on creation, not update)
+```
+
+---
+
+### 23. Open Draft
+
+**Description**: User opens a draft from the drafts list to continue editing.
+
+**Key Steps**:
+1. User views drafts list
+2. User taps on a draft card
+3. Draft data is passed to CreateCapsuleScreen
+4. CreateCapsuleScreen initializes with draft data
+5. StepWriteLetter initializes with draftId
+6. User can continue editing
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant DraftsScreen as DraftsScreen<br/>(Flutter)
+    participant DraftsProvider as draftsProvider<br/>(Riverpod)
+    participant CreateCapsuleScreen as CreateCapsuleScreen<br/>(Flutter)
+    participant DraftCapsuleProvider as draftCapsuleProvider<br/>(Riverpod)
+    participant StepWriteLetter as StepWriteLetter<br/>(Flutter)
+
+    User->>DraftsScreen: View drafts list
+    DraftsScreen->>DraftsProvider: ref.watch(draftsProvider(userId))
+    DraftsProvider-->>DraftsScreen: List of Draft objects
+    
+    DraftsScreen->>User: Display draft cards<br/>(recipient name, title, last edited)
+    
+    User->>DraftsScreen: Tap on draft card
+    DraftsScreen->>DraftsScreen: Create DraftNavigationData<br/>(draftId: "abc123",<br/>content: "Hello...",<br/>title: "My Letter",<br/>recipientName: "John",<br/>recipientAvatar: "url")
+    
+    DraftsScreen->>CreateCapsuleScreen: context.push(Routes.createCapsule,<br/>extra: draftData)
+    
+    CreateCapsuleScreen->>CreateCapsuleScreen: initState()
+    CreateCapsuleScreen->>DraftCapsuleProvider: reset()
+    CreateCapsuleScreen->>DraftCapsuleProvider: setContent(draftData.content)
+    CreateCapsuleScreen->>DraftCapsuleProvider: setLabel(draftData.title)
+    CreateCapsuleScreen->>DraftCapsuleProvider: setDraftId(draftData.draftId)
+    DraftCapsuleProvider->>DraftCapsuleProvider: Update state<br/>(content, label, draftId)
+    
+    alt Recipient info available
+        CreateCapsuleScreen->>CreateCapsuleScreen: Create temporary Recipient
+        CreateCapsuleScreen->>DraftCapsuleProvider: setRecipient(tempRecipient)
+        CreateCapsuleScreen->>CreateCapsuleScreen: Try to find matching recipient<br/>(async, non-blocking)
+    end
+    
+    CreateCapsuleScreen->>CreateCapsuleScreen: Navigate to step 1 (Write Letter)
+    CreateCapsuleScreen->>StepWriteLetter: Display step
+    StepWriteLetter->>StepWriteLetter: initState()
+    StepWriteLetter->>DraftCapsuleProvider: ref.read(draftCapsuleProvider)
+    DraftCapsuleProvider-->>StepWriteLetter: draftCapsule<br/>(draftId: "abc123",<br/>content: "Hello...",<br/>label: "My Letter")
+    StepWriteLetter->>StepWriteLetter: Initialize text controllers<br/>_contentController.text = draft.content
+    StepWriteLetter->>StepWriteLetter: Initialize _currentDraftId = draft.draftId<br/>CRITICAL: Must set from provider
+    StepWriteLetter->>User: Display draft content in editor
+```
+
+---
+
+### 24. List Drafts
+
+**Description**: User views all their saved drafts in the drafts screen.
+
+**Key Steps**:
+1. User navigates to drafts screen
+2. Frontend fetches drafts via provider
+3. Drafts are loaded in parallel from local storage
+4. Drafts are sorted by last edited (most recent first)
+5. UI displays draft cards
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant DraftsScreen as DraftsScreen<br/>(Flutter)
+    participant DraftsProvider as draftsProvider<br/>(Riverpod)
+    participant DraftRepo as DraftRepository<br/>(Flutter)
+    participant DraftStorage as DraftStorage<br/>(SharedPreferences)
+    participant LocalStorage as SharedPreferences<br/>(Local)
+
+    User->>DraftsScreen: Navigate to drafts screen
+    DraftsScreen->>DraftsProvider: ref.watch(draftsProvider(userId))
+    DraftsProvider->>DraftRepo: getDrafts(userId)
+    DraftRepo->>DraftStorage: getAllDrafts(userId)
+    
+    DraftStorage->>LocalStorage: getString("drafts_<userId>")
+    LocalStorage-->>DraftStorage: Draft IDs JSON array<br/>["id1", "id2", "id3"]
+    DraftStorage->>DraftStorage: Parse draft IDs list
+    
+    Note over DraftStorage: Parallel loading for performance
+    DraftStorage->>DraftStorage: Create Future list for each draftId
+    loop For each draftId
+        DraftStorage->>LocalStorage: getString("draft_<draftId>")
+        LocalStorage-->>DraftStorage: Draft JSON
+    end
+    DraftStorage->>DraftStorage: await Future.wait(allFutures)
+    DraftStorage->>DraftStorage: Parse all drafts from JSON
+    DraftStorage->>DraftStorage: Deduplicate drafts by ID
+    DraftStorage-->>DraftRepo: List of Draft objects
+    DraftRepo-->>DraftsProvider: List of Draft objects
+    DraftsProvider-->>DraftsScreen: List of Draft objects
+    
+    DraftsScreen->>DraftsScreen: Sort drafts by lastEdited<br/>(most recent first)
+    DraftsScreen->>DraftsScreen: Deduplicate drafts<br/>(final safety check)
+    DraftsScreen->>User: Display draft cards<br/>(avatar, recipient name, title, timestamp)
+```
+
+---
+
+### 25. Delete Draft
+
+**Description**: User deletes a draft from the drafts list.
+
+**Key Steps**:
+1. User taps delete button on draft card
+2. Confirmation dialog appears
+3. User confirms deletion
+4. Draft is deleted from local storage
+5. Draft ID is removed from draft list
+6. UI updates to remove draft card
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant DraftsScreen as DraftsScreen<br/>(Flutter)
+    participant DraftsNotifier as draftsNotifierProvider<br/>(Riverpod)
+    participant DraftRepo as DraftRepository<br/>(Flutter)
+    participant DraftStorage as DraftStorage<br/>(SharedPreferences)
+    participant LocalStorage as SharedPreferences<br/>(Local)
+
+    User->>DraftsScreen: Tap delete button on draft card
+    DraftsScreen->>DraftsScreen: Show delete confirmation dialog
+    
+    alt User cancels
+        User->>DraftsScreen: Tap "Cancel"
+        DraftsScreen->>DraftsScreen: Close dialog
+    else User confirms
+        User->>DraftsScreen: Tap "Delete"
+        DraftsScreen->>DraftsScreen: Close dialog
+        DraftsScreen->>DraftsNotifier: ref.read(draftsNotifierProvider(userId).notifier)
+        DraftsNotifier->>DraftRepo: deleteDraft(draftId, userId)
+        DraftRepo->>DraftStorage: deleteDraft(userId, draftId)
+        
+        DraftStorage->>LocalStorage: remove("draft_<draftId>")
+        LocalStorage-->>DraftStorage: Success
+        DraftStorage->>LocalStorage: getString("drafts_<userId>")
+        LocalStorage-->>DraftStorage: Draft IDs JSON array
+        DraftStorage->>DraftStorage: Parse and remove draftId from list
+        DraftStorage->>LocalStorage: setString("drafts_<userId>", updatedListJson)
+        LocalStorage-->>DraftStorage: Success
+        DraftStorage-->>DraftRepo: Draft deleted
+        DraftRepo-->>DraftsNotifier: Success
+        DraftsNotifier->>DraftsNotifier: Invalidate draftsProvider
+        DraftsNotifier-->>DraftsScreen: Success
+        
+        DraftsScreen->>DraftsScreen: Show success SnackBar<br/>("Draft deleted")
+        DraftsScreen->>User: Draft card removed from list
+    end
+```
+
+---
+
 **Last Updated**: January 2025  
-**Version**: 2.1 (Complete User Flows)
+**Version**: 2.2 (Complete User Flows + Draft Management)

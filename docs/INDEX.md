@@ -44,6 +44,7 @@
 - **[frontend/VISUAL_FLOWS.md](./frontend/VISUAL_FLOWS.md)** - Visual flow diagrams
 
 ### Supabase (Database)
+- **[supabase/DATABASE_OPTIMIZATIONS.md](./supabase/DATABASE_OPTIMIZATIONS.md)** - Database query and indexing optimizations
 - **[supabase/README.md](./supabase/README.md)** - Supabase documentation overview
 - **[supabase/GETTING_STARTED.md](./supabase/GETTING_STARTED.md)** - Supabase setup and quick start
 - **[supabase/LOCAL_SETUP.md](./supabase/LOCAL_SETUP.md)** - Local development setup
@@ -55,6 +56,7 @@
 - **[frontend/features/RECEIVER.md](./frontend/features/RECEIVER.md)** - Receiver screen (inbox)
 - **[frontend/features/CREATE_CAPSULE.md](./frontend/features/CREATE_CAPSULE.md)** - Letter creation
 - **[frontend/features/CAPSULE.md](./frontend/features/CAPSULE.md)** - Capsule viewing
+- **[frontend/features/DRAFTS.md](./frontend/features/DRAFTS.md)** - Draft management
 - **[frontend/features/CONNECTIONS.md](./frontend/features/CONNECTIONS.md)** - Connections & friend requests
 - **[frontend/features/RECIPIENTS.md](./frontend/features/RECIPIENTS.md)** - Recipient management
 - **[frontend/features/PROFILE.md](./frontend/features/PROFILE.md)** - Profile & settings
@@ -81,7 +83,7 @@
 - **[CHANGES_2025.md](./CHANGES_2025.md)** - Comprehensive code changes record
 - **[ARCHITECTURE_IMPROVEMENTS.md](./ARCHITECTURE_IMPROVEMENTS.md)** - Architecture patterns & improvements
 - **[DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md)** - Complete developer reference
-- **[PERFORMANCE_OPTIMIZATIONS.md](./PERFORMANCE_OPTIMIZATIONS.md)** - Performance best practices
+- **[PERFORMANCE_OPTIMIZATIONS.md](./PERFORMANCE_OPTIMIZATIONS.md)** - Comprehensive performance optimizations (frontend, animations, database)
 - **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Contribution guidelines
 - **[DOCUMENTATION_STRUCTURE.md](./DOCUMENTATION_STRUCTURE.md)** - Documentation organization guide (for maintainers)
 - **[NAVIGATION_GUIDE.md](./NAVIGATION_GUIDE.md)** - Quick navigation reference

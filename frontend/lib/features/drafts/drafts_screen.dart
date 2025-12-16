@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,23 +7,49 @@ import 'package:intl/intl.dart';
 import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/router/app_router.dart';
+import 'package:openon_app/features/create_capsule/create_capsule_screen.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
+import 'package:openon_app/core/utils/logger.dart';
+import 'package:openon_app/core/widgets/common_widgets.dart';
 
+/// Drafts List Screen
+/// 
+/// Displays all saved drafts for the current user.
+/// 
+/// UX Intent:
+/// - Calm, minimal interface
+/// - No engagement mechanics
+/// - Focus on resuming writing, not metrics
 class DraftsScreen extends ConsumerWidget {
   const DraftsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = ref.watch(selectedColorSchemeProvider);
-    final softGradient = DynamicTheme.softGradient(colorScheme);
-    final drafts = ref.watch(draftsProvider);
+    final userAsync = ref.watch(currentUserProvider);
+    final user = userAsync.asData?.value;
+
+    if (user == null) {
+      return Scaffold(
+        body: Center(
+          child: Text(
+            'Please log in to view drafts',
+            style: TextStyle(
+              color: DynamicTheme.getPrimaryTextColor(colorScheme),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final draftsAsync = ref.watch(draftsProvider(user.id));
 
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          gradient: softGradient,
+          gradient: DynamicTheme.softGradient(colorScheme),
         ),
         child: SafeArea(
           child: Column(
@@ -49,33 +76,128 @@ class DraftsScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
+                    // Refresh button
+                    IconButton(
+                      icon: Icon(
+                        Icons.refresh,
+                        color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                      ),
+                      onPressed: () {
+                        Logger.debug('Manually refreshing drafts for user: ${user.id}');
+                        ref.invalidate(draftsProvider(user.id));
+                      },
+                      tooltip: 'Refresh drafts',
+                    ),
                   ],
                 ),
               ),
 
               // Drafts List
               Expanded(
-                child: drafts.isEmpty
-                    ? _buildEmptyState(context, colorScheme)
-                    : _buildDraftsList(context, ref, drafts, colorScheme),
+                child: draftsAsync.when(
+                  data: (drafts) {
+                    // Debug: Log drafts count
+                    Logger.debug('Drafts loaded: ${drafts.length} for user ${user.id}');
+                    
+                    // Deduplicate drafts by ID (final safety check)
+                    final uniqueDrafts = <String, Draft>{};
+                    for (final draft in drafts) {
+                      if (!uniqueDrafts.containsKey(draft.id)) {
+                        uniqueDrafts[draft.id] = draft;
+                      } else {
+                        Logger.warning('Found duplicate draft in list: ${draft.id}');
+                      }
+                    }
+                    final deduplicatedDrafts = uniqueDrafts.values.toList();
+                    
+                    if (deduplicatedDrafts.length != drafts.length) {
+                      Logger.info(
+                        'Deduplicated drafts: ${drafts.length} -> ${deduplicatedDrafts.length}'
+                      );
+                    }
+                    
+                    if (deduplicatedDrafts.isEmpty) {
+                      return RefreshIndicator(
+                        onRefresh: () async {
+                          Logger.debug('Pull-to-refresh: Invalidating drafts for user: ${user.id}');
+                          ref.invalidate(draftsProvider(user.id));
+                          await Future.delayed(const Duration(milliseconds: 300));
+                        },
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: SizedBox(
+                            height: MediaQuery.of(context).size.height - 200,
+                            child: _buildEmptyState(context, colorScheme),
+                          ),
+                        ),
+                      );
+                    }
+                    return RefreshIndicator(
+                      onRefresh: () async {
+                        Logger.debug('Pull-to-refresh: Invalidating drafts for user: ${user.id}');
+                        ref.invalidate(draftsProvider(user.id));
+                        await Future.delayed(const Duration(milliseconds: 300));
+                      },
+                      child: _buildDraftsList(context, ref, deduplicatedDrafts, colorScheme, user.id),
+                    );
+                  },
+                  loading: () => Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        DynamicTheme.getPrimaryIconColor(colorScheme),
+                      ),
+                    ),
+                  ),
+                  error: (error, stack) => RefreshIndicator(
+                    onRefresh: () async {
+                      ref.invalidate(draftsProvider(user.id));
+                      await Future.delayed(const Duration(milliseconds: 300));
+                    },
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(AppTheme.spacingLg),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Failed to load drafts',
+                                style: TextStyle(
+                                  color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                                ),
+                              ),
+                              SizedBox(height: AppTheme.spacingMd),
+                              ElevatedButton(
+                                onPressed: () {
+                                  // Invalidate and reload
+                                  ref.invalidate(draftsProvider(user.id));
+                                },
+                                child: const Text('Retry'),
+                              ),
+                              if (kDebugMode) ...[
+                                SizedBox(height: AppTheme.spacingMd),
+                                Text(
+                                  'Error: $error',
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                    fontSize: 12,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push(Routes.createCapsule),
-        backgroundColor: colorScheme.primary1,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.mail, size: 20),
-            SizedBox(width: 4),
-            Text('+', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          ],
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -93,7 +215,7 @@ class DraftsScreen extends ConsumerWidget {
             ),
             SizedBox(height: AppTheme.spacingLg),
             Text(
-              'No drafts yet',
+              'You don\'t have any drafts yet.',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 color: colorScheme.primary1,
                 fontWeight: FontWeight.w600,
@@ -101,7 +223,7 @@ class DraftsScreen extends ConsumerWidget {
             ),
             SizedBox(height: AppTheme.spacingSm),
             Text(
-              'Start writing a letter and it will appear here.',
+              'Drafts appear automatically when you start writing.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: colorScheme.primary1.withOpacity(0.7),
               ),
@@ -118,12 +240,14 @@ class DraftsScreen extends ConsumerWidget {
     WidgetRef ref,
     List<Draft> drafts,
     AppColorScheme colorScheme,
+    String userId,
   ) {
-    // Sort drafts by last edited (most recent first)
+    // Sort drafts by lastEdited (most recent first)
     final sortedDrafts = List<Draft>.from(drafts)
       ..sort((a, b) => b.lastEdited.compareTo(a.lastEdited));
 
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(), // Required for RefreshIndicator
       padding: EdgeInsets.symmetric(
         horizontal: AppTheme.spacingLg,
         vertical: AppTheme.spacingSm,
@@ -131,7 +255,7 @@ class DraftsScreen extends ConsumerWidget {
       itemCount: sortedDrafts.length,
       itemBuilder: (context, index) {
         final draft = sortedDrafts[index];
-        return _buildDraftCard(context, ref, draft, colorScheme);
+        return _buildDraftCard(context, ref, draft, colorScheme, userId);
       },
     );
   }
@@ -141,6 +265,7 @@ class DraftsScreen extends ConsumerWidget {
     WidgetRef ref,
     Draft draft,
     AppColorScheme colorScheme,
+    String userId,
   ) {
     final dateFormat = DateFormat('MMM dd, yyyy');
     final timeFormat = DateFormat('h:mm a');
@@ -158,13 +283,25 @@ class DraftsScreen extends ConsumerWidget {
         child: InkWell(
           onTap: () {
             HapticFeedback.lightImpact();
-            // Navigate to create capsule screen with draft data
-            // TODO: Pass draft data to create capsule screen
-            context.push(Routes.createCapsule);
+            // Use draft data directly from the list (already loaded) for instant navigation
+            // No need to reload from storage - this eliminates blocking I/O
+            final draftData = DraftNavigationData(
+              draftId: draft.id,
+              content: draft.body,
+              title: draft.title,
+              recipientName: draft.recipientName,
+              recipientAvatar: draft.recipientAvatar,
+            );
+            
+            // Navigate immediately without blocking
+            context.push(Routes.createCapsule, extra: draftData);
           },
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           child: Container(
-            padding: EdgeInsets.all(AppTheme.spacingMd),
+            padding: EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingMd,
+              vertical: AppTheme.spacingSm,
+            ),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppTheme.radiusLg),
               boxShadow: [
@@ -177,68 +314,79 @@ class DraftsScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Title Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        draft.displayTitle,
+                // Receiver avatar (left side, like capsule cards)
+                _buildReceiverAvatar(context, ref, draft, colorScheme),
+                SizedBox(width: AppTheme.spacingSm),
+                
+                // Content (expanded, like capsule cards)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Recipient name (like capsule.receiverName)
+                      Text(
+                        draft.recipientName ?? 'Untitled Draft',
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: DynamicTheme.getPrimaryTextColor(colorScheme),
                           fontWeight: FontWeight.w600,
-                          color: colorScheme.primary1,
+                          height: 1.2,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        Icons.delete_outline,
-                        size: 20,
-                        color: DynamicTheme.getSecondaryIconColor(colorScheme),
+                      // Draft title/label (like capsule.label)
+                      if (draft.title != null && draft.title!.trim().isNotEmpty) ...[
+                        SizedBox(height: 2),
+                        Text(
+                          draft.title!,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                            fontSize: 13,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      SizedBox(height: AppTheme.spacingXs),
+                      // Last Edited
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            size: 12,
+                            color: DynamicTheme.getSecondaryIconColor(colorScheme),
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Last edited $lastEditedText',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
                       ),
-                      onPressed: () {
-                        HapticFeedback.mediumImpact();
-                        _showDeleteConfirmation(context, ref, draft, colorScheme);
-                      },
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
-                ),
-                SizedBox(height: AppTheme.spacingXs),
-                
-                // Content Snippet
-                Text(
-                  draft.snippet,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: DynamicTheme.getSecondaryTextColor(colorScheme),
-                    height: 1.4,
+                    ],
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
-                SizedBox(height: AppTheme.spacingSm),
                 
-                // Last Edited
-                Row(
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      size: 14,
-                      color: DynamicTheme.getSecondaryIconColor(colorScheme),
-                    ),
-                    SizedBox(width: 4),
-                    Text(
-                      'Edited $lastEditedText',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: DynamicTheme.getSecondaryTextColor(colorScheme),
-                      ),
-                    ),
-                  ],
+                // Delete button
+                IconButton(
+                  icon: Icon(
+                    Icons.delete_outline,
+                    size: 20,
+                    color: DynamicTheme.getSecondaryIconColor(colorScheme),
+                  ),
+                  onPressed: () {
+                    HapticFeedback.mediumImpact();
+                    _showDeleteConfirmation(context, ref, draft, colorScheme, userId);
+                  },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
               ],
             ),
@@ -248,11 +396,71 @@ class DraftsScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildReceiverAvatar(
+    BuildContext context,
+    WidgetRef ref,
+    Draft draft,
+    AppColorScheme colorScheme,
+  ) {
+    // Use actual recipient avatar if available, otherwise show placeholder
+    // Similar to how capsule cards display receiver avatar
+    final recipientName = draft.recipientName;
+    final recipientAvatar = draft.recipientAvatar;
+    
+    // If we have recipient info, use it (like capsule cards)
+    if (recipientName != null && recipientName.isNotEmpty) {
+      final hasAvatar = recipientAvatar != null && recipientAvatar.isNotEmpty;
+      final avatarUrl = hasAvatar && recipientAvatar.startsWith('http')
+          ? recipientAvatar
+          : null;
+      final avatarPath = hasAvatar && !recipientAvatar.startsWith('http')
+          ? recipientAvatar
+          : null;
+      
+      // Compact size for draft cards: radius 24 = diameter 48
+      if (hasAvatar && (avatarUrl != null || avatarPath != null)) {
+        // Use UserAvatar widget for proper image handling
+        return UserAvatar(
+          name: recipientName,
+          imageUrl: avatarUrl,
+          imagePath: avatarPath,
+          size: 48, // diameter = 2 * radius
+        );
+      }
+      
+      // Placeholder avatar with recipient's initial
+      return CircleAvatar(
+        radius: 24,
+        backgroundColor: colorScheme.primary1.withOpacity(0.1),
+        child: Text(
+          recipientName[0].toUpperCase(),
+          style: TextStyle(
+            color: colorScheme.primary1,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
+    
+    // No recipient info - show placeholder
+    return CircleAvatar(
+      radius: 24,
+      backgroundColor: colorScheme.primary1.withOpacity(0.1),
+      child: Icon(
+        Icons.person_outline,
+        size: 24,
+        color: colorScheme.primary1,
+      ),
+    );
+  }
+
   void _showDeleteConfirmation(
     BuildContext context,
     WidgetRef ref,
     Draft draft,
     AppColorScheme colorScheme,
+    String userId,
   ) {
     showDialog(
       context: context,
@@ -285,20 +493,36 @@ class DraftsScreen extends ConsumerWidget {
             ),
           ),
           TextButton(
-            onPressed: () {
-              ref.read(draftsProvider.notifier).deleteDraft(draft.id);
+            onPressed: () async {
               Navigator.of(context).pop();
               HapticFeedback.mediumImpact();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Draft deleted'),
-                  backgroundColor: AppColors.success,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                  ),
-                ),
-              );
+              
+              try {
+                final notifier = ref.read(draftsNotifierProvider(userId).notifier);
+                await notifier.deleteDraft(draft.id);
+                
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Draft deleted'),
+                      backgroundColor: AppColors.success,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      ),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Failed to delete draft'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
             child: Text(
               'Delete',
@@ -313,4 +537,3 @@ class DraftsScreen extends ConsumerWidget {
     );
   }
 }
-

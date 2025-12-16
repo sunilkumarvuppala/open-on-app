@@ -3,6 +3,7 @@ import 'package:openon_app/core/errors/app_exceptions.dart';
 import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/utils/logger.dart';
 import 'package:openon_app/core/utils/validation.dart';
+import 'package:openon_app/core/data/draft_storage.dart';
 
 /// Repository interface for capsule operations
 /// 
@@ -338,6 +339,198 @@ class MockCapsuleRepository implements CapsuleRepository {
     Logger.debug(
       'Reaction notification: sender=${capsule.senderId}, receiver=${capsule.receiverName}, reaction=$reaction',
     );
+  }
+}
+
+/// Repository interface for draft operations
+/// 
+/// Drafts are crash-safe, automatically saved letters that haven't been sealed yet.
+/// They are stored both locally (immediate) and remotely (async with retry).
+abstract class DraftRepository {
+  /// Create a new draft
+  Future<Draft> createDraft({
+    required String userId,
+    String? title,
+    required String content,
+    String? recipientName,
+    String? recipientAvatar,
+  });
+  
+  /// Get a draft by ID
+  Future<Draft?> getDraft(String draftId);
+  
+  /// Update draft content and/or title
+  Future<Draft> updateDraft(
+    String draftId,
+    String content, {
+    String? title,
+    String? recipientName,
+    String? recipientAvatar,
+  });
+  
+  /// Get all drafts for a user
+  Future<List<Draft>> getDrafts(String userId);
+  
+  /// Delete a draft
+  Future<void> deleteDraft(String draftId, String userId);
+}
+
+/// Local implementation using SharedPreferences
+/// 
+/// This provides crash-safe local storage for drafts.
+/// Remote sync can be added later without changing the interface.
+class LocalDraftRepository implements DraftRepository {
+  @override
+  Future<Draft> createDraft({
+    required String userId,
+    String? title,
+    required String content,
+    String? recipientName,
+    String? recipientAvatar,
+  }) async {
+    try {
+      Logger.debug('Creating draft for user: $userId, title: $title, content length: ${content.length}');
+      
+      final draft = Draft(
+        userId: userId,
+        title: title,
+        body: content,
+        recipientName: recipientName,
+        recipientAvatar: recipientAvatar,
+      );
+      
+      // Mark as new draft so it gets added to the list
+      await DraftStorage.saveDraft(userId, draft, isNewDraft: true);
+      Logger.info('Draft created: ${draft.id} for user: $userId');
+      
+      // Verify it was saved
+      final savedDraft = await DraftStorage.getDraft(draft.id);
+      if (savedDraft == null) {
+        Logger.error('Draft was not saved correctly - verification failed');
+        throw RepositoryException('Draft was not saved correctly');
+      }
+      Logger.debug('Draft verification successful: ${savedDraft.id}');
+      
+      return draft;
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to create draft',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw RepositoryException(
+        'Failed to create draft: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  @override
+  Future<Draft?> getDraft(String draftId) async {
+    try {
+      return await DraftStorage.getDraft(draftId);
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to get draft',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw RepositoryException(
+        'Failed to get draft: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  @override
+  Future<Draft> updateDraft(
+    String draftId,
+    String content, {
+    String? title,
+    String? recipientName,
+    String? recipientAvatar,
+  }) async {
+    try {
+      final existingDraft = await DraftStorage.getDraft(draftId);
+      if (existingDraft == null) {
+        throw NotFoundException('Draft not found: $draftId');
+      }
+      
+      final updatedDraft = existingDraft.copyWith(
+        title: title,
+        body: content,
+        recipientName: recipientName,
+        recipientAvatar: recipientAvatar,
+        lastEdited: DateTime.now(),
+      );
+      
+      // Mark as update (not new) so it doesn't unnecessarily update the list
+      await DraftStorage.saveDraft(existingDraft.userId, updatedDraft, isNewDraft: false);
+      Logger.info('Draft updated: $draftId');
+      return updatedDraft;
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to update draft',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      if (e is NotFoundException) {
+        rethrow;
+      }
+      throw RepositoryException(
+        'Failed to update draft: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  @override
+  Future<List<Draft>> getDrafts(String userId) async {
+    try {
+      Logger.debug('Getting drafts for user: $userId');
+      final drafts = await DraftStorage.getAllDrafts(userId);
+      Logger.debug('Retrieved ${drafts.length} drafts for user: $userId');
+      
+      // Log draft IDs for debugging
+      if (drafts.isNotEmpty) {
+        Logger.debug('Draft IDs: ${drafts.map((d) => d.id).join(", ")}');
+      }
+      
+      return drafts;
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to get drafts for user: $userId',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw RepositoryException(
+        'Failed to get drafts: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  @override
+  Future<void> deleteDraft(String draftId, String userId) async {
+    try {
+      await DraftStorage.deleteDraft(userId, draftId);
+      Logger.info('Draft deleted: $draftId');
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Failed to delete draft',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw RepositoryException(
+        'Failed to delete draft: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
 }
 

@@ -13,7 +13,8 @@ docs/supabase/
 ├── README.md (this file)          # Overview and navigation
 ├── GETTING_STARTED.md              # Quick start guide
 ├── LOCAL_SETUP.md                  # Complete local development setup
-└── DATABASE_SCHEMA.md              # Complete database schema reference
+├── DATABASE_SCHEMA.md              # Complete database schema reference
+└── DATABASE_OPTIMIZATIONS.md       # Database query and indexing optimizations
 ```
 
 ## 🚀 Quick Start
@@ -53,7 +54,8 @@ Save the `anon key` and `service_role key` for your Flutter app.
 
 ### For Database Developers
 1. **[DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md)** - Complete schema documentation
-2. **[LOCAL_SETUP.md](./LOCAL_SETUP.md)** - Development environment setup
+2. **[DATABASE_OPTIMIZATIONS.md](./DATABASE_OPTIMIZATIONS.md)** - Query optimizations and indexing strategies
+3. **[LOCAL_SETUP.md](./LOCAL_SETUP.md)** - Development environment setup
 
 ### For Backend Integration
 1. **[DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md)** - Understand data models
@@ -105,7 +107,8 @@ docs/supabase/                    # Documentation directory
 ├── README.md (this file)         # Documentation overview
 ├── GETTING_STARTED.md            # Quick start guide
 ├── LOCAL_SETUP.md                # Complete setup guide
-└── DATABASE_SCHEMA.md            # Schema reference
+├── DATABASE_SCHEMA.md            # Schema reference
+└── DATABASE_OPTIMIZATIONS.md     # Query optimizations and indexing
 ```
 
 ## 🗄️ Database Schema Overview
@@ -152,6 +155,7 @@ docs/supabase/                    # Documentation directory
 - **[GETTING_STARTED.md](./GETTING_STARTED.md)** - Quick start guide
 - **[LOCAL_SETUP.md](./LOCAL_SETUP.md)** - Detailed setup instructions and troubleshooting
 - **[DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md)** - Complete database schema reference
+- **[DATABASE_OPTIMIZATIONS.md](./DATABASE_OPTIMIZATIONS.md)** - Database query and indexing optimizations
 
 ---
 

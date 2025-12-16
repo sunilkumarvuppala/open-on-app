@@ -421,7 +421,9 @@ async def get_outgoing_requests(
     offset: int = Query(0, ge=0)
 ) -> ConnectionRequestListResponse:
     """
-    Get all pending outgoing connection requests sent by the current user.
+    Get all outgoing connection requests sent by the current user.
+    
+    Returns requests with to_user profile info (the recipient of the request).
     """
     try:
         result = await session.execute(
@@ -442,7 +444,7 @@ async def get_outgoing_requests(
                     up.avatar_url
                 FROM public.connection_requests cr
                 LEFT JOIN public.user_profiles up ON cr.to_user_id = up.user_id
-                WHERE cr.from_user_id = :user_id AND cr.status = 'pending'
+                WHERE cr.from_user_id = :user_id
                 ORDER BY cr.created_at DESC
                 LIMIT :limit OFFSET :offset
             """),
@@ -465,19 +467,21 @@ async def get_outgoing_requests(
                 acted_at=row[6],
                 created_at=row[7],
                 updated_at=row[8],
-                from_user_first_name=row[9] if len(row) > 9 else None,
-                from_user_last_name=row[10] if len(row) > 10 else None,
-                from_user_username=row[11] if len(row) > 11 else None,
-                from_user_avatar_url=row[12] if len(row) > 12 else None,
+                # CRITICAL: For outgoing requests, JOIN is on to_user_id, so profile data is for the recipient
+                # Map to to_user_* fields (not from_user_*)
+                to_user_first_name=row[9] if len(row) > 9 else None,
+                to_user_last_name=row[10] if len(row) > 10 else None,
+                to_user_username=row[11] if len(row) > 11 else None,
+                to_user_avatar_url=row[12] if len(row) > 12 else None,
             )
             for row in rows
         ]
         
-        # Get total count
+        # Get total count (all statuses for outgoing requests)
         count_result = await session.execute(
             text("""
                 SELECT COUNT(*) FROM public.connection_requests
-                WHERE from_user_id = :user_id AND status = 'pending'
+                WHERE from_user_id = :user_id
             """),
             {"user_id": current_user.user_id}
         )
@@ -503,27 +507,39 @@ async def get_connections(
     Get all mutual connections for the current user.
     """
     try:
-        # Get connections where user is either user_id_1 or user_id_2
-        # Include user profile data for the other user
-        # Use UNION to handle both cases (user as user_id_1 and user as user_id_2)
+        # Optimized query using UNION instead of OR for better index usage
+        # PostgreSQL can use indexes efficiently with UNION, but not with OR
+        # This splits the query into two parts that can each use their respective indexes
         result = await session.execute(
             text("""
-                SELECT 
-                    c.user_id_1, 
-                    c.user_id_2, 
-                    c.connected_at,
-                    up.first_name,
-                    up.last_name,
-                    up.username,
-                    up.avatar_url
-                FROM public.connections c
-                LEFT JOIN public.user_profiles up ON (
-                    (c.user_id_1 = :user_id AND up.user_id = c.user_id_2)
-                    OR
-                    (c.user_id_2 = :user_id AND up.user_id = c.user_id_1)
+                (
+                    SELECT 
+                        c.user_id_1, 
+                        c.user_id_2, 
+                        c.connected_at,
+                        up.first_name,
+                        up.last_name,
+                        up.username,
+                        up.avatar_url
+                    FROM public.connections c
+                    LEFT JOIN public.user_profiles up ON up.user_id = c.user_id_2
+                    WHERE c.user_id_1 = :user_id
                 )
-                WHERE c.user_id_1 = :user_id OR c.user_id_2 = :user_id
-                ORDER BY c.connected_at DESC
+                UNION ALL
+                (
+                    SELECT 
+                        c.user_id_1, 
+                        c.user_id_2, 
+                        c.connected_at,
+                        up.first_name,
+                        up.last_name,
+                        up.username,
+                        up.avatar_url
+                    FROM public.connections c
+                    LEFT JOIN public.user_profiles up ON up.user_id = c.user_id_1
+                    WHERE c.user_id_2 = :user_id
+                )
+                ORDER BY connected_at DESC
                 LIMIT :limit OFFSET :offset
             """),
             {
@@ -547,11 +563,14 @@ async def get_connections(
             for row in rows
         ]
         
-        # Get total count
+        # Optimized count query using UNION for better index usage
         count_result = await session.execute(
             text("""
-                SELECT COUNT(*) FROM public.connections
-                WHERE user_id_1 = :user_id OR user_id_2 = :user_id
+                SELECT COUNT(*) FROM (
+                    SELECT 1 FROM public.connections WHERE user_id_1 = :user_id
+                    UNION ALL
+                    SELECT 1 FROM public.connections WHERE user_id_2 = :user_id
+                ) AS combined
             """),
             {"user_id": current_user.user_id}
         )

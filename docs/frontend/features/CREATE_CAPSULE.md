@@ -84,7 +84,7 @@ features/create_capsule/
 - Letter content text area
 - Character count
 - Input validation
-- Auto-save as draft (future enhancement)
+- Auto-save as draft (debounced, 800ms)
 - AI writing assistance (future enhancement)
 
 **Validation**:
@@ -170,11 +170,18 @@ features/create_capsule/
 ```
 1. User writes letter content
    ↓
-2. User navigates away or closes
+2. Auto-save triggers after 800ms debounce
    ↓
-3. Letter saved as draft automatically
+3. If no draftId exists: Create new draft
+   If draftId exists: Update existing draft
    ↓
-4. User can resume from drafts screen
+4. Draft saved locally (SharedPreferences)
+   ↓
+5. User can resume from drafts screen
+   ↓
+6. Opening draft restores content and continues editing
+   ↓
+7. Subsequent saves update existing draft (not create new)
 ```
 
 ## Integration Points
@@ -362,34 +369,72 @@ Future<void> _createCapsule() async {
 
 ### Saving as Draft
 
+**Auto-Save (in StepWriteLetter)**:
 ```dart
-Future<void> _saveDraft() async {
-  try {
-    final draft = Draft(
-      id: uuid.v4(),
-      title: _title.isEmpty ? AppConstants.untitledDraftTitle : _title,
-      body: _content,
-      lastEdited: DateTime.now(),
+// Auto-save is handled automatically in StepWriteLetter
+// It checks if draftId exists to decide between create/update
+final draftId = _currentDraftId ?? draftCapsule.draftId;
+
+if (draftId == null) {
+  // Create new draft
+  final draft = await repo.createDraft(
+    userId: user.id,
+    title: draftCapsule.label,
+    content: content,
+    recipientName: draftCapsule.recipient?.name,
+    recipientAvatar: draftCapsule.recipient?.avatar,
+  );
+  _currentDraftId = draft.id;
+  ref.read(draftCapsuleProvider.notifier).setDraftId(draft.id);
+} else {
+  // Update existing draft
+  await repo.updateDraft(
+    draftId,
+    content,
+    title: draftCapsule.label,
+    recipientName: draftCapsule.recipient?.name,
+    recipientAvatar: draftCapsule.recipient?.avatar,
+  );
+}
+```
+
+**Manual Save (from CreateCapsuleScreen)**:
+```dart
+Future<void> _saveAsDraft() async {
+  final draft = ref.read(draftCapsuleProvider);
+  final content = draft.content?.trim() ?? '';
+  
+  if (content.isEmpty) return;
+  
+  final repo = ref.read(draftRepositoryProvider);
+  
+  // Check if draft ID already exists (from auto-save)
+  if (draft.draftId != null) {
+    // Update existing draft
+    await repo.updateDraft(
+      draft.draftId!,
+      content,
+      title: draft.label,
+      recipientName: draft.recipient?.name,
+      recipientAvatar: draft.recipient?.avatar,
     );
-    
-    final repo = ref.read(draftRepositoryProvider);
-    await repo.saveDraft(draft);
-    
-    if (context.mounted) {
-      context.pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Draft saved')),
-      );
-    }
-  } catch (e) {
-    Logger.error('Failed to save draft', error: e);
+  } else {
+    // Create new draft
+    final newDraft = await repo.createDraft(
+      userId: user.id,
+      title: draft.label,
+      content: content,
+      recipientName: draft.recipient?.name,
+      recipientAvatar: draft.recipient?.avatar,
+    );
+    ref.read(draftCapsuleProvider.notifier).setDraftId(newDraft.id);
   }
 }
 ```
 
 ## Future Enhancements
 
-- [ ] Auto-save drafts while writing
+- [x] Auto-save drafts while writing ✅ (Implemented)
 - [ ] AI writing assistance
 - [ ] Rich text editor
 - [ ] Image attachments
@@ -401,7 +446,7 @@ Future<void> _saveDraft() async {
 ## Related Documentation
 
 - [Recipients Feature](./RECIPIENTS.md) - For recipient selection
-- [Drafts Feature](./DRAFTS.md) - For draft management
+- [Drafts Feature](./DRAFTS.md) - For draft management and auto-save
 - [Home Screen](./HOME.md) - For navigation after creation
 - [API Reference](../API_REFERENCE.md) - For repository APIs
 

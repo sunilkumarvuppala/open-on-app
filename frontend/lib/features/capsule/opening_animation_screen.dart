@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/constants/app_constants.dart';
 import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/providers/providers.dart';
-import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/utils/logger.dart';
@@ -39,14 +38,12 @@ class _OpeningAnimationScreenState extends ConsumerState<OpeningAnimationScreen>
       final repo = ref.read(capsuleRepositoryProvider);
       await repo.markAsOpened(widget.capsule.id);
       
-      // Invalidate all capsule providers to refresh the UI
-      // This ensures the capsule moves from "Ready" tab to "Opened" tab
+      // Invalidate base capsule providers - derived providers will update automatically
+      // This is more efficient than invalidating all derived providers individually
       ref.invalidate(capsulesProvider);
       ref.invalidate(incomingCapsulesProvider);
-      ref.invalidate(incomingReadyCapsulesProvider);
-      ref.invalidate(incomingOpeningSoonCapsulesProvider);
-      ref.invalidate(incomingOpenedCapsulesProvider);
-      ref.invalidate(incomingLockedCapsulesProvider);
+      // Derived providers (incomingReadyCapsulesProvider, etc.) watch the base providers
+      // so they will automatically refresh when the base providers are invalidated
       
       Logger.info('Capsule ${widget.capsule.id} marked as opened successfully');
     } catch (e, stackTrace) {
