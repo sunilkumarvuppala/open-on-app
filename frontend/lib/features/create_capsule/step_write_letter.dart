@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:openon_app/core/providers/providers.dart';
-import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/utils/logger.dart';
@@ -39,6 +38,13 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
     final draft = ref.read(draftCapsuleProvider);
     _contentController.text = draft.content ?? '';
     _labelController.text = draft.label ?? '';
+    
+    // CRITICAL: Initialize _currentDraftId from draftCapsuleProvider
+    // This ensures that when opening an existing draft, we update it instead of creating a new one
+    _currentDraftId = draft.draftId;
+    if (_currentDraftId != null) {
+      Logger.debug('StepWriteLetter: Initialized with existing draft ID: $_currentDraftId');
+    }
     
     // Auto-save on text changes
     _contentController.addListener(_onContentChanged);
@@ -93,11 +99,16 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
       }
       
       final repo = ref.read(draftRepositoryProvider);
+      final draftCapsule = ref.read(draftCapsuleProvider);
       
-      if (_currentDraftId == null) {
+      // CRITICAL: Check both _currentDraftId and draftCapsule.draftId
+      // This ensures we use the correct draft ID even if _currentDraftId wasn't initialized
+      // (e.g., if draftId was set in CreateCapsuleScreen after StepWriteLetter initState)
+      final draftId = _currentDraftId ?? draftCapsule.draftId;
+      
+      if (draftId == null) {
         // Create new draft - no need to check for duplicates on every auto-save
         // This is much more performant than loading all drafts each time
-        final draftCapsule = ref.read(draftCapsuleProvider);
         final draft = await repo.createDraft(
           userId: user.id,
           title: draftCapsule.label,
@@ -118,18 +129,20 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
         ref.invalidate(draftsProvider(user.id));
       } else {
         // Update existing draft
-        final draftCapsule = ref.read(draftCapsuleProvider);
+        // Use the draftId we found (either from _currentDraftId or draftCapsule.draftId)
         await repo.updateDraft(
-          _currentDraftId!,
+          draftId,
           content,
           title: draftCapsule.label,
           recipientName: draftCapsule.recipient?.name,
           recipientAvatar: draftCapsule.recipient?.avatar,
         );
-        Logger.debug('Draft updated from letter screen: $_currentDraftId');
         
-        // Ensure DraftCapsule has the draft ID
-        ref.read(draftCapsuleProvider.notifier).setDraftId(_currentDraftId!);
+        // Ensure both _currentDraftId and DraftCapsule have the draft ID
+        _currentDraftId = draftId;
+        ref.read(draftCapsuleProvider.notifier).setDraftId(draftId);
+        
+        Logger.debug('Draft updated from letter screen: $draftId');
         
         // Don't invalidate on every update - this causes unnecessary list refreshes
         // The draft list will refresh when user navigates to drafts screen
@@ -196,6 +209,13 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
     final characterCount = _contentController.text.length;
     final isValid = _contentController.text.trim().isNotEmpty;
     final colorScheme = ref.watch(selectedColorSchemeProvider);
+    
+    // Keep _currentDraftId in sync with draftCapsuleProvider
+    // This handles cases where draftId is set after initState (e.g., from CreateCapsuleScreen)
+    if (draft.draftId != null && draft.draftId != _currentDraftId) {
+      _currentDraftId = draft.draftId;
+      Logger.debug('StepWriteLetter: Synced _currentDraftId from provider: $_currentDraftId');
+    }
     
     // Theme-aware text colors
     final titleColor = DynamicTheme.getPrimaryTextColor(colorScheme);

@@ -56,6 +56,7 @@
 - **[frontend/features/RECEIVER.md](./frontend/features/RECEIVER.md)** - Receiver screen (inbox)
 - **[frontend/features/CREATE_CAPSULE.md](./frontend/features/CREATE_CAPSULE.md)** - Letter creation
 - **[frontend/features/CAPSULE.md](./frontend/features/CAPSULE.md)** - Capsule viewing
+- **[frontend/features/DRAFTS.md](./frontend/features/DRAFTS.md)** - Draft management
 - **[frontend/features/CONNECTIONS.md](./frontend/features/CONNECTIONS.md)** - Connections & friend requests
 - **[frontend/features/RECIPIENTS.md](./frontend/features/RECIPIENTS.md)** - Recipient management
 - **[frontend/features/PROFILE.md](./frontend/features/PROFILE.md)** - Profile & settings

@@ -298,7 +298,10 @@ class DraftsScreen extends ConsumerWidget {
           },
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           child: Container(
-            padding: EdgeInsets.all(AppTheme.spacingMd),
+            padding: EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingMd,
+              vertical: AppTheme.spacingSm,
+            ),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppTheme.radiusLg),
               boxShadow: [
@@ -311,96 +314,79 @@ class DraftsScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Main content row (avatar + text, like capsule cards)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Receiver avatar (left side, like capsule cards)
-                    _buildReceiverAvatar(context, ref, draft, colorScheme),
-                    SizedBox(width: AppTheme.spacingMd),
-                    
-                    // Content (expanded, like capsule cards)
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Recipient name (like capsule.receiverName)
-                          Text(
-                            draft.recipientName ?? 'Untitled Draft',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: DynamicTheme.getPrimaryTextColor(colorScheme),
-                              fontWeight: FontWeight.w600,
-                              height: 1.3,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                // Receiver avatar (left side, like capsule cards)
+                _buildReceiverAvatar(context, ref, draft, colorScheme),
+                SizedBox(width: AppTheme.spacingSm),
+                
+                // Content (expanded, like capsule cards)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Recipient name (like capsule.receiverName)
+                      Text(
+                        draft.recipientName ?? 'Untitled Draft',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                          fontWeight: FontWeight.w600,
+                          height: 1.2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      // Draft title/label (like capsule.label)
+                      if (draft.title != null && draft.title!.trim().isNotEmpty) ...[
+                        SizedBox(height: 2),
+                        Text(
+                          draft.title!,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                            fontSize: 13,
                           ),
-                          SizedBox(height: AppTheme.spacingXs),
-                          
-                          // Draft title/label (like capsule.label)
-                          if (draft.title != null && draft.title!.trim().isNotEmpty)
-                            Text(
-                              draft.title!,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: DynamicTheme.getSecondaryTextColor(colorScheme),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          
-                          SizedBox(height: AppTheme.spacingSm),
-                          
-                          // Content Snippet
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      SizedBox(height: AppTheme.spacingXs),
+                      // Last Edited
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            size: 12,
+                            color: DynamicTheme.getSecondaryIconColor(colorScheme),
+                          ),
+                          SizedBox(width: 4),
                           Text(
-                            draft.snippet,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            'Last edited $lastEditedText',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: DynamicTheme.getSecondaryTextColor(colorScheme),
-                              height: 1.4,
+                              fontSize: 11,
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                SizedBox(height: AppTheme.spacingSm),
                 
-                // Last Edited
-                Row(
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      size: 14,
-                      color: DynamicTheme.getSecondaryIconColor(colorScheme),
-                    ),
-                    SizedBox(width: 4),
-                    Text(
-                      'Last edited $lastEditedText',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: DynamicTheme.getSecondaryTextColor(colorScheme),
-                      ),
-                    ),
-                    const Spacer(),
-                    // Delete button
-                    IconButton(
-                      icon: Icon(
-                        Icons.delete_outline,
-                        size: 20,
-                        color: DynamicTheme.getSecondaryIconColor(colorScheme),
-                      ),
-                      onPressed: () {
-                        HapticFeedback.mediumImpact();
-                        _showDeleteConfirmation(context, ref, draft, colorScheme, userId);
-                      },
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
+                // Delete button
+                IconButton(
+                  icon: Icon(
+                    Icons.delete_outline,
+                    size: 20,
+                    color: DynamicTheme.getSecondaryIconColor(colorScheme),
+                  ),
+                  onPressed: () {
+                    HapticFeedback.mediumImpact();
+                    _showDeleteConfirmation(context, ref, draft, colorScheme, userId);
+                  },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
               ],
             ),
@@ -431,26 +417,26 @@ class DraftsScreen extends ConsumerWidget {
           ? recipientAvatar
           : null;
       
-      // Size matches capsule cards: radius 28 = diameter 56
+      // Compact size for draft cards: radius 24 = diameter 48
       if (hasAvatar && (avatarUrl != null || avatarPath != null)) {
         // Use UserAvatar widget for proper image handling
         return UserAvatar(
           name: recipientName,
           imageUrl: avatarUrl,
           imagePath: avatarPath,
-          size: 56, // diameter = 2 * radius
+          size: 48, // diameter = 2 * radius
         );
       }
       
-      // Placeholder avatar with recipient's initial (like capsule cards)
+      // Placeholder avatar with recipient's initial
       return CircleAvatar(
-        radius: 28,
+        radius: 24,
         backgroundColor: colorScheme.primary1.withOpacity(0.1),
         child: Text(
           recipientName[0].toUpperCase(),
           style: TextStyle(
             color: colorScheme.primary1,
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -459,11 +445,11 @@ class DraftsScreen extends ConsumerWidget {
     
     // No recipient info - show placeholder
     return CircleAvatar(
-      radius: 28,
+      radius: 24,
       backgroundColor: colorScheme.primary1.withOpacity(0.1),
       child: Icon(
         Icons.person_outline,
-        size: 28,
+        size: 24,
         color: colorScheme.primary1,
       ),
     );
