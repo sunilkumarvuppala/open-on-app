@@ -57,8 +57,45 @@ final isAuthenticatedProvider = Provider<bool>((ref) {
 
 // Capsules providers
 final capsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, userId) async {
+  // CRITICAL: Verify userId matches authenticated user to prevent data leakage
+  final userAsync = ref.watch(currentUserProvider);
+  final currentUser = userAsync.asData?.value;
+  
+  if (currentUser == null) {
+    // If user is loading, wait a bit and retry
+    if (userAsync.isLoading) {
+      await Future.delayed(const Duration(milliseconds: 200));
+      final retryAsync = ref.read(currentUserProvider);
+      final retryUser = retryAsync.asData?.value;
+      if (retryUser == null) {
+        throw AuthenticationException('Not authenticated. Please sign in.');
+      }
+      // Use authenticated user's ID
+      final authenticatedUserId = retryUser.id;
+      if (authenticatedUserId != userId) {
+        Logger.warning(
+          'UserId mismatch in capsulesProvider: requested=$userId, authenticated=$authenticatedUserId. '
+          'Using authenticated user ID.'
+        );
+      }
+      final repo = ref.watch(capsuleRepositoryProvider);
+      return repo.getCapsules(userId: authenticatedUserId, asSender: true);
+    }
+    throw AuthenticationException('Not authenticated. Please sign in.');
+  }
+  
+  // Use authenticated user's ID to prevent data leakage
+  // Even if wrong userId is passed, we use the authenticated user's ID
+  final authenticatedUserId = currentUser.id;
+  if (authenticatedUserId != userId) {
+    Logger.warning(
+      'UserId mismatch in capsulesProvider: requested=$userId, authenticated=$authenticatedUserId. '
+      'Using authenticated user ID.'
+    );
+  }
+  
   final repo = ref.watch(capsuleRepositoryProvider);
-  return repo.getCapsules(userId: userId, asSender: true);
+  return repo.getCapsules(userId: authenticatedUserId, asSender: true);
 });
 
 final upcomingCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, userId) async {
@@ -101,15 +138,26 @@ final openedCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref
   
   return capsulesAsync.when(
     data: (capsules) {
+      // Filter capsules that are opened (have openedAt set)
+      // The status getter checks openedAt != null to determine if opened
       final filtered = capsules
-          .where((c) => c.status == CapsuleStatus.opened)
+          .where((c) {
+            final isOpened = c.openedAt != null;
+            if (isOpened) {
+              Logger.debug('Found opened capsule: ${c.id}, openedAt: ${c.openedAt}, status: ${c.status}');
+            }
+            return isOpened;
+          })
           .toList();
+      
       // Sort by most recently opened to earliest (newest openedAt first)
       filtered.sort((a, b) {
         final aOpened = a.openedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
         final bOpened = b.openedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
         return bOpened.compareTo(aOpened); // Descending order
       });
+      
+      Logger.info('Opened capsules for sender $userId: ${filtered.length} out of ${capsules.length} total');
       return filtered;
     },
     loading: () => <Capsule>[],
@@ -119,8 +167,44 @@ final openedCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref
 
 // Incoming capsules providers (receiver view)
 final incomingCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, userId) async {
+  // CRITICAL: Verify userId matches authenticated user to prevent data leakage
+  final userAsync = ref.watch(currentUserProvider);
+  final currentUser = userAsync.asData?.value;
+  
+  if (currentUser == null) {
+    // If user is loading, wait a bit and retry
+    if (userAsync.isLoading) {
+      await Future.delayed(const Duration(milliseconds: 200));
+      final retryAsync = ref.read(currentUserProvider);
+      final retryUser = retryAsync.asData?.value;
+      if (retryUser == null) {
+        throw AuthenticationException('Not authenticated. Please sign in.');
+      }
+      // Use authenticated user's ID
+      final authenticatedUserId = retryUser.id;
+      if (authenticatedUserId != userId) {
+        Logger.warning(
+          'UserId mismatch in incomingCapsulesProvider: requested=$userId, authenticated=$authenticatedUserId. '
+          'Using authenticated user ID.'
+        );
+      }
+      final repo = ref.watch(capsuleRepositoryProvider);
+      return repo.getCapsules(userId: authenticatedUserId, asSender: false);
+    }
+    throw AuthenticationException('Not authenticated. Please sign in.');
+  }
+  
+  // Use authenticated user's ID to prevent data leakage
+  final authenticatedUserId = currentUser.id;
+  if (authenticatedUserId != userId) {
+    Logger.warning(
+      'UserId mismatch in incomingCapsulesProvider: requested=$userId, authenticated=$authenticatedUserId. '
+      'Using authenticated user ID.'
+    );
+  }
+  
   final repo = ref.watch(capsuleRepositoryProvider);
-  return repo.getCapsules(userId: userId, asSender: false);
+  return repo.getCapsules(userId: authenticatedUserId, asSender: false);
 });
 
 final incomingLockedCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, userId) async {
@@ -248,8 +332,44 @@ final incomingOpenedCapsulesProvider = FutureProvider.family<List<Capsule>, Stri
 
 // Recipients provider
 final recipientsProvider = FutureProvider.family<List<Recipient>, String>((ref, userId) async {
+  // CRITICAL: Verify userId matches authenticated user to prevent data leakage
+  final userAsync = ref.watch(currentUserProvider);
+  final currentUser = userAsync.asData?.value;
+  
+  if (currentUser == null) {
+    // If user is loading, wait a bit and retry
+    if (userAsync.isLoading) {
+      await Future.delayed(const Duration(milliseconds: 200));
+      final retryAsync = ref.read(currentUserProvider);
+      final retryUser = retryAsync.asData?.value;
+      if (retryUser == null) {
+        throw AuthenticationException('Not authenticated. Please sign in.');
+      }
+      // Use authenticated user's ID
+      final authenticatedUserId = retryUser.id;
+      if (authenticatedUserId != userId) {
+        Logger.warning(
+          'UserId mismatch in recipientsProvider: requested=$userId, authenticated=$authenticatedUserId. '
+          'Using authenticated user ID.'
+        );
+      }
+      final repo = ref.watch(recipientRepositoryProvider);
+      return repo.getRecipients(authenticatedUserId);
+    }
+    throw AuthenticationException('Not authenticated. Please sign in.');
+  }
+  
+  // Use authenticated user's ID to prevent data leakage
+  final authenticatedUserId = currentUser.id;
+  if (authenticatedUserId != userId) {
+    Logger.warning(
+      'UserId mismatch in recipientsProvider: requested=$userId, authenticated=$authenticatedUserId. '
+      'Using authenticated user ID.'
+    );
+  }
+  
   final repo = ref.watch(recipientRepositoryProvider);
-  return repo.getRecipients(userId);
+  return repo.getRecipients(authenticatedUserId);
 });
 
 // Draft capsule state (for multi-step creation)

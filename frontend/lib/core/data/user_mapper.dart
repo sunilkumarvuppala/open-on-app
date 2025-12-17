@@ -32,11 +32,17 @@ class UserMapper {
       }
     }
     
-    // Prefer first_name from backend, otherwise extract from full_name, fallback to username
+    // Combine first_name and last_name, otherwise extract from full_name, fallback to username
     String? displayName;
-    if (_safeString(firstNameValue) != null) {
-      // Use first_name directly if available
-      displayName = _safeString(firstNameValue);
+    final firstName = _safeString(firstNameValue);
+    final lastName = _safeString(lastNameValue);
+    if (firstName != null) {
+      // Combine first_name and last_name if both available
+      if (lastName != null) {
+        displayName = '$firstName $lastName';
+      } else {
+        displayName = firstName;
+      }
     } else if (_safeString(fullNameValue) != null) {
       // Extract first name from full_name if first_name not available
       final fullName = _safeString(fullNameValue)!;

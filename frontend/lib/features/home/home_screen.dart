@@ -820,40 +820,64 @@ class _OpenedTab extends ConsumerWidget {
     return capsulesAsync.when(
       data: (capsules) {
         if (capsules.isEmpty) {
-          return const EmptyState(
-            icon: Icons.mark_email_read_outlined,
-            title: 'No opened letters yet',
-            message: 'When recipients open your letters, they\'ll appear here',
+          return RefreshIndicator(
+            onRefresh: () async {
+              // Invalidate the base provider to force refresh
+              ref.invalidate(capsulesProvider(userId));
+              // Wait for refresh to complete
+              await Future.delayed(const Duration(milliseconds: 300));
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.6,
+                child: const EmptyState(
+                  icon: Icons.mark_email_read_outlined,
+                  title: 'No opened letters yet',
+                  message: 'When recipients open your letters, they\'ll appear here',
+                ),
+              ),
+            ),
           );
         }
 
-        return ListView.builder(
-          key: const PageStorageKey('opened_capsules'),
-          padding: EdgeInsets.symmetric(
-            horizontal: AppTheme.spacingLg,
-            vertical: AppTheme.spacingSm,
-          ),
-          itemCount: capsules.length,
-          itemBuilder: (context, index) {
-            final capsule = capsules[index];
-            return Padding(
-              key: ValueKey('opened_${capsule.id}'),
-              padding:
-                  EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
-              child: InkWell(
-                onTap: () => context.push('/capsule/${capsule.id}/opened',
-                    extra: capsule),
-                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                child: _CapsuleCard(capsule: capsule),
-              ),
-            );
+        return RefreshIndicator(
+          onRefresh: () async {
+            // Invalidate the base provider to force refresh
+            ref.invalidate(capsulesProvider(userId));
+            // Wait for refresh to complete
+            await Future.delayed(const Duration(milliseconds: 300));
           },
+          child: ListView.builder(
+            key: const PageStorageKey('opened_capsules'),
+            padding: EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingLg,
+              vertical: AppTheme.spacingSm,
+            ),
+            itemCount: capsules.length,
+            itemBuilder: (context, index) {
+              final capsule = capsules[index];
+              return Padding(
+                key: ValueKey('opened_${capsule.id}'),
+                padding:
+                    EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
+                child: InkWell(
+                  onTap: () => context.push('/capsule/${capsule.id}/opened',
+                      extra: capsule),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  child: _CapsuleCard(capsule: capsule),
+                ),
+              );
+            },
+          ),
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, stack) => ErrorDisplay(
         message: 'Failed to load capsules',
-        onRetry: () => ref.invalidate(openedCapsulesProvider(userId)),
+        onRetry: () {
+          ref.invalidate(capsulesProvider(userId));
+        },
       ),
     );
   }

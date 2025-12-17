@@ -55,7 +55,7 @@
 - ✅ Connection lookups (owner_id + linked_user_id, both directions)
 - ✅ Email matching (owner_id + LOWER(email))
 - ✅ Name matching (owner_id + LOWER(TRIM(name)))
-- ✅ Relationship filtering (owner_id + relationship)
+- ✅ Username indexing (username) WHERE username IS NOT NULL
 
 ### Connections Table (4 indexes)
 - ✅ Base indexes (user_id_1, user_id_2)

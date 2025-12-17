@@ -15,7 +15,12 @@ frontend/lib/
 │   │   └── app_constants.dart    # All constants (UI, animation, validation)
 │   │
 │   ├── data/
-│   │   └── repositories.dart     # Data access layer (Capsule, Recipient, User)
+│   │   ├── repositories.dart     # Data access layer (Capsule, Recipient, User)
+│   │   ├── api_repositories.dart # API-based repository implementations
+│   │   ├── recipient_resolver.dart # Recipient UUID resolution utility
+│   │   ├── capsule_mapper.dart   # Capsule JSON mapping
+│   │   ├── recipient_mapper.dart # Recipient JSON mapping
+│   │   └── user_mapper.dart      # User JSON mapping
 │   │
 │   ├── errors/
 │   │   └── app_exceptions.dart   # Custom exception hierarchy
@@ -37,7 +42,8 @@ frontend/lib/
 │   │
 │   ├── utils/
 │   │   ├── logger.dart           # Centralized logging system
-│   │   └── validation.dart      # Input validation utilities
+│   │   ├── validation.dart      # Input validation utilities
+│   │   └── uuid_utils.dart      # UUID validation and utilities
 │   │
 │   └── widgets/
 │       ├── common_widgets.dart   # Reusable UI components
@@ -112,8 +118,12 @@ frontend/lib/
 
 #### Data (`core/data/`)
 - **Purpose**: Data access abstraction
-- **Key File**: `repositories.dart`
-- **Contains**: Repository interfaces and mock implementations
+- **Key Files**: 
+  - `repositories.dart`: Repository interfaces and mock implementations
+  - `api_repositories.dart`: API-based repository implementations
+  - `recipient_resolver.dart`: Centralized recipient UUID resolution utility
+  - `*_mapper.dart`: JSON mapping utilities for models
+- **Contains**: Repository pattern implementation, data mapping, UUID resolution
 
 #### Errors (`core/errors/`)
 - **Purpose**: Error handling
@@ -145,8 +155,9 @@ frontend/lib/
 #### Utils (`core/utils/`)
 - **Purpose**: Utility functions
 - **Key Files**:
-  - `logger.dart`: Logging system
-  - `validation.dart`: Input validation
+  - `logger.dart`: Centralized logging system
+  - `validation.dart`: Input validation utilities
+  - `uuid_utils.dart`: UUID validation and type-safe UUID utilities
 
 #### Widgets (`core/widgets/`)
 - **Purpose**: Reusable widgets
@@ -410,5 +421,14 @@ import 'package:openon_app/features/home/home_screen.dart';
 
 ---
 
-**Last Updated**: 2025
+**Last Updated**: December 2025
+
+## Recent Additions (December 2025)
+
+### New Utilities
+
+- **`uuid_utils.dart`**: UUID validation utilities for consistent UUID handling
+- **`recipient_resolver.dart`**: Centralized recipient UUID resolution
+
+See [UTILITIES.md](./frontend/UTILITIES.md) for detailed documentation.
 

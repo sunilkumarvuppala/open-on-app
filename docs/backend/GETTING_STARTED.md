@@ -145,7 +145,7 @@ curl -X POST "http://localhost:8000/recipients" \
   -d '{
     "name": "John Doe",
     "email": "john@example.com",
-    "relationship": "friend"
+    "username": "johndoe"
   }'
 ```
 

@@ -1,16 +1,23 @@
 # Critical Missing Implementation - Recipient UUID Resolution
 
-## 🚨 Problem Summary
+## ✅ RESOLVED
 
-The current implementation has a **fundamental architectural mismatch** that prevents accurate letter counting and capsule creation:
+**Status**: This issue has been fully resolved as of December 2025.
 
-1. **Backend returns user IDs instead of recipient UUIDs**: The `list_recipients` endpoint returns `id=other_user_id` (connection user ID), not actual recipient UUIDs from the `recipients` table.
+**Resolution Summary**:
+- ✅ Backend now returns actual recipient UUIDs
+- ✅ Recipients are automatically created when connections are established
+- ✅ Frontend uses `RecipientResolver` for consistent UUID resolution
+- ✅ Proper UUID validation using `UuidUtils` throughout the codebase
+- ✅ All recipient lookup logic consolidated and optimized
 
-2. **Recipients aren't created when connections are established**: The `_create_recipient_entries` method is a no-op, so no recipient records exist in the database for connections.
+**See**: [RECIPIENT_UUID_FIX_SUMMARY.md](./RECIPIENT_UUID_FIX_SUMMARY.md) for complete implementation details.
 
-3. **Capsules require actual recipient UUIDs**: The `capsules` table has a foreign key constraint `recipient_id → recipients.id`, so capsules must reference actual recipient UUIDs, not user IDs.
+---
 
-4. **Frontend workarounds are inaccurate**: The frontend tries to find recipient UUIDs from existing capsules, but this fails for new connections and can be inaccurate.
+## 🚨 Original Problem Summary (Historical)
+
+The following issues were identified and have since been resolved:
 
 ## 📋 What's Missing
 
@@ -101,7 +108,7 @@ The current implementation has a **fundamental architectural mismatch** that pre
                name=user2_profile.display_name or f"User {str(to_user_id)[:8]}",
                email=None,  # Connection-based recipients have no email
                linked_user_id=to_user_id,
-               relationship=RecipientRelationship.FRIEND,
+               username=None,  # Will be populated from user profile
            )
        
        # Create recipient for user2 -> user1
@@ -115,7 +122,7 @@ The current implementation has a **fundamental architectural mismatch** that pre
                name=user1_profile.display_name or f"User {str(from_user_id)[:8]}",
                email=None,
                linked_user_id=from_user_id,
-               relationship=RecipientRelationship.FRIEND,
+               username=None,  # Will be populated from user profile
            )
    ```
 
@@ -142,7 +149,7 @@ The current implementation has a **fundamental architectural mismatch** that pre
                name=recipient.name,
                email=recipient.email,
                avatar_url=recipient.avatar_url,
-               relationship=recipient.relationship,
+               username=recipient.username,
                created_at=recipient.created_at,
                updated_at=recipient.updated_at,
                linked_user_id=recipient.linked_user_id

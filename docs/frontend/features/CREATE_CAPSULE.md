@@ -191,6 +191,13 @@ features/create_capsule/
 - `recipientsProvider`: List of recipients
 - `capsuleRepositoryProvider`: Create capsule
 - `draftRepositoryProvider`: Save draft
+- `draftCapsuleProvider`: Multi-step form state
+
+### Utilities Used
+
+- `RecipientResolver`: Resolves recipient UUIDs (handles validation and lookup)
+- `UuidUtils`: Validates UUIDs throughout the flow
+- `Validation`: Validates form inputs (content, label, unlock date)
 
 ### Routes
 
@@ -254,14 +261,9 @@ void _previousStep() {
 ### Step-by-Step Validation
 
 **Step 1 - Recipient**:
-```dart
-bool _validateRecipient() {
-  if (_selectedRecipient == null) {
-    throw ValidationException('Please select a recipient');
-  }
-  return true;
-}
-```
+- Recipient must be selected from the list
+- Validation happens automatically when recipient is selected
+- UUID validation and resolution handled by `RecipientResolver` during capsule creation
 
 **Step 2 - Letter Content**:
 ```dart
@@ -325,47 +327,51 @@ bool _validateTime() {
 
 ### Creating a Capsule
 
+The capsule creation process uses `RecipientResolver` to ensure proper UUID validation and resolution:
+
 ```dart
-Future<void> _createCapsule() async {
+Future<void> _handleSubmit() async {
+  final draft = ref.read(draftCapsuleProvider);
+  final user = ref.read(currentUserProvider).asData?.value;
+  
+  if (user == null || !draft.isValid) {
+    // Show validation error
+    return;
+  }
+  
   try {
-    // Validate all steps
-    if (!_validateAllSteps()) return;
-    
-    // Create capsule object
-    final capsule = Capsule(
-      id: uuid.v4(),
-      label: _title,
-      content: _content,
-      recipientId: _selectedRecipient!.id,
-      recipientName: _selectedRecipient!.name,
-      unlockTime: _unlockTime!,
-      status: CapsuleStatus.locked,
+    // Convert draft to capsule
+    final capsule = draft.toCapsule(
+      senderId: user.id,
+      senderName: user.name,
     );
     
-    // Save to repository
+    // Create capsule (RecipientResolver handles UUID validation internally)
     final repo = ref.read(capsuleRepositoryProvider);
     await repo.createCapsule(capsule);
     
     // Navigate to home
-    if (context.mounted) {
-      context.pop();
+    if (mounted) {
+      context.go(Routes.home);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Letter created successfully!')),
+        const SnackBar(content: Text('Letter created successfully! 💌')),
       );
     }
-  } on ValidationException catch (e) {
-    Logger.error('Validation error', error: e);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(e.message)),
-    );
   } catch (e) {
     Logger.error('Failed to create capsule', error: e);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Failed to create letter')),
-    );
+    // Error handling...
   }
 }
 ```
+
+**Key Points**:
+- `DraftCapsule.toCapsule()` creates a `Capsule` with `recipient.id` as `receiverId`
+- `createCapsule()` uses `RecipientResolver.resolveRecipientId()` to:
+  - Validate UUID format
+  - Find recipient by ID or `linkedUserId`
+  - Fallback to name matching if needed
+  - Return validated recipient UUID
+- All UUID validation uses `UuidUtils` for consistency
 
 ### Saving as Draft
 

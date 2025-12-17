@@ -72,9 +72,9 @@ Relationship types for recipients.
 - `acquaintance`
 - `other`
 
-**Default:** `friend`
+**Status**: ⚠️ **DEPRECATED** - This enum has been removed. The `recipients` table now uses `username` (TEXT) instead.
 
-**Used in:** `recipients.relationship`
+**Replaced by**: `recipients.username` - @username for display, populated from linked user profile for connection-based recipients.
 
 ---
 
@@ -116,9 +116,10 @@ User's contact list (people they can send letters to).
 - `id` (UUID, PK, DEFAULT uuid_generate_v4())
 - `owner_id` (UUID, NOT NULL, FK → `auth.users.id`) - Owner of this recipient
 - `name` (TEXT, NOT NULL) - Recipient name
-- `email` (TEXT) - Recipient email (optional)
+- `email` (TEXT) - Recipient email (optional, NULL for connection-based recipients)
 - `avatar_url` (TEXT) - URL to recipient's avatar
-- `relationship` (`recipient_relationship`, DEFAULT 'friend') - Relationship type
+- `username` (TEXT) - @username for display (optional, populated from linked user profile)
+- `linked_user_id` (UUID) - ID of linked user if recipient represents a connection (optional)
 - `created_at` (TIMESTAMPTZ, NOT NULL, DEFAULT NOW())
 - `updated_at` (TIMESTAMPTZ, NOT NULL, DEFAULT NOW())
 
@@ -134,7 +135,8 @@ User's contact list (people they can send letters to).
 **Indexes:**
 - `idx_recipients_owner` on `(owner_id)`
 - `idx_recipients_owner_created` on `(owner_id, created_at DESC)`
-- `idx_recipients_relationship` on `(owner_id, relationship)`
+- `idx_recipients_owner_linked_user` on `(owner_id, linked_user_id)` WHERE `linked_user_id IS NOT NULL`
+- `idx_recipients_username` on `(username)` WHERE `username IS NOT NULL`
 
 ---
 

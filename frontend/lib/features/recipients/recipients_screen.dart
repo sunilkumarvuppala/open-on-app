@@ -257,12 +257,14 @@ class RecipientsScreen extends ConsumerWidget {
                 color: DynamicTheme.getPrimaryTextColor(colorScheme),
               ),
         ),
-        subtitle: Text(
-          recipient.relationship,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: DynamicTheme.getSecondaryTextColor(colorScheme),
-              ),
-        ),
+        subtitle: recipient.username != null && recipient.username!.isNotEmpty
+            ? Text(
+                '@${recipient.username}',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                    ),
+              )
+            : null,
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

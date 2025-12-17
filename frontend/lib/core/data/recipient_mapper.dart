@@ -17,7 +17,7 @@ class RecipientMapper {
     final idValue = json['id'];
     final ownerIdValue = json['owner_id'];
     final nameValue = json['name'];
-    final relationshipValue = json['relationship'];
+    final usernameValue = json['username'];
     final avatarUrlValue = json['avatar_url'];
     
     // Convert UUID to string (handles both string and UUID types)
@@ -43,11 +43,8 @@ class RecipientMapper {
           // Email is optional but important for inbox matching
           final email = _safeString(json['email']);
           
-          // Relationship defaults to 'friend' if not provided
-          // Backend sends enum as string value (e.g., "friend", "family")
-          final relationship = (_safeString(relationshipValue)?.isNotEmpty == true)
-              ? _safeString(relationshipValue)!
-              : 'friend';
+          // Username is optional (@username for display)
+          final username = _safeString(usernameValue);
           
           // Get linked_user_id if present (for connections)
           final linkedUserIdValue = json['linked_user_id'];
@@ -57,7 +54,7 @@ class RecipientMapper {
             id: id,
             userId: userId,
             name: name,
-            relationship: relationship,
+            username: username,
             avatar: avatar,
             linkedUserId: linkedUserId,
             email: email, // Include email from backend

@@ -403,7 +403,7 @@ class ConnectionDetailScreen extends ConsumerWidget {
                 recipient = Recipient(
                   userId: user.id,
                   name: sanitizedName,
-                  relationship: AppConstants.defaultRelationshipType,
+                  username: connection.otherUserProfile.username,
                   avatar: connection.otherUserProfile.avatarUrl ?? '',
                   linkedUserId: connection.otherUserId,
                 );

@@ -60,14 +60,28 @@ async def create_capsule(
     The capsule will be in 'sealed' status until unlocks_at time passes.
     Once unlocks_at passes, status automatically becomes 'ready'.
     """
+    logger.info(
+        f"Creating capsule request: sender_id={current_user.user_id}, "
+        f"recipient_id={capsule_data.recipient_id}, "
+        f"title={capsule_data.title}, "
+        f"unlocks_at={capsule_data.unlocks_at}"
+    )
+    
     capsule_service = CapsuleService(session)
     capsule_repo = CapsuleRepository(session)
     
     # Validate recipient and permissions
-    await capsule_service.validate_recipient_for_capsule(
-        capsule_data.recipient_id,
-        current_user.user_id
-    )
+    try:
+        await capsule_service.validate_recipient_for_capsule(
+            capsule_data.recipient_id,
+            current_user.user_id
+        )
+    except HTTPException as e:
+        logger.error(
+            f"Recipient validation failed for user {current_user.user_id}, "
+            f"recipient_id={capsule_data.recipient_id}: {e.detail}"
+        )
+        raise
     
     # Validate content
     capsule_service.validate_content(
@@ -214,8 +228,65 @@ async def list_capsules(
             f"total={total}"
         )
     
+    # Build response with recipient user profiles for connection-based recipients
+    from app.db.repositories import UserProfileRepository
+    user_profile_repo = UserProfileRepository(session)
+    capsule_responses = []
+    
+    # Collect all linked_user_ids to batch fetch user profiles
+    linked_user_ids = set()
+    for capsule in capsules:
+        if capsule.recipient:
+            # Check if recipient has linked_user_id attribute and it's not None
+            linked_user_id = getattr(capsule.recipient, 'linked_user_id', None)
+            if linked_user_id:
+                linked_user_ids.add(linked_user_id)
+                logger.debug(f"Capsule {capsule.id}: recipient has linked_user_id={linked_user_id}")
+            else:
+                logger.debug(f"Capsule {capsule.id}: recipient has no linked_user_id (email-based or missing)")
+    
+    # Batch fetch all user profiles at once
+    user_profiles_map = {}
+    if linked_user_ids:
+        logger.info(f"Fetching {len(linked_user_ids)} user profiles for recipient avatars: {linked_user_ids}")
+        for user_id in linked_user_ids:
+            try:
+                profile = await user_profile_repo.get_by_id(user_id)
+                if profile:
+                    user_profiles_map[user_id] = profile
+                    logger.info(f"Fetched profile for user {user_id}, avatar_url={profile.avatar_url}")
+                else:
+                    logger.warning(f"User profile not found for linked_user_id {user_id}")
+            except Exception as e:
+                logger.error(f"Failed to fetch user profile for linked_user_id {user_id}: {e}", exc_info=True)
+    
+    # Build responses using the cached user profiles
+    for capsule in capsules:
+        recipient_user_profile = None
+        if capsule.recipient:
+            linked_user_id = getattr(capsule.recipient, 'linked_user_id', None)
+            recipient_own_avatar = getattr(capsule.recipient, 'avatar_url', None)
+            
+            if linked_user_id:
+                recipient_user_profile = user_profiles_map.get(linked_user_id)
+                if recipient_user_profile:
+                    logger.info(f"Capsule {capsule.id}: Using linked user avatar_url={recipient_user_profile.avatar_url}")
+                else:
+                    logger.warning(f"Capsule {capsule.id}: Linked user profile not found for linked_user_id={linked_user_id}, falling back to recipient.avatar_url={recipient_own_avatar}")
+            else:
+                logger.info(f"Capsule {capsule.id}: Recipient has no linked_user_id (email-based), using recipient.avatar_url={recipient_own_avatar}")
+        
+        response = CapsuleResponse.from_orm_with_profile(
+            capsule,
+            recipient_user_profile=recipient_user_profile
+        )
+        # Log the recipient_avatar_url from the response dict
+        response_dict = response.model_dump()
+        logger.info(f"Capsule {capsule.id}: Final recipient_avatar_url={response_dict.get('recipient_avatar_url')}")
+        capsule_responses.append(response)
+    
     return CapsuleListResponse(
-        capsules=[CapsuleResponse.from_orm_with_profile(c) for c in capsules],
+        capsules=capsule_responses,
         total=total,
         page=page,
         page_size=page_size
@@ -264,7 +335,22 @@ async def get_capsule(
             )
     
     # get_by_id already eagerly loads relationships, so from_orm_with_profile is safe
-    return CapsuleResponse.from_orm_with_profile(capsule)
+    # Get recipient user profile if recipient is connection-based
+    recipient_user_profile = None
+    if capsule.recipient:
+        linked_user_id = getattr(capsule.recipient, 'linked_user_id', None)
+        if linked_user_id:
+            from app.db.repositories import UserProfileRepository
+            user_profile_repo = UserProfileRepository(session)
+            try:
+                recipient_user_profile = await user_profile_repo.get_by_id(linked_user_id)
+            except Exception as e:
+                logger.warning(f"Failed to fetch recipient user profile for linked_user_id {linked_user_id}: {e}")
+    
+    return CapsuleResponse.from_orm_with_profile(
+        capsule,
+        recipient_user_profile=recipient_user_profile
+    )
 
 
 @router.put("/{capsule_id}", response_model=CapsuleResponse)

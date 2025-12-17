@@ -119,7 +119,7 @@ idx_capsules_animation_id (animation_id) WHERE animation_id IS NOT NULL
 -- Base indexes
 idx_recipients_owner (owner_id)
 idx_recipients_owner_created (owner_id, created_at DESC)
-idx_recipients_relationship (owner_id, relationship)
+idx_recipients_username (username) WHERE username IS NOT NULL
 idx_recipients_email (owner_id, email) WHERE email IS NOT NULL
 
 -- Connection-based indexes (CRITICAL)

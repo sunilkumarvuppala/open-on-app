@@ -128,7 +128,9 @@ class StepPreview extends ConsumerWidget {
                           context,
                           icon: Icons.person_outline,
                           label: 'Recipient',
-                          value: '${recipient.name} (${recipient.relationship})',
+                          value: recipient.username != null && recipient.username!.isNotEmpty
+                              ? '${recipient.name} (@${recipient.username})'
+                              : recipient.name,
                           primaryColor: colorScheme.primary1,
                           colorScheme: colorScheme,
                         ),

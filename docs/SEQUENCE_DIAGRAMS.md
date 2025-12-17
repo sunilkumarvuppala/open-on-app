@@ -987,7 +987,7 @@ sequenceDiagram
     participant RecipientRepo as RecipientRepository<br/>(Python)
     participant DB as Supabase PostgreSQL
 
-    User->>AddRecipientScreen: Fill recipient form<br/>(name, email, relationship, avatar_url)
+    User->>AddRecipientScreen: Fill recipient form<br/>(name, email, avatar_url)
     User->>AddRecipientScreen: Click "Save" button
     AddRecipientScreen->>AddRecipientScreen: Validate form
     
@@ -995,7 +995,7 @@ sequenceDiagram
         AddRecipientScreen->>User: Show validation errors
     else Validation passes
         AddRecipientScreen->>RecipientRepo: createRecipient(Recipient)
-        RecipientRepo->>ApiClient: post(ApiConfig.recipients,<br/>{name, email, relationship, avatar_url})
+        RecipientRepo->>ApiClient: post(ApiConfig.recipients,<br/>{name, email, avatar_url})
         ApiClient->>TokenStorage: getAccessToken()
         TokenStorage-->>ApiClient: access_token
         ApiClient->>ApiClient: Set Authorization header
@@ -1019,16 +1019,15 @@ sequenceDiagram
                 RecipientRepo-->>AddRecipientScreen: Error message
                 AddRecipientScreen->>User: Show error
             else Email valid or no email
-                RecipientAPI->>RecipientAPI: Use relationship or default to 'friend'
-                RecipientAPI->>RecipientRepo: create(owner_id=current_user.user_id,<br/>name, email, relationship, avatar_url)
-                RecipientRepo->>DB: INSERT INTO recipients<br/>(id, owner_id, name, email, relationship,<br/>avatar_url, created_at, updated_at)<br/>VALUES (gen_random_uuid(), ?, ?, ?, ?, ?, NOW(), NOW())
+                RecipientAPI->>RecipientRepo: create(owner_id=current_user.user_id,<br/>name, email, avatar_url)
+                RecipientRepo->>DB: INSERT INTO recipients<br/>(id, owner_id, name, email,<br/>avatar_url, created_at, updated_at)<br/>VALUES (gen_random_uuid(), ?, ?, ?, ?, NOW(), NOW())
                 DB-->>RecipientRepo: recipient_id
                 RecipientRepo->>DB: SELECT * FROM recipients WHERE id = ?
                 DB-->>RecipientRepo: Recipient object
                 RecipientRepo-->>RecipientAPI: Recipient model
                 
                 RecipientAPI->>RecipientAPI: RecipientResponse.model_validate(recipient)
-                RecipientAPI-->>ApiClient: HTTP 201<br/>{id, owner_id, name, email, relationship,<br/>avatar_url, created_at}
+                RecipientAPI-->>ApiClient: HTTP 201<br/>{id, owner_id, name, email, username,<br/>avatar_url, created_at}
                 
                 ApiClient-->>RecipientRepo: Recipient data (JSON)
                 RecipientRepo->>RecipientRepo: RecipientMapper.fromJson(response)
@@ -1075,7 +1074,7 @@ sequenceDiagram
     RecipientRepo-->>RecipientAPI: List of recipients
     
     RecipientAPI->>RecipientAPI: Convert to RecipientResponse<br/>([RecipientResponse.model_validate(r) for r in recipients])
-    RecipientAPI-->>ApiClient: HTTP 200<br/>[{id, owner_id, name, email, relationship,<br/>avatar_url, created_at}, ...]
+    RecipientAPI-->>ApiClient: HTTP 200<br/>[{id, owner_id, name, email, username,<br/>avatar_url, created_at}, ...]
     
     ApiClient-->>RecipientRepo: List of Recipient data (JSON)
     RecipientRepo->>RecipientRepo: Convert to List<Recipient><br/>([RecipientMapper.fromJson(r) for r in response])
@@ -1101,7 +1100,7 @@ sequenceDiagram
     participant RecipientRepo as RecipientRepository<br/>(Python)
     participant DB as Supabase PostgreSQL
 
-    User->>RecipientScreen: Edit recipient fields<br/>(name, email, relationship)
+    User->>RecipientScreen: Edit recipient fields<br/>(name, email)
     User->>RecipientScreen: Click "Save" button
     RecipientScreen->>RecipientScreen: Validate form
     
@@ -1109,7 +1108,7 @@ sequenceDiagram
         RecipientScreen->>User: Show validation errors
     else Validation passes
         RecipientScreen->>RecipientRepo: updateRecipient(recipientId, updates)
-        RecipientRepo->>ApiClient: put(ApiConfig.updateRecipient(recipientId),<br/>{name, email, relationship, avatar_url})
+        RecipientRepo->>ApiClient: put(ApiConfig.updateRecipient(recipientId),<br/>{name, email, avatar_url})
         ApiClient->>TokenStorage: getAccessToken()
         TokenStorage-->>ApiClient: access_token
         ApiClient->>ApiClient: Set Authorization header
@@ -1140,8 +1139,8 @@ sequenceDiagram
                 RecipientAPI->>RecipientAPI: sanitize_text(email.lower().strip()) if email
                 RecipientAPI->>RecipientAPI: validate_email(email) if email
                 
-                RecipientAPI->>RecipientRepo: update(recipient, name, email,<br/>relationship, avatar_url)
-                RecipientRepo->>DB: UPDATE recipients<br/>SET name = ?, email = ?, relationship = ?,<br/>avatar_url = ?, updated_at = NOW()<br/>WHERE id = ?
+                RecipientAPI->>RecipientRepo: update(recipient, name, email, avatar_url)
+                RecipientRepo->>DB: UPDATE recipients<br/>SET name = ?, email = ?,<br/>avatar_url = ?, updated_at = NOW()<br/>WHERE id = ?
                 DB-->>RecipientRepo: Success
                 RecipientRepo->>DB: SELECT * FROM recipients WHERE id = ?
                 DB-->>RecipientRepo: Updated Recipient object

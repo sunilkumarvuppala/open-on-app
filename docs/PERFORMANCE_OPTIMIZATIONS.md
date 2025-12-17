@@ -238,29 +238,28 @@ if (recipients != null) {
 ```dart
 // Non-blocking with temporary recipient
 if (draftData.recipientName != null) {
-  final recipients = recipientsAsync.asData?.value;
-  if (recipients != null) {
+  // Create temporary recipient immediately for instant UI update
+  final tempRecipient = Recipient(
+    userId: user.id,
+    name: draftData.recipientName!,
+    avatar: draftData.recipientAvatar ?? '',
+  );
+  ref.read(draftCapsuleProvider.notifier).setRecipient(tempRecipient);
+  
+  // Try to find matching recipient in background (non-blocking)
+  final recipientsAsync = ref.read(recipientsProvider(user.id));
+  recipientsAsync.whenData((recipients) {
+    if (!mounted) return;
     try {
       final matchingRecipient = recipients.firstWhere(
         (r) => r.name == draftData.recipientName,
       );
+      // Update with real recipient if found
       ref.read(draftCapsuleProvider.notifier).setRecipient(matchingRecipient);
     } catch (e) {
-      // Create temporary recipient for display
-      final tempRecipient = Recipient(
-        id: 'temp_recipient_id',
-        userId: user.id,
-        name: draftData.recipientName!,
-        relationship: 'friend',
-        avatar: draftData.recipientAvatar,
-      );
-      ref.read(draftCapsuleProvider.notifier).setRecipient(tempRecipient);
+      // Keep temporary recipient if not found
     }
-  } else {
-    // Create temporary recipient immediately
-    final tempRecipient = Recipient(...);
-    ref.read(draftCapsuleProvider.notifier).setRecipient(tempRecipient);
-  }
+  });
 }
 ```
 

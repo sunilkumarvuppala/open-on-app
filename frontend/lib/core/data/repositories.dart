@@ -36,9 +36,10 @@ class MockCapsuleRepository implements CapsuleRepository {
         id: 'mock-1',
         senderId: AppConstants.mockUserId,
         senderName: 'You',
+        senderAvatarValue: '', // User's own avatar (can be empty for mock)
         receiverId: AppConstants.mockPriyaId,
         receiverName: 'Priya',
-        receiverAvatar: AppConstants.avatarPriya,
+        receiverAvatarValue: AppConstants.avatarPriya,
         label: 'Open on your birthday 🎂',
         content: 'Happy birthday my love! I hope this year brings you everything you\'ve been dreaming of...',
         unlockAt: now.add(const Duration(days: 12)),
@@ -48,9 +49,10 @@ class MockCapsuleRepository implements CapsuleRepository {
         id: 'mock-2',
         senderId: AppConstants.mockUserId,
         senderName: 'You',
+        senderAvatarValue: '', // User's own avatar (can be empty for mock)
         receiverId: AppConstants.mockAnanyaId,
         receiverName: 'Ananya',
-        receiverAvatar: AppConstants.avatarAnanya,
+        receiverAvatarValue: AppConstants.avatarAnanya,
         label: 'For your graduation day',
         content: 'My dearest Ananya, watching you grow has been the greatest joy of my life...',
         unlockAt: now.add(const Duration(days: 45)),
@@ -60,9 +62,10 @@ class MockCapsuleRepository implements CapsuleRepository {
         id: 'mock-3',
         senderId: AppConstants.mockUserId,
         senderName: 'You',
+        senderAvatarValue: '', // User's own avatar (can be empty for mock)
         receiverId: AppConstants.mockRajId,
         receiverName: 'Raj',
-        receiverAvatar: AppConstants.avatarRaj,
+        receiverAvatarValue: AppConstants.avatarRaj,
         label: 'Anniversary surprise',
         content: 'Remember our first date? You wore that blue shirt and I couldn\'t stop smiling...',
         unlockAt: now.add(const Duration(days: 3)),
@@ -72,9 +75,10 @@ class MockCapsuleRepository implements CapsuleRepository {
         id: 'mock-4',
         senderId: AppConstants.mockUserId,
         senderName: 'You',
+        senderAvatarValue: '', // User's own avatar (can be empty for mock)
         receiverId: AppConstants.mockMomId,
         receiverName: 'Mom',
-        receiverAvatar: AppConstants.avatarMom,
+        receiverAvatarValue: AppConstants.avatarMom,
         label: 'Mother\'s Day letter',
         content: 'Mom, there aren\'t enough words to express how grateful I am for everything you\'ve done...',
         unlockAt: now.subtract(const Duration(days: 2)),
@@ -87,9 +91,10 @@ class MockCapsuleRepository implements CapsuleRepository {
         id: 'incoming-1',
         senderId: AppConstants.mockPriyaId,
         senderName: 'Priya',
+        senderAvatarValue: AppConstants.avatarPriya, // Sender's avatar
         receiverId: AppConstants.mockUserId,
         receiverName: 'You',
-        receiverAvatar: '',
+        receiverAvatarValue: '', // User's own avatar (can be empty for mock)
         label: 'Open on your birthday 🎂',
         content: 'Happy birthday! I wanted to send you something special...',
         unlockAt: now.add(const Duration(days: 15)),
@@ -99,9 +104,10 @@ class MockCapsuleRepository implements CapsuleRepository {
         id: 'incoming-2',
         senderId: AppConstants.mockAnanyaId,
         senderName: 'Ananya',
+        senderAvatarValue: AppConstants.avatarAnanya, // Sender's avatar
         receiverId: AppConstants.mockUserId,
         receiverName: 'You',
-        receiverAvatar: '',
+        receiverAvatarValue: '', // User's own avatar (can be empty for mock)
         label: 'For when you need encouragement',
         content: 'You\'ve always been there for me. Here\'s something for when you need a boost...',
         unlockAt: now.add(const Duration(days: 5)),
@@ -111,9 +117,10 @@ class MockCapsuleRepository implements CapsuleRepository {
         id: 'incoming-3',
         senderId: AppConstants.mockMomId,
         senderName: 'Mom',
+        senderAvatarValue: AppConstants.avatarMom, // Sender's avatar
         receiverId: AppConstants.mockUserId,
         receiverName: 'You',
-        receiverAvatar: '',
+        receiverAvatarValue: '', // User's own avatar (can be empty for mock)
         label: 'A letter from your mom',
         content: 'My dear child, I wanted to tell you how proud I am of you...',
         unlockAt: now.subtract(const Duration(days: 1)),
@@ -556,28 +563,28 @@ class MockRecipientRepository implements RecipientRepository {
         id: AppConstants.mockPriyaId,
         userId: AppConstants.mockUserId,
         name: 'Priya',
-        relationship: 'Partner',
+        username: 'priya',
         avatar: 'assets/images/avatar_priya.png',
       ),
       Recipient(
         id: AppConstants.mockAnanyaId,
         userId: AppConstants.mockUserId,
         name: 'Ananya',
-        relationship: 'Daughter',
+        username: 'ananya',
         avatar: 'assets/images/avatar_ananya.png',
       ),
       Recipient(
         id: AppConstants.mockRajId,
         userId: AppConstants.mockUserId,
         name: 'Raj',
-        relationship: 'Best Friend',
+        username: 'raj',
         avatar: 'assets/images/avatar_raj.png',
       ),
       Recipient(
         id: AppConstants.mockMomId,
         userId: AppConstants.mockUserId,
         name: 'Mom',
-        relationship: 'Mother',
+        username: 'mom',
         avatar: 'assets/images/avatar_mom.png',
       ),
     ]);
@@ -613,7 +620,6 @@ class MockRecipientRepository implements RecipientRepository {
   Future<Recipient> createRecipient(Recipient recipient, {String? linkedUserId}) async {
     try {
       Validation.validateRecipientName(recipient.name);
-      Validation.validateRelationship(recipient.relationship);
 
       await Future.delayed(AppConstants.createCapsuleDelay);
       _recipients.add(recipient);
@@ -640,7 +646,6 @@ class MockRecipientRepository implements RecipientRepository {
   Future<Recipient> updateRecipient(Recipient recipient) async {
     try {
       Validation.validateRecipientName(recipient.name);
-      Validation.validateRelationship(recipient.relationship);
 
       await Future.delayed(AppConstants.updateDelay);
 
@@ -715,7 +720,12 @@ abstract class AuthRepository {
   Future<User> signIn({required String email, required String password});
   Future<void> signOut();
   Future<User?> getCurrentUser();
-  Future<User> updateProfile({String? name, String? avatar});
+  Future<User> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? username,
+    String? avatarUrl,
+  });
 }
 
 /// Mock implementation
@@ -839,21 +849,47 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<User> updateProfile({String? name, String? avatar}) async {
+  Future<User> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? username,
+    String? avatarUrl,
+  }) async {
     try {
       if (_currentUser == null) {
         throw const AuthenticationException('No user logged in');
       }
 
-      if (name != null) {
-        Validation.validateName(name);
+      if (firstName != null) {
+        Validation.validateName(firstName);
+      }
+      if (lastName != null) {
+        Validation.validateName(lastName);
+      }
+      if (username != null) {
+        Validation.validateUsername(username);
       }
 
       await Future.delayed(AppConstants.updateDelay);
 
+      // Build full name from first and last name
+      String? fullName;
+      if (firstName != null || lastName != null) {
+        final first = firstName != null 
+            ? Validation.sanitizeString(firstName) 
+            : _currentUser!.firstName;
+        final last = lastName != null 
+            ? Validation.sanitizeString(lastName) 
+            : (_currentUser!.name.split(' ').length > 1 
+                ? _currentUser!.name.split(' ').sublist(1).join(' ') 
+                : '');
+        fullName = '$first $last'.trim();
+      }
+
       _currentUser = _currentUser!.copyWith(
-        name: name != null ? Validation.sanitizeString(name) : null,
-        avatar: avatar,
+        name: fullName ?? _currentUser!.name,
+        username: username != null ? username.trim() : _currentUser!.username,
+        avatar: avatarUrl ?? _currentUser!.avatar,
       );
 
       Logger.info('Profile updated: ${_currentUser!.id}');

@@ -45,6 +45,7 @@ docs/
 - **[CODE_STRUCTURE.md](../CODE_STRUCTURE.md)** - Visual code organization
 
 ### Core Documentation
+- **[UTILITIES.md](./UTILITIES.md)** - UUID utilities, RecipientResolver, and other utilities ⭐ NEW
 - **[CORE_COMPONENTS.md](./CORE_COMPONENTS.md)** - Core components documentation
 - **[THEME_SYSTEM.md](./THEME_SYSTEM.md)** - Complete theme system guide
 - **[VISUAL_FLOWS.md](./VISUAL_FLOWS.md)** - Visual diagrams and flows

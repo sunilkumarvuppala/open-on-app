@@ -360,7 +360,7 @@ Add a new recipient to saved contacts.
   "name": "John Doe",
   "email": "john@example.com",
   "avatar_url": "https://example.com/avatar.jpg",
-  "relationship": "friend"
+  "username": "johndoe"
 }
 ```
 
@@ -372,7 +372,7 @@ Add a new recipient to saved contacts.
   "name": "John Doe",
   "email": "john@example.com",
   "avatar_url": "https://example.com/avatar.jpg",
-  "relationship": "friend",
+  "username": "johndoe",
   "created_at": "2025-01-15T10:30:00Z",
   "updated_at": "2025-01-15T10:30:00Z"
 }
@@ -382,7 +382,7 @@ Add a new recipient to saved contacts.
 - `name`: Required, 1-255 characters
 - `email`: Optional, validated if provided
 - `avatar_url`: Optional
-- `relationship`: Optional, defaults to "friend" (friend, family, partner, colleague, acquaintance, other)
+- `username`: Optional, @username for display (populated from linked user profile for connection-based recipients)
 
 **Example:**
 ```bash
@@ -392,7 +392,7 @@ curl -X POST "http://localhost:8000/recipients" \
   -d '{
     "name": "John Doe",
     "email": "john@example.com",
-    "relationship": "friend"
+    "username": "johndoe"
   }'
 ```
 
@@ -413,7 +413,7 @@ List all recipients for the current user.
     "name": "John Doe",
     "email": "john@example.com",
     "avatar_url": "https://example.com/avatar.jpg",
-    "relationship": "friend",
+    "username": "johndoe",
     "created_at": "2025-01-15T10:30:00Z",
     "updated_at": "2025-01-15T10:30:00Z"
   }
@@ -438,7 +438,7 @@ Get details of a specific recipient.
   "name": "John Doe",
   "email": "john@example.com",
   "avatar_url": "https://example.com/avatar.jpg",
-  "relationship": "friend",
+  "username": "johndoe",
   "created_at": "2025-01-15T10:30:00Z",
   "updated_at": "2025-01-15T10:30:00Z"
 }
@@ -459,8 +459,7 @@ Update a recipient.
 {
   "name": "John Smith",
   "email": "john.smith@example.com",
-  "avatar_url": "https://example.com/new-avatar.jpg",
-  "relationship": "family"
+  "avatar_url": "https://example.com/new-avatar.jpg"
 }
 ```
 
@@ -482,7 +481,7 @@ curl -X PUT "http://localhost:8000/recipients/550e8400-e29b-41d4-a716-4466554400
   -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN" \
   -d '{
     "name": "John Smith",
-    "relationship": "family"
+    "email": "john.smith@example.com"
   }'
 ```
 
@@ -849,14 +848,12 @@ All errors follow this format:
 - `opened`: Recipient has opened the capsule (terminal state)
 - `expired`: Soft-deleted or expired (disappearing messages)
 
-### Relationship Types
+### Username Field
 
-- `friend`: Friend relationship (default)
-- `family`: Family member
-- `partner`: Romantic partner
-- `colleague`: Work colleague
-- `acquaintance`: Acquaintance
-- `other`: Other relationship
+- `username`: Optional TEXT field containing @username for display
+- For connection-based recipients: Populated from linked user's profile
+- For email-based recipients: May be manually set or NULL
+- Displayed as `@username` in the UI
 
 ---
 
