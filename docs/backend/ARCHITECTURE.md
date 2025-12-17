@@ -367,7 +367,7 @@ Animation
 
 - **user_profiles**: Extends Supabase Auth with app-specific data
 - **capsules**: Time-locked letters with status tracking
-- **recipients**: Saved contacts with relationship types
+- **recipients**: Saved contacts with username (@username) for display
 - **themes**: Visual themes for letters
 - **animations**: Reveal animations
 - **notifications**: User notifications
@@ -472,7 +472,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
 3. **Capsules**: `receiver_id` → `recipient_id`, `state` → `status`, `scheduled_unlock_at` → `unlocks_at`
 4. **Status Flow**: Simplified from 5 states to 4 (removed `draft` and `unfolding`)
 5. **Drafts**: Removed (not in Supabase schema)
-6. **Recipients**: Added `relationship` enum and `avatar_url`
+6. **Recipients**: Added `username` field (replaces deprecated `relationship` enum) and `linked_user_id` for connection-based recipients
 7. **New Models**: Theme, Animation, Notification, UserSubscription, AuditLog
 
 ### Backward Compatibility

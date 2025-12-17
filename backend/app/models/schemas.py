@@ -22,7 +22,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
-from app.db.models import CapsuleStatus, RecipientRelationship
+from app.db.models import CapsuleStatus
 from app.core.config import settings
 
 
@@ -108,6 +108,39 @@ class UserProfileResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class UserProfileUpdate(BaseModel):
+    """
+    User profile update request model.
+    
+    All fields are optional for partial updates.
+    Only provided fields will be updated.
+    """
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    username: Optional[str] = None
+    avatar_url: Optional[str] = None
+    country: Optional[str] = None
+    device_token: Optional[str] = None
+    
+    @field_validator('first_name', 'last_name')
+    @classmethod
+    def validate_name_fields(cls, v: Optional[str]) -> Optional[str]:
+        """Validate name fields only if provided."""
+        if v is not None:
+            if len(v) < settings.min_name_length or len(v) > settings.max_name_length:
+                raise ValueError(f"Name must be between {settings.min_name_length} and {settings.max_name_length} characters")
+        return v
+    
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v: Optional[str]) -> Optional[str]:
+        """Validate username only if provided."""
+        if v is not None:
+            if len(v) < settings.min_username_length or len(v) > settings.max_username_length:
+                raise ValueError(f"Username must be between {settings.min_username_length} and {settings.max_username_length} characters")
+        return v
 
 
 # Legacy models (kept for backward compatibility during migration)
@@ -474,6 +507,7 @@ class CapsuleResponse(CapsuleBase):
     sender_avatar_url: Optional[str] = None  # None if is_anonymous
     recipient_id: UUID
     recipient_name: Optional[str] = None  # Name from recipients table
+    recipient_avatar_url: Optional[str] = None  # Avatar URL of recipient (from linked user profile or recipient's own avatar_url)
     status: CapsuleStatus
     unlocks_at: datetime
     opened_at: Optional[datetime] = None
@@ -482,7 +516,7 @@ class CapsuleResponse(CapsuleBase):
     updated_at: datetime
     
     @classmethod
-    def from_orm_with_profile(cls, capsule, sender_profile=None, recipient=None):
+    def from_orm_with_profile(cls, capsule, sender_profile=None, recipient=None, recipient_user_profile=None):
         """
         Create CapsuleResponse from ORM model with populated sender/recipient info.
         
@@ -490,6 +524,7 @@ class CapsuleResponse(CapsuleBase):
             capsule: Capsule database model instance
             sender_profile: Optional UserProfile for sender (if not provided, will use relationship)
             recipient: Optional Recipient model (if not provided, will use relationship)
+            recipient_user_profile: Optional UserProfile for recipient (for connection-based recipients)
         
         Returns:
             CapsuleResponse with populated sender_name and recipient_name
@@ -529,10 +564,26 @@ class CapsuleResponse(CapsuleBase):
             sender_id = capsule.sender_id
             sender_avatar_url = sender_profile.avatar_url
         
-        # Get recipient name
+        # Get recipient name and avatar
         recipient_name = None
+        recipient_avatar_url = None
         if recipient:
             recipient_name = recipient.name
+            # For connection-based recipients, prefer linked user's avatar (always up-to-date)
+            # Fall back to recipient's own avatar_url if linked user profile doesn't have one
+            # For email-based recipients, use recipient's own avatar_url
+            linked_user_id = getattr(recipient, 'linked_user_id', None)
+            recipient_own_avatar_url = getattr(recipient, 'avatar_url', None)
+            
+            if linked_user_id and recipient_user_profile:
+                # Connection-based recipient: prefer linked user's avatar (most up-to-date)
+                # But fall back to recipient's own avatar_url if linked user doesn't have one
+                recipient_avatar_url = recipient_user_profile.avatar_url or recipient_own_avatar_url
+            elif recipient_own_avatar_url:
+                # Email-based recipient or connection-based with no linked profile: use recipient's own avatar_url
+                recipient_avatar_url = recipient_own_avatar_url
+            else:
+                recipient_avatar_url = None
         
         # Create response dict
         response_data = {
@@ -542,6 +593,7 @@ class CapsuleResponse(CapsuleBase):
             'sender_avatar_url': sender_avatar_url,
             'recipient_id': capsule.recipient_id,
             'recipient_name': recipient_name,
+            'recipient_avatar_url': recipient_avatar_url,
             'title': capsule.title,
             'body_text': capsule.body_text,
             'body_rich_text': capsule.body_rich_text,
@@ -686,7 +738,7 @@ class RecipientBase(BaseModel):
     - name: Recipient name (required, 1+ characters)
     - email: Optional email address (validated if provided)
     - avatar_url: Optional URL to recipient's avatar image
-    - relationship: Relationship type (defaults to 'friend')
+    - username: Optional @username for display
     
     Note:
         Matches Supabase schema exactly
@@ -695,7 +747,7 @@ class RecipientBase(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     email: Optional[str] = None  # Optional, validated if provided
     avatar_url: Optional[str] = None
-    relationship: RecipientRelationship = RecipientRelationship.FRIEND
+    username: Optional[str] = None  # Optional @username for display
 
 
 class RecipientCreate(RecipientBase):

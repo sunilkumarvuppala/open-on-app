@@ -23,7 +23,7 @@ from typing import Any
 from uuid import UUID
 import httpx
 from fastapi import APIRouter, HTTPException, status, Query, Depends, Request
-from app.models.schemas import UserProfileResponse, UserCreate, UserLogin
+from app.models.schemas import UserProfileResponse, UserProfileUpdate, UserCreate, UserLogin
 from app.dependencies import DatabaseSession, CurrentUser
 from app.db.repositories import UserProfileRepository
 from app.utils.helpers import validate_username, sanitize_text
@@ -558,36 +558,31 @@ async def search_users(
 
 @router.put("/me", response_model=UserProfileResponse)
 async def update_current_user_profile(
+    profile_data: UserProfileUpdate,
     current_user: CurrentUser,
     session: DatabaseSession,
-    first_name: str | None = None,
-    last_name: str | None = None,
-    username: str | None = None,
-    avatar_url: str | None = None,
-    country: str | None = None,
-    device_token: str | None = None
 ) -> UserProfileResponse:
     """
     Update current user profile.
     
     Allows users to update their profile information.
-    Only updates fields that are provided (partial update).
+    Only updates fields that are provided in the request body (partial update).
     """
     user_profile_repo = UserProfileRepository(session)
     
     updates = {}
-    if first_name is not None:
-        updates["first_name"] = first_name
-    if last_name is not None:
-        updates["last_name"] = last_name
-    if username is not None:
-        updates["username"] = username
-    if avatar_url is not None:
-        updates["avatar_url"] = avatar_url
-    if country is not None:
-        updates["country"] = country
-    if device_token is not None:
-        updates["device_token"] = device_token
+    if profile_data.first_name is not None:
+        updates["first_name"] = profile_data.first_name
+    if profile_data.last_name is not None:
+        updates["last_name"] = profile_data.last_name
+    if profile_data.username is not None:
+        updates["username"] = profile_data.username
+    if profile_data.avatar_url is not None:
+        updates["avatar_url"] = profile_data.avatar_url
+    if profile_data.country is not None:
+        updates["country"] = profile_data.country
+    if profile_data.device_token is not None:
+        updates["device_token"] = profile_data.device_token
     
     if not updates:
         raise HTTPException(

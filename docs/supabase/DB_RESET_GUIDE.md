@@ -70,7 +70,7 @@ The `00_consolidated_schema.sql` includes:
 - `capsule_status`
 - `notification_type`
 - `subscription_status`
-- `recipient_relationship`
+- `username` (replaces deprecated `recipient_relationship`)
 
 ## Verification After Reset
 

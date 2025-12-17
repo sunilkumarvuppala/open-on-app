@@ -129,7 +129,7 @@ docs/supabase/                    # Documentation directory
 - `capsule_status` - `sealed`, `ready`, `opened`, `expired`
 - `notification_type` - Various notification types
 - `subscription_status` - Subscription states
-- `recipient_relationship` - `friend`, `family`, `partner`, etc.
+- `username` - @username for display (replaces deprecated `relationship` field)
 
 ## 🔐 Security
 

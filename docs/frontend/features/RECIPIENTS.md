@@ -56,7 +56,7 @@ RecipientsScreen
 - Name input (required)
 - Email input (optional)
 - User search (to link to registered users)
-- Relationship input (optional, stored in frontend only)
+- Username display (@username) - from backend
 - Photo picker (future)
 - Validation
 - Save/Cancel buttons
@@ -77,7 +77,7 @@ RecipientsScreen
    - Avatar/initial
    - Name
    - Email (if available)
-   - Relationship (if available, frontend-only field)
+   - Username (@username) - from backend
 4. User can tap to edit or delete
 
 ### Adding Recipient
@@ -88,7 +88,7 @@ RecipientsScreen
    - Name (required)
    - Email (optional)
    - Search and select registered user (optional, links recipient to user account)
-   - Relationship (optional, frontend-only field)
+   - Username (@username) - from backend
 4. User saves
 5. Navigate back to list
 
@@ -188,9 +188,7 @@ bool _validateRecipient() {
     }
   }
   
-  if (_relationshipController.text.length > AppConstants.maxRelationshipLength) {
-    throw ValidationException('Relationship too long');
-  }
+  // Username is handled by backend, no frontend validation needed
   
   return true;
 }
@@ -204,7 +202,7 @@ bool _validateRecipient() {
 - Avatar (initial or photo)
 - Name
 - Email (if available)
-- Relationship (if available)
+- Username (@username) - from backend
 - Edit/Delete options
 
 **Layout**:
@@ -214,7 +212,7 @@ RecipientCard
 ├── Column
 │   ├── Name
 │   ├── Email (if available)
-│   └── Relationship (if available)
+│   └── Username (@username) - from backend
 └── Actions (edit/delete)
 ```
 
@@ -224,7 +222,7 @@ RecipientCard
 - Name input (required)
 - Email input (optional, validated)
 - User search (to link recipient to registered user account)
-- Relationship input (optional, frontend-only field)
+- Username display (@username) - populated from backend
 - Photo picker button (future)
 - Save/Cancel buttons
 
@@ -270,9 +268,7 @@ Future<void> _saveRecipient() async {
       email: _emailController.text.trim().isEmpty 
         ? null 
         : _emailController.text.trim(),
-      relationship: _relationshipController.text.trim().isEmpty
-        ? ''
-        : _relationshipController.text.trim(),
+      // Username is populated from backend, not set manually
     );
     
     final repo = ref.read(recipientRepositoryProvider);

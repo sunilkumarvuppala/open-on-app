@@ -702,7 +702,7 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
           children: [
             // Left: Sender profile avatar
             UserAvatar(
-              imageUrl: capsule.receiverAvatar.isNotEmpty ? capsule.receiverAvatar : null,
+              imageUrl: capsule.senderAvatar.isNotEmpty ? capsule.senderAvatar : null,
               name: capsule.senderName,
               size: AppConstants.capsuleCardAvatarSize,
             ),

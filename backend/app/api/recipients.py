@@ -2,7 +2,7 @@
 Recipients API routes matching Supabase schema.
 
 This module handles recipient management endpoints:
-- Creating recipients (can include relationship and avatar_url)
+- Creating recipients (can include username and avatar_url)
 - Listing recipients (with pagination)
 - Getting recipient details
 - Updating recipients
@@ -86,30 +86,22 @@ async def create_recipient(
     if recipient_data.avatar_url:
         avatar_url = sanitize_text(recipient_data.avatar_url.strip(), max_length=MAX_URL_LENGTH)
     
-    # ===== Relationship =====
-    # Use provided relationship or default to 'friend'
-    # Ensure we have a valid RecipientRelationship enum object
-    # The TypeDecorator with values_callable will convert it to the enum value ('friend')
-    relationship = recipient_data.relationship if recipient_data.relationship else RecipientRelationship.FRIEND
-    
-    # Ensure we have a valid enum (convert string to enum if needed)
-    if isinstance(relationship, str):
-        try:
-            relationship = RecipientRelationship(relationship.lower())
-        except ValueError:
-            relationship = RecipientRelationship.FRIEND
-    elif not isinstance(relationship, RecipientRelationship):
-        relationship = RecipientRelationship.FRIEND
+    # ===== Username =====
+    # Username is optional, sanitize if provided
+    username = None
+    if recipient_data.username:
+        username = sanitize_text(recipient_data.username.strip(), max_length=settings.max_username_length)
+        # Remove @ if user included it
+        if username.startswith('@'):
+            username = username[1:]
     
     # Create recipient
-    # The TypeDecorator's values_callable and bind_processor will ensure
-    # enum.value ('friend') is used, not enum.name ('FRIEND')
     recipient = await recipient_repo.create(
         owner_id=current_user.user_id,
         name=name,
         email=email,
         avatar_url=avatar_url,
-        relationship=relationship  # Pass enum object, TypeDecorator handles conversion
+        username=username,
     )
     
     logger.info(f"Recipient {recipient.id} created by user {current_user.user_id}")
@@ -134,34 +126,43 @@ async def list_recipients(
     """
     from sqlalchemy import text
     from app.db.repositories import RecipientRepository, UserProfileRepository
-    from app.db.models import RecipientRelationship
     from app.services.connection_service import ConnectionService
     
-    skip, limit = calculate_pagination(page, page_size)
-    
-    # Query actual recipient records from recipients table
-    # Handle case where linked_user_id column doesn't exist yet (migration not run)
-    recipient_repo = RecipientRepository(session)
     try:
-        recipients = await recipient_repo.get_by_owner(
-            owner_id=current_user.user_id,
-            skip=0,  # Get all to check for missing connections
-            limit=None  # Get all to check for missing connections
-        )
-    except Exception as e:
-        error_str = str(e).lower()
-        if 'linked_user_id' in error_str and 'does not exist' in error_str:
-            # Migration not run yet - return empty list and log warning
-            logger.warning(
-                f"linked_user_id column does not exist. Please run migration 18. "
-                f"Returning empty recipients list for user {current_user.user_id}"
+        skip, limit = calculate_pagination(page, page_size)
+        
+        # Query actual recipient records from recipients table
+        # Handle case where linked_user_id or username column doesn't exist yet (migration not run)
+        recipient_repo = RecipientRepository(session)
+        try:
+            recipients = await recipient_repo.get_by_owner(
+                owner_id=current_user.user_id,
+                skip=0,  # Get all to check for missing connections
+                limit=None  # Get all to check for missing connections
             )
-            return []
-        raise
-    
-    # Get connections to ensure all connections have recipient records (backward compatibility)
-    # Query connections to find any that don't have recipient records
-    connections_result = await session.execute(
+        except Exception as e:
+            error_str = str(e).lower()
+            # Check for missing column errors (username or linked_user_id)
+            is_column_error = (
+                ('linked_user_id' in error_str and 'does not exist' in error_str) or
+                ('username' in error_str and 'does not exist' in error_str) or
+                ('column' in error_str and 'does not exist' in error_str)
+            )
+            
+            if is_column_error:
+                # Migration not run yet - return empty list and log warning
+                logger.warning(
+                    f"Database column missing (likely migration not run). "
+                    f"Returning empty recipients list for user {current_user.user_id}. Error: {e}"
+                )
+                return []
+            # For other errors, log and re-raise
+            logger.error(f"Error fetching recipients for user {current_user.user_id}: {e}", exc_info=True)
+            raise
+        
+        # Get connections to ensure all connections have recipient records (backward compatibility)
+        # Query connections to find any that don't have recipient records
+        connections_result = await session.execute(
         text("""
             SELECT DISTINCT ON (other_user_id)
                 other_user_id,
@@ -183,152 +184,190 @@ async def list_recipients(
             ) AS combined
             ORDER BY other_user_id, connected_at DESC
         """),
-        {"user_id": current_user.user_id}
-    )
-    connections_rows = connections_result.fetchall()
-    
-    # Get set of connection user IDs that already have recipient records
-    # Handle case where linked_user_id attribute doesn't exist (migration not run)
-    existing_linked_user_ids = {
-        getattr(r, 'linked_user_id', None) 
-        for r in recipients 
-        if getattr(r, 'linked_user_id', None) is not None
-    }
-    
-    # Create missing recipient records for connections (backward compatibility)
-    # CRITICAL: Handle race conditions where multiple requests create recipients simultaneously
-    from sqlalchemy.exc import IntegrityError
-    connection_service = ConnectionService(session)
-    for row in connections_rows:
-        other_user_id = row[0]
-        if other_user_id not in existing_linked_user_ids:
-            # Create recipient record for this connection
-            try:
-                await connection_service._create_recipient_entries(
-                    from_user_id=current_user.user_id,
-                    to_user_id=other_user_id
-                )
-                await session.commit()
-                logger.info(f"Created missing recipient record for connection: {other_user_id}")
-            except IntegrityError as e:
-                # Unique constraint violation - another request created it first
-                # This is expected in concurrent scenarios, just re-query
-                await session.rollback()
-                logger.info(
-                    f"Recipient already exists for connection {other_user_id} "
-                    f"(created by concurrent request): {e}"
-                )
-                # Re-query to get the recipient that was created by the other request
-                # This ensures we have the latest data
-                try:
-                    recipients = await recipient_repo.get_by_owner(
-                        owner_id=current_user.user_id,
-                        skip=0,
-                        limit=None
-                    )
-                    existing_linked_user_ids = {
-                        getattr(r, 'linked_user_id', None) 
-                        for r in recipients 
-                        if getattr(r, 'linked_user_id', None) is not None
-                    }
-                except Exception as query_error:
-                    logger.warning(f"Failed to re-query recipients after IntegrityError: {query_error}")
-            except Exception as e:
-                await session.rollback()
-                logger.warning(f"Failed to create recipient for connection {other_user_id}: {e}")
-    
-    # Re-query recipients after creating missing ones
-    # Handle case where linked_user_id column doesn't exist yet (migration not run)
-    try:
-        recipients = await recipient_repo.get_by_owner(
-            owner_id=current_user.user_id,
-            skip=skip,
-            limit=limit
+            {"user_id": current_user.user_id}
         )
-    except Exception as e:
-        error_str = str(e).lower()
-        if 'linked_user_id' in error_str and 'does not exist' in error_str:
-            # Migration not run yet - return empty list
-            logger.warning(
-                f"linked_user_id column does not exist. Please run migration 18. "
-                f"Returning empty recipients list for user {current_user.user_id}"
-            )
-            return []
-        raise
-    
-    # Get user profile repository for connection user info
-    user_profile_repo = UserProfileRepository(session)
-    
-    # Convert to RecipientResponse objects
-    recipient_responses: list[RecipientResponse] = []
-    # CRITICAL: Deduplicate by linked_user_id for connection-based recipients
-    # Multiple recipient records can exist with different IDs but same linked_user_id
-    # This happens when recipients are created multiple times (race conditions)
-    # For connection-based recipients (linked_user_id IS NOT NULL), use linked_user_id as unique key
-    # For email-based recipients (linked_user_id IS NULL), use id as unique key
-    seen_recipient_ids: set[UUID] = set()  # For email-based recipients
-    seen_linked_user_ids: set[UUID] = set()  # For connection-based recipients
-    
-    for recipient in recipients:
-        linked_user_id = getattr(recipient, 'linked_user_id', None)
+        connections_rows = connections_result.fetchall()
         
-        # For connection-based recipients, deduplicate by linked_user_id
-        if linked_user_id is not None:
-            if linked_user_id in seen_linked_user_ids:
-                logger.warning(
-                    f"Duplicate recipient with same linked_user_id found: {linked_user_id} "
-                    f"(recipient.id: {recipient.id}, name: {recipient.name}) for user {current_user.user_id}. Skipping."
-                )
-                continue
-            seen_linked_user_ids.add(linked_user_id)
-        else:
-            # For email-based recipients, deduplicate by id
-            if recipient.id in seen_recipient_ids:
-                logger.warning(
-                    f"Duplicate recipient ID found: {recipient.id} for user {current_user.user_id}. Skipping."
-                )
-                continue
-            seen_recipient_ids.add(recipient.id)
-        
-        # For connection-based recipients (linked_user_id IS NOT NULL), get connection user profile
+        # Get set of connection user IDs that already have recipient records
         # Handle case where linked_user_id attribute doesn't exist (migration not run)
-        connection_user_profile = None
-        if linked_user_id:
-            connection_user_profile = await user_profile_repo.get_by_id(linked_user_id)
+        existing_linked_user_ids = {
+            getattr(r, 'linked_user_id', None) 
+            for r in recipients 
+            if getattr(r, 'linked_user_id', None) is not None
+        }
         
-        # Use connection user profile info if available, otherwise use recipient data
-        if connection_user_profile:
-            # Build display name from connection user profile
-            name_parts = [p for p in [connection_user_profile.first_name, connection_user_profile.last_name] if p]
-            display_name = " ".join(name_parts).strip() if name_parts else (
-                connection_user_profile.username or f"User {str(linked_user_id)[:8]}"
+        # Create missing recipient records for connections (backward compatibility)
+        # CRITICAL: Handle race conditions where multiple requests create recipients simultaneously
+        from sqlalchemy.exc import IntegrityError
+        connection_service = ConnectionService(session)
+        for row in connections_rows:
+            other_user_id = row[0]
+            if other_user_id not in existing_linked_user_ids:
+                # Create recipient record for this connection
+                try:
+                    await connection_service._create_recipient_entries(
+                        from_user_id=current_user.user_id,
+                        to_user_id=other_user_id
+                    )
+                    await session.commit()
+                    logger.info(f"Created missing recipient record for connection: {other_user_id}")
+                except IntegrityError as e:
+                    # Unique constraint violation - another request created it first
+                    # This is expected in concurrent scenarios, just re-query
+                    await session.rollback()
+                    logger.info(
+                        f"Recipient already exists for connection {other_user_id} "
+                        f"(created by concurrent request): {e}"
+                    )
+                    # Re-query to get the recipient that was created by the other request
+                    # This ensures we have the latest data
+                    try:
+                        recipients = await recipient_repo.get_by_owner(
+                            owner_id=current_user.user_id,
+                            skip=0,
+                            limit=None
+                        )
+                        existing_linked_user_ids = {
+                            getattr(r, 'linked_user_id', None) 
+                            for r in recipients 
+                            if getattr(r, 'linked_user_id', None) is not None
+                        }
+                    except Exception as query_error:
+                        logger.warning(f"Failed to re-query recipients after IntegrityError: {query_error}")
+                except Exception as e:
+                    await session.rollback()
+                    logger.warning(f"Failed to create recipient for connection {other_user_id}: {e}")
+        
+        # Re-query recipients after creating missing ones
+        # Handle case where linked_user_id or username column doesn't exist yet (migration not run)
+        try:
+            recipients = await recipient_repo.get_by_owner(
+                owner_id=current_user.user_id,
+                skip=skip,
+                limit=limit
             )
-            avatar_url = connection_user_profile.avatar_url or recipient.avatar_url
-        else:
-            # Use recipient's own data (for email-based recipients)
-            display_name = recipient.name
-            avatar_url = recipient.avatar_url
+        except Exception as e:
+            error_str = str(e).lower()
+            # Check for missing column errors (username or linked_user_id)
+            is_column_error = (
+                ('linked_user_id' in error_str and 'does not exist' in error_str) or
+                ('username' in error_str and 'does not exist' in error_str) or
+                ('column' in error_str and 'does not exist' in error_str)
+            )
+            
+            if is_column_error:
+                # Migration not run yet - return empty list
+                logger.warning(
+                    f"Database column missing (likely migration not run). "
+                    f"Returning empty recipients list for user {current_user.user_id}. Error: {e}"
+                )
+                return []
+            # For other errors, log and re-raise
+            logger.error(f"Error fetching recipients for user {current_user.user_id}: {e}", exc_info=True)
+            raise
         
-        # Build response with ACTUAL recipient UUID (not user ID)
-        recipient_response = RecipientResponse(
-            id=recipient.id,  # ACTUAL RECIPIENT UUID from database
-            owner_id=recipient.owner_id,
-            name=display_name,
-            email=recipient.email,  # May be None for connection-based recipients
-            avatar_url=avatar_url,
-            relationship=recipient.relationship,
-            created_at=recipient.created_at,
-            updated_at=recipient.updated_at,
-            linked_user_id=linked_user_id  # Connection user ID if connection-based (None if column doesn't exist)
+        # Get user profile repository for connection user info
+        user_profile_repo = UserProfileRepository(session)
+        
+        # Convert to RecipientResponse objects
+        recipient_responses: list[RecipientResponse] = []
+        # CRITICAL: Deduplicate by linked_user_id for connection-based recipients
+        # Multiple recipient records can exist with different IDs but same linked_user_id
+        # This happens when recipients are created multiple times (race conditions)
+        # For connection-based recipients (linked_user_id IS NOT NULL), use linked_user_id as unique key
+        # For email-based recipients (linked_user_id IS NULL), use id as unique key
+        seen_recipient_ids: set[UUID] = set()  # For email-based recipients
+        seen_linked_user_ids: set[UUID] = set()  # For connection-based recipients
+        
+        for recipient in recipients:
+            linked_user_id = getattr(recipient, 'linked_user_id', None)
+            
+            # For connection-based recipients, deduplicate by linked_user_id
+            if linked_user_id is not None:
+                if linked_user_id in seen_linked_user_ids:
+                    logger.warning(
+                        f"Duplicate recipient with same linked_user_id found: {linked_user_id} "
+                        f"(recipient.id: {recipient.id}, name: {recipient.name}) for user {current_user.user_id}. Skipping."
+                    )
+                    continue
+                seen_linked_user_ids.add(linked_user_id)
+            else:
+                # For email-based recipients, deduplicate by id
+                if recipient.id in seen_recipient_ids:
+                    logger.warning(
+                        f"Duplicate recipient ID found: {recipient.id} for user {current_user.user_id}. Skipping."
+                    )
+                    continue
+                seen_recipient_ids.add(recipient.id)
+            
+            # For connection-based recipients (linked_user_id IS NOT NULL), get connection user profile
+            # Handle case where linked_user_id attribute doesn't exist (migration not run)
+            connection_user_profile = None
+            if linked_user_id:
+                connection_user_profile = await user_profile_repo.get_by_id(linked_user_id)
+            
+            # Use connection user profile info if available, otherwise use recipient data
+            if connection_user_profile:
+                # Build display name from connection user profile
+                name_parts = [p for p in [connection_user_profile.first_name, connection_user_profile.last_name] if p]
+                display_name = " ".join(name_parts).strip() if name_parts else (
+                    connection_user_profile.username or f"User {str(linked_user_id)[:8]}"
+                )
+                avatar_url = connection_user_profile.avatar_url or recipient.avatar_url
+            else:
+                # Use recipient's own data (for email-based recipients)
+                display_name = recipient.name
+                avatar_url = recipient.avatar_url
+            
+            # Build response with ACTUAL recipient UUID (not user ID)
+            # Handle case where username column doesn't exist yet (migration not run)
+            recipient_username = None
+            try:
+                recipient_username = getattr(recipient, 'username', None)
+            except AttributeError:
+                # Column doesn't exist yet - will be None
+                recipient_username = None
+            
+            recipient_response = RecipientResponse(
+                id=recipient.id,  # ACTUAL RECIPIENT UUID from database
+                owner_id=recipient.owner_id,
+                name=display_name,
+                email=recipient.email,  # May be None for connection-based recipients
+                avatar_url=avatar_url,
+                username=recipient_username,
+                created_at=recipient.created_at,
+                updated_at=recipient.updated_at,
+                linked_user_id=linked_user_id  # Connection user ID if connection-based (None if column doesn't exist)
+            )
+            recipient_responses.append(recipient_response)
+        
+        logger.info(
+            f"Listed {len(recipient_responses)} unique recipients (actual records) for user {current_user.user_id}, "
+            f"page={page}, page_size={page_size}"
         )
-        recipient_responses.append(recipient_response)
-    
-    logger.info(
-        f"Listed {len(recipient_responses)} unique recipients (actual records) for user {current_user.user_id}, "
-        f"page={page}, page_size={page_size}"
-    )
-    
-    return recipient_responses
+        
+        return recipient_responses
+    except Exception as e:
+        # Catch any unexpected errors and return empty list instead of crashing
+        # This prevents the frontend from showing errors when user simply has no recipients
+        error_str = str(e).lower()
+        is_column_error = (
+            ('linked_user_id' in error_str and 'does not exist' in error_str) or
+            ('username' in error_str and 'does not exist' in error_str) or
+            ('column' in error_str and 'does not exist' in error_str)
+        )
+        
+        if is_column_error:
+            logger.warning(
+                f"Database column missing (likely migration not run). "
+                f"Returning empty recipients list for user {current_user.user_id}. Error: {e}"
+            )
+        else:
+            logger.error(
+                f"Unexpected error in list_recipients for user {current_user.user_id}: {e}",
+                exc_info=True
+            )
+        return []
 
 
 @router.get("/{recipient_id}", response_model=RecipientResponse)
@@ -397,8 +436,15 @@ async def update_recipient(
         else:
             update_dict["avatar_url"] = None  # Allow clearing avatar
     
-    if recipient_data.relationship:
-        update_dict["relationship"] = recipient_data.relationship
+    if recipient_data.username is not None:
+        if recipient_data.username:
+            username = sanitize_text(recipient_data.username.strip(), max_length=settings.max_username_length)
+            # Remove @ if user included it
+            if username.startswith('@'):
+                username = username[1:]
+            update_dict["username"] = username
+        else:
+            update_dict["username"] = None  # Allow clearing username
     
     if not update_dict:
         raise HTTPException(

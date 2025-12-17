@@ -180,7 +180,6 @@ class ConnectionService:
         Recipients are created with linked_user_id set to the connection user ID.
         """
         from app.db.repositories import RecipientRepository, UserProfileRepository
-        from app.db.models import RecipientRelationship
         
         recipient_repo = RecipientRepository(self.session)
         user_profile_repo = UserProfileRepository(self.session)
@@ -215,8 +214,8 @@ class ConnectionService:
                     name=user2_display_name,
                     email=None,  # Connection-based recipients have no email
                     avatar_url=user2_profile.avatar_url if user2_profile else None,
+                    username=user2_profile.username if user2_profile else None,
                     linked_user_id=to_user_id,
-                    relationship=RecipientRelationship.FRIEND,
                 )
                 logger.info(f"Created recipient for user {from_user_id} -> {to_user_id}")
             except IntegrityError as e:
@@ -240,8 +239,8 @@ class ConnectionService:
                     name=user1_display_name,
                     email=None,  # Connection-based recipients have no email
                     avatar_url=user1_profile.avatar_url if user1_profile else None,
+                    username=user1_profile.username if user1_profile else None,
                     linked_user_id=from_user_id,
-                    relationship=RecipientRelationship.FRIEND,
                 )
                 logger.info(f"Created recipient for user {to_user_id} -> {from_user_id}")
             except IntegrityError as e:

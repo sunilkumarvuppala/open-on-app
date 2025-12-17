@@ -50,26 +50,61 @@ class CapsuleService:
         Raises:
             HTTPException: If recipient not found or permission denied
         """
-        # Verify recipient exists and belongs to sender
+        logger.info(
+            f"Validating recipient for capsule: recipient_id={recipient_id}, sender_id={sender_id}"
+        )
+        
+        # First check if recipient exists
+        recipient = await self.recipient_repo.get_by_id(recipient_id)
+        if not recipient:
+            logger.error(
+                f"Recipient not found in database: recipient_id={recipient_id}, sender_id={sender_id}"
+            )
+            # Try to find recipient by linked_user_id as fallback
+            from sqlalchemy import select
+            from app.db.models import Recipient
+            result = await self.session.execute(
+                select(Recipient).where(
+                    Recipient.linked_user_id == recipient_id,
+                    Recipient.owner_id == sender_id
+                )
+            )
+            fallback_recipient = result.scalar_one_or_none()
+            if fallback_recipient:
+                logger.warning(
+                    f"Found recipient by linked_user_id: recipient_id={fallback_recipient.id}, "
+                    f"linked_user_id={recipient_id}"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid recipient ID. Please use recipient UUID {fallback_recipient.id} instead of user ID {recipient_id}."
+                )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Recipient not found. Please ensure you are connected with this user and try again."
+            )
+        
+        logger.info(
+            f"Recipient found: recipient_id={recipient.id}, owner_id={recipient.owner_id}, "
+            f"name={recipient.name}, linked_user_id={getattr(recipient, 'linked_user_id', None)}"
+        )
+        
+        # Verify recipient belongs to sender
+        if recipient.owner_id != sender_id:
+            logger.error(
+                f"Recipient ownership mismatch: recipient.owner_id={recipient.owner_id}, sender_id={sender_id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only send letters to your own recipients"
+            )
+        
+        # Verify recipient exists and belongs to sender (redundant check but ensures consistency)
         await verify_recipient_ownership(
             self.session,
             recipient_id,
             sender_id
         )
-        
-        recipient = await self.recipient_repo.get_by_id(recipient_id)
-        if not recipient:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Recipient not found"
-            )
-        
-        # Verify recipient belongs to sender
-        if recipient.owner_id != sender_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only send letters to your own recipients"
-            )
         
         # For legacy recipients with email, verify mutual connection
         if recipient.email:

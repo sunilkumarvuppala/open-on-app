@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 from sqlalchemy import select, and_, or_, case, func, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import ProgrammingError, DBAPIError
 from app.db.models import (
     UserProfile, Capsule, Recipient, Theme, Animation, Notification,
     UserSubscription, AuditLog, CapsuleStatus, NotificationType,
@@ -91,6 +92,18 @@ class UserProfileRepository(BaseRepository[UserProfile]):
         await self.session.flush()
         await self.session.refresh(instance)
         return instance
+    
+    async def update(self, user_id: UUID, **kwargs) -> Optional[UserProfile]:
+        """Update user profile by user_id (UUID)."""
+        stmt = (
+            update(UserProfile)
+            .where(UserProfile.user_id == user_id)
+            .values(**kwargs)
+            .returning(UserProfile)
+        )
+        result = await self.session.execute(stmt)
+        await self.session.flush()
+        return result.scalar_one_or_none()
     
     async def update_last_login(self, user_id: UUID) -> Optional[UserProfile]:
         """Update the last_login timestamp for a user."""
@@ -735,19 +748,112 @@ class RecipientRepository(BaseRepository[Recipient]):
         """Get all recipients by owner."""
         from app.core.config import settings
         
-        query = (
-            select(Recipient)
-            .where(Recipient.owner_id == owner_id)
-            .order_by(Recipient.created_at.desc())
-            .offset(skip)
-        )
-        if limit is not None:
-            query = query.limit(limit)
-        else:
-            query = query.limit(settings.default_page_size)
-        
-        result = await self.session.execute(query)
-        return list(result.scalars().all())
+        # Handle case where username column doesn't exist yet (migration not run)
+        try:
+            query = (
+                select(Recipient)
+                .where(Recipient.owner_id == owner_id)
+                .order_by(Recipient.created_at.desc())
+                .offset(skip)
+            )
+            if limit is not None:
+                query = query.limit(limit)
+            else:
+                query = query.limit(settings.default_page_size)
+            
+            result = await self.session.execute(query)
+            recipients = list(result.scalars().all())
+            
+            # Ensure username attribute exists (handles case where column doesn't exist)
+            for recipient in recipients:
+                if not hasattr(recipient, 'username'):
+                    # Try to get username from linked user profile if available
+                    try:
+                        linked_user_id = getattr(recipient, 'linked_user_id', None)
+                        if linked_user_id:
+                            from app.db.repositories import UserProfileRepository
+                            user_profile_repo = UserProfileRepository(self.session)
+                            user_profile = await user_profile_repo.get_by_id(linked_user_id)
+                            if user_profile and user_profile.username:
+                                setattr(recipient, 'username', user_profile.username)
+                            else:
+                                setattr(recipient, 'username', None)
+                        else:
+                            setattr(recipient, 'username', None)
+                    except Exception:
+                        setattr(recipient, 'username', None)
+            
+            return recipients
+        except (ProgrammingError, DBAPIError, Exception) as e:
+            # Check if this is a username column error
+            error_str = str(e).lower()
+            orig_error_str = ''
+            
+            # Check underlying exception for DBAPIError
+            if hasattr(e, 'orig') and e.orig:
+                orig_error_str = str(e.orig).lower()
+            
+            is_username_error = (
+                ('username' in error_str or 'username' in orig_error_str) and 
+                ('does not exist' in error_str or 'does not exist' in orig_error_str or 
+                 'column' in error_str or 'undefinedcolumnerror' in error_str or 
+                 'undefinedcolumnerror' in orig_error_str)
+            )
+            
+            if is_username_error:
+                # Username column doesn't exist - rollback transaction and use raw SQL
+                try:
+                    await self.session.rollback()
+                except Exception:
+                    pass  # Ignore rollback errors - transaction may already be rolled back
+                
+                from sqlalchemy import text
+                limit_val = limit if limit is not None else settings.default_page_size
+                stmt = text("""
+                    SELECT id, owner_id, name, email, avatar_url, linked_user_id, 
+                           created_at, updated_at
+                    FROM recipients
+                    WHERE owner_id = :owner_id
+                    ORDER BY created_at DESC
+                    OFFSET :skip
+                    LIMIT :limit
+                """)
+                result = await self.session.execute(
+                    stmt,
+                    {"owner_id": str(owner_id), "skip": skip, "limit": limit_val}
+                )
+                rows = result.fetchall()
+                
+                # Manually construct Recipient objects
+                recipients = []
+                for row in rows:
+                    # Create Recipient instance manually (bypassing __init__ to avoid username requirement)
+                    recipient = Recipient.__new__(Recipient)
+                    recipient.id = row[0]
+                    recipient.owner_id = row[1]
+                    recipient.name = row[2]
+                    recipient.email = row[3]
+                    recipient.avatar_url = row[4]
+                    recipient.linked_user_id = row[5] if row[5] else None
+                    recipient.created_at = row[6]
+                    recipient.updated_at = row[7]
+                    recipient.username = None  # Column doesn't exist yet
+                    recipients.append(recipient)
+                
+                # Try to populate username from linked user profiles
+                from app.db.repositories import UserProfileRepository
+                user_profile_repo = UserProfileRepository(self.session)
+                for recipient in recipients:
+                    if recipient.linked_user_id:
+                        try:
+                            user_profile = await user_profile_repo.get_by_id(recipient.linked_user_id)
+                            if user_profile and user_profile.username:
+                                recipient.username = user_profile.username
+                        except Exception:
+                            pass  # Ignore errors when fetching username
+                
+                return recipients
+            raise
     
     async def get_by_owner_and_linked_user(
         self,

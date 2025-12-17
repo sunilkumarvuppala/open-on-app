@@ -331,15 +331,11 @@ class Recipient(Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     email: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     avatar_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    username: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # @username for display
     
     # Linked user ID: If set, this recipient represents a connection to another user
     # This allows querying recipients by connection user ID for accurate letter counting
     linked_user_id: Mapped[Optional[UUID]] = mapped_column(PostgresUUID(as_uuid=True), nullable=True)
-    relationship: Mapped[RecipientRelationship] = mapped_column(
-        RecipientRelationshipType(),
-        default=RecipientRelationship.FRIEND,
-        nullable=False
-    )
     
     # Timestamps (timezone-aware UTC)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)

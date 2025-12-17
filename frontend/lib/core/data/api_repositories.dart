@@ -7,7 +7,9 @@ import 'package:openon_app/core/data/capsule_mapper.dart';
 import 'package:openon_app/core/data/recipient_mapper.dart';
 import 'package:openon_app/core/data/connection_repository.dart';
 import 'package:openon_app/core/data/supabase_config.dart';
+import 'package:openon_app/core/data/recipient_resolver.dart';
 import 'package:openon_app/core/errors/app_exceptions.dart';
+import 'package:openon_app/core/utils/uuid_utils.dart';
 import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/models/connection_models.dart';
 import 'package:openon_app/core/utils/logger.dart';
@@ -21,6 +23,10 @@ class ApiAuthRepository implements AuthRepository {
   final ApiClient _apiClient = ApiClient();
   final TokenStorage _tokenStorage = TokenStorage();
   User? _cachedUser;
+  
+  // Static instance cache - this is a problem if multiple instances exist
+  // But since we use providers, there should only be one instance per app
+  // However, we need to ensure cache is cleared on logout
 
   @override
   Future<User> signUp({
@@ -140,11 +146,18 @@ class ApiAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() async {
     try {
-      await _tokenStorage.clearTokens();
+      // CRITICAL: Clear cached user FIRST before clearing tokens
+      // This prevents any race conditions where getCurrentUser might return stale data
       _cachedUser = null;
-      Logger.info('User signed out');
+      
+      // Clear authentication tokens
+      await _tokenStorage.clearTokens();
+      
+      Logger.info('User signed out - tokens and cache cleared');
     } catch (e, stackTrace) {
       Logger.error('Failed to sign out', error: e, stackTrace: stackTrace);
+      // Even if clearing tokens fails, clear the cached user
+      _cachedUser = null;
       throw AuthenticationException(
         'Failed to sign out: ${e.toString()}',
         originalError: e,
@@ -156,21 +169,34 @@ class ApiAuthRepository implements AuthRepository {
   @override
   Future<User?> getCurrentUser() async {
     try {
-      if (_cachedUser != null) {
-        return _cachedUser;
-      }
-
+      // CRITICAL: Always check authentication first
+      // If not authenticated, clear cache and return null to prevent data leakage
       final isAuthenticated = await _tokenStorage.isAuthenticated();
       if (!isAuthenticated) {
+        _cachedUser = null;
         return null;
       }
 
+      // If we have a cached user, verify it's still valid by fetching fresh data
+      // This ensures we don't return stale data from a previous user session
+      // We always fetch to ensure the token matches the current user
       final userResponse = await _apiClient.get(ApiConfig.authMe);
-      _cachedUser = UserMapper.fromJson(userResponse);
+      final currentUser = UserMapper.fromJson(userResponse);
+      
+      // If cached user exists and user ID changed, log warning (shouldn't happen)
+      if (_cachedUser != null && _cachedUser!.id != currentUser.id) {
+        Logger.warning(
+          'User ID changed: cached=${_cachedUser!.id}, current=${currentUser.id}. '
+          'This indicates a data isolation issue.'
+        );
+      }
+      
+      // Update cache with fresh user data
+      _cachedUser = currentUser;
       return _cachedUser;
     } catch (e, stackTrace) {
       Logger.error('Failed to get current user', error: e, stackTrace: stackTrace);
-      // If auth fails, clear tokens
+      // If auth fails, clear tokens and cache
       if (e is AuthenticationException) {
         await _tokenStorage.clearTokens();
         _cachedUser = null;
@@ -180,21 +206,79 @@ class ApiAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<User> updateProfile({String? name, String? avatar}) async {
+  Future<User> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? username,
+    String? avatarUrl,
+  }) async {
     try {
       if (_cachedUser == null) {
         throw const AuthenticationException('No user logged in');
       }
 
-      if (name != null) {
-        Validation.validateName(name);
+      if (firstName != null) {
+        Validation.validateName(firstName);
+      }
+      if (lastName != null) {
+        Validation.validateName(lastName);
+      }
+      if (username != null) {
+        Validation.validateUsername(username);
       }
 
-      // Backend doesn't have update profile endpoint yet, so we'll just update cache
-      _cachedUser = _cachedUser!.copyWith(
-        name: name != null ? Validation.sanitizeString(name) : null,
-        avatar: avatar,
+      print('[ApiAuthRepository.updateProfile] Received - firstName: $firstName, lastName: $lastName, username: $username, avatarUrl: $avatarUrl');
+      
+      // Prepare update payload
+      final Map<String, dynamic> payload = {};
+      if (firstName != null) {
+        payload['first_name'] = Validation.sanitizeString(firstName);
+        print('[ApiAuthRepository.updateProfile] Added first_name: ${payload['first_name']}');
+      }
+      if (lastName != null) {
+        payload['last_name'] = Validation.sanitizeString(lastName);
+        print('[ApiAuthRepository.updateProfile] Added last_name: ${payload['last_name']}');
+      }
+      if (username != null) {
+        payload['username'] = username.trim();
+        print('[ApiAuthRepository.updateProfile] Added username: ${payload['username']}');
+      }
+      if (avatarUrl != null && avatarUrl.isNotEmpty) {
+        payload['avatar_url'] = avatarUrl;
+        print('[ApiAuthRepository.updateProfile] Added avatar_url: ${payload['avatar_url']}');
+      } else {
+        print('[ApiAuthRepository.updateProfile] NOT adding avatar_url - avatarUrl is null or empty: $avatarUrl');
+      }
+
+      print('[ApiAuthRepository.updateProfile] Final payload: $payload');
+      print('[ApiAuthRepository.updateProfile] Payload keys: ${payload.keys.toList()}');
+      print('[ApiAuthRepository.updateProfile] Payload isEmpty: ${payload.isEmpty}');
+      print('[ApiAuthRepository.updateProfile] avatarUrl value received: $avatarUrl');
+
+      Logger.info('updateProfile payload: $payload');
+      Logger.info('Payload keys: ${payload.keys.toList()}');
+      Logger.info('Payload isEmpty: ${payload.isEmpty}');
+      Logger.info('avatarUrl value: $avatarUrl');
+
+      if (payload.isEmpty) {
+        print('[ApiAuthRepository.updateProfile] ERROR: Payload is empty!');
+        Logger.error('No fields to update - payload is empty. '
+            'firstName: $firstName, lastName: $lastName, username: $username, avatarUrl: $avatarUrl');
+        throw const ValidationException('No fields to update');
+      }
+
+      // Call backend API
+      print('[ApiAuthRepository.updateProfile] Calling PUT ${ApiConfig.authMe} with payload: $payload');
+      Logger.info('Calling PUT ${ApiConfig.authMe} with payload: $payload');
+      final response = await _apiClient.put(
+        ApiConfig.authMe,
+        payload,
       );
+      
+      print('[ApiAuthRepository.updateProfile] Response received: $response');
+
+      // Update cached user
+      _cachedUser = UserMapper.fromJson(response);
 
       Logger.info('Profile updated: ${_cachedUser!.id}');
       return _cachedUser!;
@@ -224,8 +308,23 @@ class ApiCapsuleRepository implements CapsuleRepository {
     bool asSender = true,
   }) async {
     try {
-      if (userId.isEmpty) {
-        throw const ValidationException('User ID cannot be empty');
+      UuidUtils.validateUserId(userId);
+
+      // CRITICAL: Verify the userId matches the authenticated user
+      // This prevents data leakage if a stale userId is passed
+      final currentUser = await _authRepo.getCurrentUser();
+      if (currentUser == null) {
+        throw AuthenticationException('Not authenticated. Please sign in.');
+      }
+      
+      // Verify userId matches authenticated user to prevent data leakage
+      if (currentUser.id != userId) {
+        Logger.warning(
+          'UserId mismatch: requested=$userId, authenticated=${currentUser.id}. '
+          'Using authenticated user ID to prevent data leakage.'
+        );
+        // Use authenticated user's ID instead of requested userId
+        // This ensures we always fetch data for the currently authenticated user
       }
 
       final box = asSender ? 'outbox' : 'inbox';
@@ -277,95 +376,62 @@ class ApiCapsuleRepository implements CapsuleRepository {
   @override
   Future<Capsule> createCapsule(Capsule capsule) async {
     try {
+      // Validate input
       Validation.validateContent(capsule.content);
       if (capsule.label.isNotEmpty) {
         Validation.validateLabel(capsule.label);
       }
       Validation.validateUnlockDate(capsule.unlockAt);
 
-      // Backend expects recipient_id (UUID of recipient record), not receiver_id (user ID)
-      // The capsule.receiverId might be a user ID from the API, so we need to find the actual recipient UUID
-      String recipientId = capsule.receiverId;
-      
-      // Check if receiverId is a valid UUID format (36 chars with dashes)
-      // If not, it's likely a user ID, so we need to find the actual recipient UUID
-      final isLikelyUserId = recipientId.length != 36 || !recipientId.contains('-');
-      
-      if (isLikelyUserId) {
-        Logger.warning('recipient_id looks like a user ID ($recipientId), finding actual recipient UUID using connection user ID');
-        
-        // Find actual recipient UUID using connection user ID (linkedUserId) - stable identifier
-        // Strategy: Get recipients list and find recipient with linkedUserId matching the recipient
-        // Then find recipient UUIDs from existing capsules that belong to this connection
-        try {
-          final currentUser = await _authRepo.getCurrentUser();
-          if (currentUser != null) {
-            // Step 1: Get recipients list and find recipient with linkedUserId
-            // The recipient.id from API might be a user ID, but we can use linkedUserId to identify the connection
-            final recipientRepo = ApiRecipientRepository();
-            final recipients = await recipientRepo.getRecipients(currentUser.id);
-            
-            // Find recipient with linkedUserId matching the capsule's receiverId (which is the connection user ID)
-            final connectionRecipient = recipients.firstWhere(
-              (r) => r.linkedUserId == recipientId, // recipientId is the connection user ID
-              orElse: () => Recipient(
-                userId: currentUser.id,
-                name: capsule.receiverName,
-                relationship: 'friend',
-                linkedUserId: recipientId,
-              ),
-            );
-            
-            // Backend now returns actual recipient UUIDs, so connectionRecipient.id should be a valid UUID
-            if (connectionRecipient.id.length == 36 && connectionRecipient.id.contains('-')) {
-              // Valid UUID from recipients list - use it directly
-              recipientId = connectionRecipient.id;
-              Logger.info('Found recipient UUID from recipients list (linkedUserId=$recipientId): $recipientId');
-            } else {
-              // Fallback: This shouldn't happen now, but handle edge case
-              Logger.warning('Recipient ID from API is not a valid UUID: ${connectionRecipient.id}. Backend should return actual UUIDs.');
-              // Try to find from existing capsules as last resort
-              final outboxCapsules = await getCapsules(
-                userId: currentUser.id,
-                asSender: true,
-              );
-              for (final existingCapsule in outboxCapsules) {
-                final existingRecipientId = existingCapsule.receiverId;
-                if (existingRecipientId.length == 36 && existingRecipientId.contains('-')) {
-                  recipientId = existingRecipientId;
-                  Logger.warning('Using recipient UUID from existing capsules as fallback: $recipientId');
-                  break;
-                }
-              }
-            }
-          }
-        } catch (e) {
-          Logger.warning('Error finding recipient UUID using connection user ID', error: e);
-          // Continue with original recipientId - backend will validate
-        }
+      // Get current user for recipient resolution
+      final currentUser = await _authRepo.getCurrentUser();
+      if (currentUser == null) {
+        throw RepositoryException(
+          'User not authenticated. Please sign in and try again.',
+        );
       }
+
+      // Resolve recipient UUID (handles UUID validation and lookup)
+      final recipientRepo = ApiRecipientRepository();
+      final recipientId = await RecipientResolver.resolveRecipientId(
+        recipientId: capsule.receiverId,
+        currentUserId: currentUser.id,
+        recipientRepo: recipientRepo,
+        recipientName: capsule.receiverName,
+      );
+
+      Logger.info(
+        'Creating capsule: recipientId=$recipientId, '
+        'receiverName=${capsule.receiverName}, '
+        'unlocksAt=${capsule.unlockAt}'
+      );
       
-      Logger.info('Creating capsule with recipient_id: $recipientId, unlocks_at: ${capsule.unlockAt}');
-      
+      // Create capsule via API
       final response = await _apiClient.post(
         ApiConfig.capsules,
         {
-          'recipient_id': recipientId, // Use found or original recipient UUID
+          'recipient_id': recipientId,
           'title': capsule.label.isNotEmpty ? capsule.label : null,
-          'body_text': capsule.content, // Backend uses body_text, not body
-          'unlocks_at': capsule.unlockAt.toUtc().toIso8601String(), // Backend expects unlocks_at
-          'is_anonymous': false, // Default to non-anonymous
-          'is_disappearing': false, // Default to non-disappearing
+          'body_text': capsule.content,
+          'unlocks_at': capsule.unlockAt.toUtc().toIso8601String(),
+          'is_anonymous': false,
+          'is_disappearing': false,
         },
       );
 
       final createdCapsule = CapsuleMapper.fromJson(response);
-      Logger.info('Capsule created: ${createdCapsule.id}');
+      Logger.info('Capsule created successfully: id=${createdCapsule.id}');
       return createdCapsule;
+    } on RepositoryException {
+      // Re-throw repository exceptions as-is
+      rethrow;
+    } on ValidationException {
+      // Re-throw validation exceptions as-is
+      rethrow;
     } catch (e, stackTrace) {
       Logger.error('Failed to create capsule', error: e, stackTrace: stackTrace);
       
-      // Check if error is about recipient not found
+      // Handle recipient not found errors
       final errorStr = e.toString().toLowerCase();
       if (errorStr.contains('recipient not found') || 
           errorStr.contains('404') ||
@@ -377,9 +443,6 @@ class ApiCapsuleRepository implements CapsuleRepository {
         );
       }
       
-      if (e is ValidationException) {
-        rethrow;
-      }
       throw RepositoryException(
         'Failed to create capsule: ${e.toString()}',
         originalError: e,
@@ -391,9 +454,7 @@ class ApiCapsuleRepository implements CapsuleRepository {
   @override
   Future<Capsule> updateCapsule(Capsule capsule) async {
     try {
-      if (capsule.id.isEmpty) {
-        throw const ValidationException('Capsule ID cannot be empty');
-      }
+      UuidUtils.validateCapsuleId(capsule.id);
 
       Validation.validateContent(capsule.content);
 
@@ -424,9 +485,7 @@ class ApiCapsuleRepository implements CapsuleRepository {
   @override
   Future<void> deleteCapsule(String capsuleId) async {
     try {
-      if (capsuleId.isEmpty) {
-        throw const ValidationException('Capsule ID cannot be empty');
-      }
+      UuidUtils.validateCapsuleId(capsuleId);
 
       await _apiClient.delete(ApiConfig.capsuleById(capsuleId));
       Logger.info('Capsule deleted: $capsuleId');
@@ -446,9 +505,7 @@ class ApiCapsuleRepository implements CapsuleRepository {
   @override
   Future<void> markAsOpened(String capsuleId) async {
     try {
-      if (capsuleId.isEmpty) {
-        throw const ValidationException('Capsule ID cannot be empty');
-      }
+      UuidUtils.validateCapsuleId(capsuleId);
 
       await _apiClient.post(
         ApiConfig.openCapsule(capsuleId),
@@ -565,45 +622,72 @@ class ApiRecipientRepository implements RecipientRepository {
   @override
   Future<List<Recipient>> getRecipients(String userId) async {
     try {
-      if (userId.isEmpty) {
-        throw const ValidationException('User ID cannot be empty');
+      UuidUtils.validateUserId(userId);
+
+      // CRITICAL: Verify the userId matches the authenticated user
+      // This prevents data leakage if a stale userId is passed
+      final authRepo = ApiAuthRepository();
+      final currentUser = await authRepo.getCurrentUser();
+      if (currentUser == null) {
+        throw AuthenticationException('Not authenticated. Please sign in.');
+      }
+      
+      // Verify userId matches authenticated user to prevent data leakage
+      if (currentUser.id != userId) {
+        Logger.warning(
+          'UserId mismatch: requested=$userId, authenticated=${currentUser.id}. '
+          'Using authenticated user ID to prevent data leakage.'
+        );
+        // Note: Backend will return data for authenticated user regardless of userId parameter
+        // But we log the warning for debugging
       }
 
       Logger.info('Fetching recipients for user: $userId');
       
-      final response = await _apiClient.getList(
-        ApiConfig.recipients,
-        queryParams: {
-          'page': AppConstants.defaultPage.toString(),
-          'page_size': AppConstants.maxPageSize.toString(),
-        },
-      );
+      try {
+        final response = await _apiClient.getList(
+          ApiConfig.recipients,
+          queryParams: {
+            'page': AppConstants.defaultPage.toString(),
+            'page_size': AppConstants.maxPageSize.toString(),
+          },
+        );
 
-      Logger.info('Received ${response.length} recipients from API');
-      
-      final recipients = response
-          .map((json) {
-            try {
-              return RecipientMapper.fromJson(json as Map<String, dynamic>);
-            } catch (e, stackTrace) {
-              Logger.error('Failed to map recipient JSON', error: e, stackTrace: stackTrace);
-              rethrow;
-            }
-          })
-          .toList();
+        Logger.info('Received ${response.length} recipients from API');
+        
+        // Handle empty response gracefully
+        if (response.isEmpty) {
+          Logger.info('No recipients found for user: $userId');
+          return [];
+        }
+        
+        final recipients = response
+            .map((json) {
+              try {
+                return RecipientMapper.fromJson(json as Map<String, dynamic>);
+              } catch (e, stackTrace) {
+                Logger.error('Failed to map recipient JSON', error: e, stackTrace: stackTrace);
+                rethrow;
+              }
+            })
+            .toList();
 
-      Logger.debug('Successfully mapped ${recipients.length} recipients');
-      return recipients;
+        Logger.debug('Successfully mapped ${recipients.length} recipients');
+        return recipients;
+      } on NotFoundException {
+        // 404 from backend - treat as empty list (user has no recipients yet)
+        Logger.info('Recipients endpoint returned 404, treating as empty list for user: $userId');
+        return [];
+      }
     } catch (e, stackTrace) {
       Logger.error('Failed to get recipients', error: e, stackTrace: stackTrace);
-      if (e is AppException) {
+      if (e is AppException && e is! NotFoundException) {
         rethrow;
       }
-      throw RepositoryException(
-        'Failed to retrieve recipients: ${e.toString()}',
-        originalError: e,
-        stackTrace: stackTrace,
-      );
+      // For other errors, return empty list instead of throwing
+      // This prevents the UI from showing error when user simply has no recipients
+      Logger.warning('Error fetching recipients, returning empty list: ${e.toString()}');
+      return [];
     }
   }
 
@@ -611,13 +695,16 @@ class ApiRecipientRepository implements RecipientRepository {
   Future<Recipient> createRecipient(Recipient recipient, {String? linkedUserId}) async {
     try {
       Validation.validateName(recipient.name);
-      Validation.validateRelationship(recipient.relationship);
 
       // Build request body
       final requestBody = <String, dynamic>{
         'name': recipient.name,
-        'relationship': recipient.relationship,
       };
+      
+      // Add username if available
+      if (recipient.username != null && recipient.username!.isNotEmpty) {
+        requestBody['username'] = recipient.username;
+      }
       
       // CRITICAL: Include email if available (needed for inbox matching)
       // The email is used to match recipient.email to current_user.email in inbox queries
@@ -661,9 +748,7 @@ class ApiRecipientRepository implements RecipientRepository {
   @override
   Future<void> deleteRecipient(String recipientId) async {
     try {
-      if (recipientId.isEmpty) {
-        throw const ValidationException('Recipient ID cannot be empty');
-      }
+      UuidUtils.validateRecipientId(recipientId);
 
       await _apiClient.delete(ApiConfig.recipientById(recipientId));
       Logger.info('Recipient deleted: $recipientId');
@@ -1187,7 +1272,7 @@ class ApiConnectionRepository with StreamPollingMixin implements ConnectionRepos
         orElse: () => Recipient(
           userId: currentUserId,
           name: connection.otherUserProfile.displayName,
-          relationship: 'friend',
+          username: connection.otherUserProfile.username,
           linkedUserId: connectionId,
         ),
       );

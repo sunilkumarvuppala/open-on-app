@@ -7,6 +7,7 @@ import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/utils/logger.dart';
+import 'package:openon_app/core/widgets/common_widgets.dart';
 
 class StepChooseRecipient extends ConsumerStatefulWidget {
   final VoidCallback onNext;
@@ -80,9 +81,9 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
             final filteredRecipients = deduplicatedRecipients.where((r) {
               if (_searchQuery.isEmpty) return true;
               final name = r.name.toLowerCase();
-              final relationship = r.relationship.toLowerCase();
+              final username = r.username?.toLowerCase() ?? '';
               final query = _searchQuery.toLowerCase();
-              return name.contains(query) || relationship.contains(query);
+              return name.contains(query) || username.contains(query);
             }).toList();
             
             return Column(
@@ -177,21 +178,10 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                                     padding: EdgeInsets.all(AppTheme.spacingMd),
                                     child: Row(
                                       children: [
-                                        CircleAvatar(
-                                          radius: 28,
-                                          backgroundColor: isSelected
-                                              ? DynamicTheme.getButtonBackgroundColor(colorScheme, opacity: 0.3)
-                                              : DynamicTheme.getButtonBackgroundColor(colorScheme, opacity: 0.2),
-                                          child: Text(
-                                            recipient.name[0].toUpperCase(),
-                                            style: TextStyle(
-                                              color: isSelected
-                                                  ? DynamicTheme.getButtonTextColor(colorScheme)
-                                                  : DynamicTheme.getButtonTextColor(colorScheme),
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
+                                        UserAvatar(
+                                          imageUrl: recipient.avatar.isNotEmpty ? recipient.avatar : null,
+                                          name: recipient.name,
+                                          size: 56,
                                         ),
                                         SizedBox(width: AppTheme.spacingMd),
                                         Expanded(
@@ -206,14 +196,16 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                                                   color: DynamicTheme.getPrimaryTextColor(colorScheme),
                                                 ),
                                               ),
-                                              SizedBox(height: AppTheme.spacingXs),
-                                              Text(
-                                                recipient.relationship,
-                                                style: TextStyle(
-                                                  color: DynamicTheme.getSecondaryTextColor(colorScheme),
-                                                  fontSize: 14,
+                                              if (recipient.username != null && recipient.username!.isNotEmpty) ...[
+                                                SizedBox(height: AppTheme.spacingXs),
+                                                Text(
+                                                  '@${recipient.username}',
+                                                  style: TextStyle(
+                                                    color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                                                    fontSize: 14,
+                                                  ),
                                                 ),
-                                              ),
+                                              ],
                                             ],
                                           ),
                                         ),
@@ -335,11 +327,65 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stack) => Center(child: Text('Error: $error')),
+          error: (error, stack) {
+            Logger.error('Error loading recipients', error: error, stackTrace: stack);
+            // Show empty state instead of error - user might just have no recipients
+            return Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.all(AppTheme.spacingLg),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Who is this letter for?',
+                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                              ),
+                        ),
+                        SizedBox(height: AppTheme.spacingSm),
+                        Text(
+                          'Choose someone special to receive your letter',
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                              ),
+                        ),
+                        SizedBox(height: AppTheme.spacingXl),
+                        Center(
+                          child: Column(
+                            children: [
+                              Text(
+                                'No recipients yet',
+                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                      color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                                    ),
+                              ),
+                              SizedBox(height: AppTheme.spacingMd),
+                              ElevatedButton(
+                                onPressed: () {
+                                  ref.invalidate(recipientsProvider(user.id));
+                                },
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => Center(child: Text('Error: $error')),
+      error: (error, stack) {
+        Logger.error('Error loading user', error: error, stackTrace: stack);
+        return Center(child: Text('Error: $error'));
+      },
     );
   }
 }

@@ -17,6 +17,7 @@ class Capsule {
   final String id;
   final String senderId;
   final String senderName;
+  final String senderAvatar;
   final String receiverId;
   final String receiverName;
   final String receiverAvatar;
@@ -32,9 +33,10 @@ class Capsule {
     String? id,
     required this.senderId,
     required this.senderName,
+    String? senderAvatarValue,
     required this.receiverId,
     required this.receiverName,
-    required this.receiverAvatar,
+    String? receiverAvatarValue,
     required this.label,
     required this.content,
     this.photoUrl,
@@ -43,6 +45,8 @@ class Capsule {
     this.openedAt,
     this.reaction,
   })  : id = id ?? _uuid.v4(),
+        senderAvatar = senderAvatarValue ?? '',
+        receiverAvatar = receiverAvatarValue ?? '',
         createdAt = createdAt ?? DateTime.now();
   
   /// Get current time (cached per status calculation to avoid multiple calls)
@@ -123,6 +127,7 @@ class Capsule {
     String? id,
     String? senderId,
     String? senderName,
+    String? senderAvatar,
     String? receiverId,
     String? receiverName,
     String? receiverAvatar,
@@ -138,9 +143,10 @@ class Capsule {
       id: id ?? this.id,
       senderId: senderId ?? this.senderId,
       senderName: senderName ?? this.senderName,
+      senderAvatarValue: senderAvatar ?? this.senderAvatar,
       receiverId: receiverId ?? this.receiverId,
       receiverName: receiverName ?? this.receiverName,
-      receiverAvatar: receiverAvatar ?? this.receiverAvatar,
+      receiverAvatarValue: receiverAvatar ?? this.receiverAvatar,
       label: label ?? this.label,
       content: content ?? this.content,
       photoUrl: photoUrl ?? this.photoUrl,
@@ -157,7 +163,7 @@ class Recipient {
   final String id;
   final String userId; // Owner of this recipient
   final String name;
-  final String relationship;
+  final String? username; // @username for display
   final String avatar; // URL or asset path
   final String? linkedUserId; // ID of the linked user (if recipient is a registered user)
   final String? email; // Email address (used for inbox matching)
@@ -166,18 +172,19 @@ class Recipient {
     String? id,
     required this.userId,
     required this.name,
-    required this.relationship,
+    String? username,
     String? avatar,
     this.linkedUserId,
     this.email,
   })  : id = id ?? _uuid.v4(),
+        username = username,
         avatar = avatar ?? '';
   
   Recipient copyWith({
     String? id,
     String? userId,
     String? name,
-    String? relationship,
+    String? username,
     String? avatar,
     String? linkedUserId,
     String? email,
@@ -186,7 +193,7 @@ class Recipient {
       id: id ?? this.id,
       userId: userId ?? this.userId,
       name: name ?? this.name,
-      relationship: relationship ?? this.relationship,
+      username: username ?? this.username,
       avatar: avatar ?? this.avatar,
       linkedUserId: linkedUserId ?? this.linkedUserId,
       email: email ?? this.email,
@@ -291,23 +298,22 @@ class DraftCapsule {
       throw Exception('Cannot convert invalid draft to capsule');
     }
     
-    // Use recipient.id as receiver_id (backend expects recipient_id UUID)
-    // In Supabase schema, recipient_id is the UUID of the recipient record
+    // Use recipient.id as receiverId
+    // The RecipientResolver in createCapsule will handle UUID validation and resolution
+    // This allows the resolver to find the correct recipient UUID if the stored ID is stale
     final receiverId = recipient!.id;
     
-    // Log for debugging
-    Logger.info(
-      'Creating capsule: recipient.id=${recipient!.id}, '
-      'recipient.name=${recipient!.name}, '
-      'receiverId=$receiverId'
+    Logger.debug(
+      'Converting draft to capsule: recipientId=$receiverId, '
+      'recipientName=${recipient!.name}, linkedUserId=${recipient!.linkedUserId}'
     );
     
     return Capsule(
       senderId: senderId,
       senderName: senderName,
-      receiverId: receiverId, // Use recipient.id (UUID) as recipient_id
+      receiverId: receiverId, // Will be validated and resolved by RecipientResolver
       receiverName: recipient!.name,
-      receiverAvatar: recipient!.avatar,
+      receiverAvatarValue: recipient!.avatar,
       label: label ?? 'A special letter',
       content: content!,
       photoUrl: photoPath,

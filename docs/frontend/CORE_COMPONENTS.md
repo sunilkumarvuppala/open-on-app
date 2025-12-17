@@ -158,7 +158,7 @@ class Recipient {
   final String id;
   final String userId;
   final String name;
-  final String relationship;
+  final String? username; // @username for display
   final String? avatarUrl;
   final DateTime createdAt;
 }

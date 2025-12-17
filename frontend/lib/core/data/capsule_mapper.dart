@@ -1,4 +1,5 @@
 import 'package:openon_app/core/models/models.dart';
+import 'package:openon_app/core/utils/logger.dart';
 
 /// Shared utility for mapping capsule JSON to Capsule model
 /// Prevents code duplication and ensures consistent mapping logic
@@ -20,6 +21,7 @@ class CapsuleMapper {
         final senderAvatarUrlValue = json['sender_avatar_url'];
         final recipientIdValue = json['recipient_id'];
         final recipientNameValue = json['recipient_name'];  // Backend now returns recipient_name
+        final recipientAvatarUrlValue = json['recipient_avatar_url'];
         final titleValue = json['title'];
         final bodyTextValue = json['body_text'];
         final bodyRichTextValue = json['body_rich_text'];
@@ -42,13 +44,29 @@ class CapsuleMapper {
         // Get recipient name (fallback to 'Recipient' if not provided)
         final recipientName = _safeString(recipientNameValue) ?? 'Recipient';
         
+        // Log recipient avatar for debugging
+        final recipientAvatarUrl = _safeString(recipientAvatarUrlValue);
+        if (recipientAvatarUrl == null || recipientAvatarUrl.isEmpty) {
+          // Log when avatar is missing to help debug
+          // Note: This is a debug log, can be removed later
+        }
+        
+        // Log opened_at for debugging opened status
+        final capsuleId = _safeString(idValue) ?? '';
+        if (openedAt != null) {
+          Logger.debug('Capsule $capsuleId has openedAt: $openedAt');
+        } else {
+          Logger.debug('Capsule $capsuleId has no openedAt (status will be computed from unlockAt)');
+        }
+        
         return Capsule(
-            id: _safeString(idValue) ?? '',
+            id: capsuleId,
             senderId: _safeString(senderIdValue) ?? '',
             senderName: senderName,  // Use actual sender name from backend
+            senderAvatarValue: _safeString(senderAvatarUrlValue),
             receiverId: _safeString(recipientIdValue) ?? '',
             receiverName: recipientName,  // Use actual recipient name from backend
-            receiverAvatar: _safeString(senderAvatarUrlValue) ?? '',
+            receiverAvatarValue: recipientAvatarUrl,
             label: _safeString(titleValue) ?? '',
             content: content,
             photoUrl: null, // Media URLs not in current schema

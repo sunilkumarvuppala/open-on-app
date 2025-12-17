@@ -15,6 +15,7 @@ import 'package:openon_app/features/capsule/locked_capsule_screen.dart';
 import 'package:openon_app/features/capsule/opening_animation_screen.dart';
 import 'package:openon_app/features/capsule/opened_letter_screen.dart';
 import 'package:openon_app/features/profile/profile_screen.dart';
+import 'package:openon_app/features/profile/edit_profile_screen.dart';
 import 'package:openon_app/features/profile/color_scheme_screen.dart';
 import 'package:openon_app/features/drafts/drafts_screen.dart';
 import 'package:openon_app/features/drafts/draft_letter_screen.dart';
@@ -38,6 +39,7 @@ class Routes {
   static const openingAnimation = '/capsule/:id/opening';
   static const openedLetter = '/capsule/:id/opened';
   static const profile = '/profile';
+  static const editProfile = '/profile/edit';
   static const colorScheme = '/profile/color-scheme';
   static const drafts = '/drafts';
   static const draftNew = '/draft/new';
@@ -154,6 +156,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.profile,
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: Routes.editProfile,
+        builder: (context, state) => const EditProfileScreen(),
       ),
       GoRoute(
         path: Routes.colorScheme,

@@ -83,7 +83,6 @@ class _CreateCapsuleScreenState extends ConsumerState<CreateCapsuleScreen> {
             final tempRecipient = Recipient(
               userId: user.id,
               name: draftData.recipientName!,
-              relationship: 'friend',
               avatar: draftData.recipientAvatar ?? '',
             );
             ref.read(draftCapsuleProvider.notifier).setRecipient(tempRecipient);
@@ -505,11 +504,30 @@ class _CreateCapsuleScreenState extends ConsumerState<CreateCapsuleScreen> {
         senderName: user.name,
       );
       
-      final repo = ref.read(capsuleRepositoryProvider);
+      Logger.info(
+        'Creating capsule: recipientId=${draft.recipient?.id}, '
+        'receiverId=${capsule.receiverId}, receiverName=${capsule.receiverName}'
+      );
       
-      // Create capsule directly with unlock time (Supabase schema)
-      // Capsules are created in 'sealed' status with unlocks_at set
+      final repo = ref.read(capsuleRepositoryProvider);
       await repo.createCapsule(capsule);
+      
+      Logger.info('Capsule created successfully');
+      
+      // Delete draft if it exists (draft was sent, so it should be removed)
+      final draftId = draft.draftId;
+      if (draftId != null) {
+        try {
+          final draftRepo = ref.read(draftRepositoryProvider);
+          await draftRepo.deleteDraft(draftId, user.id);
+          // Invalidate drafts provider to refresh the list
+          ref.invalidate(draftsProvider(user.id));
+          Logger.info('Deleted draft $draftId after sending');
+        } catch (e) {
+          // Log error but don't fail the whole operation
+          Logger.warning('Failed to delete draft $draftId after sending: $e');
+        }
+      }
       
       // Invalidate capsules cache
       ref.invalidate(capsulesProvider);
@@ -528,9 +546,17 @@ class _CreateCapsuleScreenState extends ConsumerState<CreateCapsuleScreen> {
           ),
         );
         
-        context.pop(); // Go back to home
+        // Navigate to home screen instead of just popping
+        // This ensures we don't stay on drafts screen if we came from there
+        context.go(Routes.home);
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Error creating capsule',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
         

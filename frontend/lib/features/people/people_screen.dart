@@ -692,7 +692,7 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
         orElse: () => Recipient(
           userId: currentUser.id,
           name: profile.displayName,
-          relationship: 'friend',
+          username: profile.username,
           avatar: profile.avatarUrl ?? '',
           linkedUserId: connection.otherUserId,
         ),

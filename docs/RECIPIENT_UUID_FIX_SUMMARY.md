@@ -49,11 +49,22 @@ Implemented a complete fix to ensure recipient records exist and are properly re
 - Ensures backward compatibility with connections created before this fix
 - Uses connection user profiles for display names and avatars
 
-### 7. Frontend Simplification
-**File**: `frontend/lib/core/data/api_repositories.dart`
-- Simplified `createCapsule()` logic since backend now returns actual UUIDs
-- Simplified `getConnectionDetail()` letter counting logic
-- Removed complex fallback logic (no longer needed)
+### 7. Frontend Refactoring (December 2025)
+**Files**: 
+- `frontend/lib/core/data/api_repositories.dart` - Refactored `createCapsule()` method
+- `frontend/lib/core/data/recipient_resolver.dart` (NEW) - Centralized recipient UUID resolution
+- `frontend/lib/core/utils/uuid_utils.dart` (NEW) - Consistent UUID validation utilities
+
+**Changes**:
+- Created `RecipientResolver` class to handle all recipient UUID resolution logic
+- Created `UuidUtils` class for consistent UUID validation across the app
+- Refactored `createCapsule()` from ~240 lines to ~50 lines
+- Removed duplicate recipient lookup code
+- Removed string length checks, now uses proper UUID regex validation
+- Consolidated recipient resolution: by ID, by `linkedUserId`, or by name (fallback)
+- Improved error handling with specific exception types
+- Removed all `print()` statements, using `Logger` consistently
+- All ID validation now uses `UuidUtils.validate*()` methods
 
 ## 🎯 How It Works Now
 
@@ -75,9 +86,14 @@ Implemented a complete fix to ensure recipient records exist and are properly re
 
 ### When Creating Capsule:
 1. Frontend gets recipient from `list_recipients()` API
-2. Uses `recipient.id` (actual UUID) as `recipient_id`
-3. Backend validates recipient exists and creates capsule
-4. ✅ No more "Recipient not found" errors
+2. `DraftCapsule.toCapsule()` uses `recipient.id` as `receiverId`
+3. `createCapsule()` calls `RecipientResolver.resolveRecipientId()` to:
+   - Validate UUID format using `UuidUtils.isValidUuid()`
+   - Find recipient by ID or `linkedUserId` in recipients list
+   - Fallback to name matching if ID doesn't match
+   - Return validated recipient UUID
+4. Backend validates recipient exists and creates capsule
+5. ✅ No more "Recipient not found" errors
 
 ### When Counting Letters:
 1. Frontend gets recipient with `linked_user_id = connectionId`
@@ -96,8 +112,11 @@ Implemented a complete fix to ensure recipient records exist and are properly re
 ### After:
 - ✅ Recipients automatically created when connections established
 - ✅ Backend returns actual recipient UUIDs
+- ✅ Frontend uses `RecipientResolver` for consistent UUID resolution
+- ✅ Proper UUID validation using `UuidUtils` throughout
 - ✅ Capsule creation works for all connections
 - ✅ Letter counts accurate using stable UUIDs
+- ✅ Clean, maintainable code following best practices
 - ✅ Scales to 100,000+ users with proper indexes
 
 ## 🚀 Next Steps

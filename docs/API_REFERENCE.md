@@ -89,7 +89,7 @@ class Recipient {
   final String id;
   final String name;
   final String? email;
-  final String? relationship;
+  final String? username; // @username for display
   final String? avatarUrl;
 }
 ```
