@@ -177,22 +177,16 @@ class ApiAuthRepository implements AuthRepository {
         return null;
       }
 
-      // If we have a cached user, verify it's still valid by fetching fresh data
-      // This ensures we don't return stale data from a previous user session
-      // We always fetch to ensure the token matches the current user
-      final userResponse = await _apiClient.get(ApiConfig.authMe);
-      final currentUser = UserMapper.fromJson(userResponse);
-      
-      // If cached user exists and user ID changed, log warning (shouldn't happen)
-      if (_cachedUser != null && _cachedUser!.id != currentUser.id) {
-        Logger.warning(
-          'User ID changed: cached=${_cachedUser!.id}, current=${currentUser.id}. '
-          'This indicates a data isolation issue.'
-        );
+      // Return cached user if available and authentication is valid
+      // This reduces API calls and prevents rate limiting
+      // We only fetch fresh data if cache is empty
+      if (_cachedUser != null) {
+        return _cachedUser;
       }
-      
-      // Update cache with fresh user data
-      _cachedUser = currentUser;
+
+      // Fetch fresh user data only if cache is empty
+      final userResponse = await _apiClient.get(ApiConfig.authMe);
+      _cachedUser = UserMapper.fromJson(userResponse);
       return _cachedUser;
     } catch (e, stackTrace) {
       Logger.error('Failed to get current user', error: e, stackTrace: stackTrace);
@@ -310,22 +304,10 @@ class ApiCapsuleRepository implements CapsuleRepository {
     try {
       UuidUtils.validateUserId(userId);
 
-      // CRITICAL: Verify the userId matches the authenticated user
-      // This prevents data leakage if a stale userId is passed
-      final currentUser = await _authRepo.getCurrentUser();
-      if (currentUser == null) {
-        throw AuthenticationException('Not authenticated. Please sign in.');
-      }
-      
-      // Verify userId matches authenticated user to prevent data leakage
-      if (currentUser.id != userId) {
-        Logger.warning(
-          'UserId mismatch: requested=$userId, authenticated=${currentUser.id}. '
-          'Using authenticated user ID to prevent data leakage.'
-        );
-        // Use authenticated user's ID instead of requested userId
-        // This ensures we always fetch data for the currently authenticated user
-      }
+      // NOTE: User verification is now handled in providers to avoid excessive API calls
+      // The backend uses JWT token to determine the user, so even if wrong userId is passed,
+      // the backend will return data for the authenticated user (preventing data leakage)
+      // We still validate UUID format and log the userId for debugging
 
       final box = asSender ? 'outbox' : 'inbox';
       
@@ -624,23 +606,10 @@ class ApiRecipientRepository implements RecipientRepository {
     try {
       UuidUtils.validateUserId(userId);
 
-      // CRITICAL: Verify the userId matches the authenticated user
-      // This prevents data leakage if a stale userId is passed
-      final authRepo = ApiAuthRepository();
-      final currentUser = await authRepo.getCurrentUser();
-      if (currentUser == null) {
-        throw AuthenticationException('Not authenticated. Please sign in.');
-      }
-      
-      // Verify userId matches authenticated user to prevent data leakage
-      if (currentUser.id != userId) {
-        Logger.warning(
-          'UserId mismatch: requested=$userId, authenticated=${currentUser.id}. '
-          'Using authenticated user ID to prevent data leakage.'
-        );
-        // Note: Backend will return data for authenticated user regardless of userId parameter
-        // But we log the warning for debugging
-      }
+      // NOTE: User verification is now handled in providers to avoid excessive API calls
+      // The backend uses JWT token to determine the user, so even if wrong userId is passed,
+      // the backend will return data for the authenticated user (preventing data leakage)
+      // We still validate UUID format and log the userId for debugging
 
       Logger.info('Fetching recipients for user: $userId');
       
