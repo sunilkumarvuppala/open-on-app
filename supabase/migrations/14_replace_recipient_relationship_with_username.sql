@@ -48,3 +48,4 @@ WHERE username IS NOT NULL;
 -- Step 6: Update any indexes that referenced relationship
 -- The idx_recipients_relationship index will be automatically dropped when column is dropped
 DROP INDEX IF EXISTS public.idx_recipients_relationship;
+
