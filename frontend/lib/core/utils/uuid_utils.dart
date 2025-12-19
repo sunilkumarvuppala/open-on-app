@@ -48,3 +48,4 @@ class UuidUtils {
     return id.length == 36 && id.contains('-');
   }
 }
+

@@ -79,7 +79,7 @@ EMAIL_SMTP_PORT=587
 poetry run uvicorn app.main:app --reload
 
 # With Python
-python -m uvicorn app.main:app --reload
+python3 -m uvicorn app.main:app --reload
 ```
 
 The API will be available at:

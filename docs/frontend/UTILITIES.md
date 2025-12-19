@@ -201,3 +201,4 @@ Logger.error('Failed to create capsule', error: e, stackTrace: stackTrace);
 ---
 
 **Last Updated**: December 2025
+
