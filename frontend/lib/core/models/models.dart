@@ -512,3 +512,123 @@ class Draft {
     );
   }
 }
+
+/// Self letter model - represents an irreversible time-locked letter to future self
+class SelfLetter {
+  final String id;
+  final String userId;
+  final String? content; // Only visible after scheduled_open_at
+  final int charCount;
+  final DateTime scheduledOpenAt;
+  final DateTime? openedAt;
+  final String? mood; // e.g. "calm", "anxious", "tired"
+  final String? lifeArea; // "self" | "work" | "family" | "money" | "health"
+  final String? city;
+  final String? reflectionAnswer; // "yes" | "no" | "skipped"
+  final DateTime? reflectedAt;
+  final bool sealed; // Always true
+  final DateTime createdAt;
+  
+  SelfLetter({
+    required this.id,
+    required this.userId,
+    this.content,
+    required this.charCount,
+    required this.scheduledOpenAt,
+    this.openedAt,
+    this.mood,
+    this.lifeArea,
+    this.city,
+    this.reflectionAnswer,
+    this.reflectedAt,
+    this.sealed = true,
+    required this.createdAt,
+  });
+  
+  /// Check if letter can be opened (scheduled time has passed, not yet opened)
+  bool get canOpen {
+    final now = DateTime.now();
+    return scheduledOpenAt.isBefore(now) || scheduledOpenAt.isAtSameMomentAs(now);
+  }
+  
+  /// Check if letter is openable but not yet opened
+  bool get isOpenable {
+    return canOpen && openedAt == null;
+  }
+  
+  /// Check if letter has been opened
+  bool get isOpened => openedAt != null;
+  
+  /// Check if letter is sealed (not yet openable)
+  bool get isSealed {
+    final now = DateTime.now();
+    return scheduledOpenAt.isAfter(now);
+  }
+  
+  /// Get time until open (or null if already openable)
+  Duration? get timeUntilOpen {
+    if (canOpen) return null;
+    return scheduledOpenAt.difference(DateTime.now());
+  }
+  
+  /// Get formatted time until open text
+  String get timeUntilOpenText {
+    if (canOpen) return 'Ready to open';
+    final duration = timeUntilOpen;
+    if (duration == null) return 'Ready to open';
+    
+    if (duration.inDays > 0) {
+      return 'Opens in ${duration.inDays} ${duration.inDays == 1 ? 'day' : 'days'}';
+    } else if (duration.inHours > 0) {
+      return 'Opens in ${duration.inHours} ${duration.inHours == 1 ? 'hour' : 'hours'}';
+    } else if (duration.inMinutes > 0) {
+      return 'Opens in ${duration.inMinutes} ${duration.inMinutes == 1 ? 'minute' : 'minutes'}';
+    } else {
+      return 'Opens soon';
+    }
+  }
+  
+  /// Get context text for display
+  String get contextText {
+    final parts = <String>[];
+    
+    if (mood != null) {
+      parts.add(mood!);
+    }
+    
+    if (createdAt != null) {
+      // Format: "Wednesday night"
+      final weekday = _getWeekdayName(createdAt.weekday);
+      final timeOfDay = _getTimeOfDay(createdAt.hour);
+      parts.add('$weekday $timeOfDay');
+    }
+    
+    if (city != null) {
+      parts.add('in $city');
+    }
+    
+    if (parts.isEmpty) {
+      return 'Written to future you';
+    }
+    
+    return 'Written on a ${parts.join(' ')}';
+  }
+  
+  String _getWeekdayName(int weekday) {
+    const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    return weekdays[weekday - 1];
+  }
+  
+  String _getTimeOfDay(int hour) {
+    if (hour >= 5 && hour < 12) return 'morning';
+    if (hour >= 12 && hour < 17) return 'afternoon';
+    if (hour >= 17 && hour < 21) return 'evening';
+    return 'night';
+  }
+  
+  /// Check if reflection has been submitted
+  bool get hasReflection => reflectionAnswer != null;
+  
+  /// Check if reflection can be submitted (opened but not yet reflected)
+  bool get canReflect => isOpened && !hasReflection;
+}

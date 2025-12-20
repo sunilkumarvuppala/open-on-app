@@ -43,6 +43,13 @@ final connectionRepositoryProvider = Provider<ConnectionRepository>((ref) {
   return SupabaseConnectionRepository();
 });
 
+final selfLetterRepositoryProvider = Provider<SelfLetterRepository>((ref) {
+  if (useApiRepositories) {
+    return ApiSelfLetterRepository();
+  }
+  throw UnimplementedError('Mock self letter repository not implemented');
+});
+
 // Auth state providers
 final currentUserProvider = StreamProvider<User?>((ref) async* {
   final authRepo = ref.watch(authRepositoryProvider);
@@ -352,6 +359,56 @@ final incomingOpenedCapsulesProvider = FutureProvider.family<List<Capsule>, Stri
 });
 
 // Recipients provider
+// Provider to get letter count exchanged between user and recipient
+// Key format: "userId|recipientId|linkedUserId" (linkedUserId can be empty)
+final letterCountProvider = FutureProvider.family<int, String>((ref, key) async {
+  final parts = key.split('|');
+  if (parts.length != 3) return 0;
+  
+  final userId = parts[0];
+  final recipientId = parts[1];
+  final linkedUserId = parts[2].isEmpty ? null : parts[2];
+  
+  final userAsync = ref.watch(currentUserProvider);
+  
+  return userAsync.when(
+    data: (currentUser) async {
+      if (currentUser == null || currentUser.id != userId) {
+        return 0;
+      }
+      
+      final capsuleRepo = ref.watch(capsuleRepositoryProvider);
+      int count = 0;
+      
+      try {
+        // Count letters sent: current user -> recipient
+        final sentCapsules = await capsuleRepo.getCapsules(
+          userId: userId,
+          asSender: true,
+        );
+        count += sentCapsules.where((c) => c.receiverId == recipientId).length;
+        
+        // Count letters received: For connection-based recipients, count letters from linkedUserId
+        if (linkedUserId != null && linkedUserId.isNotEmpty) {
+          final receivedCapsules = await capsuleRepo.getCapsules(
+            userId: userId,
+            asSender: false,
+          );
+          // Count letters where sender is the linked user
+          count += receivedCapsules.where((c) => c.senderId == linkedUserId).length;
+        }
+      } catch (e) {
+        Logger.warning('Error counting letters for recipient $recipientId', error: e);
+        return 0;
+      }
+      
+      return count;
+    },
+    loading: () async => 0,
+    error: (_, __) => 0,
+  );
+});
+
 final recipientsProvider = FutureProvider.family<List<Recipient>, String>((ref, userId) async {
   // CRITICAL: Verify userId matches authenticated user to prevent data leakage
   // Use currentUserProvider which is already cached and doesn't make excessive API calls
@@ -830,4 +887,42 @@ final connectionDetailProvider = FutureProvider.family<ConnectionDetail, String>
 final incomingRequestsCountProvider = Provider<int>((ref) {
   final requestsAsync = ref.watch(incomingRequestsProvider);
   return requestsAsync.asData?.value.length ?? 0;
+});
+
+// Self Letters providers
+final selfLettersProvider = FutureProvider<List<SelfLetter>>((ref) async {
+  final userAsync = ref.watch(currentUserProvider);
+  
+  return userAsync.when(
+    data: (currentUser) {
+      if (currentUser == null) {
+        throw AuthenticationException('Not authenticated. Please sign in.');
+      }
+      
+      final repo = ref.watch(selfLetterRepositoryProvider);
+      return repo.getSelfLetters();
+    },
+    loading: () async {
+      await Future.delayed(const Duration(milliseconds: 300));
+      final retryAsync = ref.read(currentUserProvider);
+      return retryAsync.when(
+        data: (currentUser) {
+          if (currentUser == null) {
+            throw AuthenticationException('Not authenticated. Please sign in.');
+          }
+          final repo = ref.watch(selfLetterRepositoryProvider);
+          return repo.getSelfLetters();
+        },
+        loading: () => <SelfLetter>[],
+        error: (error, stackTrace) {
+          Logger.error('Error loading self letters', error: error, stackTrace: stackTrace);
+          return <SelfLetter>[];
+        },
+      );
+    },
+    error: (error, stackTrace) {
+      Logger.error('Error loading self letters', error: error, stackTrace: stackTrace);
+      return <SelfLetter>[];
+    },
+  );
 });

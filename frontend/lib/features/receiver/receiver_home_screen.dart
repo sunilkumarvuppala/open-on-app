@@ -56,7 +56,11 @@ class _ReceiverHomeScreenState extends ConsumerState<ReceiverHomeScreen>
             children: [
               // Header - Same structure as Sender Home
               Padding(
-                padding: EdgeInsets.all(AppTheme.spacingLg),
+                padding: EdgeInsets.only(
+                  left: AppTheme.spacingLg,
+                  right: AppTheme.spacingLg,
+                  bottom: AppTheme.spacingLg,
+                ),
                 child: Row(
                   children: [
                     // User Avatar
@@ -143,8 +147,6 @@ class _ReceiverHomeScreenState extends ConsumerState<ReceiverHomeScreen>
                 ),
               ),
               
-              SizedBox(height: AppTheme.spacingLg),
-              
               // Tabs - Same style as Sender Home
               Container(
                 margin: EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
@@ -215,7 +217,7 @@ class _ReceiverHomeScreenState extends ConsumerState<ReceiverHomeScreen>
                 ),
               ),
               
-              SizedBox(height: AppTheme.spacingMd),
+              SizedBox(height: AppTheme.spacingXs),
               
               // Tab Content
               Expanded(
@@ -519,9 +521,11 @@ class _LockedTab extends ConsumerWidget {
 
           return ListView.builder(
             key: const PageStorageKey('incoming_ready_capsules'),
-            padding: EdgeInsets.symmetric(
-              horizontal: AppTheme.spacingLg,
-              vertical: AppTheme.spacingSm,
+            padding: EdgeInsets.only(
+              left: AppTheme.spacingLg,
+              right: AppTheme.spacingLg,
+              top: AppTheme.spacingXs,
+              bottom: AppTheme.spacingSm,
             ),
             itemCount: capsules.length,
             itemBuilder: (context, index) {
@@ -591,9 +595,11 @@ class _OpeningSoonTab extends ConsumerWidget {
 
           return ListView.builder(
             key: const PageStorageKey('incoming_opening_soon_capsules'),
-            padding: EdgeInsets.symmetric(
-              horizontal: AppTheme.spacingLg,
-              vertical: AppTheme.spacingSm,
+            padding: EdgeInsets.only(
+              left: AppTheme.spacingLg,
+              right: AppTheme.spacingLg,
+              top: AppTheme.spacingXs,
+              bottom: AppTheme.spacingSm,
             ),
             itemCount: capsules.length,
             itemBuilder: (context, index) {
@@ -663,9 +669,11 @@ class _OpenedTab extends ConsumerWidget {
 
           return ListView.builder(
             key: const PageStorageKey('incoming_opened_capsules'),
-            padding: EdgeInsets.symmetric(
-              horizontal: AppTheme.spacingLg,
-              vertical: AppTheme.spacingSm,
+            padding: EdgeInsets.only(
+              left: AppTheme.spacingLg,
+              right: AppTheme.spacingLg,
+              top: AppTheme.spacingXs,
+              bottom: AppTheme.spacingSm,
             ),
             itemCount: capsules.length,
             itemBuilder: (context, index) {
@@ -788,10 +796,10 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
               ],
             ),
             child: Padding(
-        padding: EdgeInsets.all(AppTheme.spacingMd),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+              padding: EdgeInsets.all(AppTheme.spacingSm),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
             // Left: Sender profile avatar (or animated incognito icon for anonymous)
             capsule.isAnonymous && !capsule.isRevealed
                 ? _AnimatedAnonymousIcon(colorScheme: colorScheme)
@@ -845,8 +853,6 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  
-                  SizedBox(height: AppConstants.capsuleCardTitleSpacing),
                   
                   // Subject (regular weight) - single line with ellipsis
                   Flexible(

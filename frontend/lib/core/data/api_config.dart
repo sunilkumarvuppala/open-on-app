@@ -55,6 +55,12 @@ class ApiConfig {
   static const String outgoingRequests = '/connections/requests/outgoing';
   static const String connections = '/connections';
 
+  // Self letter endpoints
+  static const String selfLetters = '/self-letters';
+  static String selfLetterById(String id) => '/self-letters/$id';
+  static String openSelfLetter(String id) => '/self-letters/$id/open';
+  static String submitReflection(String id) => '/self-letters/$id/reflection';
+
   // Helper method to build full URL
   static String buildUrl(String endpoint) {
     return '$baseUrl$endpoint';

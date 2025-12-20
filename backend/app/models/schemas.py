@@ -954,3 +954,92 @@ class ConnectionRequestListResponse(BaseModel):
     """
     requests: list[ConnectionRequestResponse]
     total: int
+
+
+# ===== Self Letter Models =====
+class SelfLetterCreate(BaseModel):
+    """
+    Request model for creating a self letter.
+    
+    Fields:
+    - content: Letter content (required, 280-500 characters)
+    - scheduled_open_at: When letter can be opened (must be in future)
+    - mood: Optional context at write time
+    - life_area: Optional life area context
+    - city: Optional city where letter was written
+    """
+    content: str = Field(..., min_length=280, max_length=500, description="Letter content (280-500 characters)")
+    scheduled_open_at: datetime = Field(..., description="When letter can be opened (must be in future)")
+    mood: Optional[str] = Field(None, description="Context at write time (e.g. 'calm', 'anxious', 'tired')")
+    life_area: Optional[str] = Field(None, description="Life area context ('self', 'work', 'family', 'money', 'health')")
+    city: Optional[str] = Field(None, description="City where letter was written")
+    
+    @field_validator('scheduled_open_at')
+    @classmethod
+    def validate_scheduled_open_at(cls, v: datetime) -> datetime:
+        """Ensure scheduled_open_at is in the future."""
+        from datetime import timezone
+        now = datetime.now(timezone.utc)
+        if v <= now:
+            raise ValueError('scheduled_open_at must be in the future')
+        return v
+    
+    @field_validator('life_area')
+    @classmethod
+    def validate_life_area(cls, v: Optional[str]) -> Optional[str]:
+        """Validate life_area is one of allowed values."""
+        if v is not None and v not in ('self', 'work', 'family', 'money', 'health'):
+            raise ValueError('life_area must be one of: self, work, family, money, health')
+        return v
+
+
+class SelfLetterResponse(BaseModel):
+    """
+    Response model for self letter.
+    
+    Content is only included if letter has been opened or scheduled time has passed.
+    """
+    id: UUID
+    user_id: UUID
+    content: Optional[str] = Field(None, description="Content only visible after scheduled_open_at")
+    char_count: int
+    scheduled_open_at: datetime
+    opened_at: Optional[datetime] = None
+    mood: Optional[str] = None
+    life_area: Optional[str] = None
+    city: Optional[str] = None
+    reflection_answer: Optional[str] = Field(None, description="'yes', 'no', or 'skipped'")
+    reflected_at: Optional[datetime] = None
+    sealed: bool = Field(True, description="Always TRUE - letters are sealed immediately")
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class SelfLetterListResponse(BaseModel):
+    """
+    Response model for listing self letters.
+    
+    Returns metadata for all letters, but content only for opened letters.
+    """
+    letters: list[SelfLetterResponse]
+    total: int
+
+
+class SelfLetterReflectionRequest(BaseModel):
+    """
+    Request model for submitting reflection.
+    
+    Fields:
+    - answer: Reflection answer - "yes", "no", or "skipped"
+    """
+    answer: str = Field(..., description="Reflection answer: 'yes', 'no', or 'skipped'")
+    
+    @field_validator('answer')
+    @classmethod
+    def validate_answer(cls, v: str) -> str:
+        """Validate answer is one of allowed values."""
+        if v not in ('yes', 'no', 'skipped'):
+            raise ValueError('answer must be one of: yes, no, skipped')
+        return v

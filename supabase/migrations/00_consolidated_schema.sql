@@ -59,18 +59,8 @@ EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
-DO $$ BEGIN
-    CREATE TYPE recipient_relationship AS ENUM (
-      'friend',
-      'family',
-      'partner',
-      'colleague',
-      'acquaintance',
-      'other'
-    );
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
+-- Note: recipient_relationship enum was removed in favor of username column
+-- Migration 12 handles the transition for existing databases
 
 -- ============================================================================
 -- TABLES
@@ -100,7 +90,7 @@ CREATE TABLE IF NOT EXISTS public.recipients (
   name TEXT NOT NULL,
   email TEXT,
   avatar_url TEXT,
-  relationship recipient_relationship DEFAULT 'friend',
+  username TEXT, -- Username for connection-based recipients (replaces relationship enum)
   linked_user_id UUID, -- Connection user ID (NULL for email-based recipients)
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
@@ -254,7 +244,7 @@ CREATE INDEX IF NOT EXISTS idx_user_profiles_last_login ON public.user_profiles(
 -- Base indexes
 CREATE INDEX IF NOT EXISTS idx_recipients_owner ON public.recipients(owner_id);
 CREATE INDEX IF NOT EXISTS idx_recipients_owner_created ON public.recipients(owner_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_recipients_relationship ON public.recipients(owner_id, relationship);
+CREATE INDEX IF NOT EXISTS idx_recipients_username ON public.recipients(owner_id, username) WHERE username IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_recipients_email ON public.recipients(owner_id, email) WHERE email IS NOT NULL;
 
 -- Connection-based recipient indexes (linked_user_id)

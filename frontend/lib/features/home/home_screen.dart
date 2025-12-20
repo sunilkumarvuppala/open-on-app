@@ -202,7 +202,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ),
                 ),
 
-                SizedBox(height: AppTheme.spacingLg),
+                SizedBox(height: AppTheme.spacingSm),
 
                 // Tabs
                 Container(
@@ -275,9 +275,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     ],
                   ),
                 ),
-
-                SizedBox(height: AppTheme.spacingMd),
-
+                
+                SizedBox(height: AppTheme.spacingXs),
+                
                 // Tab Content
                 Expanded(
                   child: TabBarView(
@@ -746,9 +746,11 @@ class _UpcomingTab extends ConsumerWidget {
 
           return ListView.builder(
             key: const PageStorageKey('upcoming_capsules'),
-            padding: EdgeInsets.symmetric(
-              horizontal: AppTheme.spacingLg,
-              vertical: AppTheme.spacingSm,
+            padding: EdgeInsets.only(
+              left: AppTheme.spacingLg,
+              right: AppTheme.spacingLg,
+              top: AppTheme.spacingXs,
+              bottom: AppTheme.spacingSm,
             ),
             itemCount: capsules.length,
             itemBuilder: (context, index) {
@@ -910,9 +912,11 @@ class _OpenedTab extends ConsumerWidget {
           displacement: 40.0,
           child: ListView.builder(
             key: const PageStorageKey('opened_capsules'),
-            padding: EdgeInsets.symmetric(
-              horizontal: AppTheme.spacingLg,
-              vertical: AppTheme.spacingSm,
+            padding: EdgeInsets.only(
+              left: AppTheme.spacingLg,
+              right: AppTheme.spacingLg,
+              top: AppTheme.spacingXs,
+              bottom: AppTheme.spacingSm,
             ),
             itemCount: capsules.length,
             itemBuilder: (context, index) {
@@ -980,9 +984,9 @@ class _CapsuleCard extends ConsumerWidget {
               ],
             ),
             child: Padding(
-              padding: EdgeInsets.all(AppTheme.spacingMd),
+              padding: EdgeInsets.all(AppTheme.spacingSm),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   // Left: Recipient profile avatar
                   UserAvatar(
@@ -1004,7 +1008,10 @@ class _CapsuleCard extends ConsumerWidget {
                             // Recipient name - takes available space
                             Expanded(
                               child: Text(
-                                'To ${capsule.recipientName}',
+                                // Remove "To " prefix if it exists, then add it back (handles "To Self" -> "To Self" not "To To Self")
+                                capsule.recipientName.toLowerCase().startsWith('to ')
+                                    ? capsule.recipientName
+                                    : 'To ${capsule.recipientName}',
                                 style: Theme.of(context)
                                     .textTheme
                                     .titleMedium

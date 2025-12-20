@@ -71,8 +71,9 @@ async def create_capsule(
     capsule_repo = CapsuleRepository(session)
     
     # Validate recipient and permissions
+    # This may create a self-recipient if recipient_id == sender_id
     try:
-        await capsule_service.validate_recipient_for_capsule(
+        validated_recipient_id = await capsule_service.validate_recipient_for_capsule(
             capsule_data.recipient_id,
             current_user.user_id
         )
@@ -82,6 +83,9 @@ async def create_capsule(
             f"recipient_id={capsule_data.recipient_id}: {e.detail}"
         )
         raise
+    
+    # Use the validated recipient ID (may differ from input if self-recipient was created)
+    recipient_id_to_use = validated_recipient_id
     
     # Validate content
     capsule_service.validate_content(
@@ -107,7 +111,7 @@ async def create_capsule(
     # Validate anonymous letter requirements (mutual connection, reveal delay)
     if capsule_data.is_anonymous:
         await capsule_service.validate_anonymous_letter(
-            capsule_data.recipient_id,
+            recipient_id_to_use,
             current_user.user_id,
             capsule_data.is_anonymous,
             capsule_data.reveal_delay_seconds
@@ -118,7 +122,7 @@ async def create_capsule(
         reveal_delay = None
     
     logger.info(
-        f"Creating capsule: sender_id={current_user.user_id}, recipient_id={capsule_data.recipient_id}, "
+        f"Creating capsule: sender_id={current_user.user_id}, recipient_id={recipient_id_to_use}, "
         f"unlocks_at={unlocks_at}, is_anonymous={capsule_data.is_anonymous}, "
         f"reveal_delay_seconds={reveal_delay}"
     )
@@ -126,7 +130,7 @@ async def create_capsule(
     # Create capsule in sealed status
     capsule = await capsule_repo.create(
         sender_id=current_user.user_id,
-        recipient_id=capsule_data.recipient_id,
+        recipient_id=recipient_id_to_use,
         title=title,
         body_text=body_text,
         body_rich_text=capsule_data.body_rich_text,
@@ -474,7 +478,7 @@ async def open_capsule(
     # Validate capsule can be opened
     await capsule_service.validate_capsule_for_opening(capsule_id)
     
-    # Get capsule to check if it's anonymous and get reveal_delay_seconds
+    # Get capsule to check status (for validation only)
     capsule = await capsule_repo.get_by_id(capsule_id)
     if not capsule:
         raise HTTPException(
@@ -482,46 +486,103 @@ async def open_capsule(
             detail="Capsule not found"
         )
     
-    # Calculate opened_at timestamp
-    opened_at = datetime.now(timezone.utc)
-    
-    # If anonymous, calculate reveal_at = opened_at + reveal_delay_seconds
-    reveal_at = None
-    if capsule.is_anonymous and capsule.reveal_delay_seconds is not None:
-        reveal_delay = capsule.reveal_delay_seconds
-        # Enforce max 72 hours (safety check)
-        if reveal_delay > 259200:
-            reveal_delay = 259200
-        reveal_at = opened_at + timedelta(seconds=reveal_delay)
-        logger.info(
-            f"Anonymous capsule {capsule_id}: reveal_at will be {reveal_at} "
-            f"(delay: {reveal_delay} seconds)"
-        )
-    
     # ===== State Transition =====
-    # Transition capsule to OPENED status
-    # Record the exact UTC timestamp when capsule was opened
-    # For anonymous letters, also set reveal_at
-    # The trigger in Supabase will handle:
-    # - Setting status to 'opened'
-    # - Creating notification for sender
-    # - Setting deleted_at for disappearing messages
-    update_fields = {
-        "opened_at": opened_at,
-        "status": CapsuleStatus.OPENED
-    }
-    if reveal_at is not None:
-        update_fields["reveal_at"] = reveal_at
+    # Use open_letter RPC function to open the capsule
+    # This function handles:
+    # - Setting opened_at and status to 'opened'
+    # - Calculating reveal_at for anonymous letters
+    # - Bypassing RLS policies (runs as SECURITY DEFINER)
+    # - Verifying recipient permissions (including self-sends via linked_user_id)
+    from sqlalchemy import text
     
-    updated_capsule = await capsule_repo.update(capsule_id, **update_fields)
+    try:
+        # Call the open_letter RPC function
+        # This function returns capsule data and handles all the state transitions
+        # It runs as SECURITY DEFINER, so it bypasses RLS and can update the capsule
+        result = await session.execute(
+            text("SELECT * FROM public.open_letter(:letter_id)"),
+            {"letter_id": str(capsule_id)}
+        )
+        # The function returns a set of rows with capsule data
+        # We need to fetch the result to ensure the function executed
+        rows = result.fetchall()
+        if not rows:
+            # Function returned no rows - this shouldn't happen if everything is correct
+            logger.warning(
+                f"open_letter RPC returned no rows for capsule {capsule_id}, "
+                f"user {current_user.user_id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to open capsule. Please ensure you are the recipient and the capsule is ready."
+            )
+        
+        logger.info(
+            f"Capsule {capsule_id} opened by user {current_user.user_id} "
+            f"(anonymous: {capsule.is_anonymous}, RPC returned {len(rows)} row(s))"
+        )
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        # Extract error message - handle both regular exceptions and database exceptions
+        error_message = str(e)
+        error_type = type(e).__name__
+        
+        # Try to extract the actual error message from various exception types
+        if hasattr(e, 'orig'):
+            # SQLAlchemy database exception - extract the actual PostgreSQL error
+            error_message = str(e.orig)
+            if hasattr(e.orig, 'pgcode'):
+                logger.debug(f"PostgreSQL error code: {e.orig.pgcode}")
+        elif hasattr(e, 'args') and e.args:
+            # Try to get the first argument which often contains the error message
+            error_message = str(e.args[0]) if e.args else str(e)
+        
+        error_str = error_message.lower()
+        
+        logger.error(
+            f"Error opening capsule {capsule_id} for user {current_user.user_id}: "
+            f"Type={error_type}, Message={error_message}",
+            exc_info=True
+        )
+        
+        # Check for specific error patterns from RPC function
+        if "only recipient" in error_str:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not the recipient of this capsule. Only the recipient can open it."
+            )
+        elif "not eligible" in error_str or "status:" in error_str:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_message
+            )
+        elif "not yet unlocked" in error_str or "cannot be opened" in error_str:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_message
+            )
+        elif "not found" in error_str or "deleted" in error_str or "capsule not found" in error_str:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Capsule not found or has been deleted."
+            )
+        elif "invalid recipient" in error_str:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid recipient configuration for this capsule."
+            )
+        else:
+            # Generic error - return a user-friendly message
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to open capsule. {error_message}"
+            )
     
-    logger.info(
-        f"Capsule {capsule_id} opened by user {current_user.user_id} "
-        f"(anonymous: {capsule.is_anonymous}, reveal_at: {reveal_at})"
-    )
+    # Commit the transaction to ensure the RPC function's changes are persisted
+    await session.commit()
     
-    # Eagerly load recipient to avoid lazy loading in async context
-    # get_by_id already loads relationships, but transition_status uses update() which doesn't
     # Reload capsule with relationships to ensure all data is available
     capsule_with_relations = await capsule_repo.get_by_id(capsule_id)
     if not capsule_with_relations:
