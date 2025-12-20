@@ -30,8 +30,9 @@ class CapsuleCard extends ConsumerWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         child: Padding(
-          padding: EdgeInsets.all(AppTheme.spacingMd),
+          padding: EdgeInsets.all(AppTheme.spacingSm),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Avatar
               CircleAvatar(
@@ -61,7 +62,6 @@ class CapsuleCard extends ConsumerWidget {
                             color: DynamicTheme.getPrimaryTextColor(colorScheme),
                           ),
                     ),
-                    SizedBox(height: AppTheme.spacingXs),
                     Text(
                       capsule.label,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(

@@ -731,6 +731,28 @@ class MockRecipientRepository implements RecipientRepository {
 }
 
 /// Repository interface for auth operations
+abstract class SelfLetterRepository {
+  Future<SelfLetter> createSelfLetter({
+    required String content,
+    required DateTime scheduledOpenAt,
+    String? mood,
+    String? lifeArea,
+    String? city,
+  });
+  
+  Future<List<SelfLetter>> getSelfLetters({
+    int skip = 0,
+    int limit = 50,
+  });
+  
+  Future<SelfLetter> openSelfLetter(String letterId);
+  
+  Future<void> submitReflection({
+    required String letterId,
+    required String answer, // "yes", "no", or "skipped"
+  });
+}
+
 abstract class AuthRepository {
   Future<User> signUp({
     required String email,

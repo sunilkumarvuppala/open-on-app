@@ -54,6 +54,17 @@ class RecipientResolver {
 
     // Step 5: Validate and return
     if (matchingRecipient == null) {
+      // Special case: Self-send (recipient ID matches current user ID)
+      // Backend will automatically create the self-recipient if it doesn't exist
+      if (recipientId == currentUserId) {
+        Logger.info(
+          'Self-send detected: recipientId=$recipientId matches currentUserId. '
+          'Backend will create self-recipient automatically.'
+        );
+        // Return the user ID as-is - backend will handle creating the recipient
+        return UuidUtils.validateRecipientId(recipientId);
+      }
+      
       final availableRecipients = recipients.map((r) => 
         'id=${r.id}, linkedUserId=${r.linkedUserId}, name=${r.name}'
       ).join('; ');

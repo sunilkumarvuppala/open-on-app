@@ -219,7 +219,7 @@ The anonymous letters feature has been thoroughly reviewed for security, best pr
 
 ## 🚀 Deployment Recommendations
 
-1. **Database Migrations**: Run `15_anonymous_letters_feature.sql` and `16_anonymous_letters_rls.sql`
+1. **Database Migration**: Run `13_anonymous_letters_feature.sql` (includes RLS policies)
 2. **Verify pg_cron**: Ensure `pg_cron` extension is enabled
 3. **Monitor Reveal Job**: Check logs for reveal job execution
 4. **Rate Limiting**: Consider rate limits for anonymous letter creation

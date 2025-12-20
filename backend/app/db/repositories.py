@@ -28,7 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import ProgrammingError, DBAPIError
 from app.db.models import (
     UserProfile, Capsule, Recipient, Theme, Animation, Notification,
-    UserSubscription, AuditLog, CapsuleStatus, NotificationType,
+    UserSubscription, AuditLog, SelfLetter, CapsuleStatus, NotificationType,
     SubscriptionStatus, RecipientRelationship
 )
 from app.db.repository import BaseRepository
@@ -1052,6 +1052,129 @@ class AuditLogRepository(BaseRepository[AuditLog]):
             select(AuditLog)
             .where(AuditLog.user_id == user_id)
             .order_by(AuditLog.created_at.desc())
+            .offset(skip)
+        )
+        if limit is not None:
+            query = query.limit(limit)
+        else:
+            query = query.limit(settings.default_page_size)
+        
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+
+
+class SelfLetterRepository(BaseRepository[SelfLetter]):
+    """Repository for self letter operations."""
+    
+    def __init__(self, session: AsyncSession):
+        super().__init__(SelfLetter, session)
+    
+    async def get_by_id(self, id: UUID) -> Optional[SelfLetter]:
+        """Get self letter by ID (UUID)."""
+        result = await self.session.execute(
+            select(SelfLetter).where(SelfLetter.id == id)
+        )
+        return result.scalar_one_or_none()
+    
+    async def get_by_user(
+        self,
+        user_id: UUID,
+        skip: int = 0,
+        limit: Optional[int] = None
+    ) -> list[SelfLetter]:
+        """Get all self letters for a user, ordered by scheduled_open_at."""
+        from app.core.config import settings
+        
+        query = (
+            select(SelfLetter)
+            .where(SelfLetter.user_id == user_id)
+            .order_by(SelfLetter.scheduled_open_at.desc())
+            .offset(skip)
+        )
+        if limit is not None:
+            query = query.limit(limit)
+        else:
+            query = query.limit(settings.default_page_size)
+        
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+    
+    async def count_by_user(self, user_id: UUID) -> int:
+        """Get total count of self letters for a user (optimized COUNT query)."""
+        from sqlalchemy import func
+        
+        count_query = (
+            select(func.count())
+            .select_from(SelfLetter)
+            .where(SelfLetter.user_id == user_id)
+        )
+        result = await self.session.execute(count_query)
+        return result.scalar() or 0
+    
+    async def create(
+        self,
+        user_id: UUID,
+        content: str,
+        char_count: int,
+        scheduled_open_at: datetime,
+        mood: Optional[str] = None,
+        life_area: Optional[str] = None,
+        city: Optional[str] = None
+    ) -> SelfLetter:
+        """Create a new self letter (sealed immediately)."""
+        instance = SelfLetter(
+            user_id=user_id,
+            content=content,
+            char_count=char_count,
+            scheduled_open_at=scheduled_open_at,
+            mood=mood,
+            life_area=life_area,
+            city=city,
+            sealed=True  # Always sealed immediately
+        )
+        self.session.add(instance)
+        await self.session.flush()
+        await self.session.refresh(instance)
+        return instance
+    
+    async def get_openable_letters(
+        self,
+        user_id: UUID,
+        now: datetime
+    ) -> list[SelfLetter]:
+        """Get letters that can be opened (scheduled time has passed, not yet opened)."""
+        query = (
+            select(SelfLetter)
+            .where(
+                and_(
+                    SelfLetter.user_id == user_id,
+                    SelfLetter.scheduled_open_at <= now,
+                    SelfLetter.opened_at.is_(None)
+                )
+            )
+            .order_by(SelfLetter.scheduled_open_at.asc())
+        )
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+    
+    async def get_opened_letters(
+        self,
+        user_id: UUID,
+        skip: int = 0,
+        limit: Optional[int] = None
+    ) -> list[SelfLetter]:
+        """Get opened letters (archive view)."""
+        from app.core.config import settings
+        
+        query = (
+            select(SelfLetter)
+            .where(
+                and_(
+                    SelfLetter.user_id == user_id,
+                    SelfLetter.opened_at.isnot(None)
+                )
+            )
+            .order_by(SelfLetter.opened_at.desc())
             .offset(skip)
         )
         if limit is not None:

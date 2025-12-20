@@ -39,7 +39,7 @@ class CapsuleService:
         self,
         recipient_id: UUID,
         sender_id: UUID
-    ) -> None:
+    ) -> UUID:
         """
         Validate recipient exists and sender has permission to send.
         
@@ -79,10 +79,71 @@ class CapsuleService:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Invalid recipient ID. Please use recipient UUID {fallback_recipient.id} instead of user ID {recipient_id}."
                 )
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Recipient not found. Please ensure you are connected with this user and try again."
+            
+            # Special case: Self-send (sender sending to themselves)
+            # Check if a self-recipient already exists
+            result = await self.session.execute(
+                select(Recipient).where(
+                    Recipient.linked_user_id == sender_id,
+                    Recipient.owner_id == sender_id
+                )
             )
+            existing_self_recipient = result.scalar_one_or_none()
+            
+            if existing_self_recipient:
+                # Self-recipient exists - check if the provided ID matches
+                if str(recipient_id) == str(existing_self_recipient.id):
+                    # Correct ID provided - use existing self-recipient
+                    recipient = existing_self_recipient
+                    logger.info(f"Using existing self-recipient {recipient.id} for user {sender_id}")
+                elif str(recipient_id) == str(sender_id):
+                    # User ID provided instead of recipient ID - use existing self-recipient
+                    recipient = existing_self_recipient
+                    logger.info(
+                        f"Self-send detected: Using existing self-recipient {recipient.id} "
+                        f"for user {sender_id} (user ID was provided instead of recipient ID)"
+                    )
+                else:
+                    # Wrong ID provided
+                    logger.warning(
+                        f"Self-send detected: Found self-recipient {existing_self_recipient.id} for user {sender_id}, "
+                        f"but wrong recipient_id {recipient_id} was provided"
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Invalid recipient ID for self-send. Please use recipient UUID {existing_self_recipient.id}."
+                    )
+            elif str(recipient_id) == str(sender_id):
+                # No self-recipient exists, but user ID was provided - create it automatically
+                from app.db.repositories import UserProfileRepository
+                user_profile_repo = UserProfileRepository(self.session)
+                user_profile = await user_profile_repo.get_by_id(sender_id)
+                
+                if user_profile:
+                    logger.info(f"Creating self-recipient for user {sender_id}")
+                    self_recipient = await self.recipient_repo.create(
+                        owner_id=sender_id,
+                        name='To Self',
+                        email=None,
+                        avatar_url=user_profile.avatar_url,
+                        username=user_profile.username,
+                        linked_user_id=sender_id,
+                    )
+                    await self.session.flush()
+                    logger.info(f"Created self-recipient {self_recipient.id} for user {sender_id}")
+                    # Use the newly created self-recipient
+                    recipient = self_recipient
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="User profile not found. Please try again."
+                    )
+            else:
+                # Not a self-send and recipient not found
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Recipient not found. Please ensure you are connected with this user and try again."
+                )
         
         logger.info(
             f"Recipient found: recipient_id={recipient.id}, owner_id={recipient.owner_id}, "
@@ -102,7 +163,7 @@ class CapsuleService:
         # Verify recipient exists and belongs to sender (redundant check but ensures consistency)
         await verify_recipient_ownership(
             self.session,
-            recipient_id,
+            recipient.id,
             sender_id
         )
         
@@ -125,6 +186,9 @@ class CapsuleService:
                     recipient_user_id,
                     raise_on_not_connected=True
                 )
+        
+        # Return the validated recipient ID (may differ from input if self-recipient was created)
+        return recipient.id
     
     async def validate_anonymous_letter(
         self,

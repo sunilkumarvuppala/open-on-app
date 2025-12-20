@@ -50,7 +50,42 @@ class RecipientsScreen extends ConsumerWidget {
               // Debug logging
               Logger.info('Recipients screen: Received ${recipients.length} recipients');
               
-              // CRITICAL: Deduplicate by linked_user_id for connection-based recipients
+              // Log all recipients for debugging
+              for (final recipient in recipients) {
+                Logger.debug(
+                  'Recipient: id=${recipient.id}, name="${recipient.name}", '
+                  'linkedUserId=${recipient.linkedUserId}, username=${recipient.username}'
+                );
+              }
+              
+              // STEP 1: First, filter out all "To Self" recipients completely
+              // Check multiple variations: "To Self", "to self", "ToSelf", etc.
+              final recipientsWithoutToSelf = recipients.where((recipient) {
+                final nameLower = recipient.name.toLowerCase().trim();
+                final nameTrimmed = recipient.name.trim();
+                
+                // Check various forms of "To Self"
+                if (nameLower == 'to self' || 
+                    nameLower == 'toself' ||
+                    nameTrimmed == 'To Self' ||
+                    nameTrimmed == 'to self') {
+                  Logger.info('Filtering out "To Self" recipient: id=${recipient.id}, name="${recipient.name}", linkedUserId=${recipient.linkedUserId}');
+                  return false;
+                }
+                return true;
+              }).toList();
+              
+              Logger.info('After filtering "To Self": ${recipients.length} -> ${recipientsWithoutToSelf.length}');
+              
+              // Log remaining recipients
+              for (final recipient in recipientsWithoutToSelf) {
+                Logger.debug(
+                  'After filter: id=${recipient.id}, name="${recipient.name}", '
+                  'linkedUserId=${recipient.linkedUserId}'
+                );
+              }
+              
+              // STEP 2: Deduplicate by linked_user_id for connection-based recipients
               // Multiple recipient records can exist with different IDs but same linked_user_id
               // This happens when recipients are created multiple times (race conditions)
               // For connection-based recipients (linkedUserId != null), use linkedUserId as unique key
@@ -58,7 +93,7 @@ class RecipientsScreen extends ConsumerWidget {
               final uniqueRecipients = <String, Recipient>{};
               final seenLinkedUserIds = <String>{};
               
-              for (final recipient in recipients) {
+              for (final recipient in recipientsWithoutToSelf) {
                 // For connection-based recipients, deduplicate by linked_user_id
                 if (recipient.linkedUserId != null && recipient.linkedUserId!.isNotEmpty) {
                   final linkedUserIdKey = recipient.linkedUserId!;
@@ -66,6 +101,7 @@ class RecipientsScreen extends ConsumerWidget {
                     seenLinkedUserIds.add(linkedUserIdKey);
                     uniqueRecipients[linkedUserIdKey] = recipient;
                   } else {
+                    // Duplicate found - keep the first one (both should be valid now since "To Self" is filtered)
                     Logger.warning(
                       'Found duplicate recipient with same linked_user_id: ${recipient.linkedUserId} '
                       '(ID: ${recipient.id}, Name: ${recipient.name}). Keeping first occurrence.'
@@ -83,21 +119,43 @@ class RecipientsScreen extends ConsumerWidget {
                   }
                 }
               }
-              final deduplicatedRecipients = uniqueRecipients.values.toList();
+              var finalRecipients = uniqueRecipients.values.toList();
               
-              if (deduplicatedRecipients.length != recipients.length) {
+              // STEP 3: Final safety check - ensure only ONE self-recipient exists
+              // If multiple recipients have linkedUserId == user.id, keep only the first one
+              final selfRecipients = finalRecipients.where((r) => r.linkedUserId == user.id).toList();
+              if (selfRecipients.length > 1) {
+                Logger.warning(
+                  'Found ${selfRecipients.length} self-recipients, keeping only the first one. '
+                  'Names: ${selfRecipients.map((r) => r.name).join(", ")}'
+                );
+                // Remove all but the first self-recipient
+                final selfRecipientToKeep = selfRecipients.first;
+                finalRecipients = finalRecipients.where((r) {
+                  if (r.linkedUserId == user.id) {
+                    return r.id == selfRecipientToKeep.id;
+                  }
+                  return true;
+                }).toList();
+                
                 Logger.info(
-                  'Deduplicated recipients: ${recipients.length} -> ${deduplicatedRecipients.length} '
-                  '(removed ${recipients.length - deduplicatedRecipients.length} duplicates)'
+                  'After self-recipient deduplication: ${uniqueRecipients.values.length} -> ${finalRecipients.length}'
                 );
               }
               
-              if (deduplicatedRecipients.isEmpty) {
+              if (finalRecipients.length != recipients.length) {
+                Logger.info(
+                  'Final recipients after filtering and deduplication: ${recipients.length} -> ${finalRecipients.length} '
+                  '(removed ${recipients.length - finalRecipients.length} recipients)'
+                );
+              }
+              
+              if (finalRecipients.isEmpty) {
                 Logger.info('Recipients screen: Showing empty state');
                 return _buildEmptyState(context);
               }
               
-              Logger.info('Recipients screen: Building list with ${deduplicatedRecipients.length} items');
+              Logger.info('Recipients screen: Building list with ${finalRecipients.length} items');
               
               final colorScheme = ref.watch(selectedColorSchemeProvider);
               return RefreshIndicator(
@@ -115,9 +173,9 @@ class RecipientsScreen extends ConsumerWidget {
                 displacement: 40.0,
                 child: ListView.builder(
                   padding: EdgeInsets.all(AppTheme.spacingMd),
-                  itemCount: deduplicatedRecipients.length,
+                  itemCount: finalRecipients.length,
                   itemBuilder: (context, index) {
-                    final recipient = deduplicatedRecipients[index];
+                    final recipient = finalRecipients[index];
                     Logger.debug('Recipients screen: Building card for recipient ${recipient.id}: ${recipient.name}');
                     return Padding(
                       padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
@@ -125,6 +183,7 @@ class RecipientsScreen extends ConsumerWidget {
                         context,
                         ref,
                         recipient,
+                        user,
                       ),
                     );
                   },
@@ -225,6 +284,7 @@ class RecipientsScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     Recipient recipient,
+    User user,
   ) {
     final colorScheme = ref.watch(selectedColorSchemeProvider);
     
@@ -258,7 +318,10 @@ class RecipientsScreen extends ConsumerWidget {
                 ),
         ),
         title: Text(
-          recipient.name,
+          // Add "(you)" suffix if this is a self-recipient (linkedUserId matches current user)
+          recipient.linkedUserId != null && recipient.linkedUserId == user.id 
+              ? '${recipient.name} (you)'
+              : recipient.name,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: DynamicTheme.getPrimaryTextColor(colorScheme),

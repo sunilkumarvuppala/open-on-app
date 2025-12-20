@@ -5,6 +5,7 @@ import 'package:openon_app/core/data/token_storage.dart';
 import 'package:openon_app/core/data/user_mapper.dart';
 import 'package:openon_app/core/data/capsule_mapper.dart';
 import 'package:openon_app/core/data/recipient_mapper.dart';
+import 'package:openon_app/core/data/self_letter_mapper.dart';
 import 'package:openon_app/core/data/connection_repository.dart';
 import 'package:openon_app/core/data/supabase_config.dart';
 import 'package:openon_app/core/data/recipient_resolver.dart';
@@ -1441,6 +1442,111 @@ class ApiConnectionRepository with StreamPollingMixin implements ConnectionRepos
         rethrow;
       }
       throw NetworkException('Failed to get connection detail: ${e.toString()}');
+    }
+  }
+}
+
+/// API-based Self Letter Repository
+class ApiSelfLetterRepository implements SelfLetterRepository {
+  final ApiClient _apiClient = ApiClient();
+  
+  @override
+  Future<SelfLetter> createSelfLetter({
+    required String content,
+    required DateTime scheduledOpenAt,
+    String? mood,
+    String? lifeArea,
+    String? city,
+  }) async {
+    try {
+      final response = await _apiClient.post(
+        ApiConfig.selfLetters,
+        {
+          'content': content,
+          'scheduled_open_at': scheduledOpenAt.toUtc().toIso8601String(),
+          if (mood != null) 'mood': mood,
+          if (lifeArea != null) 'life_area': lifeArea,
+          if (city != null) 'city': city,
+        },
+      );
+      
+      Logger.info('Self letter created successfully');
+      return SelfLetterMapper.fromJson(response);
+    } catch (e, stackTrace) {
+      Logger.error('Failed to create self letter', error: e, stackTrace: stackTrace);
+      if (e is AppException) {
+        rethrow;
+      }
+      throw NetworkException('Failed to create self letter: ${e.toString()}');
+    }
+  }
+  
+  @override
+  Future<List<SelfLetter>> getSelfLetters({
+    int skip = 0,
+    int limit = 50,
+  }) async {
+    try {
+      final response = await _apiClient.get(
+        ApiConfig.selfLetters,
+        queryParams: {
+          'skip': skip.toString(),
+          'limit': limit.toString(),
+        },
+      );
+      
+      final lettersList = response['letters'] as List<dynamic>? ?? [];
+      return lettersList
+          .map((json) => SelfLetterMapper.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e, stackTrace) {
+      Logger.error('Failed to get self letters', error: e, stackTrace: stackTrace);
+      if (e is AppException) {
+        rethrow;
+      }
+      throw NetworkException('Failed to get self letters: ${e.toString()}');
+    }
+  }
+  
+  @override
+  Future<SelfLetter> openSelfLetter(String letterId) async {
+    try {
+      final response = await _apiClient.post(
+        ApiConfig.openSelfLetter(letterId),
+        {},
+      );
+      
+      Logger.info('Self letter opened: $letterId');
+      return SelfLetterMapper.fromJson(response);
+    } catch (e, stackTrace) {
+      Logger.error('Failed to open self letter', error: e, stackTrace: stackTrace);
+      if (e is AppException) {
+        rethrow;
+      }
+      throw NetworkException('Failed to open self letter: ${e.toString()}');
+    }
+  }
+  
+  @override
+  Future<void> submitReflection({
+    required String letterId,
+    required String answer,
+  }) async {
+    try {
+      await _apiClient.post(
+        ApiConfig.submitReflection(letterId),
+        {
+          'answer': answer,
+        },
+      );
+      
+      Logger.info('Reflection submitted: letterId=$letterId, answer=$answer');
+    } catch (e, stackTrace) {
+      Logger.error('Failed to submit reflection', error: e, stackTrace: stackTrace);
+      if (e is AppException) {
+        rethrow;
+      }
+      throw NetworkException('Failed to submit reflection: ${e.toString()}');
     }
   }
 }

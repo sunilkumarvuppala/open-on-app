@@ -283,6 +283,23 @@ async def verify_capsule_recipient(
     # If recipient doesn't have email, it's a connection-based recipient
     # Verify that the sender and current user are connected
     # This allows users to open capsules sent to them via connections
+    
+    # Special case: Self-send (sender sending to themselves)
+    # Check if recipient's linked_user_id matches sender_id, or if sender == user
+    recipient_linked_user_id = getattr(recipient, 'linked_user_id', None)
+    is_self_send = (
+        recipient_linked_user_id is not None and 
+        str(recipient_linked_user_id) == str(capsule.sender_id) and
+        str(capsule.sender_id) == str(user_id)
+    ) or str(capsule.sender_id) == str(user_id)
+    
+    if is_self_send:
+        logger.info(
+            f"Self-send detected for capsule {capsule_id}. "
+            f"Sender {capsule.sender_id} is sending to themselves. Allowing access."
+        )
+        return True
+    
     logger.info(
         f"Recipient {capsule.recipient_id} has no email for capsule {capsule_id}. "
         f"Verifying connection between sender {capsule.sender_id} and user {user_id}"

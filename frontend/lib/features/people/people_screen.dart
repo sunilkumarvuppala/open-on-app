@@ -261,7 +261,12 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
                 strokeWidth: 2.0,
                 displacement: 40.0,
                 child: ListView.builder(
-                  padding: EdgeInsets.all(AppTheme.spacingMd),
+                  padding: EdgeInsets.only(
+                    left: AppTheme.spacingMd,
+                    right: AppTheme.spacingMd,
+                    top: AppTheme.spacingXs,
+                    bottom: AppTheme.spacingMd,
+                  ),
                   itemCount: filteredConnections.length,
                   itemBuilder: (context, index) {
                     final connection = filteredConnections[index];
@@ -295,7 +300,12 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
                   strokeWidth: 3.0,
                   displacement: 40.0,
                   child: ListView.builder(
-                    padding: EdgeInsets.all(AppTheme.spacingMd),
+                    padding: EdgeInsets.only(
+                      left: AppTheme.spacingMd,
+                      right: AppTheme.spacingMd,
+                      top: AppTheme.spacingXs,
+                      bottom: AppTheme.spacingMd,
+                    ),
                     itemCount: cachedData.length,
                     itemBuilder: (context, index) {
                       final connection = cachedData[index];
@@ -317,7 +327,12 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
 
   Widget _buildSearchBar(BuildContext context, AppColorScheme colorScheme) {
     return Padding(
-      padding: EdgeInsets.all(AppTheme.spacingMd),
+      padding: EdgeInsets.only(
+        left: AppTheme.spacingMd,
+        right: AppTheme.spacingMd,
+        top: AppTheme.spacingMd,
+        bottom: AppTheme.spacingXs,
+      ),
       child: TextField(
         controller: _searchController,
         onChanged: (value) => setState(() {}),

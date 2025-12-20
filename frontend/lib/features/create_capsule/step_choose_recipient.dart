@@ -9,6 +9,45 @@ import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/utils/logger.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
 
+/// Optimized widget for displaying letter count
+/// Isolated to prevent unnecessary rebuilds of parent recipient card
+class _LetterCountBadge extends ConsumerWidget {
+  final String letterCountKey;
+  
+  const _LetterCountBadge({required this.letterCountKey});
+  
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final letterCountAsync = ref.watch(letterCountProvider(letterCountKey));
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
+    
+    return letterCountAsync.when(
+      data: (count) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.mail_outline,
+              size: 14,
+              color: DynamicTheme.getSecondaryTextColor(colorScheme),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '$count letter${count == 1 ? '' : 's'}',
+              style: TextStyle(
+                fontSize: 12,
+                color: DynamicTheme.getSecondaryTextColor(colorScheme),
+              ),
+            ),
+          ],
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
+
 class StepChooseRecipient extends ConsumerStatefulWidget {
   final VoidCallback onNext;
   
@@ -20,6 +59,20 @@ class StepChooseRecipient extends ConsumerStatefulWidget {
 
 class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
   String _searchQuery = '';
+  
+  @override
+  void initState() {
+    super.initState();
+    // Refresh recipients when this screen is shown to ensure self-recipient is loaded
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userAsync = ref.read(currentUserProvider);
+      userAsync.whenData((user) {
+        if (user != null) {
+          ref.invalidate(recipientsProvider(user.id));
+        }
+      });
+    });
+  }
   
   @override
   Widget build(BuildContext context) {
@@ -77,8 +130,40 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
               );
             }
             
-            // Apply search filter
-            final filteredRecipients = deduplicatedRecipients.where((r) {
+            // STEP 1: Filter out "To Self" recipients completely
+            final recipientsWithoutToSelf = deduplicatedRecipients.where((r) {
+              final nameLower = r.name.toLowerCase().trim();
+              if (nameLower == 'to self') {
+                return false;
+              }
+              return true;
+            }).toList();
+            
+            // STEP 2: Ensure only ONE self-recipient exists (where linkedUserId == user.id)
+            final selfRecipients = recipientsWithoutToSelf.where((r) => r.linkedUserId == user.id).toList();
+            final otherRecipients = recipientsWithoutToSelf.where((r) => r.linkedUserId != user.id).toList();
+            
+            // If multiple self-recipients exist, keep only the first one
+            // If no self-recipient exists, create a temporary one (backend will create the real one when sending)
+            final finalSelfRecipient = selfRecipients.isNotEmpty 
+                ? [selfRecipients.first]
+                : [
+                    Recipient(
+                      id: user.id, // Use user ID so backend can detect self-send
+                      userId: user.id,
+                      name: user.name, // Use actual user name, not "To Self"
+                      username: user.username,
+                      avatar: user.avatarUrl ?? '',
+                      linkedUserId: user.id,
+                      email: user.email,
+                    )
+                  ];
+            
+            // Combine: self-recipient (always present) + other recipients
+            final allRecipients = [...finalSelfRecipient, ...otherRecipients];
+            
+            // STEP 3: Apply search filter
+            final filteredRecipients = allRecipients.where((r) {
               if (_searchQuery.isEmpty) return true;
               final name = r.name.toLowerCase();
               final username = r.username?.toLowerCase() ?? '';
@@ -102,13 +187,6 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                               ),
                         ),
                         SizedBox(height: AppTheme.spacingSm),
-                        Text(
-                          'Choose someone special to receive your letter',
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: DynamicTheme.getSecondaryTextColor(colorScheme),
-                              ),
-                        ),
-                        SizedBox(height: AppTheme.spacingXl),
                         
                         // Search field
                         TextField(
@@ -138,10 +216,11 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                           },
                         ),
                         
-                        SizedBox(height: AppTheme.spacingLg),
+                        if (filteredRecipients.isNotEmpty)
+                          SizedBox(height: AppTheme.spacingSm),
                         
                         // Recipients list
-                        if (filteredRecipients.isEmpty) ...[
+                        if (filteredRecipients.isEmpty && _searchQuery.isNotEmpty) ...[
                           SizedBox(height: AppTheme.spacingXl),
                           Center(
                             child: Text(
@@ -156,9 +235,10 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                         ] else
                           ...filteredRecipients.map((recipient) {
                             final isSelected = selectedRecipient?.id == recipient.id;
+                            final letterCountKey = '${user.id}|${recipient.id}|${recipient.linkedUserId ?? ''}';
                             
                             return Padding(
-                              padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
+                              padding: EdgeInsets.only(bottom: AppTheme.spacingSm),
                               child: Card(
                                 elevation: 2,
                                 margin: EdgeInsets.zero,
@@ -175,46 +255,60 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                                   },
                                   borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                                   child: Padding(
-                                    padding: EdgeInsets.all(AppTheme.spacingMd),
-                                    child: Row(
+                                    padding: EdgeInsets.all(AppTheme.spacingSm),
+                                    child: Stack(
                                       children: [
-                                        UserAvatar(
-                                          imageUrl: recipient.avatar.isNotEmpty ? recipient.avatar : null,
-                                          name: recipient.name,
-                                          size: 56,
-                                        ),
-                                        SizedBox(width: AppTheme.spacingMd),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                recipient.name,
-                                                style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: DynamicTheme.getPrimaryTextColor(colorScheme),
-                                                ),
-                                              ),
-                                              if (recipient.username != null && recipient.username!.isNotEmpty) ...[
-                                                SizedBox(height: AppTheme.spacingXs),
-                                                Text(
-                                                  '@${recipient.username}',
-                                                  style: TextStyle(
-                                                    color: DynamicTheme.getSecondaryTextColor(colorScheme),
-                                                    fontSize: 14,
+                                        Row(
+                                          children: [
+                                            UserAvatar(
+                                              imageUrl: recipient.avatar.isNotEmpty ? recipient.avatar : null,
+                                              name: recipient.name,
+                                              size: 56,
+                                            ),
+                                            SizedBox(width: AppTheme.spacingMd),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    // Add "(you)" suffix if this is a self-recipient
+                                                    recipient.linkedUserId != null && recipient.linkedUserId == user.id
+                                                        ? '${recipient.name} (you)'
+                                                        : recipient.name,
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                                                    ),
                                                   ),
-                                                ),
-                                              ],
-                                            ],
-                                          ),
+                                                  if (recipient.username != null && recipient.username!.isNotEmpty) ...[
+                                                    SizedBox(height: AppTheme.spacingXs),
+                                                    Text(
+                                                      '@${recipient.username}',
+                                                      style: TextStyle(
+                                                        color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                                                        fontSize: 14,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ),
+                                            if (isSelected)
+                                              Icon(
+                                                Icons.check_circle,
+                                                color: DynamicTheme.getButtonTextColor(colorScheme),
+                                                size: 28,
+                                              ),
+                                          ],
                                         ),
-                                        if (isSelected)
-                                          Icon(
-                                            Icons.check_circle,
-                                            color: DynamicTheme.getButtonTextColor(colorScheme),
-                                            size: 28,
-                                          ),
+                                        // Letter count with icon at bottom right
+                                        // Isolated widget to prevent unnecessary rebuilds
+                                        Positioned(
+                                          bottom: 0,
+                                          right: 0,
+                                          child: _LetterCountBadge(letterCountKey: letterCountKey),
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -345,13 +439,6 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                                 color: DynamicTheme.getPrimaryTextColor(colorScheme),
                               ),
                         ),
-                        SizedBox(height: AppTheme.spacingSm),
-                        Text(
-                          'Choose someone special to receive your letter',
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: DynamicTheme.getSecondaryTextColor(colorScheme),
-                              ),
-                        ),
                         SizedBox(height: AppTheme.spacingXl),
                         Center(
                           child: Column(
@@ -388,4 +475,5 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
       },
     );
   }
+  
 }

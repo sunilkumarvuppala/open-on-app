@@ -24,6 +24,9 @@ import 'package:openon_app/features/connections/requests_screen.dart';
 import 'package:openon_app/features/connections/connections_screen.dart';
 import 'package:openon_app/features/connections/connection_detail_screen.dart';
 import 'package:openon_app/features/people/people_screen.dart';
+import 'package:openon_app/features/self_letters/create_self_letter_screen.dart';
+import 'package:openon_app/features/self_letters/self_letters_screen.dart';
+import 'package:openon_app/features/self_letters/open_self_letter_screen.dart';
 
 /// Route names
 class Routes {
@@ -49,6 +52,10 @@ class Routes {
   static const connectionRequests = '/connections/requests';
   static const connectionDetail = '/connection/:connectionId';
   static const people = '/people';
+  static const selfLetters = '/self-letters';
+  static const createSelfLetter = '/self-letters/create';
+  static String openSelfLetter(String id) => '/self-letters/$id/open';
+  static String selfLetterDetail(String id) => '/self-letters/$id';
 }
 
 final goRouterProvider = Provider<GoRouter>((ref) {
@@ -197,6 +204,28 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final connectionId = state.pathParameters['connectionId']!;
           return ConnectionDetailScreen(connectionId: connectionId);
+        },
+      ),
+      GoRoute(
+        path: Routes.selfLetters,
+        builder: (context, state) => const SelfLettersScreen(),
+      ),
+      GoRoute(
+        path: Routes.createSelfLetter,
+        builder: (context, state) => const CreateSelfLetterScreen(),
+      ),
+      GoRoute(
+        path: '/self-letters/:id/open',
+        builder: (context, state) {
+          final letterId = state.pathParameters['id']!;
+          return OpenSelfLetterScreen(letterId: letterId);
+        },
+      ),
+      GoRoute(
+        path: '/self-letters/:id',
+        builder: (context, state) {
+          final letterId = state.pathParameters['id']!;
+          return OpenSelfLetterScreen(letterId: letterId);
         },
       ),
     ],
