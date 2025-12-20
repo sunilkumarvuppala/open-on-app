@@ -123,6 +123,12 @@ class DraftsScreen extends ConsumerWidget {
                           ref.invalidate(draftsProvider(user.id));
                           await Future.delayed(const Duration(milliseconds: 300));
                         },
+                        color: colorScheme.accent,
+                        backgroundColor: colorScheme.isDarkTheme 
+                            ? Colors.white.withOpacity(0.1)
+                            : Colors.black.withOpacity(0.05),
+                        strokeWidth: 3.0,
+                        displacement: 40.0,
                         child: SingleChildScrollView(
                           physics: const AlwaysScrollableScrollPhysics(),
                           child: SizedBox(
@@ -138,6 +144,10 @@ class DraftsScreen extends ConsumerWidget {
                         ref.invalidate(draftsProvider(user.id));
                         await Future.delayed(const Duration(milliseconds: 300));
                       },
+                      color: colorScheme.accent,
+                      backgroundColor: Colors.transparent,
+                      strokeWidth: 2.0,
+                      displacement: 40.0,
                       child: _buildDraftsList(context, ref, deduplicatedDrafts, colorScheme, user.id),
                     );
                   },
@@ -153,6 +163,12 @@ class DraftsScreen extends ConsumerWidget {
                       ref.invalidate(draftsProvider(user.id));
                       await Future.delayed(const Duration(milliseconds: 300));
                     },
+                    color: colorScheme.accent,
+                    backgroundColor: colorScheme.isDarkTheme 
+                        ? Colors.white.withOpacity(0.1)
+                        : Colors.black.withOpacity(0.05),
+                    strokeWidth: 3.0,
+                    displacement: 40.0,
                     child: SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       child: Center(

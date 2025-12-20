@@ -11,6 +11,7 @@ import 'package:openon_app/core/data/draft_storage.dart';
 /// Replace with actual backend implementation (e.g., Supabase, Firebase) when ready.
 abstract class CapsuleRepository {
   Future<List<Capsule>> getCapsules({required String userId, bool asSender = true});
+  Future<Capsule?> getCapsuleById(String capsuleId);
   Future<Capsule> createCapsule(Capsule capsule);
   Future<Capsule> updateCapsule(Capsule capsule);
   Future<void> deleteCapsule(String capsuleId);
@@ -129,6 +130,27 @@ class MockCapsuleRepository implements CapsuleRepository {
         createdAt: now.subtract(const Duration(days: 20)),
       ),
     ]);
+  }
+  
+  @override
+  Future<Capsule?> getCapsuleById(String capsuleId) async {
+    try {
+      final capsule = _capsules.firstWhere(
+        (c) => c.id == capsuleId,
+        orElse: () => throw NotFoundException('Capsule not found: $capsuleId'),
+      );
+      return capsule;
+    } catch (e, stackTrace) {
+      Logger.error('Failed to get capsule by ID', error: e, stackTrace: stackTrace);
+      if (e is NotFoundException) {
+        return null;
+      }
+      throw RepositoryException(
+        'Failed to get capsule: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
   
   @override

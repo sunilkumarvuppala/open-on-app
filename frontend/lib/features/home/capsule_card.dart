@@ -73,10 +73,25 @@ class CapsuleCard extends ConsumerWidget {
                     SizedBox(height: AppTheme.spacingSm),
                     Row(
                       children: [
-                        Icon(
-                          _getStatusIcon(),
-                          size: 16,
-                          color: _getStatusColor(colorScheme.primary1),
+                        // Anonymous icon (if applicable) with status icon
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Show anonymous icon first if capsule is anonymous and not revealed
+                            if (capsule.isAnonymous && !capsule.isRevealed) ...[
+                              Icon(
+                                Icons.visibility_off_outlined,
+                                size: 12,
+                                color: _getStatusColor(colorScheme.primary1).withOpacity(0.8),
+                              ),
+                              SizedBox(width: 4),
+                            ],
+                            Icon(
+                              _getStatusIcon(),
+                              size: 16,
+                              color: _getStatusColor(colorScheme.primary1),
+                            ),
+                          ],
                         ),
                         SizedBox(width: AppTheme.spacingXs),
                         Text(
@@ -139,6 +154,8 @@ class CapsuleCard extends ConsumerWidget {
         return Icons.lock_open;
       case CapsuleStatus.opened:
         return Icons.check_circle_outline;
+      case CapsuleStatus.revealed:
+        return Icons.check_circle_outline; // Same as opened
     }
   }
   
@@ -152,6 +169,8 @@ class CapsuleCard extends ConsumerWidget {
         return AppTheme.successGreen;
       case CapsuleStatus.opened:
         return AppTheme.successGreen;
+      case CapsuleStatus.revealed:
+        return AppTheme.successGreen; // Same as opened
     }
   }
   
@@ -172,6 +191,8 @@ class CapsuleCard extends ConsumerWidget {
         return 'Ready';
       case CapsuleStatus.opened:
         return 'Opened';
+      case CapsuleStatus.revealed:
+        return 'Revealed';
     }
   }
   

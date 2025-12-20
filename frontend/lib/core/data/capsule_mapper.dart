@@ -29,6 +29,12 @@ class CapsuleMapper {
         final openedAtValue = json['opened_at'];
         final createdAtValue = json['created_at'];
         
+        // Anonymous letter fields
+        final isAnonymousValue = json['is_anonymous'];
+        final revealDelaySecondsValue = json['reveal_delay_seconds'];
+        final revealAtValue = json['reveal_at'];
+        final senderRevealedAtValue = json['sender_revealed_at'];
+        
         // Extract content from body_text or body_rich_text
         final content = _extractContent(bodyTextValue, bodyRichTextValue);
         
@@ -36,10 +42,37 @@ class CapsuleMapper {
         final unlockAt = _parseDateTime(unlocksAtValue, fallbackDays: 1)!;
         final createdAt = _parseDateTime(createdAtValue, fallbackDays: 0)!;
         final openedAt = _parseDateTime(openedAtValue, nullable: true);
+        final revealAt = _parseDateTime(revealAtValue, nullable: true);
+        final senderRevealedAt = _parseDateTime(senderRevealedAtValue, nullable: true);
         
-        // Get sender name (fallback to 'Anonymous' or 'Sender' if not provided)
-        final senderName = _safeString(senderNameValue) ?? 
-            (_safeString(senderIdValue) != null ? 'Sender' : 'Anonymous');
+        // Parse anonymous fields
+        final isAnonymous = isAnonymousValue is bool ? isAnonymousValue : (isAnonymousValue == true || isAnonymousValue == 'true');
+        final revealDelaySeconds = revealDelaySecondsValue is int 
+            ? revealDelaySecondsValue 
+            : (revealDelaySecondsValue is String ? int.tryParse(revealDelaySecondsValue) : null);
+        
+        // Get sender name (respects anonymous status)
+        // If anonymous and not revealed, show 'Anonymous'
+        // Otherwise use actual sender name or fallback
+        String senderName;
+        if (isAnonymous && senderRevealedAt == null && revealAt != null) {
+          final now = DateTime.now();
+          if (revealAt.isAfter(now)) {
+            // Not yet revealed
+            senderName = 'Anonymous';
+          } else {
+            // Reveal time has passed, show actual name
+            senderName = _safeString(senderNameValue) ?? 
+                (_safeString(senderIdValue) != null ? 'Sender' : 'Anonymous');
+          }
+        } else if (isAnonymous && senderRevealedAt == null) {
+          // Anonymous but no reveal time set yet (shouldn't happen, but handle gracefully)
+          senderName = 'Anonymous';
+        } else {
+          // Not anonymous or already revealed
+          senderName = _safeString(senderNameValue) ?? 
+              (_safeString(senderIdValue) != null ? 'Sender' : 'Anonymous');
+        }
         
         // Get recipient name (fallback to 'Recipient' if not provided)
         final recipientName = _safeString(recipientNameValue) ?? 'Recipient';
@@ -62,7 +95,7 @@ class CapsuleMapper {
         return Capsule(
             id: capsuleId,
             senderId: _safeString(senderIdValue) ?? '',
-            senderName: senderName,  // Use actual sender name from backend
+            senderName: senderName,  // Use actual sender name from backend (or 'Anonymous')
             senderAvatarValue: _safeString(senderAvatarUrlValue),
             receiverId: _safeString(recipientIdValue) ?? '',
             receiverName: recipientName,  // Use actual recipient name from backend
@@ -73,6 +106,10 @@ class CapsuleMapper {
             unlockAt: unlockAt,
             createdAt: createdAt,
             openedAt: openedAt,
+            isAnonymous: isAnonymous,
+            revealDelaySeconds: revealDelaySeconds,
+            revealAt: revealAt,
+            senderRevealedAt: senderRevealedAt,
         );
     }
 

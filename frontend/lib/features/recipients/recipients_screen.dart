@@ -99,6 +99,7 @@ class RecipientsScreen extends ConsumerWidget {
               
               Logger.info('Recipients screen: Building list with ${deduplicatedRecipients.length} items');
               
+              final colorScheme = ref.watch(selectedColorSchemeProvider);
               return RefreshIndicator(
                 onRefresh: () async {
                   Logger.info('Recipients screen: Refreshing recipients');
@@ -106,6 +107,12 @@ class RecipientsScreen extends ConsumerWidget {
                   // Wait for the provider to refresh
                   await Future.delayed(const Duration(milliseconds: 500));
                 },
+                color: colorScheme.accent,
+                backgroundColor: colorScheme.isDarkTheme 
+                    ? Colors.white.withOpacity(0.1)
+                    : Colors.black.withOpacity(0.05),
+                strokeWidth: 3.0,
+                displacement: 40.0,
                 child: ListView.builder(
                   padding: EdgeInsets.all(AppTheme.spacingMd),
                   itemCount: deduplicatedRecipients.length,

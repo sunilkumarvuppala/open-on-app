@@ -126,6 +126,99 @@ class CapsuleService:
                     raise_on_not_connected=True
                 )
     
+    async def validate_anonymous_letter(
+        self,
+        recipient_id: UUID,
+        sender_id: UUID,
+        is_anonymous: bool,
+        reveal_delay_seconds: Optional[int]
+    ) -> None:
+        """
+        Validate anonymous letter requirements.
+        
+        Args:
+            recipient_id: Recipient ID
+            sender_id: User ID of the sender
+            is_anonymous: Whether letter is anonymous
+            reveal_delay_seconds: Reveal delay in seconds (0-259200)
+            
+        Raises:
+            HTTPException: If validation fails
+        """
+        if not is_anonymous:
+            return  # No validation needed for non-anonymous letters
+        
+        # Anonymous letters require reveal_delay_seconds
+        if reveal_delay_seconds is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Anonymous letters must have a reveal delay (reveal_delay_seconds)"
+            )
+        
+        # Enforce max 72 hours (259200 seconds)
+        if reveal_delay_seconds > 259200:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Reveal delay cannot exceed 72 hours (259200 seconds)"
+            )
+        
+        # Get recipient to check if it's a connection-based recipient
+        recipient = await self.recipient_repo.get_by_id(recipient_id)
+        if not recipient:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Recipient not found"
+            )
+        
+        # Verify recipient belongs to sender
+        if recipient.owner_id != sender_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only send anonymous letters to your own recipients"
+            )
+        
+        # Anonymous letters require mutual connection
+        linked_user_id = getattr(recipient, 'linked_user_id', None)
+        if linked_user_id:
+            # Connection-based recipient: verify mutual connection
+            from app.core.permissions import verify_users_are_connected
+            await verify_users_are_connected(
+                self.session,
+                sender_id,
+                linked_user_id,
+                raise_on_not_connected=True
+            )
+        elif recipient.email:
+            # Email-based recipient: find user and verify connection
+            from sqlalchemy import text
+            result = await self.session.execute(
+                text("""
+                    SELECT id FROM auth.users
+                    WHERE email = :email
+                """),
+                {"email": recipient.email.lower().strip()}
+            )
+            recipient_user_id = result.scalar_one_or_none()
+            
+            if recipient_user_id:
+                from app.core.permissions import verify_users_are_connected
+                await verify_users_are_connected(
+                    self.session,
+                    sender_id,
+                    recipient_user_id,
+                    raise_on_not_connected=True
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Anonymous letters can only be sent to mutual connections. Please connect with this user first."
+                )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Anonymous letters can only be sent to mutual connections"
+            )
+    
     def validate_content(
         self,
         body_text: Optional[str],

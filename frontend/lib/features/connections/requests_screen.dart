@@ -118,6 +118,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
   }
 
   Widget _buildIncomingTab(AsyncValue<List<ConnectionRequest>> incomingAsync) {
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
     return incomingAsync.when(
       data: (requests) {
         if (requests.isEmpty) {
@@ -132,6 +133,12 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
           onRefresh: () async {
             ref.invalidate(incomingRequestsProvider);
           },
+          color: colorScheme.accent,
+          backgroundColor: colorScheme.isDarkTheme 
+              ? Colors.white.withOpacity(0.1)
+              : Colors.black.withOpacity(0.05),
+          strokeWidth: 3.0,
+          displacement: 40.0,
           child: ListView.builder(
             padding: EdgeInsets.all(AppTheme.spacingMd),
             itemCount: requests.length,
@@ -155,6 +162,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
   }
 
   Widget _buildOutgoingTab(AsyncValue<List<ConnectionRequest>> outgoingAsync) {
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
     return outgoingAsync.when(
       data: (requests) {
         if (requests.isEmpty) {
@@ -180,6 +188,12 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
           onRefresh: () async {
             ref.invalidate(outgoingRequestsProvider);
           },
+          color: colorScheme.accent,
+          backgroundColor: colorScheme.isDarkTheme 
+              ? Colors.white.withOpacity(0.1)
+              : Colors.black.withOpacity(0.05),
+          strokeWidth: 3.0,
+          displacement: 40.0,
           child: ListView(
             padding: EdgeInsets.all(AppTheme.spacingMd),
             children: [

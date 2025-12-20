@@ -63,6 +63,9 @@
 - **[frontend/features/NAVIGATION.md](./frontend/features/NAVIGATION.md)** - Navigation system
 - **[frontend/features/ANIMATIONS.md](./frontend/features/ANIMATIONS.md)** - Animation system
 
+### Special Features
+- **[anonymous_letters.md](./anonymous_letters.md)** - Temporary Anonymous Letters feature (complete guide)
+
 ---
 
 ## 📖 Documentation by Topic
@@ -140,6 +143,7 @@
 **Security**
 - Backend: [backend/SECURITY.md](./backend/SECURITY.md)
 - Database: [supabase/DATABASE_SCHEMA.md](./supabase/DATABASE_SCHEMA.md) (RLS policies)
+- Security Review: [SECURITY_AND_BEST_PRACTICES_REVIEW.md](./SECURITY_AND_BEST_PRACTICES_REVIEW.md) - Comprehensive security analysis
 
 **Performance**
 - [PERFORMANCE_OPTIMIZATIONS.md](./PERFORMANCE_OPTIMIZATIONS.md)

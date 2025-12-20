@@ -48,6 +48,11 @@ final currentUserProvider = StreamProvider<User?>((ref) async* {
   final authRepo = ref.watch(authRepositoryProvider);
   final user = await authRepo.getCurrentUser();
   yield user;
+  
+  // Listen for provider invalidation and re-fetch
+  ref.onDispose(() {
+    // Provider is being disposed, nothing to do
+  });
 });
 
 final isAuthenticatedProvider = Provider<bool>((ref) {
@@ -411,6 +416,14 @@ class DraftCapsuleNotifier extends StateNotifier<DraftCapsule> {
   
   void setDraftId(String draftId) {
     state = state.copyWith(draftId: draftId);
+  }
+  
+  void setIsAnonymous(bool isAnonymous) {
+    state = state.copyWith(isAnonymous: isAnonymous);
+  }
+  
+  void setRevealDelaySeconds(int? revealDelaySeconds) {
+    state = state.copyWith(revealDelaySeconds: revealDelaySeconds);
   }
   
   void reset() {

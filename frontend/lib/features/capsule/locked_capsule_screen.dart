@@ -157,7 +157,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
                         SizedBox(height: AppTheme.spacingSm),
                         
                         Text(
-                          'From ${capsule.senderName}',
+                          'From ${capsule.displaySenderName}',
                           style: TextStyle(
                             color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityAlmostFull2),
                             fontSize: 16,
@@ -188,11 +188,25 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
                                     backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme, opacity: AppTheme.opacityHigh),
                                   ),
                                 
-                                // Envelope icon
-                                Icon(
-                                  canOpen ? Icons.mail_outline : Icons.lock_outline,
-                                  size: 70,
-                                  color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                                // Envelope/lock icon with anonymous icon if applicable
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      canOpen ? Icons.mail_outline : Icons.lock_outline,
+                                      size: 70,
+                                      color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                                    ),
+                                    // Show anonymous icon if capsule is anonymous and not revealed
+                                    if (capsule.isAnonymous && !capsule.isRevealed) ...[
+                                      SizedBox(width: 8),
+                                      Icon(
+                                        Icons.visibility_off_outlined,
+                                        size: 35,
+                                        color: DynamicTheme.getPrimaryIconColor(colorScheme).withOpacity(0.8),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ],
                             ),

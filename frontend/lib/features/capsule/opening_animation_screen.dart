@@ -177,7 +177,7 @@ class _OpeningAnimationScreenState extends ConsumerState<OpeningAnimationScreen>
                             ),
                             SizedBox(height: AppTheme.spacingMd),
                             Text(
-                              '${AppConstants.fromPrefix} ${widget.capsule.senderName}',
+                              '${AppConstants.fromPrefix} ${widget.capsule.displaySenderName}',
                               style: TextStyle(
                                 color: DynamicTheme.getSecondaryTextColor(colorScheme),
                                 fontSize: AppConstants.openingAnimationSubtitleFontSize,

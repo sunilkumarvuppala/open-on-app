@@ -55,14 +55,23 @@ class CapsuleStatus(str, enum.Enum):
     Capsule status enumeration matching Supabase schema.
     
     States:
+    - SEALED: Locked, not yet ready to open
+    - READY: Unlocked and ready to open
+    - OPENED: Has been opened by recipient
+    - REVEALED: Anonymous sender has been revealed (opened + reveal time passed)
+    - EXPIRED: Past expiration date or deleted
+    
+    Transitions:
     - SEALED: Capsule created, unlocks_at is in the future
     - READY: unlocks_at has passed, recipient can now open it
     - OPENED: Recipient has opened and read the letter
+    - REVEALED: Anonymous sender identity has been automatically revealed
     - EXPIRED: Letter expired (expires_at passed) or was soft-deleted
     """
     SEALED = "sealed"
     READY = "ready"
     OPENED = "opened"
+    REVEALED = "revealed"
     EXPIRED = "expired"
 
 
@@ -489,6 +498,11 @@ class Capsule(Base):
     is_anonymous: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_disappearing: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     disappearing_after_open_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    
+    # Anonymous reveal fields
+    reveal_delay_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    reveal_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    sender_revealed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     
     # Timestamps (all timezone-aware UTC)
     unlocks_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)

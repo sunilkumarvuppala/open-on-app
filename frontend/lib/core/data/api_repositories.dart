@@ -271,10 +271,12 @@ class ApiAuthRepository implements AuthRepository {
       
       print('[ApiAuthRepository.updateProfile] Response received: $response');
 
-      // Update cached user
+      // Update cached user with fresh data from server
       _cachedUser = UserMapper.fromJson(response);
 
       Logger.info('Profile updated: ${_cachedUser!.id}');
+      Logger.info('Avatar URL after update: ${_cachedUser!.avatar}');
+      
       return _cachedUser!;
     } catch (e, stackTrace) {
       Logger.error('Failed to update profile', error: e, stackTrace: stackTrace);
@@ -295,6 +297,34 @@ class ApiAuthRepository implements AuthRepository {
 class ApiCapsuleRepository implements CapsuleRepository {
   final ApiClient _apiClient = ApiClient();
   final ApiAuthRepository _authRepo = ApiAuthRepository();
+
+  @override
+  Future<Capsule?> getCapsuleById(String capsuleId) async {
+    try {
+      UuidUtils.validateCapsuleId(capsuleId);
+      
+      Logger.info('Fetching capsule by ID: $capsuleId');
+      
+      final response = await _apiClient.get(ApiConfig.capsuleById(capsuleId));
+      
+      final capsule = CapsuleMapper.fromJson(response as Map<String, dynamic>);
+      Logger.info('Capsule fetched successfully: ${capsule.id}');
+      return capsule;
+    } catch (e, stackTrace) {
+      Logger.error('Failed to get capsule by ID', error: e, stackTrace: stackTrace);
+      if (e is NotFoundException) {
+        return null;
+      }
+      if (e is AppException) {
+        rethrow;
+      }
+      throw RepositoryException(
+        'Failed to get capsule: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
 
   @override
   Future<List<Capsule>> getCapsules({
@@ -385,20 +415,30 @@ class ApiCapsuleRepository implements CapsuleRepository {
       Logger.info(
         'Creating capsule: recipientId=$recipientId, '
         'receiverName=${capsule.receiverName}, '
-        'unlocksAt=${capsule.unlockAt}'
+        'unlocksAt=${capsule.unlockAt}, '
+        'isAnonymous=${capsule.isAnonymous}, '
+        'revealDelaySeconds=${capsule.revealDelaySeconds}'
       );
+      
+      // Build request payload
+      final payload = <String, dynamic>{
+        'recipient_id': recipientId,
+        'title': capsule.label.isNotEmpty ? capsule.label : null,
+        'body_text': capsule.content,
+        'unlocks_at': capsule.unlockAt.toUtc().toIso8601String(),
+        'is_anonymous': capsule.isAnonymous,
+        'is_disappearing': false,
+      };
+      
+      // Add reveal_delay_seconds if anonymous
+      if (capsule.isAnonymous && capsule.revealDelaySeconds != null) {
+        payload['reveal_delay_seconds'] = capsule.revealDelaySeconds;
+      }
       
       // Create capsule via API
       final response = await _apiClient.post(
         ApiConfig.capsules,
-        {
-          'recipient_id': recipientId,
-          'title': capsule.label.isNotEmpty ? capsule.label : null,
-          'body_text': capsule.content,
-          'unlocks_at': capsule.unlockAt.toUtc().toIso8601String(),
-          'is_anonymous': false,
-          'is_disappearing': false,
-        },
+        payload,
       );
 
       final createdCapsule = CapsuleMapper.fromJson(response);

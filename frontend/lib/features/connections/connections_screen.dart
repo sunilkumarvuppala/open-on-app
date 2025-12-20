@@ -56,6 +56,12 @@ class ConnectionsScreen extends ConsumerWidget {
             onRefresh: () async {
               ref.invalidate(connectionsProvider);
             },
+            color: colorScheme.accent,
+            backgroundColor: colorScheme.isDarkTheme 
+                ? Colors.white.withOpacity(0.1)
+                : Colors.black.withOpacity(0.05),
+            strokeWidth: 3.0,
+            displacement: 40.0,
             child: ListView.builder(
               padding: EdgeInsets.all(AppTheme.spacingMd),
               itemCount: connections.length,

@@ -79,15 +79,21 @@ ReceiverHomeScreen
 
 **Key Features**:
 - Envelope icon with incoming indicator badge
-- Sender name with heart emoji ("From Priya ❤️")
+- Sender name with heart emoji ("From Priya ❤️") or "Anonymous" for anonymous letters
+- Anonymous indicator icon (`Icons.visibility_off_outlined`) for anonymous letters
+- Animated anonymous avatar icon (alternating icons) before reveal
 - Capsule title/label
 - Status badge (locked, unlocking soon, opened)
 - Unlock date/time
 - Countdown display
+- Reveal countdown for anonymous letters ("Reveals in 5h 12m")
 - Tap to navigate to capsule detail
 
 **Visual Differences from Sender Card**:
 - Shows "From [Sender Name] ❤️" instead of "To [Recipient Name]"
+- Shows "Anonymous" for anonymous letters before reveal
+- Anonymous indicator icon appears before status icon
+- Animated anonymous avatar icon (alternating `Icons.account_circle` and `Icons.help_outline`)
 - Envelope icon has incoming indicator badge (small white circle)
 - Uses same status badges and styling
 
@@ -313,19 +319,32 @@ return capsulesAsync.when(
 - Empty state encourages sharing link
 - Navigation to receiver-specific capsule views
 
+## Anonymous Letters Display
+
+Anonymous letters are displayed with special indicators:
+
+- **Anonymous Avatar**: Animated icon (alternating `Icons.account_circle` and `Icons.help_outline`) with fade transitions
+- **Anonymous Indicator**: `Icons.visibility_off_outlined` icon appears before status icon
+- **Sender Name**: Shows "Anonymous" until reveal time
+- **Reveal Countdown**: Shows "Reveals in 5h 12m" format
+- **Automatic Update**: When reveal time arrives, sender identity appears automatically via realtime subscription
+
+**Pull-to-Refresh**: All tabs support pull-to-refresh with improved visibility (thicker stroke, subtle background)
+
 ## Future Enhancements
 
+- [x] Pull to refresh ✅ (Implemented)
 - [ ] Share link functionality
 - [ ] Search incoming capsules
 - [ ] Filter by sender
 - [ ] Sort options
-- [ ] Pull to refresh
 - [ ] Notification badges
 
 ## Related Documentation
 
 - [Home Screen](./HOME.md) - For sender home screen
 - [Capsule Viewing](./CAPSULE.md) - For capsule detail screens
+- [Anonymous Letters Feature](../../anonymous_letters.md) - Complete anonymous letters documentation
 - [Performance Optimizations](../PERFORMANCE_OPTIMIZATIONS.md) - For performance details
 
 ---

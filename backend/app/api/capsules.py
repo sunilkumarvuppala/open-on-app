@@ -23,7 +23,7 @@ Security:
 - Anonymous sender info is hidden from recipient
 """
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, status, Query, Request
 from app.models.schemas import (
@@ -104,9 +104,23 @@ async def create_capsule(
         capsule_data.disappearing_after_open_seconds
     )
     
+    # Validate anonymous letter requirements (mutual connection, reveal delay)
+    if capsule_data.is_anonymous:
+        await capsule_service.validate_anonymous_letter(
+            capsule_data.recipient_id,
+            current_user.user_id,
+            capsule_data.is_anonymous,
+            capsule_data.reveal_delay_seconds
+        )
+        # Set default reveal delay if not provided (6 hours = 21600 seconds)
+        reveal_delay = capsule_data.reveal_delay_seconds or 21600
+    else:
+        reveal_delay = None
+    
     logger.info(
         f"Creating capsule: sender_id={current_user.user_id}, recipient_id={capsule_data.recipient_id}, "
-        f"unlocks_at={unlocks_at}, is_anonymous={capsule_data.is_anonymous}"
+        f"unlocks_at={unlocks_at}, is_anonymous={capsule_data.is_anonymous}, "
+        f"reveal_delay_seconds={reveal_delay}"
     )
     
     # Create capsule in sealed status
@@ -117,6 +131,7 @@ async def create_capsule(
         body_text=body_text,
         body_rich_text=capsule_data.body_rich_text,
         is_anonymous=capsule_data.is_anonymous,
+        reveal_delay_seconds=reveal_delay,
         is_disappearing=capsule_data.is_disappearing,
         disappearing_after_open_seconds=capsule_data.disappearing_after_open_seconds,
         unlocks_at=unlocks_at,
@@ -398,6 +413,16 @@ async def update_capsule(
     new_disappearing_seconds = update_dict.get("disappearing_after_open_seconds") or capsule.disappearing_after_open_seconds
     capsule_service.validate_disappearing_message(new_is_disappearing, new_disappearing_seconds)
     
+    # SECURITY: Explicitly exclude reveal-related fields from updates
+    # These fields are server-managed and must never be updated by clients
+    update_dict.pop('reveal_at', None)
+    update_dict.pop('reveal_delay_seconds', None)
+    update_dict.pop('sender_revealed_at', None)
+    update_dict.pop('opened_at', None)  # Must be set via open_letter RPC
+    update_dict.pop('sender_id', None)  # Cannot change sender
+    update_dict.pop('status', None)  # Status is managed by state machine/triggers
+    update_dict.pop('unlocks_at', None)  # Cannot change unlock time after creation
+    
     # Update capsule
     updated_capsule = await capsule_repo.update(capsule_id, **update_dict)
     
@@ -449,20 +474,51 @@ async def open_capsule(
     # Validate capsule can be opened
     await capsule_service.validate_capsule_for_opening(capsule_id)
     
+    # Get capsule to check if it's anonymous and get reveal_delay_seconds
+    capsule = await capsule_repo.get_by_id(capsule_id)
+    if not capsule:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Capsule not found"
+        )
+    
+    # Calculate opened_at timestamp
+    opened_at = datetime.now(timezone.utc)
+    
+    # If anonymous, calculate reveal_at = opened_at + reveal_delay_seconds
+    reveal_at = None
+    if capsule.is_anonymous and capsule.reveal_delay_seconds is not None:
+        reveal_delay = capsule.reveal_delay_seconds
+        # Enforce max 72 hours (safety check)
+        if reveal_delay > 259200:
+            reveal_delay = 259200
+        reveal_at = opened_at + timedelta(seconds=reveal_delay)
+        logger.info(
+            f"Anonymous capsule {capsule_id}: reveal_at will be {reveal_at} "
+            f"(delay: {reveal_delay} seconds)"
+        )
+    
     # ===== State Transition =====
     # Transition capsule to OPENED status
     # Record the exact UTC timestamp when capsule was opened
+    # For anonymous letters, also set reveal_at
     # The trigger in Supabase will handle:
     # - Setting status to 'opened'
     # - Creating notification for sender
     # - Setting deleted_at for disappearing messages
-    updated_capsule = await capsule_repo.transition_status(
-        capsule_id,
-        CapsuleStatus.OPENED,
-        opened_at=datetime.now(timezone.utc)
-    )
+    update_fields = {
+        "opened_at": opened_at,
+        "status": CapsuleStatus.OPENED
+    }
+    if reveal_at is not None:
+        update_fields["reveal_at"] = reveal_at
     
-    logger.info(f"Capsule {capsule_id} opened by user {current_user.user_id}")
+    updated_capsule = await capsule_repo.update(capsule_id, **update_fields)
+    
+    logger.info(
+        f"Capsule {capsule_id} opened by user {current_user.user_id} "
+        f"(anonymous: {capsule.is_anonymous}, reveal_at: {reveal_at})"
+    )
     
     # Eagerly load recipient to avoid lazy loading in async context
     # get_by_id already loads relationships, but transition_status uses update() which doesn't

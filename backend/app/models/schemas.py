@@ -365,6 +365,7 @@ class CapsuleBase(BaseModel):
     body_text: Optional[str] = Field(None, min_length=1)  # Plain text content
     body_rich_text: Optional[dict] = None  # Rich text as JSONB
     is_anonymous: bool = False
+    reveal_delay_seconds: Optional[int] = Field(None, ge=0, le=259200)  # 0-72 hours
     is_disappearing: bool = False
     disappearing_after_open_seconds: Optional[int] = Field(None, gt=0)
     theme_id: Optional[UUID] = None
@@ -511,6 +512,8 @@ class CapsuleResponse(CapsuleBase):
     status: CapsuleStatus
     unlocks_at: datetime
     opened_at: Optional[datetime] = None
+    reveal_at: Optional[datetime] = None  # When anonymous sender will be revealed
+    sender_revealed_at: Optional[datetime] = None  # When anonymous sender was actually revealed
     deleted_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
@@ -537,12 +540,41 @@ class CapsuleResponse(CapsuleBase):
         if recipient is None:
             recipient = capsule.recipient if hasattr(capsule, 'recipient') else None
         
-        # Build sender name (respects is_anonymous)
+        # Build sender name (respects is_anonymous and reveal status)
         sender_name = None
         sender_avatar_url = None
         sender_id = None
         
+        # Check if anonymous sender should be revealed
+        is_revealed = False
         if capsule.is_anonymous:
+            # Check if sender has been revealed
+            reveal_at = getattr(capsule, 'reveal_at', None)
+            sender_revealed_at = getattr(capsule, 'sender_revealed_at', None)
+            opened_at = getattr(capsule, 'opened_at', None)
+            reveal_delay_seconds = getattr(capsule, 'reveal_delay_seconds', None)
+            
+            if sender_revealed_at is not None:
+                # Explicitly revealed by job
+                is_revealed = True
+            elif reveal_at is not None:
+                # Check if reveal time has passed
+                from datetime import datetime, timezone
+                now = datetime.now(timezone.utc)
+                if reveal_at <= now:
+                    is_revealed = True
+            elif opened_at is not None and reveal_delay_seconds is not None:
+                # Backward compatibility: Calculate reveal_at on the fly if missing
+                # This handles existing letters opened before reveal_at was added
+                from datetime import timedelta
+                calculated_reveal_at = opened_at + timedelta(seconds=reveal_delay_seconds)
+                from datetime import datetime, timezone
+                now = datetime.now(timezone.utc)
+                if calculated_reveal_at <= now:
+                    is_revealed = True
+        
+        if capsule.is_anonymous and not is_revealed:
+            # Anonymous and not yet revealed
             sender_name = 'Anonymous'
             sender_id = None
             sender_avatar_url = None
@@ -598,6 +630,7 @@ class CapsuleResponse(CapsuleBase):
             'body_text': capsule.body_text,
             'body_rich_text': capsule.body_rich_text,
             'is_anonymous': capsule.is_anonymous,
+            'reveal_delay_seconds': getattr(capsule, 'reveal_delay_seconds', None),
             'is_disappearing': capsule.is_disappearing,
             'disappearing_after_open_seconds': capsule.disappearing_after_open_seconds,
             'theme_id': capsule.theme_id,
@@ -606,6 +639,8 @@ class CapsuleResponse(CapsuleBase):
             'status': capsule.status,
             'unlocks_at': capsule.unlocks_at,
             'opened_at': capsule.opened_at,
+            'reveal_at': getattr(capsule, 'reveal_at', None),
+            'sender_revealed_at': getattr(capsule, 'sender_revealed_at', None),
             'deleted_at': capsule.deleted_at,
             'created_at': capsule.created_at,
             'updated_at': capsule.updated_at,

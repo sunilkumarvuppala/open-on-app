@@ -21,7 +21,8 @@ features/create_capsule/
 ├── step_choose_recipient.dart      # Step 1: Select recipient
 ├── step_write_letter.dart          # Step 2: Write letter
 ├── step_choose_time.dart           # Step 3: Set unlock time
-└── step_preview.dart               # Step 4: Preview and send
+├── step_anonymous_settings.dart    # Step 4: Anonymous settings (optional)
+└── step_preview.dart               # Step 5: Preview and send
 ```
 
 ## Components
@@ -43,7 +44,8 @@ features/create_capsule/
 1. Choose Recipient
 2. Write Letter
 3. Choose Time
-4. Preview
+4. Anonymous Settings (optional, only for mutual connections)
+5. Preview
 
 **State Management**:
 - Uses `PageController` for step navigation
@@ -122,6 +124,36 @@ features/create_capsule/
 3. Validate selection
 4. Navigate to preview
 
+### StepAnonymousSettings
+
+**File**: `step_anonymous_settings.dart`
+
+**Purpose**: Fourth step - configure anonymous letter settings (only shown for mutual connections).
+
+**Key Features**:
+- Anonymous toggle (only shown if recipient is mutual connection)
+- Reveal delay selector (0h, 1h, 6h default, 12h, 24h, 48h, 72h max)
+- Helper text explaining anonymous feature
+- Mutual connection validation
+- Saves anonymous settings to draft
+
+**Validation**:
+- Checks if recipient is mutual connection before showing toggle
+- Defaults to 6 hours if anonymous enabled but no delay selected
+- Maximum delay is 72 hours (enforced at database level)
+
+**User Flow**:
+1. Check if recipient is mutual connection
+2. If yes: Show anonymous toggle and delay options
+3. If no: Show message that anonymous letters require mutual connection
+4. User selects delay (or leaves default 6 hours)
+5. Navigate to preview
+
+**Security**: 
+- Client-side check is for UX only
+- Server enforces mutual connection requirement
+- Database RLS policies prevent bypass
+
 ### StepPreview
 
 **File**: `step_preview.dart`
@@ -132,6 +164,7 @@ features/create_capsule/
 - Display recipient information
 - Show letter title and content
 - Display unlock date/time
+- Show anonymous status and reveal delay (if anonymous)
 - Edit option (go back to previous steps)
 - Send button
 - Save as draft option
@@ -158,11 +191,16 @@ features/create_capsule/
 4. Step 3: Choose Time
    - Select unlock date and time
    ↓
-5. Step 4: Preview
-   - Review all information
+5. Step 4: Anonymous Settings (optional)
+   - If mutual connection: Show anonymous toggle
+   - Select reveal delay (default: 6 hours)
+   - If not mutual connection: Show info message
+   ↓
+6. Step 5: Preview
+   - Review all information (including anonymous status)
    - Send or save as draft
    ↓
-6. Success → Navigate to home
+7. Success → Navigate to home
 ```
 
 ### Draft Flow
@@ -441,6 +479,7 @@ Future<void> _saveAsDraft() async {
 ## Future Enhancements
 
 - [x] Auto-save drafts while writing ✅ (Implemented)
+- [x] Anonymous letters ✅ (Implemented)
 - [ ] AI writing assistance
 - [ ] Rich text editor
 - [ ] Image attachments
@@ -454,6 +493,7 @@ Future<void> _saveAsDraft() async {
 - [Recipients Feature](./RECIPIENTS.md) - For recipient selection
 - [Drafts Feature](./DRAFTS.md) - For draft management and auto-save
 - [Home Screen](./HOME.md) - For navigation after creation
+- [Anonymous Letters Feature](../../anonymous_letters.md) - Complete anonymous letters documentation
 - [API Reference](../API_REFERENCE.md) - For repository APIs
 
 ---
