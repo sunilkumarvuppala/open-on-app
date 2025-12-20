@@ -154,8 +154,6 @@ class CapsuleCard extends ConsumerWidget {
         return Icons.lock_open;
       case CapsuleStatus.opened:
         return Icons.check_circle_outline;
-      case CapsuleStatus.revealed:
-        return Icons.check_circle_outline; // Same as opened
     }
   }
   
@@ -169,8 +167,6 @@ class CapsuleCard extends ConsumerWidget {
         return AppTheme.successGreen;
       case CapsuleStatus.opened:
         return AppTheme.successGreen;
-      case CapsuleStatus.revealed:
-        return AppTheme.successGreen; // Same as opened
     }
   }
   
@@ -191,8 +187,6 @@ class CapsuleCard extends ConsumerWidget {
         return 'Ready';
       case CapsuleStatus.opened:
         return 'Opened';
-      case CapsuleStatus.revealed:
-        return 'Revealed';
     }
   }
   

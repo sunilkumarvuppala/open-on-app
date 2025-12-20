@@ -264,7 +264,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                             SizedBox(width: AppConstants.tabSpacing),
                             Flexible(
                               child: Text(
-                                'Revealed',
+                                'Opened',
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
                               ),

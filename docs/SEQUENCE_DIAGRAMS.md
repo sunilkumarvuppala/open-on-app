@@ -489,7 +489,7 @@ sequenceDiagram
         CapsuleRepo->>Validation: validateUnlockDate(capsule.unlockAt)
         Validation-->>CapsuleRepo: true/false
         
-        CapsuleRepo->>ApiClient: post(ApiConfig.capsules,<br/>{recipient_id, title, body_text,<br/>unlocks_at, is_anonymous,<br/>is_disappearing})
+        CapsuleRepo->>ApiClient: post(ApiConfig.capsules,<br/>{recipient_id, title, body_text,<br/>unlocks_at, is_anonymous})
         ApiClient->>TokenStorage: getAccessToken()
         TokenStorage-->>ApiClient: access_token
         ApiClient->>ApiClient: Set Authorization header<br/>("Bearer " + access_token)

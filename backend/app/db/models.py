@@ -58,20 +58,24 @@ class CapsuleStatus(str, enum.Enum):
     - SEALED: Locked, not yet ready to open
     - READY: Unlocked and ready to open
     - OPENED: Has been opened by recipient
-    - REVEALED: Anonymous sender has been revealed (opened + reveal time passed)
+    - REVEALED: Legacy status - should not be used. Use OPENED with sender_revealed_at instead.
     - EXPIRED: Past expiration date or deleted
     
     Transitions:
     - SEALED: Capsule created, unlocks_at is in the future
     - READY: unlocks_at has passed, recipient can now open it
     - OPENED: Recipient has opened and read the letter
-    - REVEALED: Anonymous sender identity has been automatically revealed
+    - REVEALED: DEPRECATED - Status should remain OPENED. Use sender_revealed_at to determine visibility.
     - EXPIRED: Letter expired (expires_at passed) or was soft-deleted
+    
+    Note: REVEALED is not a real state - it's just an opened letter where the anonymous
+    sender is visible. The reveal job should NOT change status to 'revealed'. Status should
+    remain 'opened' and sender_revealed_at timestamp indicates when sender became visible.
     """
     SEALED = "sealed"
     READY = "ready"
     OPENED = "opened"
-    REVEALED = "revealed"
+    REVEALED = "revealed"  # DEPRECATED: Should not be set. Use OPENED + sender_revealed_at instead.
     EXPIRED = "expired"
 
 

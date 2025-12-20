@@ -125,8 +125,6 @@ Create a new capsule (in sealed status with unlock time).
   "body_rich_text": null,
   "is_anonymous": false,
   "reveal_delay_seconds": null,
-  "is_disappearing": false,
-  "disappearing_after_open_seconds": null,
   "unlocks_at": "2026-01-01T00:00:00Z",
   "expires_at": null,
   "theme_id": "550e8400-e29b-41d4-a716-446655440001",
@@ -156,8 +154,6 @@ Create a new capsule (in sealed status with unlock time).
   "body_text": "Capsule content...",
   "body_rich_text": null,
   "is_anonymous": false,
-  "is_disappearing": false,
-  "disappearing_after_open_seconds": null,
   "status": "sealed",
   "unlocks_at": "2026-01-01T00:00:00Z",
   "opened_at": null,
@@ -174,7 +170,6 @@ Create a new capsule (in sealed status with unlock time).
 - `recipient_id`: Required, must be a valid UUID of a recipient owned by current user
 - `unlocks_at`: Required, must be in the future
 - Either `body_text` OR `body_rich_text` is required (not both empty)
-- If `is_disappearing` is true, `disappearing_after_open_seconds` is required
 
 **Example:**
 ```bash
@@ -281,8 +276,6 @@ Update a capsule (only before opening).
   "body_text": "Updated content...",
   "body_rich_text": null,
   "is_anonymous": true,
-  "is_disappearing": true,
-  "disappearing_after_open_seconds": 3600,
   "theme_id": "new-theme-id",
   "animation_id": "new-animation-id",
   "expires_at": "2027-01-01T00:00:00Z"
@@ -336,7 +329,6 @@ Open a ready capsule (recipient owner only).
 - Must be the recipient owner (user who owns the recipient)
 - Capsule must be in `ready` or `sealed` status (with `unlocks_at` passed)
 - Action is irreversible
-- For disappearing messages, `deleted_at` is automatically set
 
 **Anonymous Letter Behavior:**
 - If `is_anonymous = true`:
@@ -353,7 +345,7 @@ curl -X POST "http://localhost:8000/capsules/550e8400-e29b-41d4-a716-44665544000
 
 ### DELETE /capsules/{capsule_id}
 
-Soft delete a capsule (for disappearing messages or sender deletion).
+Soft delete a capsule (sender deletion only).
 
 **Response (200):**
 ```json
@@ -873,7 +865,7 @@ All errors follow this format:
 - `sealed`: Capsule created with unlock time set (can be edited)
 - `ready`: Unlock time has passed, recipient can open
 - `opened`: Recipient has opened the capsule (terminal state)
-- `expired`: Soft-deleted or expired (disappearing messages)
+- `expired`: Soft-deleted or expired
 
 ### Username Field
 
@@ -903,8 +895,6 @@ All errors follow this format:
    - Automatic reveal job updates `sender_revealed_at` and `status = 'revealed'` when `reveal_at` passes
    - Sender always sees their own identity
    - Recipient sees "Anonymous" until reveal time
-
-6. **Disappearing Messages**: When `is_disappearing` is true, capsule is soft-deleted after opening (via Supabase triggers).
 
 ---
 

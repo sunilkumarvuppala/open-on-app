@@ -64,7 +64,7 @@ flutter run
 - Dual home screens (Inbox/Outbox)
 - Theme customization (10+ color schemes)
 - Recipient management with relationships
-- Anonymous and disappearing messages
+- Anonymous letters (temporary identity hiding)
 - Magical animations
 
 ## 🔒 Security

@@ -8,20 +8,12 @@
 -- ============================================================================
 
 -- ============================================================================
--- 1. UPDATE STATUS ENUM
+-- 1. STATUS ENUM NOTE
 -- ============================================================================
--- Add 'revealed' status to capsule_status enum
-DO $$ 
-BEGIN
-  -- Check if 'revealed' already exists
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_enum 
-    WHERE enumlabel = 'revealed' 
-    AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'capsule_status')
-  ) THEN
-    ALTER TYPE capsule_status ADD VALUE 'revealed';
-  END IF;
-END $$;
+-- NOTE: We do NOT add 'revealed' as a separate status.
+-- 'Revealed' is not a state - it's just an opened letter where
+-- sender_revealed_at is set. The status remains 'opened'.
+-- We use sender_revealed_at timestamp to determine if sender is visible.
 
 -- ============================================================================
 -- 2. ADD NEW COLUMNS TO CAPSULES TABLE
@@ -422,10 +414,10 @@ GRANT EXECUTE ON FUNCTION public.open_letter(UUID) TO authenticated;
 -- 8. AUTOMATIC REVEAL JOB FUNCTION
 -- ============================================================================
 -- WHAT: Function that reveals anonymous sender identities when reveal_at is reached
--- WHY: Automatically updates status and sets sender_revealed_at
+-- WHY: Automatically sets sender_revealed_at timestamp
 -- BEHAVIOR:
 --   - Finds all anonymous letters where reveal_at <= now() and not yet revealed
---   - Sets sender_revealed_at = now() and status = 'revealed'
+--   - Sets sender_revealed_at = now() (status remains 'opened')
 --   - Idempotent (safe to run multiple times)
 -- ============================================================================
 CREATE OR REPLACE FUNCTION public.reveal_anonymous_senders()
@@ -452,10 +444,11 @@ BEGIN
     AND deleted_at IS NULL;
   
   -- Then reveal anonymous senders where reveal_at has passed
+  -- NOTE: Status remains 'opened' - revealed is not a separate state,
+  -- it's just an opened letter with sender_revealed_at set
   UPDATE public.capsules
   SET 
     sender_revealed_at = now(),
-    status = 'revealed',
     updated_at = now()
   WHERE 
     is_anonymous = TRUE

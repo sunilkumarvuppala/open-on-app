@@ -10,7 +10,8 @@ enum CapsuleStatus {
   unlockingSoon,
   ready,
   opened,
-  revealed, // Anonymous sender has been revealed
+  // NOTE: 'revealed' is not a separate status - it's just 'opened' with sender_revealed_at set
+  // We use isRevealed getter to check if anonymous sender is visible
 }
 
 /// Capsule model - represents a time-locked letter
@@ -66,15 +67,9 @@ class Capsule {
   CapsuleStatus get status {
     final now = _now;
     
-    // Check if anonymous sender has been revealed
-    if (isAnonymous && senderRevealedAt != null) {
-      return CapsuleStatus.revealed;
-    }
-    
-    // Check if anonymous sender should be revealed (revealAt has passed)
-    if (isAnonymous && revealAt != null && (revealAt!.isBefore(now) || revealAt!.isAtSameMomentAs(now))) {
-      return CapsuleStatus.revealed;
-    }
+    // NOTE: 'revealed' is not a separate status - it's just 'opened' with sender visible
+    // Use isRevealed getter to check if anonymous sender is visible
+    // Status remains 'opened' even after anonymous sender is revealed
     
     if (openedAt != null) {
       return CapsuleStatus.opened;

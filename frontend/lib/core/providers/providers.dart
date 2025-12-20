@@ -310,8 +310,17 @@ final incomingOpenedCapsulesProvider = FutureProvider.family<List<Capsule>, Stri
   return capsulesAsync.when(
     data: (capsules) {
       try {
+        // Filter capsules that are opened (have openedAt set)
+        // NOTE: 'revealed' is not a separate status - it's just 'opened' with sender_revealed_at set
+        // All opened capsules (including anonymous ones after reveal) have openedAt != null
         final filtered = capsules
-            .where((c) => c.status == CapsuleStatus.opened)
+            .where((c) {
+              final isOpened = c.openedAt != null;
+              if (isOpened) {
+                Logger.debug('Found opened capsule: ${c.id}, openedAt: ${c.openedAt}, status: ${c.status}');
+              }
+              return isOpened;
+            })
             .toList();
         // Sort by most recently opened to earliest (newest openedAt first)
         filtered.sort((a, b) {
@@ -319,6 +328,7 @@ final incomingOpenedCapsulesProvider = FutureProvider.family<List<Capsule>, Stri
           final bOpened = b.openedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
           return bOpened.compareTo(aOpened); // Descending order
         });
+        Logger.info('Opened capsules for receiver $userId: ${filtered.length} out of ${capsules.length} total');
         return filtered;
       } catch (e, stackTrace) {
         Logger.error(
