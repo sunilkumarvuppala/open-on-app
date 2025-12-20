@@ -73,10 +73,25 @@ class CapsuleCard extends ConsumerWidget {
                     SizedBox(height: AppTheme.spacingSm),
                     Row(
                       children: [
-                        Icon(
-                          _getStatusIcon(),
-                          size: 16,
-                          color: _getStatusColor(colorScheme.primary1),
+                        // Anonymous icon (if applicable) with status icon
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Show anonymous icon first if capsule is anonymous and not revealed
+                            if (capsule.isAnonymous && !capsule.isRevealed) ...[
+                              Icon(
+                                Icons.visibility_off_outlined,
+                                size: 12,
+                                color: _getStatusColor(colorScheme.primary1).withOpacity(0.8),
+                              ),
+                              SizedBox(width: 4),
+                            ],
+                            Icon(
+                              _getStatusIcon(),
+                              size: 16,
+                              color: _getStatusColor(colorScheme.primary1),
+                            ),
+                          ],
                         ),
                         SizedBox(width: AppTheme.spacingXs),
                         Text(

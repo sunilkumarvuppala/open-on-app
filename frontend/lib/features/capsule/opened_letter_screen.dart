@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +11,7 @@ import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/utils/logger.dart';
+import 'package:openon_app/core/data/supabase_config.dart';
 
 class OpenedLetterScreen extends ConsumerStatefulWidget {
   final Capsule capsule;
@@ -23,11 +25,104 @@ class OpenedLetterScreen extends ConsumerStatefulWidget {
 class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
   String? _selectedReaction;
   bool _isSendingReaction = false;
+  Capsule? _currentCapsule;
+  Timer? _revealCountdownTimer;
+  StreamSubscription? _realtimeSubscription;
   
   @override
   void initState() {
     super.initState();
     _selectedReaction = widget.capsule.reaction;
+    _currentCapsule = widget.capsule;
+    
+    // Refresh capsule data immediately to get latest reveal_at if just opened
+    // This ensures we have the correct reveal_at timestamp set by the backend
+    _refreshCapsule();
+    
+    // Set up realtime subscription for reveal updates
+    if (widget.capsule.isAnonymous && !widget.capsule.isRevealed) {
+      _setupRealtimeSubscription();
+      _startRevealCountdownTimer();
+    }
+  }
+  
+  @override
+  void dispose() {
+    _revealCountdownTimer?.cancel();
+    _realtimeSubscription?.cancel();
+    super.dispose();
+  }
+  
+  void _setupRealtimeSubscription() {
+    try {
+      final supabase = SupabaseConfig.client;
+      _realtimeSubscription = supabase
+          .from('capsules')
+          .stream(primaryKey: ['id'])
+          .eq('id', widget.capsule.id)
+          .listen((data) {
+            if (data.isNotEmpty) {
+              final updated = data.first;
+              if (updated['sender_revealed_at'] != null) {
+                // Sender was revealed, refresh capsule
+                Logger.info('Sender revealed for capsule ${widget.capsule.id}');
+                _refreshCapsule();
+              }
+            }
+          });
+    } catch (e, stackTrace) {
+      Logger.error('Failed to set up realtime subscription', error: e, stackTrace: stackTrace);
+    }
+  }
+  
+  void _startRevealCountdownTimer() {
+    // Use _currentCapsule if available, otherwise widget.capsule
+    final capsule = _currentCapsule ?? widget.capsule;
+    if (capsule.revealAt == null) return;
+    
+    _revealCountdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      
+      // Get current capsule (may have been refreshed)
+      final currentCapsule = _currentCapsule ?? widget.capsule;
+      if (currentCapsule.revealAt == null) {
+        timer.cancel();
+        return;
+      }
+      
+      final now = DateTime.now();
+      if (now.isAfter(currentCapsule.revealAt!) || now.isAtSameMomentAs(currentCapsule.revealAt!)) {
+        // Reveal time has passed, refresh capsule
+        timer.cancel();
+        _refreshCapsule();
+      } else {
+        // Update UI to show countdown
+        setState(() {});
+      }
+    });
+  }
+  
+  Future<void> _refreshCapsule() async {
+    try {
+      final repo = ref.read(capsuleRepositoryProvider);
+      final updatedCapsule = await repo.getCapsuleById(widget.capsule.id);
+      if (updatedCapsule != null && mounted) {
+        setState(() {
+          _currentCapsule = updatedCapsule;
+        });
+        
+        // If anonymous and not revealed, restart countdown timer with new reveal_at
+        if (updatedCapsule.isAnonymous && !updatedCapsule.isRevealed && updatedCapsule.revealAt != null) {
+          _revealCountdownTimer?.cancel();
+          _startRevealCountdownTimer();
+        }
+      }
+    } catch (e, stackTrace) {
+      Logger.error('Failed to refresh capsule', error: e, stackTrace: stackTrace);
+    }
   }
   
   Future<void> _handleReaction(String emoji) async {
@@ -45,11 +140,11 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
       Logger.info('Reaction $emoji sent for capsule ${widget.capsule.id}');
       
       if (mounted) {
-        final colorScheme = ref.read(selectedColorSchemeProvider);
+        final displayName = _currentCapsule?.displaySenderName ?? widget.capsule.displaySenderName;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '${AppConstants.reactionSentMessage} ${widget.capsule.senderName} ♥',
+              '${AppConstants.reactionSentMessage} $displayName ♥',
             ),
             backgroundColor: AppColors.success,
             duration: AppConstants.animationDurationMedium,
@@ -102,10 +197,13 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
   
   @override
   Widget build(BuildContext context) {
-    final capsule = widget.capsule;
+    final capsule = _currentCapsule ?? widget.capsule;
     final openedAt = capsule.openedAt ?? DateTime.now();
     final colorScheme = ref.watch(selectedColorSchemeProvider);
     final gradient = DynamicTheme.dreamyGradient(colorScheme);
+    final isAnonymous = capsule.isAnonymous;
+    final isRevealed = capsule.isRevealed;
+    final revealCountdown = capsule.revealCountdownText;
     
     return Scaffold(
       backgroundColor: colorScheme.secondary2,
@@ -207,11 +305,47 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen> {
                       child: Column(
                         children: [
                           Text(
-                            '${AppConstants.fromPrefix} ${capsule.senderName}',
+                            '${AppConstants.fromPrefix} ${capsule.displaySenderName}',
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                   color: DynamicTheme.getSecondaryTextColor(colorScheme),
                                 ),
                           ),
+                          // Show reveal countdown if anonymous and not yet revealed
+                          if (isAnonymous && !isRevealed && revealCountdown.isNotEmpty) ...[
+                            SizedBox(height: AppTheme.spacingXs),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: AppTheme.spacingMd,
+                                vertical: AppTheme.spacingXs,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colorScheme.primary1.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                                border: Border.all(
+                                  color: colorScheme.primary1.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.schedule,
+                                    size: 14,
+                                    color: colorScheme.primary1,
+                                  ),
+                                  SizedBox(width: AppTheme.spacingXs),
+                                  Text(
+                                    revealCountdown,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: colorScheme.primary1,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                           SizedBox(height: AppTheme.spacingXs),
                           Text(
                             '${AppConstants.openedOnPrefix} ${DateFormat('MMMM d, y \'at\' h:mm a').format(openedAt)}',

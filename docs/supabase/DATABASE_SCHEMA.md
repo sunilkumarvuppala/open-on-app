@@ -25,6 +25,7 @@ Status values for time-locked capsules.
 - `sealed` - Locked, not yet ready to open
 - `ready` - Unlocked and ready to open
 - `opened` - Has been opened by recipient
+- `revealed` - Anonymous sender has been revealed (for anonymous letters)
 - `expired` - Past expiration date or deleted
 
 **Used in:** `capsules.status`
@@ -149,6 +150,9 @@ Time-locked letters (core entity of the application).
 - `sender_id` (UUID, NOT NULL, FK → `auth.users.id`) - User who sent the capsule
 - `recipient_id` (UUID, NOT NULL, FK → `recipients.id`) - Recipient of the capsule
 - `is_anonymous` (BOOLEAN, NOT NULL, DEFAULT FALSE) - Hide sender identity from recipient
+- `reveal_delay_seconds` (INTEGER) - Delay in seconds before revealing anonymous sender (0-259200, required if `is_anonymous = TRUE`)
+- `reveal_at` (TIMESTAMPTZ) - Timestamp when anonymous sender will be revealed (`opened_at + reveal_delay_seconds`)
+- `sender_revealed_at` (TIMESTAMPTZ) - Timestamp when sender was actually revealed (set by reveal job)
 - `is_disappearing` (BOOLEAN, NOT NULL, DEFAULT FALSE) - Delete after opening
 - `disappearing_after_open_seconds` (INTEGER) - Seconds before deletion (required if `is_disappearing = TRUE`)
 - `unlocks_at` (TIMESTAMPTZ, NOT NULL) - When capsule becomes available to open
@@ -168,6 +172,8 @@ Time-locked letters (core entity of the application).
 - `capsules_unlocks_future`: `unlocks_at` must be after `created_at`
 - `capsules_disappearing_seconds`: If `is_disappearing = TRUE`, `disappearing_after_open_seconds` must be > 0
 - `capsules_body_content`: Must have either `body_text` OR `body_rich_text`
+- `capsules_reveal_delay_max`: `reveal_delay_seconds` must be between 0 and 259200 (72 hours) if provided
+- `capsules_anonymous_delay`: If `is_anonymous = TRUE`, `reveal_delay_seconds` must be NOT NULL; if `is_anonymous = FALSE`, `reveal_delay_seconds` must be NULL
 
 **Relationships:**
 - `sender_id` → `auth.users(id)` ON DELETE CASCADE
@@ -178,7 +184,9 @@ Time-locked letters (core entity of the application).
 **RLS:** 
 - Senders can view sent capsules (outbox)
 - Recipients can view received capsules (inbox)
-- Anonymous capsules hide sender information
+- Anonymous capsules hide sender information until `reveal_at` is reached
+- Anonymous letters require mutual connection (enforced via `is_mutual_connection()` function)
+- Senders cannot modify `reveal_at`, `sender_revealed_at`, `opened_at`, or `sender_id`
 
 **Indexes:**
 - `idx_capsules_sender` on `(sender_id, created_at DESC)` - Outbox queries
@@ -187,6 +195,9 @@ Time-locked letters (core entity of the application).
 - `idx_capsules_unlocks_at` on `(unlocks_at)` WHERE `status = 'sealed'` - Find ready-to-unlock
 - `idx_capsules_opened_at` on `(opened_at)` WHERE `is_disappearing = TRUE` - Find expired disappearing
 - `idx_capsules_deleted_at` on `(deleted_at)` WHERE `deleted_at IS NOT NULL` - Exclude soft-deleted
+- `idx_capsules_reveal_at` on `(reveal_at)` WHERE `reveal_at IS NOT NULL` - Find letters ready to reveal
+- `idx_capsules_recipient_status` on `(recipient_id, status)` WHERE `deleted_at IS NULL` - Inbox filtering
+- `idx_capsules_sender_status` on `(sender_id, status)` WHERE `deleted_at IS NULL` - Outbox filtering
 - `idx_capsules_recipient_status` on `(recipient_id, status, created_at DESC)` - Inbox with status
 - `idx_capsules_sender_status` on `(sender_id, status, created_at DESC)` - Outbox with status
 
@@ -416,12 +427,18 @@ Action logging for security and compliance.
 
 ### `recipient_safe_capsules_view`
 
-Hides sender information for anonymous messages. Recipients should query this view instead of `capsules` table directly.
+Hides sender information for anonymous messages until reveal time. Recipients should query this view instead of `capsules` table directly.
 
-**Columns:** Same as `capsules`, but:
-- `sender_id` is NULL if `is_anonymous = TRUE`
-- `sender_name` is 'Anonymous' if `is_anonymous = TRUE`
-- `sender_avatar_url` is NULL if `is_anonymous = TRUE`
+**Columns:** Same as `capsules`, but with conditional sender information:
+- `sender_id`: NULL if anonymous and not revealed, otherwise actual sender_id
+- `sender_name`: 'Anonymous' if anonymous and not revealed, otherwise sender's display name
+- `sender_avatar_url`: NULL if anonymous and not revealed, otherwise sender's avatar URL
+
+**Reveal Logic:**
+- Non-anonymous: Always shows sender
+- Anonymous and `sender_revealed_at IS NOT NULL`: Shows sender (explicitly revealed)
+- Anonymous and `reveal_at <= now()`: Shows sender (reveal time passed)
+- Anonymous and `reveal_at > now()`: Hides sender (shows 'Anonymous')
 
 **Security:** Inherits RLS from underlying `capsules` table
 
@@ -585,6 +602,82 @@ Automatically updates `updated_at` timestamp on row modification.
 **Usage:** Called by triggers before UPDATE on tables with `updated_at` column
 
 **Tables:** `user_profiles`, `recipients`, `capsules`, `connection_requests`, `user_subscriptions`
+
+---
+
+### `is_mutual_connection(a UUID, b UUID)`
+
+Checks if two users are mutually connected.
+
+**Type:** SQL function  
+**Security:** STABLE (safe for query optimization)  
+**Returns:** BOOLEAN  
+**Usage:** Used in RLS policies to verify mutual connections for anonymous letters
+
+**Logic:**
+- Checks `connections` table for bidirectional connection
+- Handles both `(user1, user2)` and `(user2, user1)` orderings
+
+**Example:**
+```sql
+SELECT is_mutual_connection('user1-uuid', 'user2-uuid');
+-- Returns TRUE if users are connected, FALSE otherwise
+```
+
+---
+
+### `open_letter(letter_id UUID)`
+
+Server-side function to open a letter. Sets `opened_at` and calculates `reveal_at` for anonymous letters.
+
+**Type:** RPC function  
+**Security:** SECURITY DEFINER (runs with elevated privileges)  
+**Returns:** TABLE with capsule data (sender info hidden if anonymous and not revealed)  
+**Usage:** Called by backend API when recipient opens a letter
+
+**Actions:**
+- Verifies caller is the recipient (email or connection-based)
+- Verifies letter is eligible to open (status `ready` or `sealed` with `unlocks_at` passed)
+- Sets `opened_at = now()` (idempotent - safe to call multiple times)
+- If anonymous: Calculates `reveal_at = opened_at + reveal_delay_seconds`
+- Returns safe capsule data (sender hidden if not revealed)
+
+**Security:** 
+- Only recipient can call
+- Reveal timing calculated server-side (cannot be manipulated)
+- Returns sanitized sender info based on reveal status
+
+**Example:**
+```sql
+SELECT * FROM open_letter('capsule-uuid-here');
+```
+
+---
+
+### `reveal_anonymous_senders()`
+
+Automatically reveals anonymous sender identities when `reveal_at` timestamp is reached.
+
+**Type:** Scheduled function  
+**Security:** SECURITY DEFINER (runs with elevated privileges)  
+**Returns:** INTEGER (number of letters revealed)  
+**Usage:** Called by `pg_cron` job every 1 minute
+
+**Actions:**
+- Backfills `reveal_at` for existing opened anonymous letters missing it (backward compatibility)
+- Finds anonymous letters where `reveal_at <= now()` and `sender_revealed_at IS NULL`
+- Sets `sender_revealed_at = now()` and `status = 'revealed'`
+- Returns count of letters revealed
+
+**Idempotent:** Safe to run multiple times (only updates unrevealed letters)
+
+**Scheduled:** Runs every 1 minute via `pg_cron` job `'reveal-anonymous-senders'`
+
+**Example:**
+```sql
+SELECT reveal_anonymous_senders();
+-- Returns number of letters revealed in this run
+```
 
 ---
 

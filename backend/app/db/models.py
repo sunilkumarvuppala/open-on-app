@@ -55,14 +55,27 @@ class CapsuleStatus(str, enum.Enum):
     Capsule status enumeration matching Supabase schema.
     
     States:
+    - SEALED: Locked, not yet ready to open
+    - READY: Unlocked and ready to open
+    - OPENED: Has been opened by recipient
+    - REVEALED: Legacy status - should not be used. Use OPENED with sender_revealed_at instead.
+    - EXPIRED: Past expiration date or deleted
+    
+    Transitions:
     - SEALED: Capsule created, unlocks_at is in the future
     - READY: unlocks_at has passed, recipient can now open it
     - OPENED: Recipient has opened and read the letter
+    - REVEALED: DEPRECATED - Status should remain OPENED. Use sender_revealed_at to determine visibility.
     - EXPIRED: Letter expired (expires_at passed) or was soft-deleted
+    
+    Note: REVEALED is not a real state - it's just an opened letter where the anonymous
+    sender is visible. The reveal job should NOT change status to 'revealed'. Status should
+    remain 'opened' and sender_revealed_at timestamp indicates when sender became visible.
     """
     SEALED = "sealed"
     READY = "ready"
     OPENED = "opened"
+    REVEALED = "revealed"  # DEPRECATED: Should not be set. Use OPENED + sender_revealed_at instead.
     EXPIRED = "expired"
 
 
@@ -489,6 +502,11 @@ class Capsule(Base):
     is_anonymous: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_disappearing: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     disappearing_after_open_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    
+    # Anonymous reveal fields
+    reveal_delay_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    reveal_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    sender_revealed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     
     # Timestamps (all timezone-aware UTC)
     unlocks_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)

@@ -124,14 +124,25 @@ Create a new capsule (in sealed status with unlock time).
   "body_text": "Capsule content...",
   "body_rich_text": null,
   "is_anonymous": false,
-  "is_disappearing": false,
-  "disappearing_after_open_seconds": null,
+  "reveal_delay_seconds": null,
   "unlocks_at": "2026-01-01T00:00:00Z",
   "expires_at": null,
   "theme_id": "550e8400-e29b-41d4-a716-446655440001",
   "animation_id": "550e8400-e29b-41d4-a716-446655440002"
 }
 ```
+
+**Anonymous Letter Fields:**
+- `is_anonymous` (boolean): Whether sender identity is hidden (default: false)
+- `reveal_delay_seconds` (integer, optional): Delay in seconds before revealing sender identity (0-259200, default: 21600 = 6 hours)
+  - Required if `is_anonymous = true`
+  - Maximum: 259200 seconds (72 hours)
+  - Default: 21600 seconds (6 hours) if not provided
+
+**Anonymous Letter Requirements:**
+- Recipient must be a mutual connection (enforced at database level)
+- `reveal_delay_seconds` must be between 0 and 259200 (72 hours)
+- If `is_anonymous = true` and `reveal_delay_seconds` is not provided, defaults to 6 hours
 
 **Response (201):**
 ```json
@@ -143,8 +154,6 @@ Create a new capsule (in sealed status with unlock time).
   "body_text": "Capsule content...",
   "body_rich_text": null,
   "is_anonymous": false,
-  "is_disappearing": false,
-  "disappearing_after_open_seconds": null,
   "status": "sealed",
   "unlocks_at": "2026-01-01T00:00:00Z",
   "opened_at": null,
@@ -161,7 +170,6 @@ Create a new capsule (in sealed status with unlock time).
 - `recipient_id`: Required, must be a valid UUID of a recipient owned by current user
 - `unlocks_at`: Required, must be in the future
 - Either `body_text` OR `body_rich_text` is required (not both empty)
-- If `is_disappearing` is true, `disappearing_after_open_seconds` is required
 
 **Example:**
 ```bash
@@ -243,9 +251,13 @@ Get details of a specific capsule.
 ```
 
 **Permissions:**
-- Sender: Can always view
+- Sender: Can always view (including their own identity for anonymous letters)
 - Recipient owner: Can view if status is `ready` or `opened`
-- Anonymous capsules: Sender info hidden from recipient
+- Anonymous capsules: 
+  - Sender info (`sender_id`, `sender_name`, `sender_avatar_url`) hidden from recipient until reveal
+  - Reveal happens automatically when `reveal_at` timestamp is reached
+  - `reveal_at` is calculated as `opened_at + reveal_delay_seconds` when letter is opened
+  - Recipient sees "Anonymous" as sender name until reveal
 
 **Example:**
 ```bash
@@ -264,8 +276,6 @@ Update a capsule (only before opening).
   "body_text": "Updated content...",
   "body_rich_text": null,
   "is_anonymous": true,
-  "is_disappearing": true,
-  "disappearing_after_open_seconds": 3600,
   "theme_id": "new-theme-id",
   "animation_id": "new-animation-id",
   "expires_at": "2027-01-01T00:00:00Z"
@@ -285,6 +295,8 @@ Update a capsule (only before opening).
 - Only sender can edit
 - Cannot edit if status is `opened` or `expired`
 - `unlocks_at` cannot be changed after creation
+- Cannot modify `reveal_at`, `sender_revealed_at`, `opened_at`, or `sender_id` (protected fields)
+- For anonymous letters: Cannot change `is_anonymous` or `reveal_delay_seconds` after creation (enforced at database level)
 - All fields are optional (partial update)
 
 **Example:**
@@ -308,15 +320,22 @@ Open a ready capsule (recipient owner only).
   "id": "550e8400-e29b-41d4-a716-446655440003",
   "status": "opened",
   "opened_at": "2025-01-15T10:40:00Z",
+  "reveal_at": "2025-01-15T16:40:00Z",
   ...
 }
 ```
 
 **Requirements:**
 - Must be the recipient owner (user who owns the recipient)
-- Capsule must be in `ready` status
+- Capsule must be in `ready` or `sealed` status (with `unlocks_at` passed)
 - Action is irreversible
-- For disappearing messages, `deleted_at` is automatically set
+
+**Anonymous Letter Behavior:**
+- If `is_anonymous = true`:
+  - `reveal_at` is calculated server-side as `opened_at + reveal_delay_seconds`
+  - `reveal_at` is set automatically (cannot be manipulated by client)
+  - Sender identity remains hidden in response until `reveal_at` is reached
+  - Automatic reveal job updates `sender_revealed_at` and `status = 'revealed'` when `reveal_at` passes
 
 **Example:**
 ```bash
@@ -326,7 +345,7 @@ curl -X POST "http://localhost:8000/capsules/550e8400-e29b-41d4-a716-44665544000
 
 ### DELETE /capsules/{capsule_id}
 
-Soft delete a capsule (for disappearing messages or sender deletion).
+Soft delete a capsule (sender deletion only).
 
 **Response (200):**
 ```json
@@ -846,7 +865,7 @@ All errors follow this format:
 - `sealed`: Capsule created with unlock time set (can be edited)
 - `ready`: Unlock time has passed, recipient can open
 - `opened`: Recipient has opened the capsule (terminal state)
-- `expired`: Soft-deleted or expired (disappearing messages)
+- `expired`: Soft-deleted or expired
 
 ### Username Field
 
@@ -867,9 +886,15 @@ All errors follow this format:
 
 4. **Timezones**: All timestamps are in UTC and timezone-aware.
 
-5. **Anonymous Capsules**: When `is_anonymous` is true, sender info is hidden from recipient via Supabase views.
-
-6. **Disappearing Messages**: When `is_disappearing` is true, capsule is soft-deleted after opening (via Supabase triggers).
+5. **Anonymous Capsules**: 
+   - When `is_anonymous` is true, sender info is hidden from recipient until `reveal_at` timestamp
+   - Requires mutual connection (enforced at database level via RLS)
+   - `reveal_delay_seconds` must be between 0-259200 (72 hours max)
+   - Default delay is 6 hours (21600 seconds) if not provided
+   - `reveal_at` is calculated server-side when letter is opened: `opened_at + reveal_delay_seconds`
+   - Automatic reveal job updates `sender_revealed_at` and `status = 'revealed'` when `reveal_at` passes
+   - Sender always sees their own identity
+   - Recipient sees "Anonymous" until reveal time
 
 ---
 

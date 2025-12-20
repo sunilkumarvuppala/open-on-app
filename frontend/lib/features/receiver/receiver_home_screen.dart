@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -481,47 +482,70 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
 class _LockedTab extends ConsumerWidget {
   const _LockedTab();
 
+  Future<void> _onRefresh(WidgetRef ref, String userId) async {
+    ref.invalidate(incomingReadyCapsulesProvider(userId));
+    ref.invalidate(incomingCapsulesProvider(userId));
+    // Wait a bit for the provider to refresh
+    await Future.delayed(const Duration(milliseconds: 100));
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(currentUserProvider);
     final userId = userAsync.asData?.value?.id ?? '';
     final capsulesAsync = ref.watch(incomingReadyCapsulesProvider(userId));
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
 
-    return capsulesAsync.when(
-      data: (capsules) {
-        if (capsules.isEmpty) {
-          return const EmptyState(
-            icon: Icons.auto_awesome,
-            title: 'No ready capsules',
-            message: 'Capsules that are ready to open will appear here ✨',
-          );
-        }
-
-        return ListView.builder(
-          key: const PageStorageKey('incoming_ready_capsules'),
-          padding: EdgeInsets.symmetric(
-            horizontal: AppTheme.spacingLg,
-            vertical: AppTheme.spacingSm,
-          ),
-          itemCount: capsules.length,
-          itemBuilder: (context, index) {
-            final capsule = capsules[index];
-            return Padding(
-              key: ValueKey('incoming_ready_${capsule.id}'),
-              padding: EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
-              child: InkWell(
-                onTap: () => context.push('/capsule/${capsule.id}', extra: capsule),
-                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                child: _ReceiverCapsuleCard(capsule: capsule),
+    return RefreshIndicator(
+      onRefresh: () => _onRefresh(ref, userId),
+      color: colorScheme.accent,
+      backgroundColor: colorScheme.isDarkTheme 
+          ? Colors.white.withOpacity(0.1)
+          : Colors.black.withOpacity(0.05),
+      strokeWidth: 3.0,
+      displacement: 40.0,
+      child: capsulesAsync.when(
+        data: (capsules) {
+          if (capsules.isEmpty) {
+            return const SingleChildScrollView(
+              physics: AlwaysScrollableScrollPhysics(),
+              child: EmptyState(
+                icon: Icons.auto_awesome,
+                title: 'No ready capsules',
+                message: 'Capsules that are ready to open will appear here ✨',
               ),
             );
-          },
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => ErrorDisplay(
-        message: 'Failed to load capsules',
-        onRetry: () => ref.invalidate(incomingReadyCapsulesProvider(userId)),
+          }
+
+          return ListView.builder(
+            key: const PageStorageKey('incoming_ready_capsules'),
+            padding: EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingLg,
+              vertical: AppTheme.spacingSm,
+            ),
+            itemCount: capsules.length,
+            itemBuilder: (context, index) {
+              final capsule = capsules[index];
+              return Padding(
+                key: ValueKey('incoming_ready_${capsule.id}'),
+                padding: EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
+                child: InkWell(
+                  onTap: () => context.push('/capsule/${capsule.id}', extra: capsule),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  child: _ReceiverCapsuleCard(capsule: capsule),
+                ),
+              );
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) => SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ErrorDisplay(
+            message: 'Failed to load capsules',
+            onRetry: () => ref.invalidate(incomingReadyCapsulesProvider(userId)),
+          ),
+        ),
       ),
     );
   }
@@ -530,47 +554,70 @@ class _LockedTab extends ConsumerWidget {
 class _OpeningSoonTab extends ConsumerWidget {
   const _OpeningSoonTab();
 
+  Future<void> _onRefresh(WidgetRef ref, String userId) async {
+    ref.invalidate(incomingOpeningSoonCapsulesProvider(userId));
+    ref.invalidate(incomingCapsulesProvider(userId));
+    // Wait a bit for the provider to refresh
+    await Future.delayed(const Duration(milliseconds: 100));
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(currentUserProvider);
     final userId = userAsync.asData?.value?.id ?? '';
     final capsulesAsync = ref.watch(incomingOpeningSoonCapsulesProvider(userId));
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
 
-    return capsulesAsync.when(
-      data: (capsules) {
-        if (capsules.isEmpty) {
-          return const EmptyState(
-            icon: Icons.schedule_outlined,
-            title: 'Nothing opening soon',
-            message: 'Capsules unlocking within 7 days will appear here',
-          );
-        }
-
-        return ListView.builder(
-          key: const PageStorageKey('incoming_opening_soon_capsules'),
-          padding: EdgeInsets.symmetric(
-            horizontal: AppTheme.spacingLg,
-            vertical: AppTheme.spacingSm,
-          ),
-          itemCount: capsules.length,
-          itemBuilder: (context, index) {
-            final capsule = capsules[index];
-            return Padding(
-              key: ValueKey('incoming_opening_soon_${capsule.id}'),
-              padding: EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
-              child: InkWell(
-                onTap: () => context.push('/capsule/${capsule.id}', extra: capsule),
-                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                child: _ReceiverCapsuleCard(capsule: capsule),
+    return RefreshIndicator(
+      onRefresh: () => _onRefresh(ref, userId),
+      color: colorScheme.accent,
+      backgroundColor: colorScheme.isDarkTheme 
+          ? Colors.white.withOpacity(0.1)
+          : Colors.black.withOpacity(0.05),
+      strokeWidth: 3.0,
+      displacement: 40.0,
+      child: capsulesAsync.when(
+        data: (capsules) {
+          if (capsules.isEmpty) {
+            return const SingleChildScrollView(
+              physics: AlwaysScrollableScrollPhysics(),
+              child: EmptyState(
+                icon: Icons.schedule_outlined,
+                title: 'Nothing opening soon',
+                message: 'Capsules unlocking within 7 days will appear here',
               ),
             );
-          },
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => ErrorDisplay(
-        message: 'Failed to load capsules',
-        onRetry: () => ref.invalidate(incomingOpeningSoonCapsulesProvider(userId)),
+          }
+
+          return ListView.builder(
+            key: const PageStorageKey('incoming_opening_soon_capsules'),
+            padding: EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingLg,
+              vertical: AppTheme.spacingSm,
+            ),
+            itemCount: capsules.length,
+            itemBuilder: (context, index) {
+              final capsule = capsules[index];
+              return Padding(
+                key: ValueKey('incoming_opening_soon_${capsule.id}'),
+                padding: EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
+                child: InkWell(
+                  onTap: () => context.push('/capsule/${capsule.id}', extra: capsule),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  child: _ReceiverCapsuleCard(capsule: capsule),
+                ),
+              );
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) => SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ErrorDisplay(
+            message: 'Failed to load capsules',
+            onRetry: () => ref.invalidate(incomingOpeningSoonCapsulesProvider(userId)),
+          ),
+        ),
       ),
     );
   }
@@ -579,47 +626,70 @@ class _OpeningSoonTab extends ConsumerWidget {
 class _OpenedTab extends ConsumerWidget {
   const _OpenedTab();
 
+  Future<void> _onRefresh(WidgetRef ref, String userId) async {
+    ref.invalidate(incomingOpenedCapsulesProvider(userId));
+    ref.invalidate(incomingCapsulesProvider(userId));
+    // Wait a bit for the provider to refresh
+    await Future.delayed(const Duration(milliseconds: 100));
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(currentUserProvider);
     final userId = userAsync.asData?.value?.id ?? '';
     final capsulesAsync = ref.watch(incomingOpenedCapsulesProvider(userId));
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
 
-    return capsulesAsync.when(
-      data: (capsules) {
-        if (capsules.isEmpty) {
-          return const EmptyState(
-            icon: Icons.mark_email_read_outlined,
-            title: 'No opened capsules yet',
-            message: 'When you open incoming capsules, they\'ll appear here',
-          );
-        }
-
-        return ListView.builder(
-          key: const PageStorageKey('incoming_opened_capsules'),
-          padding: EdgeInsets.symmetric(
-            horizontal: AppTheme.spacingLg,
-            vertical: AppTheme.spacingSm,
-          ),
-          itemCount: capsules.length,
-          itemBuilder: (context, index) {
-            final capsule = capsules[index];
-            return Padding(
-              key: ValueKey('incoming_opened_${capsule.id}'),
-              padding: EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
-              child: InkWell(
-                onTap: () => context.push('/capsule/${capsule.id}/opened', extra: capsule),
-                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                child: _ReceiverCapsuleCard(capsule: capsule),
+    return RefreshIndicator(
+      onRefresh: () => _onRefresh(ref, userId),
+      color: colorScheme.accent,
+      backgroundColor: colorScheme.isDarkTheme 
+          ? Colors.white.withOpacity(0.1)
+          : Colors.black.withOpacity(0.05),
+      strokeWidth: 3.0,
+      displacement: 40.0,
+      child: capsulesAsync.when(
+        data: (capsules) {
+          if (capsules.isEmpty) {
+            return const SingleChildScrollView(
+              physics: AlwaysScrollableScrollPhysics(),
+              child: EmptyState(
+                icon: Icons.mark_email_read_outlined,
+                title: 'No opened capsules yet',
+                message: 'When you open incoming capsules, they\'ll appear here',
               ),
             );
-          },
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => ErrorDisplay(
-        message: 'Failed to load capsules',
-        onRetry: () => ref.invalidate(incomingOpenedCapsulesProvider(userId)),
+          }
+
+          return ListView.builder(
+            key: const PageStorageKey('incoming_opened_capsules'),
+            padding: EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingLg,
+              vertical: AppTheme.spacingSm,
+            ),
+            itemCount: capsules.length,
+            itemBuilder: (context, index) {
+              final capsule = capsules[index];
+              return Padding(
+                key: ValueKey('incoming_opened_${capsule.id}'),
+                padding: EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
+                child: InkWell(
+                  onTap: () => context.push('/capsule/${capsule.id}/opened', extra: capsule),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  child: _ReceiverCapsuleCard(capsule: capsule),
+                ),
+              );
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) => SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ErrorDisplay(
+            message: 'Failed to load capsules',
+            onRetry: () => ref.invalidate(incomingOpenedCapsulesProvider(userId)),
+          ),
+        ),
       ),
     );
   }
@@ -656,20 +726,42 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
     final shouldAnimate = timeUntilUnlock > Duration.zero && 
                           timeUntilUnlock < AppConstants.sealedLetterAnimationThreshold;
     
+    // Check if capsule is anonymous and not yet revealed
+    final isAnonymous = capsule.isAnonymous && !capsule.isRevealed;
+    
+    Widget lockIcon;
     if (shouldAnimate) {
-      return SealedLetterAnimation(
+      lockIcon = SealedLetterAnimation(
         size: AppConstants.sealedLetterIconSize,
         color: lockIconColor,
         margin: EdgeInsets.zero, // No margin since we're positioning it manually
       );
+    } else {
+      // Static emoji icon for capsules with unlock time >= threshold
+      // Matches animated icon appearance exactly for visual consistency
+      lockIcon = LockEmojiWithOutline(
+        iconSize: AppConstants.sealedLetterIconSize,
+        opacity: AppConstants.sealedLetterOpacity,
+      );
     }
     
-    // Static emoji icon for capsules with unlock time >= threshold
-    // Matches animated icon appearance exactly for visual consistency
-    return LockEmojiWithOutline(
-      iconSize: AppConstants.sealedLetterIconSize,
-      opacity: AppConstants.sealedLetterOpacity,
-    );
+    // If anonymous, show anonymous icon first, then lock icon
+    if (isAnonymous) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.visibility_off_outlined,
+            size: AppConstants.sealedLetterIconSize * 0.7,
+            color: lockIconColor.withOpacity(AppConstants.sealedLetterOpacity),
+          ),
+          SizedBox(width: 4),
+          lockIcon,
+        ],
+      );
+    }
+    
+    return lockIcon;
   }
 
   @override
@@ -700,12 +792,14 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Left: Sender profile avatar
-            UserAvatar(
-              imageUrl: capsule.senderAvatar.isNotEmpty ? capsule.senderAvatar : null,
-              name: capsule.senderName,
-              size: AppConstants.capsuleCardAvatarSize,
-            ),
+            // Left: Sender profile avatar (or animated incognito icon for anonymous)
+            capsule.isAnonymous && !capsule.isRevealed
+                ? _AnimatedAnonymousIcon(colorScheme: colorScheme)
+                : UserAvatar(
+                    imageUrl: capsule.displaySenderAvatar.isNotEmpty ? capsule.displaySenderAvatar : null,
+                    name: capsule.displaySenderName,
+                    size: AppConstants.capsuleCardAvatarSize,
+                  ),
             SizedBox(width: AppTheme.spacingMd),
             // Middle: Text content - expanded to take most space
             Expanded(
@@ -720,7 +814,7 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
                       // Sender name - takes available space
                       Expanded(
                         child: Text(
-                          capsule.senderName,
+                          capsule.displaySenderName,
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 color: DynamicTheme.getPrimaryTextColor(colorScheme),
                                 fontWeight: FontWeight.w700,
@@ -838,6 +932,90 @@ class _ReceiverCapsuleCard extends ConsumerWidget {
               child: _buildSealedLetterIcon(capsule, colorScheme),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Animated anonymous icon that alternates between two icons
+class _AnimatedAnonymousIcon extends StatefulWidget {
+  final AppColorScheme colorScheme;
+  
+  const _AnimatedAnonymousIcon({required this.colorScheme});
+  
+  @override
+  State<_AnimatedAnonymousIcon> createState() => _AnimatedAnonymousIconState();
+}
+
+class _AnimatedAnonymousIconState extends State<_AnimatedAnonymousIcon> {
+  int _currentIconIndex = 0;
+  late Timer _timer;
+  
+  final List<IconData> _icons = [
+    Icons.account_circle,
+    Icons.help_outline,
+  ];
+  
+  @override
+  void initState() {
+    super.initState();
+    // Switch icons every 2.5 seconds (average of 2-3 seconds)
+    // Using a slightly longer interval to allow fade transition to complete smoothly
+    _timer = Timer.periodic(const Duration(milliseconds: 2500), (timer) {
+      if (mounted) {
+        setState(() {
+          _currentIconIndex = (_currentIconIndex + 1) % _icons.length;
+        });
+      }
+    });
+  }
+  
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: AppConstants.capsuleCardAvatarSize,
+      height: AppConstants.capsuleCardAvatarSize,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: DynamicTheme.getSecondaryTextColor(widget.colorScheme).withOpacity(0.15), // Darker background for incognito look
+        border: Border.all(
+          color: DynamicTheme.getSecondaryTextColor(widget.colorScheme).withOpacity(0.3),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: widget.colorScheme.primary1.withOpacity(0.1),
+            blurRadius: 8,
+            spreadRadius: 0.5,
+          ),
+        ],
+      ),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 800), // Longer duration for smooth fade
+        switchInCurve: Curves.easeInOut,
+        switchOutCurve: Curves.easeInOut,
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          // Smooth fade transition with ease curves
+          return FadeTransition(
+            opacity: CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeInOut,
+            ),
+            child: child,
+          );
+        },
+        child: Icon(
+          _icons[_currentIconIndex],
+          key: ValueKey<int>(_currentIconIndex), // Key ensures AnimatedSwitcher recognizes the change
+          size: AppConstants.capsuleCardAvatarSize * 0.5,
+          color: DynamicTheme.getSecondaryTextColor(widget.colorScheme).withOpacity(0.6), // Muted color for incognito
+        ),
       ),
     );
   }

@@ -86,22 +86,29 @@ features/capsule/
 **Key Features**:
 - Letter title
 - Letter content
-- Sender information
+- Sender information (respects anonymous status)
+- Anonymous sender display ("Anonymous" until reveal)
+- Reveal countdown for anonymous letters ("Reveals in 5h 12m")
 - Opened date/time
 - Reaction options
 - Share letter (future)
 - Beautiful letter UI
+- Realtime updates for anonymous reveal
 
 **User Flow**:
 1. Animation completes
 2. Letter content displays
-3. User can read letter
-4. User can add reaction
-5. User can share (future)
+3. If anonymous: Shows "Anonymous" and countdown until reveal
+4. If anonymous: Automatically updates when sender is revealed (via realtime)
+5. User can read letter
+6. User can add reaction
+7. User can share (future)
 
 **Visual Elements**:
 - Letter content area
-- Sender info
+- Sender info (or "Anonymous" with countdown)
+- Anonymous indicator icon (if anonymous and not revealed)
+- Reveal countdown ("Reveals in 5h 12m")
 - Opened timestamp
 - Reaction buttons
 - Share button (future)
@@ -141,13 +148,23 @@ features/capsule/
 ```
 1. OpenedLetterScreen displays
    ↓
-2. User reads letter content
+2. If anonymous and not revealed:
+   - Shows "Anonymous" as sender
+   - Shows countdown: "Reveals in 5h 12m"
+   - Subscribes to realtime updates
    ↓
-3. User can add reaction
+3. User reads letter content
    ↓
-4. User can share letter (future)
+4. If anonymous: When reveal time arrives:
+   - Realtime subscription triggers update
+   - Sender identity appears automatically
+   - Countdown disappears
    ↓
-5. User navigates back
+5. User can add reaction
+   ↓
+6. User can share letter (future)
+   ↓
+7. User navigates back
 ```
 
 ## Integration Points
@@ -327,10 +344,29 @@ class _OpeningAnimationScreenState extends State<OpeningAnimationScreen> {
 - [ ] Save letter locally
 - [ ] Reminder notifications
 
+## Anonymous Letters
+
+Anonymous letters temporarily hide the sender's identity until a reveal time is reached. The feature includes:
+
+- **Anonymous Toggle**: Available only for mutual connections during creation
+- **Reveal Delay**: Configurable delay (0h-72h, default 6h) after opening
+- **Display**: Shows "Anonymous" and countdown until reveal
+- **Automatic Reveal**: Sender identity appears automatically when reveal time arrives
+- **Realtime Updates**: Uses Supabase Realtime to refresh when reveal happens
+
+**Model Helpers**:
+- `capsule.isAnonymous` - Check if anonymous
+- `capsule.isRevealed` - Check if sender has been revealed
+- `capsule.displaySenderName` - Returns "Anonymous" or real name
+- `capsule.displaySenderAvatar` - Returns empty string or avatar URL
+- `capsule.revealCountdownText` - Returns "Reveals in 5h 12m" format
+
 ## Related Documentation
 
 - [Home Screen](./HOME.md) - For navigation to capsules
 - [Receiver Screen](./RECEIVER.md) - For receiver capsule views
+- [Create Capsule](./CREATE_CAPSULE.md) - For creating anonymous letters
+- [Anonymous Letters Feature](../../anonymous_letters.md) - Complete anonymous letters documentation
 - [Animations Feature](./ANIMATIONS.md) - For animation details
 - [Performance Optimizations](../PERFORMANCE_OPTIMIZATIONS.md) - For performance details
 

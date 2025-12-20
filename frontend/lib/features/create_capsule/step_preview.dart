@@ -107,6 +107,28 @@ class StepPreview extends ConsumerWidget {
                           fontSize: 14,
                         ),
                       ),
+                      if (draft.isAnonymous) ...[
+                        SizedBox(height: AppTheme.spacingXs),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.visibility_off_outlined,
+                              size: 14,
+                              color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityFull),
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              'Anonymous',
+                              style: TextStyle(
+                                color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityFull),
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -159,6 +181,17 @@ class StepPreview extends ConsumerWidget {
                             icon: Icons.photo_outlined,
                             label: 'Photo',
                             value: 'Included',
+                            primaryColor: colorScheme.primary1,
+                            colorScheme: colorScheme,
+                          ),
+                        ],
+                        if (draft.isAnonymous) ...[
+                          Divider(height: AppTheme.spacingXl),
+                          _buildDetailRow(
+                            context,
+                            icon: Icons.visibility_off_outlined,
+                            label: 'Anonymous',
+                            value: _getRevealDelayText(draft.revealDelaySeconds ?? 21600),
                             primaryColor: colorScheme.primary1,
                             colorScheme: colorScheme,
                           ),
@@ -268,6 +301,16 @@ class StepPreview extends ConsumerWidget {
         ),
       ],
     );
+  }
+  
+  String _getRevealDelayText(int seconds) {
+    if (seconds == 0) return 'On open';
+    final hours = seconds ~/ 3600;
+    if (hours == 1) return '1 hour after opening';
+    if (hours < 24) return '$hours hours after opening';
+    final days = hours ~/ 24;
+    if (days == 1) return '1 day after opening';
+    return '$days days after opening';
   }
   
   Widget _buildDetailRow(

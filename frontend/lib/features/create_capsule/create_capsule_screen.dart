@@ -13,6 +13,7 @@ import 'package:openon_app/core/utils/logger.dart';
 import 'package:openon_app/features/create_capsule/step_choose_recipient.dart';
 import 'package:openon_app/features/create_capsule/step_write_letter.dart';
 import 'package:openon_app/features/create_capsule/step_choose_time.dart';
+import 'package:openon_app/features/create_capsule/step_anonymous_settings.dart';
 import 'package:openon_app/features/create_capsule/step_preview.dart';
 
 /// Exit action options for letter creation exit dialog
@@ -51,7 +52,7 @@ class CreateCapsuleScreen extends ConsumerStatefulWidget {
 class _CreateCapsuleScreenState extends ConsumerState<CreateCapsuleScreen> {
   final PageController _pageController = PageController();
   int _currentStep = 0;
-  final int _totalSteps = 4;
+  final int _totalSteps = 5;
   
   @override
   void initState() {
@@ -608,6 +609,7 @@ class _CreateCapsuleScreenState extends ConsumerState<CreateCapsuleScreen> {
                 StepChooseRecipient(onNext: _nextStep),
                 StepWriteLetter(onNext: _nextStep, onBack: _previousStep),
                 StepChooseTime(onNext: _nextStep, onBack: _previousStep),
+                StepAnonymousSettings(onNext: _nextStep, onBack: _previousStep),
                 StepPreview(onBack: _previousStep, onSubmit: _handleSubmit),
               ],
             ),

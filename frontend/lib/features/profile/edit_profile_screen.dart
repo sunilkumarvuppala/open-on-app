@@ -461,8 +461,35 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         );
       }
       
+      // Clear Flutter's image cache for the old avatar URL to force reload
+      if (avatarUrl != null && avatarUrl.isNotEmpty) {
+        try {
+          // Evict the old image from cache if it exists
+          final imageProvider = NetworkImage(avatarUrl);
+          await imageProvider.evict();
+          // Also try with cache-busted URL
+          final uri = Uri.parse(avatarUrl);
+          final cacheBustedUrl = uri.query.isEmpty 
+              ? '$avatarUrl?_t=${DateTime.now().millisecondsSinceEpoch}'
+              : '$avatarUrl&_t=${DateTime.now().millisecondsSinceEpoch}';
+          final cacheBustedProvider = NetworkImage(cacheBustedUrl);
+          await cacheBustedProvider.evict();
+        } catch (e) {
+          // Ignore errors - eviction is best effort
+          print('Failed to evict image cache: $e');
+        }
+      }
+      
       // Invalidate user provider to refresh
       ref.invalidate(currentUserProvider);
+      
+      // Force refresh by reading the provider again to ensure UI updates
+      // This ensures the StreamProvider emits the updated cached user
+      await ref.read(currentUserProvider.future);
+      
+      // Small delay to ensure the provider has fully updated before navigating
+      // This gives the UI time to rebuild with the new avatar URL
+      await Future.delayed(const Duration(milliseconds: 200));
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../providers/providers.dart';
 import '../theme/dynamic_theme.dart';
@@ -10,6 +11,35 @@ import '../theme/color_scheme.dart';
 import '../constants/app_constants.dart';
 import '../models/models.dart';
 import '../router/app_router.dart';
+
+/// Custom refresh indicator with simple rotating icon
+class SimpleRefreshIndicator extends StatelessWidget {
+  final Future<void> Function() onRefresh;
+  final Widget child;
+  final Color? color;
+
+  const SimpleRefreshIndicator({
+    super.key,
+    required this.onRefresh,
+    required this.child,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final indicatorColor = color ?? colorScheme.primary;
+
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      color: indicatorColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      strokeWidth: 2.0,
+      displacement: 40.0,
+      child: child,
+    );
+  }
+}
 
 /// Custom gradient button with consistent styling
 class GradientButton extends ConsumerWidget {
@@ -84,12 +114,43 @@ class UserAvatar extends ConsumerWidget {
     this.size = 48,
   });
 
+  /// Adds a cache-busting query parameter to the image URL
+  /// This ensures that when the same URL is overwritten with new content,
+  /// the image will be reloaded instead of using the cached version
+  String _addCacheBuster(String url, int timestamp) {
+    // Add a timestamp-based cache-busting parameter
+    // This ensures the image reloads when the avatar is updated (even if URL stays the same)
+    final uri = Uri.parse(url);
+    final separator = uri.query.isEmpty ? '?' : '&';
+    return '$url$separator' + '_t=$timestamp';
+  }
+  
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasImage = (imageUrl != null && imageUrl!.isNotEmpty) || 
                      (imagePath != null && imagePath!.isNotEmpty);
     final colorScheme = ref.watch(selectedColorSchemeProvider);
     final gradient = DynamicTheme.dreamyGradient(colorScheme);
+    
+    // Watch current user to detect when avatar changes
+    final userAsync = ref.watch(currentUserProvider);
+    final user = userAsync.asData?.value;
+    
+    // Use the user's current avatar URL if available, otherwise use the prop
+    // This ensures we always use the latest avatar URL from the provider
+    final effectiveAvatarUrl = user?.avatarUrl ?? imageUrl;
+    
+    // Create a cache key that changes when the avatar URL or provider state changes
+    // Include user ID and provider state hash to ensure uniqueness
+    // The provider state hash changes when invalidated, forcing a new cache key
+    final providerStateHash = userAsync.hashCode; // Changes when provider updates
+    final cacheKey = user != null 
+        ? '${user.id}_${effectiveAvatarUrl ?? ""}_$providerStateHash' 
+        : '${effectiveAvatarUrl ?? ""}_$providerStateHash';
+    
+    // Use provider state hash as cache timestamp - this changes when provider updates
+    // This ensures the image reloads when the provider is invalidated, even if URL stays the same
+    final cacheTimestamp = providerStateHash;
     
     return Container(
       width: size,
@@ -136,12 +197,31 @@ class UserAvatar extends ConsumerWidget {
                         );
                       },
                     )
-                  : Image.network(
-                      imageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        // Fallback to initials if network image fails to load
-                        return Center(
+                  : effectiveAvatarUrl != null && effectiveAvatarUrl.isNotEmpty
+                      ? Image.network(
+                          // Use effective avatar URL (from provider if available) for cache-busting
+                          // Add hash-based cache-busting parameter to ensure updated avatars are displayed
+                          // This is especially important when the same URL is overwritten with new content
+                          _addCacheBuster(effectiveAvatarUrl, cacheTimestamp),
+                          key: ValueKey<String>(cacheKey), // Key changes when user or avatar URL changes
+                          fit: BoxFit.cover,
+                          cacheWidth: size.toInt(),
+                          cacheHeight: size.toInt(),
+                          errorBuilder: (context, error, stackTrace) {
+                            // Fallback to initials if network image fails to load
+                            return Center(
+                              child: Text(
+                                _getInitials(name),
+                                style: TextStyle(
+                                  color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                                  fontSize: size * 0.4,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            );
+                          },
+                        )
+                      : Center(
                           child: Text(
                             _getInitials(name),
                             style: TextStyle(
@@ -150,9 +230,7 @@ class UserAvatar extends ConsumerWidget {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                        );
-                      },
-                    ),
+                        ),
             )
           : Center(
               child: Text(

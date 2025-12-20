@@ -264,7 +264,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                             SizedBox(width: AppConstants.tabSpacing),
                             Flexible(
                               child: Text(
-                                'Revealed',
+                                'Opened',
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
                               ),
@@ -705,53 +705,76 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
 class _UpcomingTab extends ConsumerWidget {
   const _UpcomingTab();
 
+  Future<void> _onRefresh(WidgetRef ref, String userId) async {
+    ref.invalidate(upcomingCapsulesProvider(userId));
+    ref.invalidate(capsulesProvider(userId));
+    // Wait a bit for the provider to refresh
+    await Future.delayed(const Duration(milliseconds: 100));
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(currentUserProvider);
     final userId = userAsync.asData?.value?.id ?? '';
     final capsulesAsync = ref.watch(upcomingCapsulesProvider(userId));
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
 
-    return capsulesAsync.when(
-      data: (capsules) {
-        if (capsules.isEmpty) {
-          return EmptyState(
-            icon: Icons.mail_outline,
-            title: 'No upcoming letters',
-            message: 'Create a new letter to get started',
-            action: ElevatedButton(
-              onPressed: () => context.push(Routes.createCapsule),
-              child: const Text('Create Letter'),
-            ),
-          );
-        }
-
-        return ListView.builder(
-          key: const PageStorageKey('upcoming_capsules'),
-          padding: EdgeInsets.symmetric(
-            horizontal: AppTheme.spacingLg,
-            vertical: AppTheme.spacingSm,
-          ),
-          itemCount: capsules.length,
-          itemBuilder: (context, index) {
-            final capsule = capsules[index];
-            return Padding(
-              key: ValueKey('upcoming_${capsule.id}'),
-              padding:
-                  EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
-              child: InkWell(
-                onTap: () =>
-                    context.push('/capsule/${capsule.id}', extra: capsule),
-                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                child: _CapsuleCard(capsule: capsule),
+    return RefreshIndicator(
+      onRefresh: () => _onRefresh(ref, userId),
+      color: colorScheme.accent,
+      backgroundColor: colorScheme.isDarkTheme 
+          ? Colors.white.withOpacity(0.1)
+          : Colors.black.withOpacity(0.05),
+      strokeWidth: 3.0,
+      displacement: 40.0,
+      child: capsulesAsync.when(
+        data: (capsules) {
+          if (capsules.isEmpty) {
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: EmptyState(
+                icon: Icons.mail_outline,
+                title: 'No upcoming letters',
+                message: 'Create a new letter to get started',
+                action: ElevatedButton(
+                  onPressed: () => context.push(Routes.createCapsule),
+                  child: const Text('Create Letter'),
+                ),
               ),
             );
-          },
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => ErrorDisplay(
-        message: 'Failed to load capsules',
-        onRetry: () => ref.invalidate(upcomingCapsulesProvider(userId)),
+          }
+
+          return ListView.builder(
+            key: const PageStorageKey('upcoming_capsules'),
+            padding: EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingLg,
+              vertical: AppTheme.spacingSm,
+            ),
+            itemCount: capsules.length,
+            itemBuilder: (context, index) {
+              final capsule = capsules[index];
+              return Padding(
+                key: ValueKey('upcoming_${capsule.id}'),
+                padding:
+                    EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
+                child: InkWell(
+                  onTap: () =>
+                      context.push('/capsule/${capsule.id}', extra: capsule),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  child: _CapsuleCard(capsule: capsule),
+                ),
+              );
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) => SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ErrorDisplay(
+            message: 'Failed to load capsules',
+            onRetry: () => ref.invalidate(upcomingCapsulesProvider(userId)),
+          ),
+        ),
       ),
     );
   }
@@ -760,49 +783,72 @@ class _UpcomingTab extends ConsumerWidget {
 class _UnlockingSoonTab extends ConsumerWidget {
   const _UnlockingSoonTab();
 
+  Future<void> _onRefresh(WidgetRef ref, String userId) async {
+    ref.invalidate(unlockingSoonCapsulesProvider(userId));
+    ref.invalidate(capsulesProvider(userId));
+    // Wait a bit for the provider to refresh
+    await Future.delayed(const Duration(milliseconds: 100));
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(currentUserProvider);
     final userId = userAsync.asData?.value?.id ?? '';
     final capsulesAsync = ref.watch(unlockingSoonCapsulesProvider(userId));
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
 
-    return capsulesAsync.when(
-      data: (capsules) {
-        if (capsules.isEmpty) {
-          return const EmptyState(
-            icon: Icons.schedule_outlined,
-            title: 'Nothing unlocking soon',
-            message: 'Letters within 7 days will appear here',
-          );
-        }
-
-        return ListView.builder(
-          key: const PageStorageKey('unlocking_soon_capsules'),
-          padding: EdgeInsets.symmetric(
-            horizontal: AppTheme.spacingLg,
-            vertical: AppTheme.spacingSm,
-          ),
-          itemCount: capsules.length,
-          itemBuilder: (context, index) {
-            final capsule = capsules[index];
-            return Padding(
-              key: ValueKey('unlocking_soon_${capsule.id}'),
-              padding:
-                  EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
-              child: InkWell(
-                onTap: () =>
-                    context.push('/capsule/${capsule.id}', extra: capsule),
-                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                child: _CapsuleCard(capsule: capsule),
+    return RefreshIndicator(
+      onRefresh: () => _onRefresh(ref, userId),
+      color: colorScheme.accent,
+      backgroundColor: colorScheme.isDarkTheme 
+          ? Colors.white.withOpacity(0.1)
+          : Colors.black.withOpacity(0.05),
+      strokeWidth: 3.0,
+      displacement: 40.0,
+      child: capsulesAsync.when(
+        data: (capsules) {
+          if (capsules.isEmpty) {
+            return const SingleChildScrollView(
+              physics: AlwaysScrollableScrollPhysics(),
+              child: EmptyState(
+                icon: Icons.schedule_outlined,
+                title: 'Nothing unlocking soon',
+                message: 'Letters within 7 days will appear here',
               ),
             );
-          },
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => ErrorDisplay(
-        message: 'Failed to load capsules',
-        onRetry: () => ref.invalidate(unlockingSoonCapsulesProvider(userId)),
+          }
+
+          return ListView.builder(
+            key: const PageStorageKey('unlocking_soon_capsules'),
+            padding: EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingLg,
+              vertical: AppTheme.spacingSm,
+            ),
+            itemCount: capsules.length,
+            itemBuilder: (context, index) {
+              final capsule = capsules[index];
+              return Padding(
+                key: ValueKey('unlocking_soon_${capsule.id}'),
+                padding:
+                    EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
+                child: InkWell(
+                  onTap: () =>
+                      context.push('/capsule/${capsule.id}', extra: capsule),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  child: _CapsuleCard(capsule: capsule),
+                ),
+              );
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) => SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ErrorDisplay(
+            message: 'Failed to load capsules',
+            onRetry: () => ref.invalidate(unlockingSoonCapsulesProvider(userId)),
+          ),
+        ),
       ),
     );
   }
@@ -820,14 +866,21 @@ class _OpenedTab extends ConsumerWidget {
     return capsulesAsync.when(
       data: (capsules) {
         if (capsules.isEmpty) {
-          return RefreshIndicator(
-            onRefresh: () async {
-              // Invalidate the base provider to force refresh
-              ref.invalidate(capsulesProvider(userId));
-              // Wait for refresh to complete
-              await Future.delayed(const Duration(milliseconds: 300));
-            },
-            child: SingleChildScrollView(
+        final colorScheme = ref.watch(selectedColorSchemeProvider);
+        return RefreshIndicator(
+          onRefresh: () async {
+            // Invalidate the base provider to force refresh
+            ref.invalidate(capsulesProvider(userId));
+            // Wait for refresh to complete
+            await Future.delayed(const Duration(milliseconds: 300));
+          },
+          color: colorScheme.accent,
+          backgroundColor: colorScheme.isDarkTheme 
+              ? Colors.white.withOpacity(0.1)
+              : Colors.black.withOpacity(0.05),
+          strokeWidth: 3.0,
+          displacement: 40.0,
+          child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               child: SizedBox(
                 height: MediaQuery.of(context).size.height * 0.6,
@@ -841,6 +894,7 @@ class _OpenedTab extends ConsumerWidget {
           );
         }
 
+        final colorScheme = ref.watch(selectedColorSchemeProvider);
         return RefreshIndicator(
           onRefresh: () async {
             // Invalidate the base provider to force refresh
@@ -848,6 +902,12 @@ class _OpenedTab extends ConsumerWidget {
             // Wait for refresh to complete
             await Future.delayed(const Duration(milliseconds: 300));
           },
+          color: colorScheme.accent,
+          backgroundColor: colorScheme.isDarkTheme 
+              ? Colors.white.withOpacity(0.1)
+              : Colors.black.withOpacity(0.05),
+          strokeWidth: 3.0,
+          displacement: 40.0,
           child: ListView.builder(
             key: const PageStorageKey('opened_capsules'),
             padding: EdgeInsets.symmetric(
@@ -1137,21 +1197,43 @@ class _CapsuleCard extends ConsumerWidget {
     final shouldAnimate = timeUntilUnlock > Duration.zero &&
         timeUntilUnlock < AppConstants.sealedLetterAnimationThreshold;
 
+    // Check if capsule is anonymous and not yet revealed
+    final isAnonymous = capsule.isAnonymous && !capsule.isRevealed;
+
+    Widget lockIcon;
     if (shouldAnimate) {
-      return SealedLetterAnimation(
+      lockIcon = SealedLetterAnimation(
         size: AppConstants.sealedLetterIconSize,
         color: lockIconColor,
         margin:
             EdgeInsets.zero, // No margin since we're positioning it manually
       );
+    } else {
+      // Static emoji icon for capsules with unlock time >= threshold
+      // Matches animated icon appearance exactly for visual consistency
+      lockIcon = LockEmojiWithOutline(
+        iconSize: AppConstants.sealedLetterIconSize,
+        opacity: AppConstants.sealedLetterOpacity,
+      );
     }
 
-    // Static emoji icon for capsules with unlock time >= threshold
-    // Matches animated icon appearance exactly for visual consistency
-    return LockEmojiWithOutline(
-      iconSize: AppConstants.sealedLetterIconSize,
-      opacity: AppConstants.sealedLetterOpacity,
-    );
+    // If anonymous, show anonymous icon first, then lock icon
+    if (isAnonymous) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.visibility_off_outlined,
+            size: AppConstants.sealedLetterIconSize * 0.7,
+            color: lockIconColor.withOpacity(AppConstants.sealedLetterOpacity),
+          ),
+          SizedBox(width: 4),
+          lockIcon,
+        ],
+      );
+    }
+
+    return lockIcon;
   }
 }
 

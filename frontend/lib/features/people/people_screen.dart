@@ -217,17 +217,49 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
                     }).toList();
 
               if (filteredConnections.isEmpty && _searchController.text.isNotEmpty) {
-                return _buildEmptySearchState(context, colorScheme);
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(connectionsProvider);
+                  },
+                  color: colorScheme.accent,
+                  backgroundColor: colorScheme.isDarkTheme 
+                      ? Colors.white.withOpacity(0.1)
+                      : Colors.black.withOpacity(0.05),
+                  strokeWidth: 3.0,
+                  displacement: 40.0,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: _buildEmptySearchState(context, colorScheme),
+                  ),
+                );
               }
 
               if (filteredConnections.isEmpty) {
-                return _buildEmptyConnectionsState(context, colorScheme);
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(connectionsProvider);
+                  },
+                  color: colorScheme.accent,
+                  backgroundColor: colorScheme.isDarkTheme 
+                      ? Colors.white.withOpacity(0.1)
+                      : Colors.black.withOpacity(0.05),
+                  strokeWidth: 3.0,
+                  displacement: 40.0,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: _buildEmptyConnectionsState(context, colorScheme),
+                  ),
+                );
               }
 
               return RefreshIndicator(
                 onRefresh: () async {
                   ref.invalidate(connectionsProvider);
                 },
+                color: colorScheme.accent,
+                backgroundColor: Colors.transparent,
+                strokeWidth: 2.0,
+                displacement: 40.0,
                 child: ListView.builder(
                   padding: EdgeInsets.all(AppTheme.spacingMd),
                   itemCount: filteredConnections.length,
@@ -256,6 +288,12 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
                   onRefresh: () async {
                     ref.invalidate(connectionsProvider);
                   },
+                  color: colorScheme.accent,
+                  backgroundColor: colorScheme.isDarkTheme 
+                      ? Colors.white.withOpacity(0.1)
+                      : Colors.black.withOpacity(0.05),
+                  strokeWidth: 3.0,
+                  displacement: 40.0,
                   child: ListView.builder(
                     padding: EdgeInsets.all(AppTheme.spacingMd),
                     itemCount: cachedData.length,
@@ -871,6 +909,12 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
           onRefresh: () async {
             ref.invalidate(incomingRequestsProvider);
           },
+          color: colorScheme.accent,
+          backgroundColor: colorScheme.isDarkTheme 
+              ? Colors.white.withOpacity(0.1)
+              : Colors.black.withOpacity(0.05),
+          strokeWidth: 3.0,
+          displacement: 40.0,
           child: ListView.builder(
             padding: EdgeInsets.all(AppTheme.spacingMd),
             itemCount: requests.length,
@@ -900,7 +944,21 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
     return outgoingAsync.when(
       data: (requests) {
         if (requests.isEmpty) {
-          return _buildEmptyOutgoingState(context, colorScheme);
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(outgoingRequestsProvider);
+            },
+            color: colorScheme.accent,
+            backgroundColor: colorScheme.isDarkTheme 
+                ? Colors.white.withOpacity(0.1)
+                : Colors.black.withOpacity(0.05),
+            strokeWidth: 3.0,
+            displacement: 40.0,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: _buildEmptyOutgoingState(context, colorScheme),
+            ),
+          );
         }
 
         // Group by status
@@ -918,6 +976,10 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
           onRefresh: () async {
             ref.invalidate(outgoingRequestsProvider);
           },
+          color: colorScheme.accent,
+          backgroundColor: Colors.transparent,
+          strokeWidth: 2.0,
+          displacement: 40.0,
           child: ListView(
             padding: EdgeInsets.all(AppTheme.spacingMd),
             children: [

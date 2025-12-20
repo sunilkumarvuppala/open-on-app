@@ -10,6 +10,8 @@ enum CapsuleStatus {
   unlockingSoon,
   ready,
   opened,
+  // NOTE: 'revealed' is not a separate status - it's just 'opened' with sender_revealed_at set
+  // We use isRevealed getter to check if anonymous sender is visible
 }
 
 /// Capsule model - represents a time-locked letter
@@ -29,6 +31,12 @@ class Capsule {
   final DateTime? openedAt;
   final String? reaction; // Emoji reaction from receiver
   
+  // Anonymous letter fields
+  final bool isAnonymous;
+  final int? revealDelaySeconds; // Delay in seconds before revealing sender (0-259200)
+  final DateTime? revealAt; // When sender will be revealed (openedAt + revealDelaySeconds)
+  final DateTime? senderRevealedAt; // When sender was actually revealed
+  
   Capsule({
     String? id,
     required this.senderId,
@@ -44,6 +52,10 @@ class Capsule {
     DateTime? createdAt,
     this.openedAt,
     this.reaction,
+    this.isAnonymous = false,
+    this.revealDelaySeconds,
+    this.revealAt,
+    this.senderRevealedAt,
   })  : id = id ?? _uuid.v4(),
         senderAvatar = senderAvatarValue ?? '',
         receiverAvatar = receiverAvatarValue ?? '',
@@ -54,6 +66,10 @@ class Capsule {
   
   CapsuleStatus get status {
     final now = _now;
+    
+    // NOTE: 'revealed' is not a separate status - it's just 'opened' with sender visible
+    // Use isRevealed getter to check if anonymous sender is visible
+    // Status remains 'opened' even after anonymous sender is revealed
     
     if (openedAt != null) {
       return CapsuleStatus.opened;
@@ -123,6 +139,93 @@ class Capsule {
     }
   }
   
+  // Anonymous letter helpers
+  bool get isAnonymousLetter => isAnonymous;
+  
+  bool get isRevealed {
+    if (!isAnonymous) return false;
+    if (senderRevealedAt != null) return true;
+    if (revealAt != null) {
+      final now = _now;
+      return revealAt!.isBefore(now) || revealAt!.isAtSameMomentAs(now);
+    }
+    // Backward compatibility: Calculate reveal_at on the fly if missing
+    // This handles existing letters opened before reveal_at was added
+    if (openedAt != null && revealDelaySeconds != null) {
+      final calculatedRevealAt = openedAt!.add(Duration(seconds: revealDelaySeconds!));
+      final now = _now;
+      return calculatedRevealAt.isBefore(now) || calculatedRevealAt.isAtSameMomentAs(now);
+    }
+    return false;
+  }
+  
+  Duration get timeUntilReveal {
+    if (!isAnonymous || isRevealed) {
+      return Duration.zero;
+    }
+    
+    // Use revealAt if available
+    if (revealAt != null) {
+      final now = _now;
+      if (revealAt!.isBefore(now)) return Duration.zero;
+      return revealAt!.difference(now);
+    }
+    
+    // Backward compatibility: Calculate reveal_at on the fly if missing
+    if (openedAt != null && revealDelaySeconds != null) {
+      final calculatedRevealAt = openedAt!.add(Duration(seconds: revealDelaySeconds!));
+      final now = _now;
+      if (calculatedRevealAt.isBefore(now)) return Duration.zero;
+      return calculatedRevealAt.difference(now);
+    }
+    
+    return Duration.zero;
+  }
+  
+  String get revealCountdownText {
+    if (!isAnonymous || isRevealed) return '';
+    
+    // Use revealAt if available, otherwise calculate from openedAt + delay
+    DateTime? effectiveRevealAt = revealAt;
+    if (effectiveRevealAt == null && openedAt != null && revealDelaySeconds != null) {
+      // Backward compatibility: Calculate reveal_at on the fly if missing
+      effectiveRevealAt = openedAt!.add(Duration(seconds: revealDelaySeconds!));
+    }
+    
+    if (effectiveRevealAt == null) return '';
+    
+    final duration = timeUntilReveal;
+    if (duration.isNegative || duration.inSeconds == 0) return 'Revealing now...';
+    
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes % 60;
+    final seconds = duration.inSeconds % 60;
+    
+    if (hours > 0) {
+      return 'Reveals in ${hours}h ${minutes}m';
+    } else if (minutes > 0) {
+      return 'Reveals in ${minutes}m ${seconds}s';
+    } else {
+      return 'Reveals in ${seconds}s';
+    }
+  }
+  
+  /// Get display name for sender (respects anonymous status)
+  String get displaySenderName {
+    if (isAnonymous && !isRevealed) {
+      return 'Anonymous';
+    }
+    return senderName;
+  }
+  
+  /// Get display avatar for sender (respects anonymous status)
+  String get displaySenderAvatar {
+    if (isAnonymous && !isRevealed) {
+      return ''; // No avatar for anonymous
+    }
+    return senderAvatar;
+  }
+  
   Capsule copyWith({
     String? id,
     String? senderId,
@@ -138,6 +241,10 @@ class Capsule {
     DateTime? createdAt,
     DateTime? openedAt,
     String? reaction,
+    bool? isAnonymous,
+    int? revealDelaySeconds,
+    DateTime? revealAt,
+    DateTime? senderRevealedAt,
   }) {
     return Capsule(
       id: id ?? this.id,
@@ -154,6 +261,10 @@ class Capsule {
       createdAt: createdAt ?? this.createdAt,
       openedAt: openedAt ?? this.openedAt,
       reaction: reaction ?? this.reaction,
+      isAnonymous: isAnonymous ?? this.isAnonymous,
+      revealDelaySeconds: revealDelaySeconds ?? this.revealDelaySeconds,
+      revealAt: revealAt ?? this.revealAt,
+      senderRevealedAt: senderRevealedAt ?? this.senderRevealedAt,
     );
   }
 }
@@ -254,6 +365,10 @@ class DraftCapsule {
   final String? label;
   final String? draftId; // Track the draft ID if one was created during auto-save
   
+  // Anonymous letter fields
+  final bool isAnonymous;
+  final int? revealDelaySeconds; // Delay in seconds (0-259200, default 21600 = 6 hours)
+  
   const DraftCapsule({
     this.recipient,
     this.content,
@@ -261,6 +376,8 @@ class DraftCapsule {
     this.unlockAt,
     this.label,
     this.draftId,
+    this.isAnonymous = false,
+    this.revealDelaySeconds,
   });
   
   bool get isValid {
@@ -279,6 +396,8 @@ class DraftCapsule {
     String? label,
     String? draftId,
     bool clearPhoto = false,
+    bool? isAnonymous,
+    int? revealDelaySeconds,
   }) {
     return DraftCapsule(
       recipient: recipient ?? this.recipient,
@@ -287,6 +406,8 @@ class DraftCapsule {
       unlockAt: unlockAt ?? this.unlockAt,
       label: label ?? this.label,
       draftId: draftId ?? this.draftId,
+      isAnonymous: isAnonymous ?? this.isAnonymous,
+      revealDelaySeconds: revealDelaySeconds ?? this.revealDelaySeconds,
     );
   }
   
@@ -318,6 +439,8 @@ class DraftCapsule {
       content: content!,
       photoUrl: photoPath,
       unlockAt: unlockAt!,
+      isAnonymous: isAnonymous,
+      revealDelaySeconds: revealDelaySeconds,
     );
   }
 }
