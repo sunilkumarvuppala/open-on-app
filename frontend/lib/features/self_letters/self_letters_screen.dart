@@ -4,9 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
-import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
-import 'package:openon_app/core/utils/error_handler.dart';
 import 'package:openon_app/core/models/models.dart';
 import 'package:intl/intl.dart';
 
@@ -39,7 +37,6 @@ class _SelfLettersScreenState extends ConsumerState<SelfLettersScreen>
   
   @override
   Widget build(BuildContext context) {
-    final colorScheme = ref.watch(selectedColorSchemeProvider);
     final lettersAsync = ref.watch(selfLettersProvider);
     
     return Scaffold(
@@ -62,8 +59,17 @@ class _SelfLettersScreenState extends ConsumerState<SelfLettersScreen>
       ),
       body: lettersAsync.when(
         data: (letters) {
-          final waiting = letters.where((l) => !l.isOpened).toList();
-          final archive = letters.where((l) => l.isOpened).toList();
+          // OPTIMIZATION: Use efficient filtering - separate in single pass
+          final waiting = <SelfLetter>[];
+          final archive = <SelfLetter>[];
+          
+          for (final letter in letters) {
+            if (letter.isOpened) {
+              archive.add(letter);
+            } else {
+              waiting.add(letter);
+            }
+          }
           
           return TabBarView(
             controller: _tabController,

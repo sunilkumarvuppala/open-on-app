@@ -23,24 +23,22 @@ The Temporary Anonymous Letters feature allows senders to temporarily hide their
 
 ## Database Implementation
 
-### Migration Files
+### Migration File
 
-1. **`15_anonymous_letters_feature.sql`**
-   - Adds `reveal_delay_seconds`, `reveal_at`, `sender_revealed_at` columns
-   - Adds `revealed` status to `capsule_status` enum
-   - Creates constraints (max 72h, anonymous must have delay)
-   - Creates indexes for performance
-   - Creates `is_mutual_connection()` helper function
-   - Updates `recipient_safe_capsules_view` with reveal logic
-   - Creates `open_letter()` RPC function
-   - Creates `reveal_anonymous_senders()` function
-   - Sets up pg_cron job (runs every 1 minute)
-
-2. **`16_anonymous_letters_rls.sql`**
-   - Updates INSERT policy: Requires mutual connection for anonymous letters
-   - Updates SELECT policy: Uses safe view logic for recipients
-   - Updates UPDATE policy: Prevents manipulation of reveal fields
-   - Ensures recipients cannot update capsules directly
+**`13_anonymous_letters_feature.sql`** - Complete implementation including:
+- Adds `reveal_delay_seconds`, `reveal_at`, `sender_revealed_at` columns
+- Creates constraints (max 72h, anonymous must have delay)
+- Creates indexes for performance
+- Creates `is_mutual_connection()` helper function
+- Updates `recipient_safe_capsules_view` with reveal logic
+- Creates `open_letter()` RPC function
+- Creates `reveal_anonymous_senders()` function
+- Sets up pg_cron job (runs every 1 minute)
+- RLS policies:
+  - INSERT policy: Requires mutual connection for anonymous letters
+  - SELECT policy: Uses safe view logic for recipients
+  - UPDATE policy: Prevents manipulation of reveal fields
+  - Ensures recipients cannot update capsules directly
 
 ### Key Database Functions
 

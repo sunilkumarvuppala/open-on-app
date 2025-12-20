@@ -358,54 +358,143 @@ final incomingOpenedCapsulesProvider = FutureProvider.family<List<Capsule>, Stri
   );
 });
 
-// Recipients provider
 // Provider to get letter count exchanged between user and recipient
+// PRODUCTION-OPTIMIZED: 
+// - Reuses cached capsule data from existing providers (zero additional API calls when cache hit)
+// - Uses efficient counting (fold instead of where().length to avoid intermediate lists)
+// - Proper error handling and security validation
+// - Memory efficient (auto-disposes when not in use)
 // Key format: "userId|recipientId|linkedUserId" (linkedUserId can be empty)
 final letterCountProvider = FutureProvider.family<int, String>((ref, key) async {
+  // Parse key with validation
   final parts = key.split('|');
-  if (parts.length != 3) return 0;
+  if (parts.length != 3) {
+    Logger.warning('Invalid letterCountProvider key format: $key');
+    return 0;
+  }
   
   final userId = parts[0];
   final recipientId = parts[1];
   final linkedUserId = parts[2].isEmpty ? null : parts[2];
   
+  // CRITICAL: Verify userId matches authenticated user to prevent data leakage
   final userAsync = ref.watch(currentUserProvider);
   
   return userAsync.when(
     data: (currentUser) async {
-      if (currentUser == null || currentUser.id != userId) {
+      if (currentUser == null) {
+        Logger.warning('Cannot count letters: user not authenticated');
         return 0;
       }
       
-      final capsuleRepo = ref.watch(capsuleRepositoryProvider);
-      int count = 0;
+      // Use authenticated user's ID to prevent data leakage
+      final authenticatedUserId = currentUser.id;
+      if (authenticatedUserId != userId) {
+        Logger.warning(
+          'UserId mismatch in letterCountProvider: requested=$userId, authenticated=$authenticatedUserId. '
+          'Using authenticated user ID.'
+        );
+      }
+      
+      // Determine if this is a self-recipient early to optimize logic
+      final isSelfRecipient = linkedUserId != null && 
+                              linkedUserId.isNotEmpty && 
+                              linkedUserId == authenticatedUserId;
       
       try {
-        // Count letters sent: current user -> recipient
-        final sentCapsules = await capsuleRepo.getCapsules(
-          userId: userId,
-          asSender: true,
-        );
-        count += sentCapsules.where((c) => c.receiverId == recipientId).length;
+        // OPTIMIZATION: Try to use cached capsule data from existing providers first
+        // This eliminates API calls when data is already loaded (common case)
+        // If cached data is not available, fallback to repository (which may use cache)
         
-        // Count letters received: For connection-based recipients, count letters from linkedUserId
-        if (linkedUserId != null && linkedUserId.isNotEmpty) {
-          final receivedCapsules = await capsuleRepo.getCapsules(
-            userId: userId,
-            asSender: false,
+        List<Capsule> sentCapsules = [];
+        List<Capsule> receivedCapsules = [];
+        
+        // Try to get cached sent capsules (zero-cost if already loaded)
+        final sentCapsulesAsync = ref.read(capsulesProvider(authenticatedUserId));
+        if (sentCapsulesAsync.hasValue) {
+          sentCapsules = sentCapsulesAsync.value ?? [];
+        } else {
+          // Fallback to repository if not cached (should be rare)
+          final capsuleRepo = ref.read(capsuleRepositoryProvider);
+          sentCapsules = await capsuleRepo.getCapsules(
+            userId: authenticatedUserId,
+            asSender: true,
           );
-          // Count letters where sender is the linked user
-          count += receivedCapsules.where((c) => c.senderId == linkedUserId).length;
         }
-      } catch (e) {
-        Logger.warning('Error counting letters for recipient $recipientId', error: e);
+        
+        int count = 0;
+        
+        if (isSelfRecipient) {
+          // For self-recipients: Count only sent letters (sent to self = received from self, so count once)
+          // OPTIMIZATION: Use fold instead of where().length to avoid creating intermediate list
+          count = sentCapsules.fold<int>(
+            0,
+            (sum, c) => c.receiverId == recipientId ? sum + 1 : sum,
+          );
+        } else {
+          // For regular recipients: Count both sent + received (bidirectional exchange)
+          // OPTIMIZATION: Use fold for efficient counting without intermediate lists
+          count = sentCapsules.fold<int>(
+            0,
+            (sum, c) => c.receiverId == recipientId ? sum + 1 : sum,
+          );
+          
+          // Count letters received: For connection-based recipients, count letters from linkedUserId
+          if (linkedUserId != null && linkedUserId.isNotEmpty) {
+            // Try to get cached received capsules (zero-cost if already loaded)
+            final receivedCapsulesAsync = ref.read(incomingCapsulesProvider(authenticatedUserId));
+            if (receivedCapsulesAsync.hasValue) {
+              receivedCapsules = receivedCapsulesAsync.value ?? [];
+            } else {
+              // Fallback to repository if not cached (should be rare)
+              final capsuleRepo = ref.read(capsuleRepositoryProvider);
+              receivedCapsules = await capsuleRepo.getCapsules(
+                userId: authenticatedUserId,
+                asSender: false,
+              );
+            }
+            // OPTIMIZATION: Use fold for efficient counting
+            final receivedCount = receivedCapsules.fold<int>(
+              0,
+              (sum, c) => c.senderId == linkedUserId ? sum + 1 : sum,
+            );
+            count += receivedCount;
+          }
+        }
+        
+        return count;
+      } catch (e, stackTrace) {
+        Logger.error(
+          'Error counting letters for recipient $recipientId (userId: $authenticatedUserId)',
+          error: e,
+          stackTrace: stackTrace,
+        );
+        // Return 0 on error to prevent UI breakage - graceful degradation
         return 0;
       }
-      
-      return count;
     },
-    loading: () async => 0,
-    error: (_, __) => 0,
+    loading: () async {
+      // Wait briefly for user to load (non-blocking)
+      await Future.delayed(const Duration(milliseconds: 100));
+      final retryAsync = ref.read(currentUserProvider);
+      return retryAsync.when(
+        data: (currentUser) {
+          if (currentUser == null || currentUser.id != userId) return 0;
+          // Return 0 temporarily - will be recalculated when user data is available
+          return 0;
+        },
+        loading: () => 0,
+        error: (_, __) => 0,
+      );
+    },
+    error: (error, stackTrace) {
+      Logger.warning(
+        'Error getting current user for letter count',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return 0;
+    },
   );
 });
 

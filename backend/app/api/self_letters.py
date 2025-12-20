@@ -121,17 +121,20 @@ async def list_self_letters(
     
     Content is only included if letter has been opened or scheduled time has passed.
     """
-    logger.info(f"Listing self letters: user_id={current_user.user_id}")
+    logger.info(f"Listing self letters: user_id={current_user.user_id}, skip={skip}, limit={limit}")
     
     self_letter_repo = SelfLetterRepository(session)
     now = datetime.now(timezone.utc)
     
-    # Get all letters for user
+    # Get letters for user with pagination
     letters = await self_letter_repo.get_by_user(
         user_id=current_user.user_id,
         skip=skip,
         limit=limit
     )
+    
+    # Get total count using optimized COUNT query (not len() which is incorrect for pagination)
+    total = await self_letter_repo.count_by_user(user_id=current_user.user_id)
     
     # Convert to response models (hide content if not yet openable)
     letter_responses = []
@@ -157,8 +160,10 @@ async def list_self_letters(
             created_at=letter.created_at
         ))
     
-    # Get total count
-    total = len(letters)  # Simplified - in production, use COUNT query
+    logger.info(
+        f"Returning {len(letter_responses)} self letters (total: {total}) "
+        f"for user {current_user.user_id}"
+    )
     
     return SelfLetterListResponse(
         letters=letter_responses,

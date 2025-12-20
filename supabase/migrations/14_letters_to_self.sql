@@ -143,13 +143,13 @@ BEGIN
   IF v_letter.opened_at IS NULL THEN
     UPDATE public.self_letters
     SET opened_at = now()
-    WHERE id = letter_id
+    WHERE self_letters.id = letter_id
       AND opened_at IS NULL;  -- Prevent race conditions
     
     -- Reload to get updated opened_at
     SELECT * INTO v_letter
     FROM public.self_letters
-    WHERE id = letter_id;
+    WHERE self_letters.id = letter_id;
   END IF;
   
   -- Return letter data
@@ -197,7 +197,7 @@ BEGIN
   -- Get the letter
   SELECT * INTO v_letter
   FROM public.self_letters
-  WHERE id = letter_id
+  WHERE self_letters.id = letter_id
     AND user_id = auth.uid();
   
   IF NOT FOUND THEN
@@ -219,7 +219,7 @@ BEGIN
   SET 
     reflection_answer = answer,
     reflected_at = now()
-  WHERE id = letter_id
+  WHERE self_letters.id = letter_id
     AND reflection_answer IS NULL;  -- Prevent race conditions
   
   RETURN TRUE;

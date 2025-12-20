@@ -9,6 +9,45 @@ import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/utils/logger.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
 
+/// Optimized widget for displaying letter count
+/// Isolated to prevent unnecessary rebuilds of parent recipient card
+class _LetterCountBadge extends ConsumerWidget {
+  final String letterCountKey;
+  
+  const _LetterCountBadge({required this.letterCountKey});
+  
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final letterCountAsync = ref.watch(letterCountProvider(letterCountKey));
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
+    
+    return letterCountAsync.when(
+      data: (count) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.mail_outline,
+              size: 14,
+              color: DynamicTheme.getSecondaryTextColor(colorScheme),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '$count letter${count == 1 ? '' : 's'}',
+              style: TextStyle(
+                fontSize: 12,
+                color: DynamicTheme.getSecondaryTextColor(colorScheme),
+              ),
+            ),
+          ],
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
+
 class StepChooseRecipient extends ConsumerStatefulWidget {
   final VoidCallback onNext;
   
@@ -197,7 +236,6 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                           ...filteredRecipients.map((recipient) {
                             final isSelected = selectedRecipient?.id == recipient.id;
                             final letterCountKey = '${user.id}|${recipient.id}|${recipient.linkedUserId ?? ''}';
-                            final letterCountAsync = ref.watch(letterCountProvider(letterCountKey));
                             
                             return Padding(
                               padding: EdgeInsets.only(bottom: AppTheme.spacingSm),
@@ -265,33 +303,11 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                                           ],
                                         ),
                                         // Letter count with icon at bottom right
+                                        // Isolated widget to prevent unnecessary rebuilds
                                         Positioned(
                                           bottom: 0,
                                           right: 0,
-                                          child: letterCountAsync.when(
-                                            data: (count) {
-                                              return Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Icon(
-                                                    Icons.mail_outline,
-                                                    size: 14,
-                                                    color: DynamicTheme.getSecondaryTextColor(colorScheme),
-                                                  ),
-                                                  SizedBox(width: 4),
-                                                  Text(
-                                                    '$count letter${count == 1 ? '' : 's'}',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: DynamicTheme.getSecondaryTextColor(colorScheme),
-                                                    ),
-                                                  ),
-                                                ],
-                                              );
-                                            },
-                                            loading: () => const SizedBox.shrink(),
-                                            error: (_, __) => const SizedBox.shrink(),
-                                          ),
+                                          child: _LetterCountBadge(letterCountKey: letterCountKey),
                                         ),
                                       ],
                                     ),

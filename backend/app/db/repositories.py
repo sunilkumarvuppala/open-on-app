@@ -1099,6 +1099,18 @@ class SelfLetterRepository(BaseRepository[SelfLetter]):
         result = await self.session.execute(query)
         return list(result.scalars().all())
     
+    async def count_by_user(self, user_id: UUID) -> int:
+        """Get total count of self letters for a user (optimized COUNT query)."""
+        from sqlalchemy import func
+        
+        count_query = (
+            select(func.count())
+            .select_from(SelfLetter)
+            .where(SelfLetter.user_id == user_id)
+        )
+        result = await self.session.execute(count_query)
+        return result.scalar() or 0
+    
     async def create(
         self,
         user_id: UUID,

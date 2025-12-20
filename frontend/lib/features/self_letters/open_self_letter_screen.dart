@@ -2,14 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/providers/providers.dart';
-import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
-import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/utils/error_handler.dart';
 import 'package:openon_app/core/utils/logger.dart';
 import 'package:openon_app/core/models/models.dart';
-import 'package:intl/intl.dart';
 
 class OpenSelfLetterScreen extends ConsumerStatefulWidget {
   final String letterId;
@@ -34,30 +31,42 @@ class _OpenSelfLetterScreenState extends ConsumerState<OpenSelfLetterScreen> {
   
   Future<void> _loadLetter() async {
     try {
+      // Try to load from cached provider first (optimization)
       final lettersAsync = ref.read(selfLettersProvider);
       final letters = lettersAsync.asData?.value ?? [];
-      final letter = letters.firstWhere(
-        (l) => l.id == widget.letterId,
-        orElse: () => throw Exception('Letter not found'),
-      );
       
-      setState(() {
-        _letter = letter;
-        _isLoading = false;
-      });
+      SelfLetter? letter;
+      try {
+        letter = letters.firstWhere((l) => l.id == widget.letterId);
+      } catch (_) {
+        // Letter not in cache - this is fine, we'll fetch it when opening
+        Logger.debug('Letter ${widget.letterId} not found in cache, will fetch on open');
+      }
       
-      // If already opened, show reflection if not yet submitted
-      if (letter.isOpened && !letter.hasReflection) {
-        setState(() => _showReflection = true);
+      if (letter != null) {
+        setState(() {
+          _letter = letter;
+          _isLoading = false;
+        });
+        
+        // If already opened, show reflection if not yet submitted
+        if (letter.isOpened && !letter.hasReflection) {
+          setState(() => _showReflection = true);
+        }
+      } else {
+        // Letter not in cache - set loading to false, will fetch when opening
+        setState(() {
+          _isLoading = false;
+        });
       }
     } catch (e, stackTrace) {
       Logger.error('Failed to load letter', error: e, stackTrace: stackTrace);
       if (mounted) {
+        setState(() => _isLoading = false);
         final errorMsg = ErrorHandler.getErrorMessage(e, defaultMessage: 'Failed to load letter');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(errorMsg)),
         );
-        context.pop();
       }
     }
   }
@@ -101,7 +110,10 @@ class _OpenSelfLetterScreenState extends ConsumerState<OpenSelfLetterScreen> {
         answer: answer,
       );
       
-      // Refresh letter
+      // Invalidate provider to refresh list
+      ref.invalidate(selfLettersProvider);
+      
+      // Refresh letter from cache
       await _loadLetter();
       
       if (mounted) {
@@ -308,7 +320,6 @@ class _ReflectionPrompt extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final colorScheme = ref.watch(selectedColorSchemeProvider);
     
     return Scaffold(
       body: SafeArea(

@@ -39,7 +39,6 @@ Types of user notifications.
 - `unlock_soon` - Capsule will unlock soon (24h before)
 - `unlocked` - Capsule is now ready to open
 - `new_capsule` - New capsule received
-- `disappearing_warning` - Disappearing message will delete soon
 - `subscription_expiring` - Premium subscription expiring
 - `subscription_expired` - Premium subscription expired
 
@@ -153,8 +152,6 @@ Time-locked letters (core entity of the application).
 - `reveal_delay_seconds` (INTEGER) - Delay in seconds before revealing anonymous sender (0-259200, required if `is_anonymous = TRUE`)
 - `reveal_at` (TIMESTAMPTZ) - Timestamp when anonymous sender will be revealed (`opened_at + reveal_delay_seconds`)
 - `sender_revealed_at` (TIMESTAMPTZ) - Timestamp when sender was actually revealed (set by reveal job)
-- `is_disappearing` (BOOLEAN, NOT NULL, DEFAULT FALSE) - Delete after opening
-- `disappearing_after_open_seconds` (INTEGER) - Seconds before deletion (required if `is_disappearing = TRUE`)
 - `unlocks_at` (TIMESTAMPTZ, NOT NULL) - When capsule becomes available to open
 - `opened_at` (TIMESTAMPTZ) - When capsule was opened (NULL if not opened)
 - `expires_at` (TIMESTAMPTZ) - When capsule expires (optional)
@@ -170,7 +167,6 @@ Time-locked letters (core entity of the application).
 
 **Constraints:**
 - `capsules_unlocks_future`: `unlocks_at` must be after `created_at`
-- `capsules_disappearing_seconds`: If `is_disappearing = TRUE`, `disappearing_after_open_seconds` must be > 0
 - `capsules_body_content`: Must have either `body_text` OR `body_rich_text`
 - `capsules_reveal_delay_max`: `reveal_delay_seconds` must be between 0 and 259200 (72 hours) if provided
 - `capsules_anonymous_delay`: If `is_anonymous = TRUE`, `reveal_delay_seconds` must be NOT NULL; if `is_anonymous = FALSE`, `reveal_delay_seconds` must be NULL
@@ -193,7 +189,6 @@ Time-locked letters (core entity of the application).
 - `idx_capsules_recipient` on `(recipient_id, created_at DESC)` - Inbox queries
 - `idx_capsules_status` on `(status)` - Filter by status
 - `idx_capsules_unlocks_at` on `(unlocks_at)` WHERE `status = 'sealed'` - Find ready-to-unlock
-- `idx_capsules_opened_at` on `(opened_at)` WHERE `is_disappearing = TRUE` - Find expired disappearing
 - `idx_capsules_deleted_at` on `(deleted_at)` WHERE `deleted_at IS NOT NULL` - Exclude soft-deleted
 - `idx_capsules_reveal_at` on `(reveal_at)` WHERE `reveal_at IS NOT NULL` - Find letters ready to reveal
 - `idx_capsules_recipient_status` on `(recipient_id, status)` WHERE `deleted_at IS NULL` - Inbox filtering
@@ -563,7 +558,6 @@ Handles capsule opening event (sets status, creates notification, schedules dele
 **Actions:**
 - Sets `status = 'opened'`
 - Creates notification for sender
-- Schedules deletion for disappearing messages
 
 ---
 
@@ -681,17 +675,6 @@ SELECT reveal_anonymous_senders();
 
 ---
 
-### `delete_expired_disappearing_messages()`
-
-Soft-deletes disappearing messages that have expired.
-
-**Type:** Regular function  
-**Security:** Regular (called by cron with service role)  
-**Usage:** Called by pg_cron job every minute
-
-**Logic:** Sets `deleted_at = NOW()` for messages where `opened_at + disappearing_after_open_seconds <= NOW()`
-
----
 
 ### `send_unlock_soon_notifications()`
 
@@ -969,11 +952,6 @@ capsules
 
 ### Delete Expired Disappearing Messages
 
-**Schedule:** Every minute (`* * * * *`)  
-**Function:** `delete_expired_disappearing_messages()`  
-**Purpose:** Soft-delete disappearing messages after expiration
-
----
 
 ### Send Unlock Soon Notifications
 
@@ -1106,8 +1084,8 @@ All schema changes are in numbered migration files:
 12. `12_search_users_function.sql` - User search function
 13. `13_user_profiles_search_policy.sql` - User search RLS policy
 14. `14_scheduled_jobs.sql` - pg_cron jobs
-15. `15_search_users_with_user_id.sql` - Enhanced user search
-16. `16_remove_recipients_table.sql` - Migration for recipients table removal (pending)
+13. `13_anonymous_letters_feature.sql` - Anonymous letters feature (complete implementation)
+14. `14_letters_to_self.sql` - Letters to self feature
 
 **To apply:** Run `supabase db reset` to apply all migrations.
 

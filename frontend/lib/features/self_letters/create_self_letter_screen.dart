@@ -145,6 +145,9 @@ class _CreateSelfLetterScreenState extends ConsumerState<CreateSelfLetterScreen>
       
       if (!mounted) return;
       
+      // Invalidate provider to refresh list
+      ref.invalidate(selfLettersProvider);
+      
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Letter sealed successfully')),

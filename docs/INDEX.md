@@ -65,6 +65,7 @@
 
 ### Special Features
 - **[anonymous_letters.md](./anonymous_letters.md)** - Temporary Anonymous Letters feature (complete guide)
+- **[letters_to_self.md](./letters_to_self.md)** - Letters to Self feature (complete guide)
 
 ---
 

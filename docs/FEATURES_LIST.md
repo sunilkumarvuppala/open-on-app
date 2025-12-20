@@ -86,7 +86,18 @@
 - ✅ Database-level security enforcement
 - ✅ Server-side reveal timing calculation
 
-### 7. **Draft Management**
+### 7. **Letters to Self** ⭐ NEW
+- ✅ Write sealed letters to future self
+- ✅ Irreversible after creation (no edit/delete)
+- ✅ Time-locked content (no previews before scheduled time)
+- ✅ Character limit: 280-500 characters
+- ✅ Optional context capture (mood, life area, city)
+- ✅ One-time reflection prompt after opening
+- ✅ Reflection options: "Yes", "Not anymore", "Skip"
+- ✅ Waiting/Archive tabs for organization
+- ✅ Database-level immutability enforcement
+
+### 8. **Draft Management**
 - ✅ Auto-save drafts while writing (debounced, 800ms)
 - ✅ Manual save as draft option
 - ✅ Draft list view
@@ -105,6 +116,8 @@
 - ✅ Email-based recipients (for non-users)
 - ✅ Username display (@username) for connection-based recipients
 - ✅ Avatar display (from linked user profile for connections)
+- ✅ Letter count display (total letters exchanged) ⭐ NEW
+- ✅ "To Self" recipient option for self letters ⭐ NEW
 
 ---
 
@@ -307,21 +320,23 @@
 | Category | Feature Count | Status |
 |----------|--------------|--------|
 | Core Features | 5 | ✅ Complete |
-| Letter/Capsule Features | 3 | ✅ Complete |
+| Letter/Capsule Features | 4 | ✅ Complete |
 | User Management | 2 | ✅ Complete |
 | Social Features | 2 | ✅ Complete |
 | UI/UX Features | 6 | ✅ Complete |
 | Security Features | 3 | ✅ Complete |
 | Performance Features | 4 | ✅ Complete |
 | Additional Features | 4 | ✅ Complete |
-| **Total** | **29** | ✅ **Production Ready** |
+| **Total** | **30** | ✅ **Production Ready** |
 
 ---
 
 ## Feature Highlights
 
 ### ⭐ Recently Added
+- **Letters to Self**: Sealed, irreversible time-locked letters for self-reflection
 - **Anonymous Letters**: Temporary identity hiding with automatic reveal
+- **Letter Count Display**: Shows total letters exchanged between users
 - **Connections System**: Friend requests and mutual connections
 - **Pull-to-Refresh**: Enhanced refresh functionality across all screens
 - **Profile Picture Updates**: Improved cache management and immediate updates
@@ -349,6 +364,7 @@
 ## Related Documentation
 
 - [Features Documentation](./frontend/FEATURES.md) - Detailed feature documentation
+- [Letters to Self](./letters_to_self.md) - Complete letters to self guide
 - [Anonymous Letters](./anonymous_letters.md) - Complete anonymous letters guide
 - [Architecture](./ARCHITECTURE.md) - System architecture
 - [API Reference](./backend/API_REFERENCE.md) - Backend API endpoints
