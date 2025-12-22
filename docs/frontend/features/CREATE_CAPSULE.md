@@ -180,7 +180,7 @@ features/create_capsule/
 ### Complete Creation Flow
 
 ```
-1. User taps "Create a New Letter"
+1. User taps Floating Action Button (FAB) with pencil and mail icons
    ↓
 2. Step 1: Choose Recipient
    - Select from list or add new

@@ -104,26 +104,35 @@ class _ReceiverHomeScreenState extends ConsumerState<ReceiverHomeScreen>
                     ),
                     
                     // Notifications icon
-                    IconButton(
-                      icon: const Icon(Icons.notifications_outlined),
-                      onPressed: () {
-                        final colorScheme = ref.read(selectedColorSchemeProvider);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Notifications coming soon!',
-                              style: TextStyle(
-                                color: DynamicTheme.getSnackBarTextColor(colorScheme),
+                    Semantics(
+                      label: 'Notifications',
+                      button: true,
+                      child: IconButton(
+                        icon: const Icon(Icons.notifications_outlined),
+                        tooltip: 'Notifications',
+                        onPressed: () {
+                          // Safety check - ensure widget is still mounted
+                          if (!mounted) return;
+                          
+                          final colorScheme = ref.read(selectedColorSchemeProvider);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Notifications coming soon!',
+                                style: TextStyle(
+                                  color: DynamicTheme.getSnackBarTextColor(colorScheme),
+                                ),
                               ),
+                              backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                              ),
+                              duration: const Duration(seconds: 2),
                             ),
-                            backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                            ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
                   ],
                 ),
@@ -131,7 +140,7 @@ class _ReceiverHomeScreenState extends ConsumerState<ReceiverHomeScreen>
               
               // Subtle Header Separator
               Container(
-                height: 1,
+                height: AppConstants.headerSeparatorHeight,
                 margin: EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -513,8 +522,8 @@ class _LockedTab extends ConsumerWidget {
               physics: AlwaysScrollableScrollPhysics(),
               child: EmptyState(
                 icon: Icons.auto_awesome,
-                title: 'No ready capsules',
-                message: 'Capsules that are ready to open will appear here ✨',
+                title: 'No ready Letters',
+                message: 'Letters that are ready to open will appear here ✨',
               ),
             );
           }
@@ -588,7 +597,7 @@ class _OpeningSoonTab extends ConsumerWidget {
               child: EmptyState(
                 icon: Icons.schedule_outlined,
                 title: 'Nothing opening soon',
-                message: 'Capsules unlocking within 7 days will appear here',
+                message: 'Letters unlocking soon will appear here',
               ),
             );
           }
@@ -661,8 +670,8 @@ class _OpenedTab extends ConsumerWidget {
               physics: AlwaysScrollableScrollPhysics(),
               child: EmptyState(
                 icon: Icons.mark_email_read_outlined,
-                title: 'No opened capsules yet',
-                message: 'When you open incoming capsules, they\'ll appear here',
+                title: 'No opened letters yet',
+                message: 'When you open incoming letters, they\'ll appear here',
               ),
             );
           }
