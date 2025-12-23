@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:openon_app/core/constants/app_constants.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
@@ -35,7 +36,7 @@ class _StepPreviewState extends ConsumerState<StepPreview>
     super.initState();
     // Animation that repeats every 2 seconds
     _arrowController = AnimationController(
-      duration: const Duration(seconds: 2),
+      duration: AppConstants.previewArrowAnimationDuration,
       vsync: this,
     )..repeat();
     
@@ -92,43 +93,43 @@ class _StepPreviewState extends ConsumerState<StepPreview>
                 Container(
                   width: double.infinity,
                   padding: EdgeInsets.all(AppTheme.spacingLg),
-                  decoration: BoxDecoration(
-                    gradient: dreamyGradient,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colorScheme.primary1.withOpacity(0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
+                    decoration: BoxDecoration(
+                      gradient: dreamyGradient,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.primary1.withOpacity(AppConstants.previewEnvelopeShadowOpacity),
+                          blurRadius: AppConstants.previewEnvelopeShadowBlur,
+                          offset: const Offset(0, AppConstants.previewEnvelopeShadowOffsetY),
+                        ),
+                      ],
+                    ),
                   child: Column(
                     children: [
                       // Envelope icon and recipient avatar side by side with animated arrows
                       SizedBox(
-                        height: 60,
+                        height: AppConstants.previewEnvelopeIconSize,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             // Envelope icon
                             Container(
-                              width: 60,
-                              height: 60,
+                              width: AppConstants.previewEnvelopeIconSize,
+                              height: AppConstants.previewEnvelopeIconSize,
                               decoration: BoxDecoration(
                                 color: DynamicTheme.getCardBackgroundColor(colorScheme, opacity: AppTheme.opacityHigh),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
                                 Icons.mail_outline,
-                                size: 30,
+                                size: AppConstants.previewEnvelopeIconInnerSize,
                                 color: DynamicTheme.getPrimaryIconColor(colorScheme),
                               ),
                             ),
                             // Animated arrows area
                             SizedBox(
-                              width: AppTheme.spacingMd + 60, // Space between icons + avatar width
-                              height: 60,
+                              width: AppTheme.spacingMd + AppConstants.previewAvatarSize, // Space between icons + avatar width
+                              height: AppConstants.previewEnvelopeIconSize,
                               child: Stack(
                                 alignment: Alignment.center,
                                 clipBehavior: Clip.none,
@@ -141,18 +142,20 @@ class _StepPreviewState extends ConsumerState<StepPreview>
                                       // Start from left (letter icon edge), end at right (avatar edge)
                                       final spacing = AppTheme.spacingMd;
                                       final startX = 0.0;
-                                      final endX = spacing + 60.0; // Full distance
+                                      final endX = spacing + AppConstants.previewAvatarSize; // Full distance
                                       final arrowX = startX + (endX - startX) * _arrowAnimation.value;
                                       
                                       // Opacity: fade in at start, fade out at end
-                                      final opacity = _arrowAnimation.value < 0.2
-                                          ? (_arrowAnimation.value / 0.2).clamp(0.0, 1.0)
-                                          : _arrowAnimation.value > 0.8
-                                              ? ((1.0 - _arrowAnimation.value) / 0.2).clamp(0.0, 1.0)
+                                      final opacityThreshold = AppConstants.previewArrowOpacityThresholdLow;
+                                      final opacityHighThreshold = AppConstants.previewArrowOpacityThresholdHigh;
+                                      final opacity = _arrowAnimation.value < opacityThreshold
+                                          ? (_arrowAnimation.value / opacityThreshold).clamp(0.0, 1.0)
+                                          : _arrowAnimation.value > opacityHighThreshold
+                                              ? ((1.0 - _arrowAnimation.value) / (1.0 - opacityHighThreshold)).clamp(0.0, 1.0)
                                               : 1.0;
                                       
                                       // Second arrow delay (increased for more visible gap)
-                                      final secondArrowDelay = 0.5;
+                                      final secondArrowDelay = AppConstants.previewSecondArrowDelay;
                                       final secondArrowProgress = (_arrowAnimation.value - secondArrowDelay).clamp(0.0, 1.0) / (1.0 - secondArrowDelay);
                                       
                                       return IgnorePointer(
@@ -160,14 +163,14 @@ class _StepPreviewState extends ConsumerState<StepPreview>
                                           clipBehavior: Clip.none,
                                           children: [
                                             // First arrow
-                                            if (opacity > 0.1)
+                                            if (opacity > AppConstants.opacityVeryLow)
                                               Positioned(
-                                                left: arrowX - 8,
+                                                left: arrowX - AppTheme.spacingSm,
                                                 child: Opacity(
                                                   opacity: opacity,
                                                   child: Icon(
                                                     Icons.arrow_forward,
-                                                    size: 18,
+                                                    size: AppConstants.previewArrowIconSizeLarge,
                                                     color: DynamicTheme.getPrimaryTextColor(colorScheme),
                                                   ),
                                                 ),
@@ -175,13 +178,13 @@ class _StepPreviewState extends ConsumerState<StepPreview>
                                             // Second arrow (slightly delayed)
                                             if (secondArrowProgress > 0 && secondArrowProgress < 1.0)
                                               Positioned(
-                                                left: startX + (endX - startX) * secondArrowProgress - 8,
+                                                left: startX + (endX - startX) * secondArrowProgress - AppTheme.spacingSm,
                                                 child: Opacity(
-                                                  opacity: (1.0 - secondArrowProgress.abs()) * 0.8,
+                                                  opacity: (1.0 - secondArrowProgress.abs()) * AppConstants.previewArrowOpacityFade,
                                                   child: Icon(
                                                     Icons.arrow_forward,
-                                                    size: 16,
-                                                    color: DynamicTheme.getPrimaryTextColor(colorScheme).withOpacity(0.8),
+                                                    size: AppConstants.previewArrowIconSizeSmall,
+                                                    color: DynamicTheme.getPrimaryTextColor(colorScheme).withOpacity(AppConstants.previewArrowOpacityFade),
                                                   ),
                                                 ),
                                               ),
@@ -197,7 +200,7 @@ class _StepPreviewState extends ConsumerState<StepPreview>
                             UserAvatar(
                               name: recipient.name,
                               imageUrl: recipient.avatar.isNotEmpty ? recipient.avatar : null,
-                              size: 60,
+                              size: AppConstants.previewAvatarSize,
                             ),
                           ],
                         ),
@@ -210,7 +213,7 @@ class _StepPreviewState extends ConsumerState<StepPreview>
                         label,
                         style: TextStyle(
                           color: DynamicTheme.getPrimaryTextColor(colorScheme),
-                          fontSize: 18,
+                          fontSize: AppConstants.previewLabelFontSize,
                           fontWeight: FontWeight.w600,
                         ),
                         textAlign: TextAlign.center,
@@ -225,20 +228,19 @@ class _StepPreviewState extends ConsumerState<StepPreview>
                         children: [
                           Icon(
                             Icons.person_outline,
-                            size: 14,
+                            size: AppConstants.previewSmallIconSize,
                             color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityFull),
                           ),
-                          SizedBox(width: 6),
+                          SizedBox(width: AppConstants.previewIconTextSpacing),
                           Flexible(
                             child: RichText(
                               overflow: TextOverflow.ellipsis,
                               text: TextSpan(
                                 style: TextStyle(
                                   color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityFull),
-                                  fontSize: 14,
+                                  fontSize: AppConstants.previewRecipientFontSize,
                                 ),
-                                children: [
-                                  const TextSpan(text: 'To: '),
+                                children: [                                  
                                   TextSpan(
                                     text: recipient.username != null && recipient.username!.isNotEmpty
                                         ? '${recipient.name} (@${recipient.username})'
@@ -258,10 +260,10 @@ class _StepPreviewState extends ConsumerState<StepPreview>
                         children: [
                           Icon(
                             Icons.access_time,
-                            size: 14,
+                            size: AppConstants.previewSmallIconSize,
                             color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityFull),
                           ),
-                          SizedBox(width: 6),
+                          SizedBox(width: AppConstants.previewIconTextSpacing),
                           Flexible(
                             child: RichText(
                               overflow: TextOverflow.ellipsis,
@@ -269,12 +271,11 @@ class _StepPreviewState extends ConsumerState<StepPreview>
                               text: TextSpan(
                                 style: TextStyle(
                                   color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityFull),
-                                  fontSize: 12,
+                                  fontSize: AppConstants.previewUnlockTimeFontSize,
                                 ),
-                                children: [
-                                  const TextSpan(text: 'Unlocks On: '),
+                                children: [                                  
                                   TextSpan(
-                                    text: DateFormat('EEEE, MMMM d, y \'at\' h:mm a').format(unlockAt),
+                                    text: DateFormat(AppConstants.previewUnlockDateFormat).format(unlockAt),
                                     style: const TextStyle(fontWeight: FontWeight.bold),
                                   ),
                                 ],
@@ -290,15 +291,15 @@ class _StepPreviewState extends ConsumerState<StepPreview>
                           children: [
                             Icon(
                               Icons.visibility_off_outlined,
-                              size: 14,
+                              size: AppConstants.previewSmallIconSize,
                               color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityFull),
                             ),
-                            SizedBox(width: 4),
+                            SizedBox(width: AppConstants.previewAnonymousIconSpacing),
                             Text(
                               'Anonymous',
                               style: TextStyle(
                                 color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityFull),
-                                fontSize: 12,
+                                fontSize: AppConstants.previewUnlockTimeFontSize,
                                 fontStyle: FontStyle.italic,
                               ),
                             ),
@@ -374,23 +375,23 @@ class _StepPreviewState extends ConsumerState<StepPreview>
                       end: Alignment.bottomRight,
                       colors: [
                         DynamicTheme.getCardBackgroundColor(colorScheme, opacity: AppTheme.opacityLow), // Reduced brightness
-                        DynamicTheme.getCardBackgroundColor(colorScheme, opacity: AppTheme.opacityLow).withOpacity(0.7), // Reduced bottom-right brightness
+                        DynamicTheme.getCardBackgroundColor(colorScheme, opacity: AppTheme.opacityLow).withOpacity(AppConstants.previewGradientOpacityEnd), // Reduced bottom-right brightness
                       ],
                       stops: const [0.0, 1.0],
                     ),
                     borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                     border: Border.all(
-                      color: DynamicTheme.getButtonBorderColor(colorScheme).withOpacity(0.1), // Further reduced contrast
-                      width: 1, // Thinner border
+                      color: DynamicTheme.getButtonBorderColor(colorScheme).withOpacity(AppTheme.opacityLow), // Further reduced contrast
+                      width: AppConstants.previewBorderWidth,
                     ),
                     // Very subtle shadow for depth without boxiness
                     boxShadow: [
                       BoxShadow(
                         color: colorScheme.isDarkTheme
-                            ? Colors.black.withOpacity(0.1)
-                            : Colors.black.withOpacity(0.03),
-                        blurRadius: 4,
-                        offset: const Offset(0, 1),
+                            ? Colors.black.withOpacity(AppConstants.previewLetterShadowOpacityDark)
+                            : Colors.black.withOpacity(AppConstants.previewLetterShadowOpacityLight),
+                        blurRadius: AppConstants.previewLetterShadowBlur,
+                        offset: const Offset(0, AppConstants.previewLetterShadowOffsetY),
                       ),
                     ],
                   ),
@@ -400,9 +401,9 @@ class _StepPreviewState extends ConsumerState<StepPreview>
                     child: Text(
                       draft.content ?? '',
                       style: TextStyle(
-                        color: DynamicTheme.getInputTextColor(colorScheme).withOpacity(0.9), // Slightly reduced brightness to match canvas feel
-                        fontSize: 16,
-                        height: 1.6, // Match writing area line height
+                        color: DynamicTheme.getInputTextColor(colorScheme).withOpacity(AppConstants.previewTextOpacity), // Slightly reduced brightness to match canvas feel
+                        fontSize: AppConstants.previewLetterContentFontSize,
+                        height: AppConstants.previewLetterLineHeight, // Match writing area line height
                       ),
                     ),
                   ),
@@ -437,8 +438,8 @@ class _StepPreviewState extends ConsumerState<StepPreview>
             boxShadow: [
               BoxShadow(
                 color: DynamicTheme.getNavBarShadowColor(colorScheme),
-                blurRadius: 10,
-                offset: const Offset(0, -5),
+                blurRadius: AppConstants.previewNavBarShadowBlur,
+                offset: const Offset(0, AppConstants.previewNavBarShadowOffsetY),
               ),
             ],
           ),
@@ -496,7 +497,7 @@ class _StepPreviewState extends ConsumerState<StepPreview>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: primaryColor),
+        Icon(icon, size: AppConstants.previewDetailRowIconSize, color: primaryColor),
         SizedBox(width: AppTheme.spacingSm),
         Expanded(
           child: Column(
@@ -505,7 +506,7 @@ class _StepPreviewState extends ConsumerState<StepPreview>
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: AppConstants.previewDetailRowLabelFontSize,
                   color: DynamicTheme.getSecondaryTextColor(colorScheme),
                 ),
               ),
@@ -513,7 +514,7 @@ class _StepPreviewState extends ConsumerState<StepPreview>
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: AppConstants.previewDetailRowValueFontSize,
                   fontWeight: FontWeight.w600,
                   color: DynamicTheme.getPrimaryTextColor(colorScheme),
                 ),
@@ -550,14 +551,14 @@ class _CeremonialSendButtonState extends State<_CeremonialSendButton>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 600),
+      duration: AppConstants.previewButtonAnimationDuration,
       vsync: this,
     );
     
     // Arrow slides into envelope: starts on the left, slides right into envelope
     _slideAnimation = Tween<double>(
-      begin: -12.0, // Start on the left of envelope
-      end: 8.0,     // Slide right into envelope center
+      begin: AppConstants.previewArrowOffsetStart, // Start on the left of envelope
+      end: AppConstants.previewArrowOffsetEnd,     // Slide right into envelope center
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: Curves.easeOutCubic,
@@ -580,8 +581,8 @@ class _CeremonialSendButtonState extends State<_CeremonialSendButton>
     // Trigger icon animation
     _controller.forward();
     
-    // Intentional delay (0.3-0.5s) before transition - feels ceremonial, not laggy
-    await Future.delayed(const Duration(milliseconds: 400));
+    // Intentional delay before transition - feels ceremonial, not laggy
+    await Future.delayed(AppConstants.previewButtonDelayDuration);
     
     if (mounted) {
       widget.onPressed();
@@ -599,7 +600,7 @@ class _CeremonialSendButtonState extends State<_CeremonialSendButton>
           vertical: AppTheme.spacingLg, // Taller button for ceremonial feel
           horizontal: AppTheme.spacingMd,
         ),
-        minimumSize: const Size(0, 56), // Ensure minimum height
+        minimumSize: const Size(0, AppConstants.previewButtonMinHeight), // Ensure minimum height
         side: DynamicTheme.getButtonBorderSide(widget.colorScheme),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
@@ -614,13 +615,13 @@ class _CeremonialSendButtonState extends State<_CeremonialSendButton>
             builder: (context, child) {
               // Arrow opacity: starts at 1.0, fades as it slides into envelope
               final arrowOpacity = _isPressed 
-                  ? ((_slideAnimation.value + 12.0) / 20.0).clamp(0.0, 1.0) // Fade from 1.0 to 0.0 as it slides
+                  ? ((_slideAnimation.value - AppConstants.previewArrowOffsetStart) / (AppConstants.previewArrowOffsetEnd - AppConstants.previewArrowOffsetStart + AppTheme.spacingMd)).clamp(0.0, 1.0) // Fade from 1.0 to 0.0 as it slides
                   : 1.0;
               
               // Arrow position: starts on the left when not pressed, slides right when pressed
               final arrowOffset = _isPressed 
-                  ? _slideAnimation.value  // Animated position (-12.0 to 8.0)
-                  : -12.0;                 // Initial position (on the left)
+                  ? _slideAnimation.value  // Animated position
+                  : AppConstants.previewArrowOffsetStart; // Initial position (on the left)
               
               return Stack(
                 alignment: Alignment.center,
@@ -629,7 +630,7 @@ class _CeremonialSendButtonState extends State<_CeremonialSendButton>
                   // Envelope icon (always visible)
                   Icon(
                     Icons.mail_outline,
-                    size: 20,
+                    size: AppConstants.previewButtonIconSize,
                   ),
                   // Arrow icon (slides into envelope when pressed)
                   Transform.translate(
@@ -638,7 +639,7 @@ class _CeremonialSendButtonState extends State<_CeremonialSendButton>
                       opacity: arrowOpacity,
                       child: Icon(
                         Icons.arrow_forward,
-                        size: 16,
+                        size: AppConstants.previewArrowIconSizeSmall,
                       ),
                     ),
                   ),

@@ -339,6 +339,7 @@ class AppConstants {
   
   // Date format strings
   static const String connectionDateFormat = 'MMM dd, yyyy';
+  static const String previewUnlockDateFormat = 'EEEE, MMMM d, y \'at\' h:mm a';
 
   // Asset paths
   static const String avatarPriya = 'assets/images/avatar_priya.png';
@@ -352,5 +353,58 @@ class AppConstants {
   static const String mockAnanyaId = 'ananya-456';
   static const String mockRajId = 'raj-789';
   static const String mockMomId = 'mom-999';
+  
+  // Preview screen dimensions
+  static const double previewEnvelopeIconSize = 60.0;
+  static const double previewEnvelopeIconInnerSize = 30.0;
+  static const double previewAvatarSize = 60.0;
+  static const double previewArrowIconSizeLarge = 18.0;
+  static const double previewArrowIconSizeSmall = 16.0;
+  static const double previewSmallIconSize = 14.0;
+  static const double previewButtonIconSize = 20.0;
+  static const double previewDetailRowIconSize = 20.0;
+  
+  // Preview screen spacing
+  static const double previewIconTextSpacing = 6.0;
+  static const double previewAnonymousIconSpacing = 4.0;
+  static const double previewArrowOffsetStart = -12.0;
+  static const double previewArrowOffsetEnd = 8.0;
+  
+  // Preview screen font sizes
+  static const double previewLabelFontSize = 18.0;
+  static const double previewRecipientFontSize = 14.0;
+  static const double previewUnlockTimeFontSize = 12.0;
+  static const double previewLetterContentFontSize = 16.0;
+  static const double previewDetailRowLabelFontSize = 12.0;
+  static const double previewDetailRowValueFontSize = 16.0;
+  
+  // Preview screen animation durations
+  static const Duration previewArrowAnimationDuration = Duration(seconds: 2);
+  static const Duration previewButtonAnimationDuration = Duration(milliseconds: 600);
+  static const Duration previewButtonDelayDuration = Duration(milliseconds: 400);
+  
+  // Preview screen animation values
+  static const double previewArrowOpacityThresholdLow = 0.2;
+  static const double previewArrowOpacityThresholdHigh = 0.8;
+  static const double previewSecondArrowDelay = 0.5;
+  static const double previewArrowOpacityFade = 0.8;
+  
+  // Preview screen shadow/glow values
+  static const double previewEnvelopeShadowOpacity = 0.3;
+  static const double previewEnvelopeShadowBlur = 20.0;
+  static const double previewEnvelopeShadowOffsetY = 10.0;
+  static const double previewLetterShadowOpacityDark = 0.1;
+  static const double previewLetterShadowOpacityLight = 0.03;
+  static const double previewLetterShadowBlur = 4.0;
+  static const double previewLetterShadowOffsetY = 1.0;
+  static const double previewNavBarShadowBlur = 10.0;
+  static const double previewNavBarShadowOffsetY = -5.0;
+  
+  // Preview screen other values
+  static const double previewBorderWidth = 1.0;
+  static const double previewLetterLineHeight = 1.6;
+  static const double previewButtonMinHeight = 56.0;
+  static const double previewGradientOpacityEnd = 0.7;
+  static const double previewTextOpacity = 0.9;
 }
 
