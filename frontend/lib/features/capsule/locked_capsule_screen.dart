@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +11,7 @@ import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/theme/app_text_styles.dart';
 import 'package:openon_app/core/utils/logger.dart';
 import 'package:openon_app/core/utils/error_handler.dart';
+import 'package:openon_app/core/widgets/common_widgets.dart';
 import 'package:intl/intl.dart';
 
 class LockedCapsuleScreen extends ConsumerStatefulWidget {
@@ -21,16 +23,93 @@ class LockedCapsuleScreen extends ConsumerStatefulWidget {
   ConsumerState<LockedCapsuleScreen> createState() => _LockedCapsuleScreenState();
 }
 
-class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
+class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
+    with TickerProviderStateMixin {
   Timer? _countdownTimer;
+  Timer? _emojiTimer;
   late Capsule _capsule;
   bool _isWithdrawing = false; // Prevent double-withdrawal
   bool _isRefreshing = false; // Prevent concurrent refreshes
+  late AnimationController _breathingController;
+  late Animation<double> _breathingAnimation;
+  late AnimationController _circlePulseController;
+  late Animation<double> _circleSizeAnimation;
+  late Animation<double> _lockHaloAnimation;
+  late AnimationController _emojiAnimationController;
+  late Animation<double> _emojiPositionAnimation;
+  String? _currentEmoji;
+  final Random _random = Random();
+  static const List<String> _emojis = ['💌', '✨', '🤍'];
   
   @override
   void initState() {
     super.initState();
     _capsule = widget.capsule;
+    
+    // Breathing animation for lock icon - very slow, subtle pulse (6s cycle)
+    _breathingController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 6), // Slow breathing cycle
+    )..repeat(reverse: true);
+    
+    // Subtle opacity breathing: from 0.85 to 1.0 (very subtle)
+    _breathingAnimation = Tween<double>(
+      begin: 0.85,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _breathingController,
+      curve: Curves.easeInOut, // Smooth, gentle curve for breathing effect
+    ));
+    
+    // Circle pulse animation - grows from small to current size every second
+    _circlePulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1), // 1 second cycle
+    )..repeat(reverse: true);
+    
+    // Circle size animation: from 160 (small) to 180 (current)
+    _circleSizeAnimation = Tween<double>(
+      begin: 160.0,
+      end: 180.0,
+    ).animate(CurvedAnimation(
+      parent: _circlePulseController,
+      curve: Curves.easeInOut, // Smooth pulse
+    ));
+    
+    // Lock halo animation - syncs with circle pulse animation
+    // Use the same controller as circle pulse for synchronized timing
+    // Halo pulse: fades in and out very subtly (0.0 to 0.25 opacity) following circle pulse
+    _lockHaloAnimation = Tween<double>(
+      begin: 0.0,
+      end: 0.25,
+    ).animate(CurvedAnimation(
+      parent: _circlePulseController, // Use circle pulse controller for sync
+      curve: Curves.easeInOut, // Smooth, gentle pulse - fades in and out
+    ));
+    
+    // Emoji animation - moves from sender to receiver
+    _emojiAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000), // Animation duration
+    );
+    
+    _emojiPositionAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _emojiAnimationController,
+      curve: Curves.easeOut, // Ease out for natural movement
+    ));
+    
+    // Start emoji timer - trigger every 2 seconds
+    _emojiTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (mounted && !_capsule.isOpened) {
+        _triggerEmojiAnimation();
+      }
+    });
+    
+    // Trigger first emoji immediately
+    _triggerEmojiAnimation();
     
     // Update countdown every second
     // Only update if capsule is still locked to save battery
@@ -47,7 +126,46 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _emojiTimer?.cancel();
+    _breathingController.dispose();
+    _circlePulseController.dispose();
+    _emojiAnimationController.dispose();
     super.dispose();
+  }
+  
+  /// Trigger emoji animation - randomly select emoji and animate
+  void _triggerEmojiAnimation() {
+    if (!mounted) return;
+    
+    // Stop any ongoing animation first to prevent conflicts
+    if (_emojiAnimationController.isAnimating) {
+      _emojiAnimationController.stop();
+    }
+    
+    // Randomly select an emoji
+    _currentEmoji = _emojis[_random.nextInt(_emojis.length)];
+    
+    // Reset to beginning and start animation from scratch
+    _emojiAnimationController.reset();
+    
+    // Start animation and handle completion
+    _emojiAnimationController.forward().then((_) {
+      // Clear emoji after animation completes
+      if (mounted) {
+        setState(() {
+          _currentEmoji = null;
+        });
+      }
+    }).catchError((error) {
+      // Handle any errors gracefully
+      if (mounted) {
+        setState(() {
+          _currentEmoji = null;
+        });
+      }
+    });
+    
+    setState(() {});
   }
   
   /// Calculate progress for countdown indicator (0.0 to 1.0)
@@ -68,6 +186,35 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
     } catch (e) {
       Logger.warning('Error calculating progress', error: e);
       return 0.0;
+    }
+  }
+  
+  /// Get formatted sender text: "A letter from {firstName}"
+  /// Extracts first name from full name, or uses full name if it's "Anonymous"
+  String _getSenderText(String displaySenderName) {
+    if (displaySenderName == 'Anonymous') {
+      return 'Written by Anonymous';
+    }
+    // Extract first name (first word)
+    final firstName = displaySenderName.split(' ').first;
+    return 'Written by $firstName';
+  }
+  
+  /// Get formatted countdown text with warmer phrasing: "Opens in X days"
+  String _getCountdownText(Capsule capsule) {
+    if (!capsule.isLocked) return 'Ready to open';
+    
+    final duration = capsule.timeUntilUnlock;
+    final days = duration.inDays;
+    final hours = duration.inHours % 24;
+    final minutes = duration.inMinutes % 60;
+    
+    if (days > 0) {
+      return 'Opens in $days day${days != 1 ? 's' : ''}';
+    } else if (hours > 0) {
+      return 'Opens in $hours hour${hours != 1 ? 's' : ''}';
+    } else {
+      return 'Opens in $minutes minute${minutes != 1 ? 's' : ''}';
     }
   }
   
@@ -438,7 +585,11 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
                     child: SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       child: Padding(
-                        padding: const EdgeInsets.all(AppTheme.spacingXl),
+                        padding: const EdgeInsets.only(                          
+                          bottom: AppTheme.spacingXl,
+                          left: AppTheme.spacingXl,
+                          right: AppTheme.spacingXl,
+                        ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           mainAxisSize: MainAxisSize.min,
@@ -448,67 +599,378 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
                           capsule.label,
                           style: TextStyle(
                             color: DynamicTheme.getPrimaryTextColor(colorScheme),
-                            fontSize: 24,
+                            fontSize: 22,
                             fontWeight: FontWeight.w600,
                           ),
                           textAlign: TextAlign.center,
                         ),
                         
-                        SizedBox(height: AppTheme.spacingSm),
+                        SizedBox(height: AppTheme.spacingMd),
                         
                         Text(
-                          'From ${capsule.displaySenderName}',
+                          _getSenderText(capsule.displaySenderName),
                           style: TextStyle(
                             color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityAlmostFull2),
                             fontSize: 16,
                           ),
                         ),
                         
-                        SizedBox(height: AppTheme.spacingXl * 2),
+                        SizedBox(height: AppTheme.spacingLg),
                         
-                        // Envelope with countdown
-                        GestureDetector(
-                          onTap: _handleTapEnvelope,
-                          child: Container(
-                            width: 200,
-                            height: 200,
-                            decoration: BoxDecoration(
-                              color: DynamicTheme.getCardBackgroundColor(colorScheme, opacity: AppTheme.opacityMedium),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                // Countdown progress indicator
-                                if (!canOpen && capsule.timeUntilUnlock > Duration.zero)
-                                  CircularProgressIndicator(
-                                    value: _calculateProgress(capsule),
-                                    strokeWidth: 6,
-                                    valueColor: AlwaysStoppedAnimation<Color>(colorScheme.secondary1),
-                                    backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme, opacity: AppTheme.opacityHigh),
-                                  ),
-                                
-                                // Envelope/lock icon with anonymous icon if applicable
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      canOpen ? Icons.mail_outline : Icons.lock_outline,
-                                      size: 70,
-                                      color: DynamicTheme.getPrimaryIconColor(colorScheme),
-                                    ),
-                                    // Show anonymous icon if capsule is anonymous and not revealed
-                                    if (capsule.isAnonymous && !capsule.isRevealed) ...[
-                                      SizedBox(width: 8),
-                                      Icon(
-                                        Icons.visibility_off_outlined,
-                                        size: 35,
-                                        color: DynamicTheme.getPrimaryIconColor(colorScheme).withOpacity(0.8),
+                        // Sender and recipient avatars with labels and animated emoji
+                        SizedBox(
+                          height: 100, // Fixed height for Stack
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              // Capture colorScheme for use in AnimatedBuilder
+                              final currentColorScheme = colorScheme;
+                              return Stack(
+                                children: [
+                                  // Avatars row with labels
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      // Sender section (left)
+                                      Expanded(
+                                        child: Center(
+                                          child: capsule.isAnonymous && !capsule.isRevealed
+                                              ? CircleAvatar(
+                                                  radius: 30,
+                                                  backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme, opacity: AppTheme.opacityMedium),
+                                                  child: Icon(
+                                                    Icons.visibility_off_outlined,
+                                                    color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                                                    size: 30,
+                                                  ),
+                                                )
+                                              : UserAvatar(
+                                                  imageUrl: capsule.displaySenderAvatar.isNotEmpty ? capsule.displaySenderAvatar : null,
+                                                  name: capsule.displaySenderName,
+                                                  size: 60,
+                                                ),
+                                        ),
+                                      ),
+                                      
+                                      // Spacing between sender and receiver
+                                      SizedBox(width: AppTheme.spacingXl * 2),
+                                      
+                                      // Recipient section (right)
+                                      Expanded(
+                                        child: Center(
+                                          child: UserAvatar(
+                                            imageUrl: capsule.receiverAvatar.isNotEmpty ? capsule.receiverAvatar : null,
+                                            name: capsule.receiverName,
+                                            size: 60,
+                                          ),
+                                        ),
                                       ),
                                     ],
-                                  ],
-                                ),
-                              ],
+                                  ),
+                                  
+                                  // Text in the middle: "A thought on its way…"
+                                  // Positioned below the avatars
+                                  Positioned(
+                                    left: 0,
+                                    right: 0,
+                                    top: 65, // Positioned below avatars
+                                    child: Center(
+                                      child: Text(
+                                        'A thought on its way…',
+                                        style: TextStyle(
+                                          color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityAlmostFull),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w400,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  
+                                  // Animated emoji overlay - moves from sender to receiver
+                                  if (_currentEmoji != null)
+                                    AnimatedBuilder(
+                                      animation: _emojiPositionAnimation,
+                                      builder: (context, child) {
+                                        // Ensure animation value is valid (0.0 to 1.0)
+                                        final progress = _emojiPositionAnimation.value.clamp(0.0, 1.0);
+                                        
+                                        // Avatar size is 60px (radius 30px)
+                                        final avatarRadius = 30.0;
+                                        final emojiSize = 30.0;
+                                        
+                                        // Calculate positions based on the Row layout
+                                        // Row structure: Expanded(sender) | SizedBox(spacing) | Expanded(receiver)
+                                        // Each Expanded takes equal space, avatars are centered within them
+                                        final totalWidth = constraints.maxWidth;
+                                        
+                                        // Safety check: ensure minimum width to prevent calculation errors
+                                        if (totalWidth < 200) {
+                                          // If screen is too small, hide emoji or position at center
+                                          return Positioned(
+                                            left: (totalWidth - emojiSize) / 2,
+                                            top: 0,
+                                            child: Opacity(
+                                              opacity: 0.0, // Hide if screen too small
+                                              child: Text(
+                                                _currentEmoji!,
+                                                style: TextStyle(fontSize: 30),
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                        
+                                        final spacingWidth = AppTheme.spacingXl * 2; // Spacing between avatars
+                                        
+                                        // Ensure we have enough space for both avatars and spacing
+                                        final minRequiredWidth = (avatarRadius * 4) + spacingWidth; // 2 avatars + spacing
+                                        if (totalWidth < minRequiredWidth) {
+                                          // Fallback: center the emoji if not enough space
+                                          return Positioned(
+                                            left: (totalWidth - emojiSize) / 2,
+                                            top: 0,
+                                            child: Opacity(
+                                              opacity: (0.75 - (progress * 0.15)).clamp(0.6, 0.75),
+                                              child: Transform.scale(
+                                                scale: 0.8 + (progress * 0.2),
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: DynamicTheme.getPrimaryTextColor(colorScheme).withOpacity(0.2),
+                                                        blurRadius: 8,
+                                                        spreadRadius: 2,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: Text(
+                                                    _currentEmoji!,
+                                                    style: TextStyle(
+                                                      fontSize: 30,
+                                                      shadows: [
+                                                        Shadow(
+                                                          color: DynamicTheme.getPrimaryTextColor(colorScheme).withOpacity(0.3),
+                                                          blurRadius: 6,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                        
+                                        final expandedSectionWidth = (totalWidth - spacingWidth) / 2;
+                                        
+                                        // Sender avatar is centered in left Expanded section
+                                        // Avatar center X = expandedSectionWidth / 2
+                                        // Start position: right edge of sender avatar = center + radius
+                                        final senderAvatarCenterX = expandedSectionWidth / 2;
+                                        final startX = senderAvatarCenterX + avatarRadius;
+                                        
+                                        // Receiver avatar is centered in right Expanded section
+                                        // Avatar center X = expandedSectionWidth + spacingWidth + expandedSectionWidth / 2
+                                        // End position: left edge of receiver avatar = center - radius
+                                        final receiverAvatarCenterX = expandedSectionWidth + spacingWidth + (expandedSectionWidth / 2);
+                                        final endX = receiverAvatarCenterX - avatarRadius;
+                                        
+                                        // Calculate current position between start and end
+                                        final distance = endX - startX;
+                                        
+                                        // Safety check: ensure valid distance
+                                        if (distance <= 0) {
+                                          // If distance is invalid, position at start
+                                          return Positioned(
+                                            left: startX - (emojiSize / 2),
+                                            top: 0,
+                                            child: Opacity(
+                                              opacity: (0.75 - (progress * 0.15)).clamp(0.6, 0.75),
+                                              child: Transform.scale(
+                                                scale: 0.8 + (progress * 0.2),
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: DynamicTheme.getPrimaryTextColor(colorScheme).withOpacity(0.2),
+                                                        blurRadius: 8,
+                                                        spreadRadius: 2,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: Text(
+                                                    _currentEmoji!,
+                                                    style: TextStyle(
+                                                      fontSize: 30,
+                                                      shadows: [
+                                                        Shadow(
+                                                          color: DynamicTheme.getPrimaryTextColor(colorScheme).withOpacity(0.3),
+                                                          blurRadius: 6,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                        
+                                        final currentX = startX + (distance * progress);
+                                        
+                                        // Position emoji so its center is at currentX
+                                        // Clamp to ensure emoji stays within bounds
+                                        final emojiLeft = (currentX - (emojiSize / 2)).clamp(0.0, totalWidth - emojiSize);
+                                        
+                                        return Positioned(
+                                          left: emojiLeft,
+                                          top: 0, // Position at top of the Stack (above avatars)
+                                          child: Opacity(
+                                            // Base opacity 75% with slight fade as it moves (ethereal feel)
+                                            opacity: (0.75 - (progress * 0.15)).clamp(0.6, 0.75),
+                                            child: Transform.scale(
+                                              scale: 0.8 + (progress * 0.2), // Slight scale up as it moves
+                                              child: Container(
+                                                width: 36,
+                                                height: 36,
+                                                alignment: Alignment.center,
+                                                // Circular glow effect for ethereal appearance
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: DynamicTheme.getPrimaryTextColor(currentColorScheme).withOpacity(0.1),
+                                                      blurRadius: 4,
+                                                      spreadRadius: 1,
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: Text(
+                                                  _currentEmoji!,
+                                                  textAlign: TextAlign.center,
+                                                  style: TextStyle(
+                                                    fontSize: 30,
+                                                    height: 1.0, // Remove extra line height for better centering
+                                                    shadows: [
+                                                      // Additional subtle text shadow for glow
+                                                      Shadow(
+                                                        color: DynamicTheme.getPrimaryTextColor(currentColorScheme).withOpacity(0.15),
+                                                        blurRadius: 3,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                        
+                        SizedBox(height: AppTheme.spacingLg),
+                        
+                        // Envelope with countdown - fixed size container to prevent layout shifts
+                        SizedBox(
+                          width: 180,
+                          height: 180,
+                          child: GestureDetector(
+                            onTap: _handleTapEnvelope,
+                            child: AnimatedBuilder(
+                              animation: _circleSizeAnimation,
+                              builder: (context, child) {
+                                return Center(
+                                  child: Container(
+                                    width: _circleSizeAnimation.value,
+                                    height: _circleSizeAnimation.value,
+                                    decoration: BoxDecoration(
+                                      color: DynamicTheme.getCardBackgroundColor(colorScheme, opacity: AppTheme.opacityMedium),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: child,
+                                  ),
+                                );
+                              },
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  // Countdown progress indicator
+                                  if (!canOpen && capsule.timeUntilUnlock > Duration.zero)
+                                    CircularProgressIndicator(
+                                      value: _calculateProgress(capsule),
+                                      strokeWidth: 6,
+                                      valueColor: AlwaysStoppedAnimation<Color>(colorScheme.secondary1),
+                                      backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme, opacity: AppTheme.opacityHigh),
+                                    ),
+                                  
+                                  // Envelope/lock icon with anonymous icon if applicable
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // Animated lock icon with subtle breathing effect and halo when locked
+                                      if (canOpen)
+                                        Icon(
+                                          Icons.mail_outline,
+                                          size: 70,
+                                          color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                                        )
+                                      else
+                                        AnimatedBuilder(
+                                          animation: Listenable.merge([_breathingAnimation, _lockHaloAnimation]),
+                                          builder: (context, child) {
+                                            return Stack(
+                                              alignment: Alignment.center,
+                                              children: [
+                                                // Subtle halo effect - pulses every ~7 seconds
+                                                AnimatedBuilder(
+                                                  animation: _lockHaloAnimation,
+                                                  builder: (context, child) {
+                                                    return Container(
+                                                      width: 90,
+                                                      height: 90,
+                                                      decoration: BoxDecoration(
+                                                        shape: BoxShape.circle,
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                            color: DynamicTheme.getPrimaryIconColor(colorScheme).withOpacity(_lockHaloAnimation.value),
+                                                            blurRadius: 20,
+                                                            spreadRadius: 5,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                                // Lock icon with breathing opacity
+                                                Opacity(
+                                                  opacity: _breathingAnimation.value,
+                                                  child: Icon(
+                                                    Icons.lock_outline,
+                                                    size: 70,
+                                                    color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                                                  ),
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        ),
+                                      // Show anonymous icon if capsule is anonymous and not revealed
+                                      if (capsule.isAnonymous && !capsule.isRevealed) ...[
+                                        SizedBox(width: 8),
+                                        Icon(
+                                          Icons.visibility_off_outlined,
+                                          size: 35,
+                                          color: DynamicTheme.getPrimaryIconColor(colorScheme).withOpacity(0.8),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -536,23 +998,15 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen> {
                           ),
                         ] else ...[
                           Text(
-                            capsule.countdownText,
+                            _getCountdownText(capsule),
                             style: TextStyle(
                               color: DynamicTheme.getPrimaryTextColor(colorScheme),
-                              fontSize: 48,
+                              fontSize: 30,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 2,
                             ),
                           ),
-                          SizedBox(height: AppTheme.spacingMd),
-                          Text(
-                            'Until unlock',
-                            style: TextStyle(
-                              color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityAlmostFull2),
-                              fontSize: 18,
-                            ),
-                          ),
-                          SizedBox(height: AppTheme.spacingXl),
+                          SizedBox(height: AppTheme.spacingLg),
                           Text(
                             'Opens on ${DateFormat('MMMM d, y \'at\' h:mm a').format(capsule.unlockAt)}',
                             style: TextStyle(
