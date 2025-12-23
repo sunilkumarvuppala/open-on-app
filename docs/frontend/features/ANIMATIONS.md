@@ -375,7 +375,7 @@ Contains:
 
 ## Related Documentation
 
-- [Performance Optimizations](../PERFORMANCE_OPTIMIZATIONS.md) - For performance details
+- [Performance Optimizations](../../development/PERFORMANCE_OPTIMIZATIONS.md) - For performance details
 - [Capsule Viewing](./CAPSULE.md) - For animation usage
 - [Home Screen](./HOME.md) - For tab animations
 

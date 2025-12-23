@@ -37,20 +37,20 @@ flutter pub get
 flutter run
 ```
 
-**Note**: See [DEVELOPMENT_SETUP.md](./DEVELOPMENT_SETUP.md) for complete setup guide.
+**Note**: See [docs/getting-started/QUICK_START.md](./docs/getting-started/QUICK_START.md) for complete setup guide.
 
 ## 📚 Documentation
 
 **📖 Complete Documentation**: See [docs/README.md](./docs/README.md) for documentation overview (start here!)
 
 **🚀 Quick Start**:
-- **New developers**: Start with [docs/ONBOARDING.md](./docs/ONBOARDING.md)
-- **Quick setup**: See [docs/QUICK_START.md](./docs/QUICK_START.md)
-- **Quick reference**: See [docs/QUICK_REFERENCE.md](./docs/QUICK_REFERENCE.md)
+- **New developers**: Start with [docs/getting-started/ONBOARDING.md](./docs/getting-started/ONBOARDING.md)
+- **Quick setup**: See [docs/getting-started/QUICK_START.md](./docs/getting-started/QUICK_START.md)
+- **Quick reference**: See [docs/getting-started/QUICK_REFERENCE.md](./docs/getting-started/QUICK_REFERENCE.md)
 
-**📊 User Flows**: See [docs/SEQUENCE_DIAGRAMS.md](./docs/SEQUENCE_DIAGRAMS.md) for detailed sequence diagrams with method-level detail
+**📊 User Flows**: See [docs/architecture/SEQUENCE_DIAGRAMS.md](./docs/architecture/SEQUENCE_DIAGRAMS.md) for detailed sequence diagrams with method-level detail
 
-**🏗️ Architecture**: See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for system architecture
+**🏗️ Architecture**: See [docs/architecture/ARCHITECTURE.md](./docs/architecture/ARCHITECTURE.md) for system architecture
 
 ## 🏗️ Architecture
 
@@ -77,12 +77,12 @@ flutter run
 
 ## 📖 Key Documentation
 
-- [Onboarding Guide](./docs/ONBOARDING.md) - For new developers
-- [Architecture](./docs/ARCHITECTURE.md) - System architecture
-- [Refactoring](./docs/REFACTORING.md) - Consolidated refactoring documentation
-- [Quick Reference](./docs/QUICK_REFERENCE.md) - Common tasks
+- [Onboarding Guide](./docs/getting-started/ONBOARDING.md) - For new developers
+- [Architecture](./docs/architecture/ARCHITECTURE.md) - System architecture
+- [Refactoring](./docs/development/REFACTORING.md) - Consolidated refactoring documentation
+- [Quick Reference](./docs/getting-started/QUICK_REFERENCE.md) - Common tasks
 - [Backend API](./docs/backend/API_REFERENCE.md) - Backend REST API endpoints
-- [Frontend API](./docs/API_REFERENCE.md) - Frontend API reference (Flutter classes)
+- [Frontend API](./docs/reference/API_REFERENCE.md) - Frontend API reference (Flutter classes)
 
 ## 🛠️ Technology Stack
 

@@ -10,7 +10,7 @@ Complete Supabase backend documentation for OpenOn time-locked letters app.
 
 ```
 docs/supabase/
-├── README.md (this file)          # Overview and navigation
+├── INDEX.md (this file)            # Overview and navigation
 ├── GETTING_STARTED.md              # Quick start guide
 ├── LOCAL_SETUP.md                  # Complete local development setup
 ├── DATABASE_SCHEMA.md              # Complete database schema reference

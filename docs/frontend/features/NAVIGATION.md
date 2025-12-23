@@ -285,7 +285,7 @@ Widget _buildNavItem({
 
 - [Home Screen](./HOME.md) - For home tab
 - [Receiver Screen](./RECEIVER.md) - For inbox tab
-- [Architecture](../../ARCHITECTURE.md) - For navigation architecture
+- [Architecture](../../architecture/ARCHITECTURE.md) - For navigation architecture
 
 ---
 

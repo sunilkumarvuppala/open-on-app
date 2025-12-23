@@ -319,7 +319,7 @@ Future<void> _saveRecipient() async {
 
 - [Create Capsule](./CREATE_CAPSULE.md) - For recipient selection
 - [Home Screen](./HOME.md) - For FAB navigation
-- [API Reference](../API_REFERENCE.md) - For recipient repository API
+- [API Reference](../../reference/API_REFERENCE.md) - For recipient repository API
 
 ---
 

@@ -368,7 +368,7 @@ return capsulesAsync.when(
 - [Capsule Viewing](./CAPSULE.md) - For capsule detail screens
 - [Create Capsule](./CREATE_CAPSULE.md) - For letter creation
 - [Drafts](./DRAFTS.md) - For draft management
-- [Performance Optimizations](../PERFORMANCE_OPTIMIZATIONS.md) - For performance details
+- [Performance Optimizations](../../development/PERFORMANCE_OPTIMIZATIONS.md) - For performance details
 
 ---
 

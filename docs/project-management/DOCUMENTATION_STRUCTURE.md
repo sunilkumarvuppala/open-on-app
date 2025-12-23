@@ -281,7 +281,7 @@ Error Handling
 ### Component Indexes
 - `docs/backend/INDEX.md` - Backend navigation
 - `docs/frontend/INDEX.md` - Frontend navigation
-- `docs/supabase/README.md` - Database navigation
+- `docs/supabase/INDEX.md` - Database navigation
 
 ### Feature Index
 - `docs/frontend/FEATURES.md` - Features overview
@@ -298,7 +298,7 @@ Error Handling
 ### Component-Specific
 - **Backend**: `backend/INDEX.md`
 - **Frontend**: `frontend/INDEX.md`
-- **Database**: `supabase/README.md`
+- **Database**: `supabase/INDEX.md`
 
 ### Feature-Specific
 - **Connections**: `frontend/features/CONNECTIONS.md` ⭐

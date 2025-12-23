@@ -32,6 +32,7 @@ docs/
         ├── RECIPIENTS.md        # Recipient management
         ├── PROFILE.md           # Profile and settings
         ├── NAVIGATION.md        # Navigation system
+        ├── THOUGHTS.md          # Thoughts feature (presence signals) ⭐ NEW
         └── ANIMATIONS.md        # Animation system
 ```
 
@@ -41,18 +42,18 @@ docs/
 - **[QUICK_START.md](./QUICK_START.md)** - Setup and installation guide
 - **[GETTING_STARTED.md](./GETTING_STARTED.md)** - Beginner-friendly guide
 - **[DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md)** - Complete development guide
-- **[ARCHITECTURE.md](../ARCHITECTURE.md)** - Understanding the architecture
-- **[CODE_STRUCTURE.md](../CODE_STRUCTURE.md)** - Visual code organization
+- **[architecture/ARCHITECTURE.md](../architecture/ARCHITECTURE.md)** - Understanding the architecture
+- **[architecture/CODE_STRUCTURE.md](../architecture/CODE_STRUCTURE.md)** - Visual code organization
 
 ### Core Documentation
 - **[UTILITIES.md](./UTILITIES.md)** - UUID utilities, RecipientResolver, and other utilities ⭐ NEW
 - **[CORE_COMPONENTS.md](./CORE_COMPONENTS.md)** - Core components documentation
 - **[THEME_SYSTEM.md](./THEME_SYSTEM.md)** - Complete theme system guide
 - **[VISUAL_FLOWS.md](./VISUAL_FLOWS.md)** - Visual diagrams and flows
-- **[PERFORMANCE_OPTIMIZATIONS.md](../PERFORMANCE_OPTIMIZATIONS.md)** - All performance improvements
-- **[REFACTORING_GUIDE.md](../REFACTORING_GUIDE.md)** - Code quality improvements
-- **[API_REFERENCE.md](../API_REFERENCE.md)** - Complete API documentation
-- **[CONTRIBUTING.md](../CONTRIBUTING.md)** - How to contribute
+- **[development/PERFORMANCE_OPTIMIZATIONS.md](../development/PERFORMANCE_OPTIMIZATIONS.md)** - All performance improvements
+- **[development/REFACTORING_GUIDE.md](../development/REFACTORING_GUIDE.md)** - Code quality improvements
+- **[reference/API_REFERENCE.md](../reference/API_REFERENCE.md)** - Complete API documentation
+- **[project-management/CONTRIBUTING.md](../project-management/CONTRIBUTING.md)** - How to contribute
 
 ### Features Documentation
 - **[FEATURES.md](./FEATURES.md)** - Features overview and index
@@ -63,6 +64,7 @@ docs/
 - **[CAPSULE.md](./features/CAPSULE.md)** - Capsule viewing screens
 - **[DRAFTS.md](./features/DRAFTS.md)** - Draft management and auto-save
 - **[CONNECTIONS.md](./features/CONNECTIONS.md)** - Connections & friend requests ⭐
+- **[THOUGHTS.md](./features/THOUGHTS.md)** - Thoughts feature (presence signals) ⭐ NEW
 - **[RECIPIENTS.md](./features/RECIPIENTS.md)** - Recipient management
 - **[PROFILE.md](./features/PROFILE.md)** - Profile and settings
 - **[NAVIGATION.md](./features/NAVIGATION.md)** - Navigation system
@@ -71,8 +73,8 @@ docs/
 ## 📖 Documentation by Topic
 
 ### Architecture & Design
-- [ARCHITECTURE.md](../ARCHITECTURE.md) - Overall architecture
-- [CODE_STRUCTURE.md](../CODE_STRUCTURE.md) - Code organization
+- [architecture/ARCHITECTURE.md](../architecture/ARCHITECTURE.md) - Overall architecture
+- [architecture/CODE_STRUCTURE.md](../architecture/CODE_STRUCTURE.md) - Code organization
 - [CORE_COMPONENTS.md](./CORE_COMPONENTS.md) - Core components
 - [VISUAL_FLOWS.md](./VISUAL_FLOWS.md) - Visual diagrams
 - [NAVIGATION.md](./features/NAVIGATION.md) - Navigation patterns
@@ -93,16 +95,16 @@ docs/
 - [CORE_COMPONENTS.md](./CORE_COMPONENTS.md) - Core components
 - [THEME_SYSTEM.md](./THEME_SYSTEM.md) - Theme system
 - [VISUAL_FLOWS.md](./VISUAL_FLOWS.md) - Visual flows
-- [PERFORMANCE_OPTIMIZATIONS.md](../PERFORMANCE_OPTIMIZATIONS.md) - Performance
-- [REFACTORING_GUIDE.md](../REFACTORING_GUIDE.md) - Code quality
-- [API_REFERENCE.md](../API_REFERENCE.md) - APIs
+- [development/PERFORMANCE_OPTIMIZATIONS.md](../development/PERFORMANCE_OPTIMIZATIONS.md) - Performance
+- [development/REFACTORING_GUIDE.md](../development/REFACTORING_GUIDE.md) - Code quality
+- [reference/API_REFERENCE.md](../reference/API_REFERENCE.md) - APIs
 - [ANIMATIONS.md](./features/ANIMATIONS.md) - Animations
 
 ### Development
 - [QUICK_START.md](./QUICK_START.md) - Getting started
 - [GETTING_STARTED.md](./GETTING_STARTED.md) - Beginner guide
 - [DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md) - Development guide
-- [CONTRIBUTING.md](../CONTRIBUTING.md) - Contributing
+- [project-management/CONTRIBUTING.md](../project-management/CONTRIBUTING.md) - Contributing
 
 ## 🎯 Feature Quick Reference
 
@@ -117,6 +119,7 @@ docs/
 | Capsule Viewing | [CAPSULE.md](./features/CAPSULE.md) | View locked/opened capsules |
 | Drafts | [DRAFTS.md](./features/DRAFTS.md) | Draft management and auto-save |
 | Connections | [CONNECTIONS.md](./features/CONNECTIONS.md) | Friend requests & mutual connections ⭐ |
+| Thoughts | [THOUGHTS.md](./features/THOUGHTS.md) | Presence signals ("I thought of you") ⭐ NEW |
 | Recipients | [RECIPIENTS.md](./features/RECIPIENTS.md) | Recipient management |
 | Profile | [PROFILE.md](./features/PROFILE.md) | User profile and settings |
 | Navigation | [NAVIGATION.md](./features/NAVIGATION.md) | Main navigation |
@@ -127,22 +130,22 @@ docs/
 ### I want to...
 
 **Understand the codebase structure**
-→ Start with [CODE_STRUCTURE.md](../CODE_STRUCTURE.md)
+→ Start with [architecture/CODE_STRUCTURE.md](../architecture/CODE_STRUCTURE.md)
 
 **Learn about a specific feature**
 → Check [FEATURES.md](./FEATURES.md) for overview, then read the specific feature doc
 
 **Understand the architecture**
-→ Read [ARCHITECTURE.md](../ARCHITECTURE.md)
+→ Read [architecture/ARCHITECTURE.md](../architecture/ARCHITECTURE.md)
 
 **Optimize performance**
-→ Review [PERFORMANCE_OPTIMIZATIONS.md](../PERFORMANCE_OPTIMIZATIONS.md)
+→ Review [development/PERFORMANCE_OPTIMIZATIONS.md](../development/PERFORMANCE_OPTIMIZATIONS.md)
 
 **Make code changes**
-→ Read [REFACTORING_GUIDE.md](../REFACTORING_GUIDE.md) and [CONTRIBUTING.md](../CONTRIBUTING.md)
+→ Read [development/REFACTORING_GUIDE.md](../development/REFACTORING_GUIDE.md) and [project-management/CONTRIBUTING.md](../project-management/CONTRIBUTING.md)
 
 **Find API details**
-→ Check [API_REFERENCE.md](../API_REFERENCE.md)
+→ Check [reference/API_REFERENCE.md](../reference/API_REFERENCE.md)
 
 **Work with animations**
 → Read [ANIMATIONS.md](./features/ANIMATIONS.md)
@@ -155,10 +158,10 @@ docs/
 When working on a feature, check:
 
 - [ ] Feature documentation exists in `features/`
-- [ ] Architecture patterns followed (see [ARCHITECTURE.md](../ARCHITECTURE.md))
-- [ ] Performance optimized (see [PERFORMANCE_OPTIMIZATIONS.md](../PERFORMANCE_OPTIMIZATIONS.md))
-- [ ] Code quality standards met (see [REFACTORING_GUIDE.md](../REFACTORING_GUIDE.md))
-- [ ] API documented (see [API_REFERENCE.md](../API_REFERENCE.md))
+- [ ] Architecture patterns followed (see [architecture/ARCHITECTURE.md](../architecture/ARCHITECTURE.md))
+- [ ] Performance optimized (see [development/PERFORMANCE_OPTIMIZATIONS.md](../development/PERFORMANCE_OPTIMIZATIONS.md))
+- [ ] Code quality standards met (see [development/REFACTORING_GUIDE.md](../development/REFACTORING_GUIDE.md))
+- [ ] API documented (see [reference/API_REFERENCE.md](../reference/API_REFERENCE.md))
 
 ## 🔗 Cross-References
 
@@ -190,9 +193,9 @@ All feature documentation includes:
 ## 🆘 Need Help?
 
 1. Check the relevant feature documentation
-2. Review [ARCHITECTURE.md](../ARCHITECTURE.md) for patterns
-3. See [API_REFERENCE.md](../API_REFERENCE.md) for APIs
-4. Read [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines
+2. Review [architecture/ARCHITECTURE.md](../architecture/ARCHITECTURE.md) for patterns
+3. See [reference/API_REFERENCE.md](../reference/API_REFERENCE.md) for APIs
+4. Read [project-management/CONTRIBUTING.md](../project-management/CONTRIBUTING.md) for guidelines
 
 ---
 

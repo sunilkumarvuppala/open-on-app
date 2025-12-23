@@ -4,8 +4,10 @@ import 'package:openon_app/core/constants/app_constants.dart';
 import 'package:openon_app/core/data/repositories.dart';
 import 'package:openon_app/core/data/api_repositories.dart';
 import 'package:openon_app/core/data/connection_repository.dart';
+import 'package:openon_app/core/data/thought_repository.dart';
 import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/models/connection_models.dart';
+import 'package:openon_app/core/models/thought_models.dart';
 import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/color_scheme_service.dart';
 import 'package:openon_app/core/utils/logger.dart';
@@ -48,6 +50,10 @@ final selfLetterRepositoryProvider = Provider<SelfLetterRepository>((ref) {
     return ApiSelfLetterRepository();
   }
   throw UnimplementedError('Mock self letter repository not implemented');
+});
+
+final thoughtRepositoryProvider = Provider<ThoughtRepository>((ref) {
+  return SupabaseThoughtRepository();
 });
 
 // Auth state providers
@@ -1014,4 +1020,105 @@ final selfLettersProvider = FutureProvider<List<SelfLetter>>((ref) async {
       return <SelfLetter>[];
     },
   );
+});
+
+// Thoughts providers
+final incomingThoughtsProvider = FutureProvider<List<Thought>>((ref) async {
+  final userAsync = ref.watch(currentUserProvider);
+  
+  return userAsync.when(
+    data: (currentUser) {
+      if (currentUser == null) {
+        throw AuthenticationException('Not authenticated. Please sign in.');
+      }
+      
+      final repo = ref.watch(thoughtRepositoryProvider);
+      return repo.listIncoming();
+    },
+    loading: () async {
+      await Future.delayed(const Duration(milliseconds: 300));
+      final retryAsync = ref.read(currentUserProvider);
+      return retryAsync.when(
+        data: (currentUser) {
+          if (currentUser == null) {
+            throw AuthenticationException('Not authenticated. Please sign in.');
+          }
+          final repo = ref.watch(thoughtRepositoryProvider);
+          return repo.listIncoming();
+        },
+        loading: () => <Thought>[],
+        error: (error, stackTrace) {
+          Logger.error('Error loading incoming thoughts', error: error, stackTrace: stackTrace);
+          return <Thought>[];
+        },
+      );
+    },
+    error: (error, stackTrace) {
+      Logger.error('Error loading incoming thoughts', error: error, stackTrace: stackTrace);
+      return <Thought>[];
+    },
+  );
+});
+
+final sentThoughtsProvider = FutureProvider<List<Thought>>((ref) async {
+  final userAsync = ref.watch(currentUserProvider);
+  
+  return userAsync.when(
+    data: (currentUser) {
+      if (currentUser == null) {
+        throw AuthenticationException('Not authenticated. Please sign in.');
+      }
+      
+      final repo = ref.watch(thoughtRepositoryProvider);
+      return repo.listSent();
+    },
+    loading: () async {
+      await Future.delayed(const Duration(milliseconds: 300));
+      final retryAsync = ref.read(currentUserProvider);
+      return retryAsync.when(
+        data: (currentUser) {
+          if (currentUser == null) {
+            throw AuthenticationException('Not authenticated. Please sign in.');
+          }
+          final repo = ref.watch(thoughtRepositoryProvider);
+          return repo.listSent();
+        },
+        loading: () => <Thought>[],
+        error: (error, stackTrace) {
+          Logger.error('Error loading sent thoughts', error: error, stackTrace: stackTrace);
+          return <Thought>[];
+        },
+      );
+    },
+    error: (error, stackTrace) {
+      Logger.error('Error loading sent thoughts', error: error, stackTrace: stackTrace);
+      return <Thought>[];
+    },
+  );
+});
+
+/// Controller for sending thoughts
+class SendThoughtController extends StateNotifier<AsyncValue<SendThoughtResult>> {
+  SendThoughtController(this._repository) : super(const AsyncValue.data(SendThoughtResult(success: false)));
+
+  final ThoughtRepository _repository;
+
+  Future<void> sendThought(String receiverId) async {
+    state = const AsyncValue.loading();
+    try {
+      final result = await _repository.sendThought(receiverId);
+      state = AsyncValue.data(result);
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+    }
+  }
+
+  void reset() {
+    state = const AsyncValue.data(SendThoughtResult(success: false));
+  }
+}
+
+final sendThoughtControllerProvider = StateNotifierProvider<SendThoughtController, AsyncValue<SendThoughtResult>>((ref) {
+  final repo = ref.watch(thoughtRepositoryProvider);
+  return SendThoughtController(repo);
 });

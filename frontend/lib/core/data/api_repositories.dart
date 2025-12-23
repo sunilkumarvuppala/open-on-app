@@ -125,6 +125,18 @@ class ApiAuthRepository implements AuthRepository {
       
       await _tokenStorage.saveTokens(accessToken, refreshToken);
 
+      // Set Supabase session for RLS policies to work
+      // FastAPI returns Supabase JWT tokens that need to be set in Supabase client
+      if (SupabaseConfig.isInitialized && refreshToken.isNotEmpty) {
+        try {
+          await SupabaseConfig.client.auth.setSession(refreshToken);
+          Logger.debug('Supabase session set after login');
+        } catch (e) {
+          Logger.warning('Failed to set Supabase session after login: $e');
+          // Continue - session might be set later or RLS might allow
+        }
+      }
+
       // Get user info
       final userResponse = await _apiClient.get(ApiConfig.authMe);
       _cachedUser = UserMapper.fromJson(userResponse);

@@ -10,36 +10,63 @@
 
 **Never worked on this project before?** Start here:
 
-1. **[ONBOARDING.md](./ONBOARDING.md)** - Complete onboarding guide (start here!)
-2. **[QUICK_START.md](./QUICK_START.md)** - Quick setup instructions
-3. **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System architecture overview
+1. **[getting-started/ONBOARDING.md](./getting-started/ONBOARDING.md)** - Complete onboarding guide (start here!)
+2. **[getting-started/QUICK_START.md](./getting-started/QUICK_START.md)** - Quick setup instructions
+3. **[architecture/ARCHITECTURE.md](./architecture/ARCHITECTURE.md)** - System architecture overview
 4. **[INDEX.md](./INDEX.md)** - Master navigation index
 
 ---
 
 ## 📚 Documentation Structure
 
-### Main Documentation Files
+### Naming Conventions
 
-| File | Purpose | Audience |
-|------|---------|----------|
-| **[README.md](./README.md)** | Documentation hub (this file) | All |
-| **[INDEX.md](./INDEX.md)** | Master navigation index | All |
-| **[NAVIGATION_GUIDE.md](./NAVIGATION_GUIDE.md)** | Quick navigation reference | All |
-| **[ONBOARDING.md](./ONBOARDING.md)** | Complete onboarding guide | New developers |
-| **[QUICK_START.md](./QUICK_START.md)** | Quick setup guide | New developers |
-| **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** | Common tasks reference | All developers |
-| **[ARCHITECTURE.md](./ARCHITECTURE.md)** | System architecture | All developers |
-| **[CODE_STRUCTURE.md](./CODE_STRUCTURE.md)** | Frontend code organization | Frontend developers |
-| **[SEQUENCE_DIAGRAMS.md](./SEQUENCE_DIAGRAMS.md)** | User flow diagrams | All developers |
-| **[REFACTORING.md](./REFACTORING.md)** | Refactoring documentation | All developers |
-| **[REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md)** | Refactoring patterns & best practices | Developers making changes |
-| **[CHANGES_2025.md](./CHANGES_2025.md)** | Comprehensive code changes record | All developers |
-| **[ARCHITECTURE_IMPROVEMENTS.md](./ARCHITECTURE_IMPROVEMENTS.md)** | Architecture patterns & improvements | All developers |
-| **[DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md)** | Complete developer reference | All developers |
-| **[PERFORMANCE_OPTIMIZATIONS.md](./PERFORMANCE_OPTIMIZATIONS.md)** | Performance best practices | All developers |
-| **[CONTRIBUTING.md](./CONTRIBUTING.md)** | Contribution guidelines | Contributors |
-| **[DOCUMENTATION_STRUCTURE.md](./DOCUMENTATION_STRUCTURE.md)** | Documentation organization guide | Documentation maintainers |
+**Clear and Consistent**:
+- **Root level**: `README.md` (this file) - Main documentation hub
+- **Component folders**: `INDEX.md` - Component overview (backend, frontend, supabase)
+- **Feature docs**: `FEATURE_NAME.md` (PascalCase) - Located in `frontend/features/`
+- **Guides**: `GUIDE_NAME.md` (UPPERCASE) - Development guides
+- **Archive**: `archive/` folder - Historical documents (reviews, fixes, analysis)
+
+**No Duplication**: Each topic has ONE primary document. Cross-references link to primary sources.
+
+---
+
+### Documentation Organization
+
+**Root Level** (Navigation & Entry Points):
+- **[README.md](./README.md)** - Documentation hub (this file)
+- **[INDEX.md](./INDEX.md)** - Master navigation index
+
+**Getting Started** (`getting-started/`):
+- **[ONBOARDING.md](./getting-started/ONBOARDING.md)** - Complete onboarding guide
+- **[QUICK_START.md](./getting-started/QUICK_START.md)** - Quick setup guide
+- **[QUICK_REFERENCE.md](./getting-started/QUICK_REFERENCE.md)** - Common tasks reference
+
+**Architecture** (`architecture/`):
+- **[ARCHITECTURE.md](./architecture/ARCHITECTURE.md)** - System architecture
+- **[ARCHITECTURE_IMPROVEMENTS.md](./architecture/ARCHITECTURE_IMPROVEMENTS.md)** - Architecture patterns
+- **[CODE_STRUCTURE.md](./architecture/CODE_STRUCTURE.md)** - Code organization
+- **[SEQUENCE_DIAGRAMS.md](./architecture/SEQUENCE_DIAGRAMS.md)** - User flow diagrams
+
+**Development** (`development/`):
+- **[DEVELOPER_GUIDE.md](./development/DEVELOPER_GUIDE.md)** - Complete developer reference
+- **[REFACTORING.md](./development/REFACTORING.md)** - Refactoring history
+- **[REFACTORING_GUIDE.md](./development/REFACTORING_GUIDE.md)** - Refactoring patterns
+- **[PERFORMANCE_OPTIMIZATIONS.md](./development/PERFORMANCE_OPTIMIZATIONS.md)** - Performance guide
+
+**Reference** (`reference/`):
+- **[API_REFERENCE.md](./reference/API_REFERENCE.md)** - Frontend API reference
+- **[FEATURES_LIST.md](./reference/FEATURES_LIST.md)** - Complete features checklist
+
+**Project Management** (`project-management/`):
+- **[CHANGELOG.md](./project-management/CHANGELOG.md)** - Documentation changelog
+- **[CHANGES_2025.md](./project-management/CHANGES_2025.md)** - Code changes record
+- **[CONTRIBUTING.md](./project-management/CONTRIBUTING.md)** - Contribution guidelines
+- **[DOCUMENTATION_STRUCTURE.md](./project-management/DOCUMENTATION_STRUCTURE.md)** - Doc organization
+- **[NAVIGATION_GUIDE.md](./project-management/NAVIGATION_GUIDE.md)** - Navigation reference
+
+---
 
 ### Component Documentation
 
@@ -61,91 +88,95 @@
 - **[THEME_SYSTEM.md](./frontend/THEME_SYSTEM.md)** - Theming system
 - **[FEATURES.md](./frontend/FEATURES.md)** - Features overview
 - **[VISUAL_FLOWS.md](./frontend/VISUAL_FLOWS.md)** - Visual flow diagrams
-- **[features/](./frontend/features/)** - Feature-specific documentation
 
-#### Database (`supabase/`)
-- **[README.md](./supabase/README.md)** - Supabase documentation overview
+**Feature Documentation** (`frontend/features/`):
+- **[AUTH.md](./frontend/features/AUTH.md)** - Authentication
+- **[HOME.md](./frontend/features/HOME.md)** - Home screen (sender/outbox)
+- **[RECEIVER.md](./frontend/features/RECEIVER.md)** - Receiver screen (inbox)
+- **[CREATE_CAPSULE.md](./frontend/features/CREATE_CAPSULE.md)** - Letter creation
+- **[CAPSULE.md](./frontend/features/CAPSULE.md)** - Capsule viewing
+- **[DRAFTS.md](./frontend/features/DRAFTS.md)** - Draft management
+- **[CONNECTIONS.md](./frontend/features/CONNECTIONS.md)** - Connections & friend requests
+- **[THOUGHTS.md](./frontend/features/THOUGHTS.md)** - Thoughts feature (presence signals)
+- **[RECIPIENTS.md](./frontend/features/RECIPIENTS.md)** - Recipient management
+- **[PROFILE.md](./frontend/features/PROFILE.md)** - Profile & settings
+- **[NAVIGATION.md](./frontend/features/NAVIGATION.md)** - Navigation system
+- **[ANIMATIONS.md](./frontend/features/ANIMATIONS.md)** - Animation system
+- **[ANONYMOUS_LETTERS.md](./frontend/features/ANONYMOUS_LETTERS.md)** - Anonymous letters feature
+- **[LETTERS_TO_SELF.md](./frontend/features/LETTERS_TO_SELF.md)** - Letters to self feature
+
+#### Supabase (`supabase/`)
+- **[INDEX.md](./supabase/INDEX.md)** - Supabase documentation index
 - **[GETTING_STARTED.md](./supabase/GETTING_STARTED.md)** - Supabase setup guide
 - **[LOCAL_SETUP.md](./supabase/LOCAL_SETUP.md)** - Local development setup
-- **[DATABASE_SCHEMA.md](./supabase/DATABASE_SCHEMA.md)** - Complete database schema
+- **[DATABASE_SCHEMA.md](./supabase/DATABASE_SCHEMA.md)** - Complete database schema reference
+- **[DATABASE_OPTIMIZATIONS.md](./supabase/DATABASE_OPTIMIZATIONS.md)** - Database optimizations
 
 ---
 
-## 🔍 Finding Information
+### Archive (`archive/`)
 
-> **📖 For detailed navigation guide**, see [NAVIGATION_GUIDE.md](./NAVIGATION_GUIDE.md)
+Historical documents organized by category:
+
+- **`archive/reviews/`** - Production readiness and security reviews
+- **`archive/fixes/`** - Fix summaries and changelogs
+- **`archive/analysis/`** - Capacity analysis and implementation reviews
+- **`archive/updates/`** - Documentation update summaries
+
+**Note**: Archive documents are kept for historical reference but are not actively maintained.
+
+---
+
+## 🔍 Finding Documentation
 
 ### By Role
 
-**New Developer**: Start with [ONBOARDING.md](./ONBOARDING.md) → [QUICK_START.md](./QUICK_START.md) → [ARCHITECTURE.md](./ARCHITECTURE.md)
+**New Developer**:
+1. Start with [getting-started/ONBOARDING.md](./getting-started/ONBOARDING.md)
+2. Read [getting-started/QUICK_START.md](./getting-started/QUICK_START.md)
+3. Review [architecture/ARCHITECTURE.md](./architecture/ARCHITECTURE.md)
+4. Check component-specific `GETTING_STARTED.md`
 
-**Backend Developer**: [backend/GETTING_STARTED.md](./backend/GETTING_STARTED.md) → [backend/ARCHITECTURE.md](./backend/ARCHITECTURE.md) → [backend/API_REFERENCE.md](./backend/API_REFERENCE.md)
+**Frontend Developer**:
+1. [frontend/INDEX.md](./frontend/INDEX.md)
+2. [frontend/GETTING_STARTED.md](./frontend/GETTING_STARTED.md)
+3. [frontend/DEVELOPMENT_GUIDE.md](./frontend/DEVELOPMENT_GUIDE.md)
+4. Feature-specific docs in `frontend/features/`
 
-**Frontend Developer**: [frontend/GETTING_STARTED.md](./frontend/GETTING_STARTED.md) → [frontend/DEVELOPMENT_GUIDE.md](./frontend/DEVELOPMENT_GUIDE.md) → [frontend/features/](./frontend/features/)
+**Backend Developer**:
+1. [backend/INDEX.md](./backend/INDEX.md)
+2. [backend/GETTING_STARTED.md](./backend/GETTING_STARTED.md)
+3. [backend/ARCHITECTURE.md](./backend/ARCHITECTURE.md)
+4. [backend/API_REFERENCE.md](./backend/API_REFERENCE.md)
 
-**Full-Stack Developer**: [ONBOARDING.md](./ONBOARDING.md) → [ARCHITECTURE.md](./ARCHITECTURE.md) → Component-specific docs
+**Database Developer**:
+1. [supabase/INDEX.md](./supabase/INDEX.md)
+2. [supabase/GETTING_STARTED.md](./supabase/GETTING_STARTED.md)
+3. [supabase/DATABASE_SCHEMA.md](./supabase/DATABASE_SCHEMA.md)
 
 ### By Topic
 
-**API Documentation**:
-- Backend: [backend/API_REFERENCE.md](./backend/API_REFERENCE.md) (REST endpoints)
-- Frontend: [API_REFERENCE.md](./API_REFERENCE.md) (Flutter classes/providers)
+**Understanding the System**:
+- [architecture/ARCHITECTURE.md](./architecture/ARCHITECTURE.md) - System architecture
+- [architecture/CODE_STRUCTURE.md](./architecture/CODE_STRUCTURE.md) - Code organization
+- [architecture/SEQUENCE_DIAGRAMS.md](./architecture/SEQUENCE_DIAGRAMS.md) - User flows
 
-**Architecture**:
-- System: [ARCHITECTURE.md](./ARCHITECTURE.md)
-- Backend: [backend/ARCHITECTURE.md](./backend/ARCHITECTURE.md)
-- Improvements: [ARCHITECTURE_IMPROVEMENTS.md](./ARCHITECTURE_IMPROVEMENTS.md)
+**Working with Features**:
+- [frontend/FEATURES.md](./frontend/FEATURES.md) - Features overview
+- Feature-specific docs in `frontend/features/`
 
-**Code Structure**:
-- Frontend: [CODE_STRUCTURE.md](./CODE_STRUCTURE.md)
-- Backend: [backend/CODE_STRUCTURE.md](./backend/CODE_STRUCTURE.md)
+**Making Changes**:
+- [development/REFACTORING_GUIDE.md](./development/REFACTORING_GUIDE.md) - Refactoring patterns
+- [project-management/CONTRIBUTING.md](./project-management/CONTRIBUTING.md) - Contribution guidelines
+- [getting-started/QUICK_REFERENCE.md](./getting-started/QUICK_REFERENCE.md) - Common tasks
 
-**Database**:
-- Schema: [supabase/DATABASE_SCHEMA.md](./supabase/DATABASE_SCHEMA.md)
-- Setup: [supabase/LOCAL_SETUP.md](./supabase/LOCAL_SETUP.md)
-
-**Refactoring**:
-- Overview: [REFACTORING.md](./REFACTORING.md)
-- Patterns: [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md)
+**Performance & Optimization**:
+- [development/PERFORMANCE_OPTIMIZATIONS.md](./development/PERFORMANCE_OPTIMIZATIONS.md) - Performance guide
+- [supabase/DATABASE_OPTIMIZATIONS.md](./supabase/DATABASE_OPTIMIZATIONS.md) - Database optimizations
 
 ---
 
-## 📋 Naming Conventions
-
-### File Naming
-
-- **UPPERCASE_WITH_UNDERSCORES.md** - Main documentation files (e.g., `GETTING_STARTED.md`, `API_REFERENCE.md`)
-- **README.md** - Overview/index files for directories
-- **INDEX.md** - Navigation index files
-
-### Understanding Similar Names
-
-**API_REFERENCE.md**:
-- `docs/API_REFERENCE.md` → **Frontend** API (Flutter classes, providers, models)
-- `docs/backend/API_REFERENCE.md` → **Backend** API (REST endpoints)
-
-**ARCHITECTURE.md**:
-- `docs/ARCHITECTURE.md` → **System** architecture (overview)
-- `docs/backend/ARCHITECTURE.md` → **Backend** architecture (Python/FastAPI)
-
-**CODE_STRUCTURE.md**:
-- `docs/CODE_STRUCTURE.md` → **Frontend** code structure (Flutter)
-- `docs/backend/CODE_STRUCTURE.md` → **Backend** code structure (Python)
-
-**GETTING_STARTED.md**:
-- `docs/QUICK_START.md` → Quick setup (general, high-level)
-- `docs/backend/GETTING_STARTED.md` → Backend setup (detailed)
-- `docs/frontend/GETTING_STARTED.md` → Frontend setup (detailed)
-- `docs/supabase/GETTING_STARTED.md` → Supabase setup (detailed)
-
-**README.md**:
-- Root `README.md` → Project overview
-- `docs/README.md` → Documentation hub (this file)
-- `docs/supabase/README.md` → Supabase documentation overview
-
----
-
-## ✅ Documentation Standards
+## 📋 Documentation Standards
 
 ### Quality Standards
 
@@ -160,53 +191,79 @@
 
 - Documentation is updated when code changes
 - New features include documentation
-- Breaking changes are documented in [CHANGES_2025.md](./CHANGES_2025.md)
-- See [DOCUMENTATION_STRUCTURE.md](./DOCUMENTATION_STRUCTURE.md) for maintenance guidelines
+- Breaking changes are documented in [project-management/CHANGES_2025.md](./project-management/CHANGES_2025.md)
+- See [project-management/DOCUMENTATION_STRUCTURE.md](./project-management/DOCUMENTATION_STRUCTURE.md) for maintenance guidelines
 
 ---
 
-## 🎓 Learning Paths
+## 🆘 Need Help?
 
-### Backend Developer
-1. [ONBOARDING.md](./ONBOARDING.md)
-2. [backend/GETTING_STARTED.md](./backend/GETTING_STARTED.md)
-3. [backend/ARCHITECTURE.md](./backend/ARCHITECTURE.md)
-4. [backend/API_REFERENCE.md](./backend/API_REFERENCE.md)
-5. [supabase/DATABASE_SCHEMA.md](./supabase/DATABASE_SCHEMA.md)
-
-### Frontend Developer
-1. [ONBOARDING.md](./ONBOARDING.md)
-2. [frontend/GETTING_STARTED.md](./frontend/GETTING_STARTED.md)
-3. [frontend/DEVELOPMENT_GUIDE.md](./frontend/DEVELOPMENT_GUIDE.md)
-4. [frontend/features/](./frontend/features/)
-5. [SEQUENCE_DIAGRAMS.md](./SEQUENCE_DIAGRAMS.md)
-
-### Full-Stack Developer
-1. [ONBOARDING.md](./ONBOARDING.md)
-2. [ARCHITECTURE.md](./ARCHITECTURE.md)
-3. [CHANGES_2025.md](./CHANGES_2025.md)
-4. [SEQUENCE_DIAGRAMS.md](./SEQUENCE_DIAGRAMS.md)
-5. Component-specific docs
+1. **New to the project?** → Start with [getting-started/ONBOARDING.md](./getting-started/ONBOARDING.md)
+2. **Looking for specific feature?** → Check [frontend/FEATURES.md](./frontend/FEATURES.md) or [INDEX.md](./INDEX.md)
+3. **Need quick reference?** → See [getting-started/QUICK_REFERENCE.md](./getting-started/QUICK_REFERENCE.md)
+4. **Navigation help?** → Read [project-management/NAVIGATION_GUIDE.md](./project-management/NAVIGATION_GUIDE.md)
 
 ---
 
-## 📊 Documentation Status
+## 📝 Documentation Structure Summary
 
-**Status**: ✅ **Production Ready & Acquisition Ready**
-
-All documentation is:
-- ✅ Complete and accurate
-- ✅ Well organized
-- ✅ Easy to navigate
-- ✅ Regularly maintained
-- ✅ Suitable for due diligence
-
-For detailed information, see:
-- [DOCUMENTATION_STRUCTURE.md](./DOCUMENTATION_STRUCTURE.md) - Organization guide
-- [CHANGELOG.md](./CHANGELOG.md) - Documentation changelog
+```
+docs/
+├── README.md (this file)           # Main documentation hub
+├── INDEX.md                         # Master navigation index
+│
+├── getting-started/                # Getting started guides
+│   ├── INDEX.md
+│   ├── ONBOARDING.md
+│   ├── QUICK_START.md
+│   └── QUICK_REFERENCE.md
+│
+├── architecture/                   # Architecture & design
+│   ├── INDEX.md
+│   ├── ARCHITECTURE.md
+│   ├── ARCHITECTURE_IMPROVEMENTS.md
+│   ├── CODE_STRUCTURE.md
+│   └── SEQUENCE_DIAGRAMS.md
+│
+├── development/                    # Development guides
+│   ├── INDEX.md
+│   ├── DEVELOPER_GUIDE.md
+│   ├── REFACTORING.md
+│   ├── REFACTORING_GUIDE.md
+│   └── PERFORMANCE_OPTIMIZATIONS.md
+│
+├── reference/                      # Reference documentation
+│   ├── INDEX.md
+│   ├── API_REFERENCE.md
+│   └── FEATURES_LIST.md
+│
+├── project-management/            # Project management
+│   ├── INDEX.md
+│   ├── CHANGELOG.md
+│   ├── CHANGES_2025.md
+│   ├── CONTRIBUTING.md
+│   ├── DOCUMENTATION_STRUCTURE.md
+│   └── NAVIGATION_GUIDE.md
+│
+├── backend/                        # Backend documentation
+│   └── INDEX.md
+│
+├── frontend/                       # Frontend documentation
+│   ├── INDEX.md
+│   └── features/                   # Feature-specific docs
+│
+├── supabase/                       # Database documentation
+│   └── INDEX.md
+│
+└── archive/                        # Historical documents
+    ├── reviews/
+    ├── fixes/
+    ├── analysis/
+    └── updates/
+```
 
 ---
 
-**Last Updated**: January 2025  
-**Maintained By**: Development Team  
-**Version**: 1.0.0
+**Last Updated**: 2025-01-15  
+**Maintainer**: Engineering Team  
+**Status**: Production Ready

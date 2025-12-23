@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/models/connection_models.dart';
 import 'package:openon_app/core/models/models.dart';
+import 'package:openon_app/core/models/thought_models.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
@@ -657,12 +658,39 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
                   ),
                 ),
                 SizedBox(width: AppTheme.spacingXs),
+                // Thought button
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                    onTap: () {
+                      // Stop propagation to prevent card navigation
+                      _handleSendThought(context, ref, connection, colorScheme);
+                    },
+                    child: Container(
+                      padding: EdgeInsets.all(AppTheme.spacingXs + 2),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary2.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                      ),
+                      child: Icon(
+                        Icons.favorite_border_rounded,
+                        size: AppConstants.connectionCardButtonIconSize + 2,
+                        color: colorScheme.primary2,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: AppTheme.spacingXs),
                 // Action button - fixed width to prevent layout shifts
                 Material(
                   color: Colors.transparent,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                    onTap: () => _handleSendLetter(context, ref, connection, colorScheme),
+                    onTap: () {
+                      // Stop propagation to prevent card navigation
+                      _handleSendLetter(context, ref, connection, colorScheme);
+                    },
                     child: Container(
                       padding: EdgeInsets.symmetric(
                         horizontal: AppTheme.spacingSm,
@@ -700,6 +728,212 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleSendThought(
+    BuildContext context,
+    WidgetRef ref,
+    Connection connection,
+    AppColorScheme colorScheme,
+  ) async {
+    final profile = connection.otherUserProfile;
+    final receiverId = connection.otherUserId;
+    
+    // Validate receiver ID
+    if (receiverId.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Invalid receiver. Please try again.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: DynamicTheme.getSnackBarTextColor(colorScheme) ?? Colors.white,
+                  ),
+            ),
+            backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme) ?? AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    
+    // Get current user ID for validation
+    final currentUserAsync = ref.read(currentUserProvider);
+    final currentUser = currentUserAsync.asData?.value;
+    if (currentUser != null && currentUser.id == receiverId) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Cannot send thought to yourself',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: DynamicTheme.getSnackBarTextColor(colorScheme) ?? Colors.white,
+                  ),
+            ),
+            backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme) ?? AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    
+    Logger.debug('Sending thought: currentUserId=${currentUser?.id}, receiverId=$receiverId, connection.otherUserId=${connection.otherUserId}');
+    
+    // Get the send thought controller
+    final controller = ref.read(sendThoughtControllerProvider.notifier);
+    
+    // Show loading indicator
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    DynamicTheme.getSnackBarTextColor(colorScheme) ?? Colors.white,
+                  ),
+                ),
+              ),
+              SizedBox(width: AppTheme.spacingSm),
+              Text(
+                'Sending thought...',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: DynamicTheme.getSnackBarTextColor(colorScheme),
+                    ),
+              ),
+            ],
+          ),
+          backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme) ?? colorScheme.primary2,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
+    
+    // Send the thought
+    await controller.sendThought(receiverId);
+    
+    // Check result
+    final result = ref.read(sendThoughtControllerProvider);
+    
+    if (context.mounted) {
+      result.when(
+        data: (data) {
+          if (data.success) {
+            // Show success message
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    Icon(
+                      Icons.favorite_rounded,
+                      color: DynamicTheme.getSnackBarTextColor(colorScheme) ?? Colors.white,
+                      size: 20,
+                    ),
+                    SizedBox(width: AppTheme.spacingSm),
+                    Expanded(
+                      child: Text(
+                        'Thought sent to ${profile.displayName}',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: DynamicTheme.getSnackBarTextColor(colorScheme),
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme) ?? colorScheme.primary2,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 2),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            );
+          } else {
+            // Show error message
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            String errorMessage = 'Failed to send thought';
+            
+            switch (data.errorCode) {
+              case 'THOUGHT_ALREADY_SENT_TODAY':
+                errorMessage = 'You already sent a thought to ${profile.displayName} today';
+                break;
+              case 'DAILY_LIMIT_REACHED':
+                errorMessage = 'You\'ve reached your daily limit of thoughts';
+                break;
+              case 'NOT_CONNECTED':
+                errorMessage = 'You must be connected to send a thought';
+                break;
+              case 'BLOCKED':
+                errorMessage = 'Cannot send thought to this user';
+                break;
+              case 'INVALID_RECEIVER':
+                errorMessage = 'Invalid receiver';
+                break;
+              default:
+                errorMessage = data.errorMessage ?? 'Failed to send thought';
+            }
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  errorMessage,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: DynamicTheme.getSnackBarTextColor(colorScheme) ?? Colors.white,
+                      ),
+                ),
+                backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme) ?? AppColors.error,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 3),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            );
+          }
+        },
+        loading: () {
+          // Already showing loading
+        },
+        error: (error, stack) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Error: ${error.toString()}',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: DynamicTheme.getSnackBarTextColor(colorScheme) ?? Colors.white,
+                    ),
+              ),
+              backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme) ?? AppColors.error,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+        },
+      );
+    }
   }
 
   Future<void> _handleSendLetter(

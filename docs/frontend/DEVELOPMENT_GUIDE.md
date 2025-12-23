@@ -558,8 +558,8 @@ flutter run
 ## Next Steps
 
 - [Quick Start Guide](./QUICK_START.md)
-- [Architecture Documentation](../ARCHITECTURE.md)
-- [Code Structure](../CODE_STRUCTURE.md)
+- [Architecture Documentation](../architecture/ARCHITECTURE.md)
+- [Code Structure](../architecture/CODE_STRUCTURE.md)
 - [Core Components](./CORE_COMPONENTS.md)
 - [Feature Documentation](./features/)
 

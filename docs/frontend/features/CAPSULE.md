@@ -495,7 +495,7 @@ Anonymous letters temporarily hide the sender's identity until a reveal time is 
 - [Create Capsule](./CREATE_CAPSULE.md) - For creating anonymous letters
 - [Anonymous Letters Feature](../../anonymous_letters.md) - Complete anonymous letters documentation
 - [Animations Feature](./ANIMATIONS.md) - For animation details
-- [Performance Optimizations](../PERFORMANCE_OPTIMIZATIONS.md) - For performance details
+- [Performance Optimizations](../../development/PERFORMANCE_OPTIMIZATIONS.md) - For performance details
 
 ---
 
