@@ -276,13 +276,13 @@ class _AnimatedMagicalTabBarState extends State<_AnimatedMagicalTabBar>
     super.initState();
     _sparkleController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 3),
+      duration: AppConstants.sparkleAnimationDuration,
     )..repeat();
     
     // Breathing glow animation - slow, gentle pulse
     _breathingController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 3), // Slow breathing cycle
+      duration: AppConstants.tabIndicatorBreathingAnimationDuration,
     )..repeat(reverse: true);
   }
 
@@ -354,6 +354,13 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
   final double animationValue;
   final double breathingValue;
 
+  // Reusable Paint objects to avoid allocation
+  final Paint _gradientPaint = Paint()..style = PaintingStyle.fill;
+  final Paint _sparklePaint = Paint()..style = PaintingStyle.fill;
+  final Paint _accentGlowPaint = Paint()..style = PaintingStyle.fill;
+  final Paint _centerGlowPaint = Paint()..style = PaintingStyle.fill;
+  final Paint _innerCirclePaint = Paint()..style = PaintingStyle.fill;
+
   _MagicalTabIndicatorPainter({
     required this.gradient,
     required this.colorScheme,
@@ -368,47 +375,10 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
     final double radius = AppTheme.radiusLg;
 
     // Main gradient background
-    final Paint gradientPaint = Paint()
-      ..shader = gradient.createShader(rect)
-      ..style = PaintingStyle.fill;
+    _gradientPaint.shader = gradient.createShader(rect);
     canvas.drawRRect(
       RRect.fromRectAndRadius(rect, Radius.circular(radius)),
-      gradientPaint,
-    );
-
-    // Breathing glow effect - pulses in and out
-    // Breathing value goes from 0 to 1, creating a smooth pulse
-    final breathingOpacity = 0.15 + (breathingValue * 0.15); // 0.15 to 0.3 opacity
-    final breathingBlur = 8 + (breathingValue * 8); // 8 to 16 blur radius
-    
-    final Paint breathingGlowPaint = Paint()
-      ..color = colorScheme.primary1.withOpacity(breathingOpacity)
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, breathingBlur)
-      ..style = PaintingStyle.fill;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, Radius.circular(radius)),
-      breathingGlowPaint,
-    );
-
-    // Glow ring effect
-    final Paint glowPaint = Paint()
-      ..color = colorScheme.primary1.withOpacity(AppTheme.opacityHigh)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect.deflate(1), Radius.circular(radius)),
-      glowPaint,
-    );
-
-    // Shadow/glow effect
-    final Paint shadowPaint = Paint()
-      ..color = colorScheme.primary1.withOpacity(AppTheme.opacityMediumHigh)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12)
-      ..style = PaintingStyle.fill;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, Radius.circular(radius)),
-      shadowPaint,
+      _gradientPaint,
     );
 
     // Sparkle micro-animation
@@ -416,75 +386,76 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
   }
 
   void _drawSparkles(Canvas canvas, Rect rect, double time) {
-    final int sparkleCount = 4; // Increased from 3 to 4
-    final double centerX = rect.center.dx;
-    final double centerY = rect.center.dy;
-    final double maxRadius = math.min(rect.width, rect.height) * 0.35; // Increased from 0.3 to 0.35
+    final int sparkleCount = AppConstants.tabIndicatorSparkleCount;
+    final Offset center = rect.center;
+    final double maxRadius = math.min(rect.width, rect.height) * 
+        AppConstants.tabIndicatorMaxRadiusMultiplier;
 
     for (int i = 0; i < sparkleCount; i++) {
+      // Calculate angle: evenly spaced around circle
       final double angle = time + (i * 2 * math.pi / sparkleCount);
-      final double radius = maxRadius * (0.3 + 0.7 * math.sin(time * 2 + i));
-      final double x = centerX + math.cos(angle) * radius;
-      final double y = centerY + math.sin(angle) * radius;
-      final double opacity = (math.sin(time * 3 + i) + 1) / 2;
-      final double size = 3 + math.sin(time * 4 + i) * 2.5; // Increased from 2 + 1.5 to 3 + 2.5
-
-      // More visible sparkle with accent color tint
-      final Paint sparklePaint = Paint()
-        ..color = Colors.white.withOpacity(opacity * 0.6) // Decreased opacity for subtlety
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, size * 0.8) // Reduced blur for sharper appearance
-        ..style = PaintingStyle.fill;
-
-      // Accent color glow for extra visibility
-      final Paint accentGlowPaint = Paint()
-        ..color = colorScheme.accent.withOpacity(opacity * 0.3) // Decreased opacity
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, size * 1.5)
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(
-        Offset(x, y),
-        size * 0.8,
-        accentGlowPaint,
-      );
-
-      // Draw 4-pointed star sparkle
-      final Path starPath = Path();
-      for (int j = 0; j < 4; j++) {
-        final double starAngle = angle + (j * math.pi / 2);
-        final double outerX = x + math.cos(starAngle) * size;
-        final double outerY = y + math.sin(starAngle) * size;
-        if (j == 0) {
-          starPath.moveTo(outerX, outerY);
-        } else {
-          starPath.lineTo(outerX, outerY);
-        }
-        final double innerAngle = starAngle + (math.pi / 4);
-        final double innerX = x + math.cos(innerAngle) * (size * 0.4);
-        final double innerY = y + math.sin(innerAngle) * (size * 0.4);
-        starPath.lineTo(innerX, innerY);
-      }
-      starPath.close();
-      canvas.drawPath(starPath, sparklePaint);
-
-      // Enhanced center glow - more visible circles
-      // Outer glow circle
-      final Paint centerGlowPaint = Paint()
-        ..color = Colors.white.withOpacity(opacity * 0.8) // Higher opacity
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, size * 1.5) // Less blur for sharper appearance
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(
-        Offset(x, y),
-        size * 0.7, // Larger size for visibility
-        centerGlowPaint,
-      );
       
-      // Inner solid circle for more definition
-      final Paint innerCirclePaint = Paint()
-        ..color = Colors.white.withOpacity(opacity * 0.9) // High opacity
-        ..style = PaintingStyle.fill;
+      // Dynamic radius: pulses between min and max based on animation
+      final double radiusVariation = AppConstants.tabIndicatorRadiusMinMultiplier + 
+          (AppConstants.tabIndicatorRadiusRangeMultiplier * 
+           math.sin(time * AppConstants.tabIndicatorAnimationSpeedRadius + i));
+      final double radius = maxRadius * radiusVariation;
+      
+      // Convert polar coordinates to cartesian
+      final double x = center.dx + math.cos(angle) * radius;
+      final double y = center.dy + math.sin(angle) * radius;
+      
+      // Opacity: oscillates between 0 and 1
+      final double opacity = (math.sin(time * AppConstants.tabIndicatorAnimationSpeedOpacity + i) + 1) / 2;
+      
+      // Size: oscillates between base and base + range
+      final double size = AppConstants.tabIndicatorSparkleSizeBase + 
+          (math.sin(time * AppConstants.tabIndicatorAnimationSpeedSize + i) * 
+           AppConstants.tabIndicatorSparkleSizeRange);
+
+      // Layer 1: Accent glow (outermost, colored)
+      _accentGlowPaint
+        ..color = colorScheme.accent.withOpacity(
+            opacity * AppConstants.tabIndicatorAccentGlowOpacityMultiplier)
+        ..maskFilter = MaskFilter.blur(
+            BlurStyle.normal, size * AppConstants.tabIndicatorAccentGlowBlurMultiplier);
       canvas.drawCircle(
         Offset(x, y),
-        size * 0.3, // Smaller inner circle
-        innerCirclePaint,
+        size * AppConstants.tabIndicatorAccentGlowSizeMultiplier,
+        _accentGlowPaint,
+      );
+
+      // Layer 2: Main sparkle (white circle)
+      _sparklePaint
+        ..color = Colors.white.withOpacity(
+            opacity * AppConstants.tabIndicatorMainSparkleOpacityMultiplier)
+        ..maskFilter = MaskFilter.blur(
+            BlurStyle.normal, size * AppConstants.tabIndicatorMainSparkleBlurMultiplier);
+      canvas.drawCircle(
+        Offset(x, y),
+        size,
+        _sparklePaint,
+      );
+
+      // Layer 3: Center glow (white, larger blur)
+      _centerGlowPaint
+        ..color = Colors.white.withOpacity(
+            opacity * AppConstants.tabIndicatorCenterGlowOpacityMultiplier)
+        ..maskFilter = MaskFilter.blur(
+            BlurStyle.normal, size * AppConstants.tabIndicatorCenterGlowBlurMultiplier);
+      canvas.drawCircle(
+        Offset(x, y),
+        size * AppConstants.tabIndicatorCenterGlowSizeMultiplier,
+        _centerGlowPaint,
+      );
+
+      // Layer 4: Inner circle (brightest, smallest)
+      _innerCirclePaint.color = Colors.white.withOpacity(
+          opacity * AppConstants.tabIndicatorInnerCircleOpacityMultiplier);
+      canvas.drawCircle(
+        Offset(x, y),
+        size * AppConstants.tabIndicatorInnerCircleSizeMultiplier,
+        _innerCirclePaint,
       );
     }
   }

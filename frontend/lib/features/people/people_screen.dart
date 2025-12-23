@@ -155,6 +155,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen>
           context.push(Routes.addConnection);
         },
         backgroundColor: colorScheme.primary2,
+        elevation: 0,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,

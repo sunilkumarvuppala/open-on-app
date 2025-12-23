@@ -12,6 +12,7 @@ import 'package:openon_app/core/theme/app_text_styles.dart';
 import 'package:openon_app/core/utils/logger.dart';
 import 'package:openon_app/core/utils/error_handler.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
+import 'package:openon_app/core/constants/app_constants.dart';
 import 'package:intl/intl.dart';
 
 class LockedCapsuleScreen extends ConsumerStatefulWidget {
@@ -67,10 +68,10 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
       duration: const Duration(seconds: 1), // 1 second cycle
     )..repeat(reverse: true);
     
-    // Circle size animation: from 160 (small) to 180 (current)
+    // Circle size animation: from min to max size
     _circleSizeAnimation = Tween<double>(
-      begin: 160.0,
-      end: 180.0,
+      begin: AppConstants.lockedCapsuleCircleSizeMin,
+      end: AppConstants.lockedCapsuleCircleSizeMax,
     ).animate(CurvedAnimation(
       parent: _circlePulseController,
       curve: Curves.easeInOut, // Smooth pulse
@@ -78,10 +79,10 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
     
     // Lock halo animation - syncs with circle pulse animation
     // Use the same controller as circle pulse for synchronized timing
-    // Halo pulse: fades in and out very subtly (0.0 to 0.25 opacity) following circle pulse
+    // Halo pulse: fades in and out very subtly following circle pulse
     _lockHaloAnimation = Tween<double>(
-      begin: 0.0,
-      end: 0.25,
+      begin: AppConstants.lockedCapsuleHaloOpacityMin,
+      end: AppConstants.lockedCapsuleHaloOpacityMax,
     ).animate(CurvedAnimation(
       parent: _circlePulseController, // Use circle pulse controller for sync
       curve: Curves.easeInOut, // Smooth, gentle pulse - fades in and out
@@ -90,7 +91,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
     // Emoji animation - moves from sender to receiver
     _emojiAnimationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2000), // Animation duration
+      duration: AppConstants.lockedCapsuleEmojiAnimationDuration,
     );
     
     _emojiPositionAnimation = Tween<double>(
@@ -101,8 +102,8 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
       curve: Curves.easeOut, // Ease out for natural movement
     ));
     
-    // Start emoji timer - trigger every 2 seconds
-    _emojiTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+    // Start emoji timer - trigger at configured interval
+    _emojiTimer = Timer.periodic(AppConstants.lockedCapsuleEmojiTimerInterval, (_) {
       if (mounted && !_capsule.isOpened) {
         _triggerEmojiAnimation();
       }
@@ -156,8 +157,9 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
           _currentEmoji = null;
         });
       }
-    }).catchError((error) {
-      // Handle any errors gracefully
+    }).catchError((error, stackTrace) {
+      // Handle any errors gracefully with logging
+      Logger.warning('Emoji animation error', error: error, stackTrace: stackTrace);
       if (mounted) {
         setState(() {
           _currentEmoji = null;
@@ -599,7 +601,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                           capsule.label,
                           style: TextStyle(
                             color: DynamicTheme.getPrimaryTextColor(colorScheme),
-                            fontSize: 22,
+                            fontSize: AppConstants.lockedCapsuleTitleFontSize,
                             fontWeight: FontWeight.w600,
                           ),
                           textAlign: TextAlign.center,
@@ -611,7 +613,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                           _getSenderText(capsule.displaySenderName),
                           style: TextStyle(
                             color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityAlmostFull2),
-                            fontSize: 16,
+                            fontSize: AppConstants.lockedCapsuleSubtitleFontSize,
                           ),
                         ),
                         
@@ -619,7 +621,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                         
                         // Sender and recipient avatars with labels and animated emoji
                         SizedBox(
-                          height: 100, // Fixed height for Stack
+                          height: AppConstants.lockedCapsuleEmojiStackHeight,
                           child: LayoutBuilder(
                             builder: (context, constraints) {
                               // Capture colorScheme for use in AnimatedBuilder
@@ -636,24 +638,24 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                                         child: Center(
                                           child: capsule.isAnonymous && !capsule.isRevealed
                                               ? CircleAvatar(
-                                                  radius: 30,
+                                                  radius: AppConstants.lockedCapsuleAvatarRadius,
                                                   backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme, opacity: AppTheme.opacityMedium),
                                                   child: Icon(
                                                     Icons.visibility_off_outlined,
                                                     color: DynamicTheme.getPrimaryIconColor(colorScheme),
-                                                    size: 30,
+                                                    size: AppConstants.lockedCapsuleAvatarRadius,
                                                   ),
                                                 )
                                               : UserAvatar(
                                                   imageUrl: capsule.displaySenderAvatar.isNotEmpty ? capsule.displaySenderAvatar : null,
                                                   name: capsule.displaySenderName,
-                                                  size: 60,
+                                                  size: AppConstants.lockedCapsuleAvatarSize,
                                                 ),
                                         ),
                                       ),
                                       
                                       // Spacing between sender and receiver
-                                      SizedBox(width: AppTheme.spacingXl * 2),
+                                      SizedBox(width: AppTheme.spacingXl * AppConstants.lockedCapsuleAvatarSpacing),
                                       
                                       // Recipient section (right)
                                       Expanded(
@@ -661,7 +663,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                                           child: UserAvatar(
                                             imageUrl: capsule.receiverAvatar.isNotEmpty ? capsule.receiverAvatar : null,
                                             name: capsule.receiverName,
-                                            size: 60,
+                                            size: AppConstants.lockedCapsuleAvatarSize,
                                           ),
                                         ),
                                       ),
@@ -673,13 +675,13 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                                   Positioned(
                                     left: 0,
                                     right: 0,
-                                    top: 65, // Positioned below avatars
+                                    top: AppConstants.lockedCapsuleEmojiTextTopPosition,
                                     child: Center(
                                       child: Text(
                                         'A thought on its way…',
                                         style: TextStyle(
                                           color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityAlmostFull),
-                                          fontSize: 12,
+                                          fontSize: AppConstants.lockedCapsuleTextFontSize,
                                           fontWeight: FontWeight.w400,
                                           fontStyle: FontStyle.italic,
                                         ),
@@ -695,9 +697,9 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                                         // Ensure animation value is valid (0.0 to 1.0)
                                         final progress = _emojiPositionAnimation.value.clamp(0.0, 1.0);
                                         
-                                        // Avatar size is 60px (radius 30px)
-                                        final avatarRadius = 30.0;
-                                        final emojiSize = 30.0;
+                                        // Use constants for avatar and emoji sizes
+                                        final avatarRadius = AppConstants.lockedCapsuleAvatarRadius;
+                                        final emojiSize = AppConstants.lockedCapsuleEmojiSize;
                                         
                                         // Calculate positions based on the Row layout
                                         // Row structure: Expanded(sender) | SizedBox(spacing) | Expanded(receiver)
@@ -705,7 +707,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                                         final totalWidth = constraints.maxWidth;
                                         
                                         // Safety check: ensure minimum width to prevent calculation errors
-                                        if (totalWidth < 200) {
+                                        if (totalWidth < AppConstants.lockedCapsuleMinScreenWidth) {
                                           // If screen is too small, hide emoji or position at center
                                           return Positioned(
                                             left: (totalWidth - emojiSize) / 2,
@@ -714,43 +716,57 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                                               opacity: 0.0, // Hide if screen too small
                                               child: Text(
                                                 _currentEmoji!,
-                                                style: TextStyle(fontSize: 30),
+                                                style: TextStyle(fontSize: AppConstants.lockedCapsuleEmojiFontSize),
                                               ),
                                             ),
                                           );
                                         }
                                         
-                                        final spacingWidth = AppTheme.spacingXl * 2; // Spacing between avatars
+                                        final spacingWidth = AppTheme.spacingXl * AppConstants.lockedCapsuleAvatarSpacing;
                                         
                                         // Ensure we have enough space for both avatars and spacing
                                         final minRequiredWidth = (avatarRadius * 4) + spacingWidth; // 2 avatars + spacing
                                         if (totalWidth < minRequiredWidth) {
                                           // Fallback: center the emoji if not enough space
+                                          final opacity = (AppConstants.lockedCapsuleEmojiBaseOpacity - 
+                                              (progress * AppConstants.lockedCapsuleEmojiOpacityFade))
+                                              .clamp(AppConstants.lockedCapsuleEmojiOpacityMin, AppConstants.lockedCapsuleEmojiOpacityMax);
+                                          final scale = AppConstants.lockedCapsuleEmojiScaleMin + 
+                                              (progress * AppConstants.lockedCapsuleEmojiScaleRange);
+                                          
                                           return Positioned(
                                             left: (totalWidth - emojiSize) / 2,
                                             top: 0,
                                             child: Opacity(
-                                              opacity: (0.75 - (progress * 0.15)).clamp(0.6, 0.75),
+                                              opacity: opacity,
                                               child: Transform.scale(
-                                                scale: 0.8 + (progress * 0.2),
+                                                scale: scale,
                                                 child: Container(
+                                                  width: AppConstants.lockedCapsuleEmojiContainerSize,
+                                                  height: AppConstants.lockedCapsuleEmojiContainerSize,
+                                                  alignment: Alignment.center,
                                                   decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
                                                     boxShadow: [
                                                       BoxShadow(
-                                                        color: DynamicTheme.getPrimaryTextColor(colorScheme).withOpacity(0.2),
-                                                        blurRadius: 8,
-                                                        spreadRadius: 2,
+                                                        color: DynamicTheme.getPrimaryTextColor(currentColorScheme)
+                                                            .withOpacity(AppConstants.lockedCapsuleEmojiGlowOpacity),
+                                                        blurRadius: AppConstants.lockedCapsuleEmojiGlowBlurRadius,
+                                                        spreadRadius: AppConstants.lockedCapsuleEmojiGlowSpreadRadius,
                                                       ),
                                                     ],
                                                   ),
                                                   child: Text(
                                                     _currentEmoji!,
+                                                    textAlign: TextAlign.center,
                                                     style: TextStyle(
-                                                      fontSize: 30,
+                                                      fontSize: AppConstants.lockedCapsuleEmojiFontSize,
+                                                      height: AppConstants.lockedCapsuleTextLineHeight,
                                                       shadows: [
                                                         Shadow(
-                                                          color: DynamicTheme.getPrimaryTextColor(colorScheme).withOpacity(0.3),
-                                                          blurRadius: 6,
+                                                          color: DynamicTheme.getPrimaryTextColor(currentColorScheme)
+                                                              .withOpacity(AppConstants.lockedCapsuleEmojiTextShadowOpacity),
+                                                          blurRadius: AppConstants.lockedCapsuleEmojiTextShadowBlurRadius,
                                                         ),
                                                       ],
                                                     ),
@@ -780,32 +796,46 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                                         
                                         // Safety check: ensure valid distance
                                         if (distance <= 0) {
-                                          // If distance is invalid, position at start
+                                          // If distance is invalid, position at start with proper styling
+                                          final opacity = (AppConstants.lockedCapsuleEmojiBaseOpacity - 
+                                              (progress * AppConstants.lockedCapsuleEmojiOpacityFade))
+                                              .clamp(AppConstants.lockedCapsuleEmojiOpacityMin, AppConstants.lockedCapsuleEmojiOpacityMax);
+                                          final scale = AppConstants.lockedCapsuleEmojiScaleMin + 
+                                              (progress * AppConstants.lockedCapsuleEmojiScaleRange);
+                                          
                                           return Positioned(
                                             left: startX - (emojiSize / 2),
                                             top: 0,
                                             child: Opacity(
-                                              opacity: (0.75 - (progress * 0.15)).clamp(0.6, 0.75),
+                                              opacity: opacity,
                                               child: Transform.scale(
-                                                scale: 0.8 + (progress * 0.2),
+                                                scale: scale,
                                                 child: Container(
+                                                  width: AppConstants.lockedCapsuleEmojiContainerSize,
+                                                  height: AppConstants.lockedCapsuleEmojiContainerSize,
+                                                  alignment: Alignment.center,
                                                   decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
                                                     boxShadow: [
                                                       BoxShadow(
-                                                        color: DynamicTheme.getPrimaryTextColor(colorScheme).withOpacity(0.2),
-                                                        blurRadius: 8,
-                                                        spreadRadius: 2,
+                                                        color: DynamicTheme.getPrimaryTextColor(currentColorScheme)
+                                                            .withOpacity(AppConstants.lockedCapsuleEmojiGlowOpacity),
+                                                        blurRadius: AppConstants.lockedCapsuleEmojiGlowBlurRadius,
+                                                        spreadRadius: AppConstants.lockedCapsuleEmojiGlowSpreadRadius,
                                                       ),
                                                     ],
                                                   ),
                                                   child: Text(
                                                     _currentEmoji!,
+                                                    textAlign: TextAlign.center,
                                                     style: TextStyle(
-                                                      fontSize: 30,
+                                                      fontSize: AppConstants.lockedCapsuleEmojiFontSize,
+                                                      height: AppConstants.lockedCapsuleTextLineHeight,
                                                       shadows: [
                                                         Shadow(
-                                                          color: DynamicTheme.getPrimaryTextColor(colorScheme).withOpacity(0.3),
-                                                          blurRadius: 6,
+                                                          color: DynamicTheme.getPrimaryTextColor(currentColorScheme)
+                                                              .withOpacity(AppConstants.lockedCapsuleEmojiTextShadowOpacity),
+                                                          blurRadius: AppConstants.lockedCapsuleEmojiTextShadowBlurRadius,
                                                         ),
                                                       ],
                                                     ),
@@ -822,26 +852,33 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                                         // Clamp to ensure emoji stays within bounds
                                         final emojiLeft = (currentX - (emojiSize / 2)).clamp(0.0, totalWidth - emojiSize);
                                         
+                                        // Calculate opacity and scale using constants
+                                        final opacity = (AppConstants.lockedCapsuleEmojiBaseOpacity - 
+                                            (progress * AppConstants.lockedCapsuleEmojiOpacityFade))
+                                            .clamp(AppConstants.lockedCapsuleEmojiOpacityMin, AppConstants.lockedCapsuleEmojiOpacityMax);
+                                        final scale = AppConstants.lockedCapsuleEmojiScaleMin + 
+                                            (progress * AppConstants.lockedCapsuleEmojiScaleRange);
+                                        
                                         return Positioned(
                                           left: emojiLeft,
                                           top: 0, // Position at top of the Stack (above avatars)
                                           child: Opacity(
-                                            // Base opacity 75% with slight fade as it moves (ethereal feel)
-                                            opacity: (0.75 - (progress * 0.15)).clamp(0.6, 0.75),
+                                            opacity: opacity,
                                             child: Transform.scale(
-                                              scale: 0.8 + (progress * 0.2), // Slight scale up as it moves
+                                              scale: scale,
                                               child: Container(
-                                                width: 36,
-                                                height: 36,
+                                                width: AppConstants.lockedCapsuleEmojiContainerSize,
+                                                height: AppConstants.lockedCapsuleEmojiContainerSize,
                                                 alignment: Alignment.center,
                                                 // Circular glow effect for ethereal appearance
                                                 decoration: BoxDecoration(
                                                   shape: BoxShape.circle,
                                                   boxShadow: [
                                                     BoxShadow(
-                                                      color: DynamicTheme.getPrimaryTextColor(currentColorScheme).withOpacity(0.1),
-                                                      blurRadius: 4,
-                                                      spreadRadius: 1,
+                                                      color: DynamicTheme.getPrimaryTextColor(currentColorScheme)
+                                                          .withOpacity(AppConstants.lockedCapsuleEmojiGlowOpacity),
+                                                      blurRadius: AppConstants.lockedCapsuleEmojiGlowBlurRadius,
+                                                      spreadRadius: AppConstants.lockedCapsuleEmojiGlowSpreadRadius,
                                                     ),
                                                   ],
                                                 ),
@@ -849,13 +886,14 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                                                   _currentEmoji!,
                                                   textAlign: TextAlign.center,
                                                   style: TextStyle(
-                                                    fontSize: 30,
-                                                    height: 1.0, // Remove extra line height for better centering
+                                                    fontSize: AppConstants.lockedCapsuleEmojiFontSize,
+                                                    height: AppConstants.lockedCapsuleTextLineHeight,
                                                     shadows: [
                                                       // Additional subtle text shadow for glow
                                                       Shadow(
-                                                        color: DynamicTheme.getPrimaryTextColor(currentColorScheme).withOpacity(0.15),
-                                                        blurRadius: 3,
+                                                        color: DynamicTheme.getPrimaryTextColor(currentColorScheme)
+                                                            .withOpacity(AppConstants.lockedCapsuleEmojiTextShadowOpacity),
+                                                        blurRadius: AppConstants.lockedCapsuleEmojiTextShadowBlurRadius,
                                                       ),
                                                     ],
                                                   ),
@@ -876,8 +914,8 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                         
                         // Envelope with countdown - fixed size container to prevent layout shifts
                         SizedBox(
-                          width: 180,
-                          height: 180,
+                          width: AppConstants.lockedCapsuleEnvelopeContainerSize,
+                          height: AppConstants.lockedCapsuleEnvelopeContainerSize,
                           child: GestureDetector(
                             onTap: _handleTapEnvelope,
                             child: AnimatedBuilder(
@@ -915,7 +953,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                                       if (canOpen)
                                         Icon(
                                           Icons.mail_outline,
-                                          size: 70,
+                                          size: AppConstants.lockedCapsuleLockIconSize,
                                           color: DynamicTheme.getPrimaryIconColor(colorScheme),
                                         )
                                       else
@@ -925,20 +963,21 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                                             return Stack(
                                               alignment: Alignment.center,
                                               children: [
-                                                // Subtle halo effect - pulses every ~7 seconds
+                                                // Subtle halo effect - pulses with circle animation
                                                 AnimatedBuilder(
                                                   animation: _lockHaloAnimation,
                                                   builder: (context, child) {
                                                     return Container(
-                                                      width: 90,
-                                                      height: 90,
+                                                      width: AppConstants.lockedCapsuleLockHaloSize,
+                                                      height: AppConstants.lockedCapsuleLockHaloSize,
                                                       decoration: BoxDecoration(
                                                         shape: BoxShape.circle,
                                                         boxShadow: [
                                                           BoxShadow(
-                                                            color: DynamicTheme.getPrimaryIconColor(colorScheme).withOpacity(_lockHaloAnimation.value),
-                                                            blurRadius: 20,
-                                                            spreadRadius: 5,
+                                                            color: DynamicTheme.getPrimaryIconColor(colorScheme)
+                                                                .withOpacity(_lockHaloAnimation.value),
+                                                            blurRadius: AppConstants.lockedCapsuleHaloBlurRadius,
+                                                            spreadRadius: AppConstants.lockedCapsuleHaloSpreadRadius,
                                                           ),
                                                         ],
                                                       ),
@@ -950,7 +989,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                                                   opacity: _breathingAnimation.value,
                                                   child: Icon(
                                                     Icons.lock_outline,
-                                                    size: 70,
+                                                    size: AppConstants.lockedCapsuleLockIconSize,
                                                     color: DynamicTheme.getPrimaryIconColor(colorScheme),
                                                   ),
                                                 ),
@@ -992,7 +1031,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                             'Tap the envelope to reveal your letter',
                             style: TextStyle(
                               color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityFull),
-                              fontSize: 16,
+                              fontSize: AppConstants.lockedCapsuleSubtitleFontSize,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -1001,7 +1040,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                             _getCountdownText(capsule),
                             style: TextStyle(
                               color: DynamicTheme.getPrimaryTextColor(colorScheme),
-                              fontSize: 30,
+                              fontSize: AppConstants.lockedCapsuleCountdownFontSize,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 2,
                             ),

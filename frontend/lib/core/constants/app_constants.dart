@@ -190,8 +190,8 @@ class AppConstants {
   // Note: Offset cannot be const in this context, use const Offset(0, 2) directly in widgets
   
   // Opacity values
-  static const double shadowOpacityDark = 0.3;
-  static const double shadowOpacityLight = 0.08;
+  static const double shadowOpacityDark = 0.1;
+  static const double shadowOpacityLight = 0.3;
   
   // Badge indicator positioning
   static const double badgeIndicatorTop = 6.0;
@@ -277,6 +277,77 @@ class AppConstants {
   // Animation threshold: only animate if unlock time is less than this duration away
   // Using Duration for precise comparison (6 hours = 21600 seconds)
   static const Duration sealedLetterAnimationThreshold = Duration(hours: 6);
+
+  // Locked capsule screen constants
+  static const double lockedCapsuleAvatarSize = 60.0;
+  static const double lockedCapsuleAvatarRadius = 30.0; // Half of avatar size
+  static const double lockedCapsuleEmojiSize = 30.0;
+  static const double lockedCapsuleEmojiContainerSize = 36.0; // Slightly larger than emoji for circular glow
+  static const double lockedCapsuleEmojiStackHeight = 100.0;
+  static const double lockedCapsuleEmojiTextTopPosition = 65.0;
+  static const double lockedCapsuleLockIconSize = 70.0;
+  static const double lockedCapsuleLockHaloSize = 90.0;
+  static const double lockedCapsuleCircleSizeMin = 160.0;
+  static const double lockedCapsuleCircleSizeMax = 180.0;
+  
+  // Locked capsule emoji animation constants
+  static const Duration lockedCapsuleEmojiAnimationDuration = Duration(milliseconds: 2000);
+  static const Duration lockedCapsuleEmojiTimerInterval = Duration(seconds: 2);
+  static const double lockedCapsuleEmojiBaseOpacity = 0.75;
+  static const double lockedCapsuleEmojiOpacityFade = 0.15; // Amount to fade during animation
+  static const double lockedCapsuleEmojiOpacityMin = 0.6;
+  static const double lockedCapsuleEmojiOpacityMax = 0.75;
+  static const double lockedCapsuleEmojiScaleMin = 0.8;
+  static const double lockedCapsuleEmojiScaleMax = 1.0;
+  static const double lockedCapsuleEmojiScaleRange = 0.2; // Scale range (max - min)
+  
+  // Locked capsule emoji glow constants
+  static const double lockedCapsuleEmojiGlowOpacity = 0.1;
+  static const double lockedCapsuleEmojiGlowBlurRadius = 4.0;
+  static const double lockedCapsuleEmojiGlowSpreadRadius = 1.0;
+  static const double lockedCapsuleEmojiTextShadowOpacity = 0.15;
+  static const double lockedCapsuleEmojiTextShadowBlurRadius = 3.0;
+  
+  // Locked capsule halo animation constants
+  static const double lockedCapsuleHaloOpacityMin = 0.0;
+  static const double lockedCapsuleHaloOpacityMax = 0.25;
+  static const double lockedCapsuleHaloBlurRadius = 20.0;
+  static const double lockedCapsuleHaloSpreadRadius = 5.0;
+  
+  // Locked capsule layout constants
+  static const double lockedCapsuleMinScreenWidth = 200.0;
+  static const double lockedCapsuleAvatarSpacing = 2.0; // Multiplier for spacingXl
+  static const double lockedCapsuleTextFontSize = 12.0;
+  static const double lockedCapsuleEmojiFontSize = 30.0;
+  static const double lockedCapsuleTextLineHeight = 1.0;
+  static const double lockedCapsuleEnvelopeContainerSize = 180.0;
+  static const double lockedCapsuleCountdownFontSize = 30.0;
+  static const double lockedCapsuleTitleFontSize = 22.0;
+  static const double lockedCapsuleSubtitleFontSize = 16.0;
+
+  // Tab indicator sparkle animation constants
+  static const int tabIndicatorSparkleCount = 3;
+  static const double tabIndicatorMaxRadiusMultiplier = 0.3;
+  static const double tabIndicatorRadiusMinMultiplier = 0.3;
+  static const double tabIndicatorRadiusRangeMultiplier = 0.7;
+  static const double tabIndicatorSparkleSizeBase = 2.5;
+  static const double tabIndicatorSparkleSizeRange = 1.5;
+  static const double tabIndicatorAnimationSpeedRadius = 2.0;
+  static const double tabIndicatorAnimationSpeedOpacity = 3.0;
+  static const double tabIndicatorAnimationSpeedSize = 4.0;
+  static const Duration tabIndicatorBreathingAnimationDuration = Duration(seconds: 3);
+  
+  // Tab indicator sparkle layer constants
+  static const double tabIndicatorAccentGlowOpacityMultiplier = 0.25;
+  static const double tabIndicatorAccentGlowBlurMultiplier = 1.2;
+  static const double tabIndicatorAccentGlowSizeMultiplier = 0.7;
+  static const double tabIndicatorMainSparkleOpacityMultiplier = 0.5;
+  static const double tabIndicatorMainSparkleBlurMultiplier = 0.6;
+  static const double tabIndicatorCenterGlowOpacityMultiplier = 0.7;
+  static const double tabIndicatorCenterGlowBlurMultiplier = 1.2;
+  static const double tabIndicatorCenterGlowSizeMultiplier = 0.6;
+  static const double tabIndicatorInnerCircleOpacityMultiplier = 0.8;
+  static const double tabIndicatorInnerCircleSizeMultiplier = 0.25;
   
   // Badge shimmer animation constants
   static const int badgeSparkleCount = 2; // Number of sparkles in badge shimmer

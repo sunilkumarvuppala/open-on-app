@@ -629,6 +629,7 @@ class _CreateCapsuleScreenState extends ConsumerState<CreateCapsuleScreen> {
                   }
                 },
                 backgroundColor: colorScheme.primary1,
+                elevation: 0,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: const [

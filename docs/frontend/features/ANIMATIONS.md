@@ -164,6 +164,57 @@ SparkleParticleEngine(
 - Smooth animation
 - Theme-aware colors
 
+### Tab Indicator Sparkle Animation
+
+**File**: `features/home/home_screen.dart` and `features/receiver/receiver_home_screen.dart`
+
+**Purpose**: Circular rotating sparkle animation for tab indicators.
+
+**Key Features**:
+- 3 sparkles rotating in a circle
+- Dynamic radius (pulses between min and max)
+- Multiple layered glow effects (4 layers per sparkle)
+- Smooth continuous rotation
+- Theme-aware accent colors
+
+**Animation Details**:
+- **Sparkle Count**: 3 (optimized for performance)
+- **Rotation**: Continuous circular motion
+- **Radius**: Dynamic pulsing (30% to 100% of max radius)
+- **Layers**: 
+  - Accent glow (colored, outermost)
+  - Main sparkle (white)
+  - Center glow (white, larger blur)
+  - Inner circle (brightest, smallest)
+
+**Constants**:
+All animation values are defined in `AppConstants`:
+- `tabIndicatorSparkleCount`: 3
+- `tabIndicatorMaxRadiusMultiplier`: 0.3
+- `tabIndicatorSparkleSizeBase`: 2.5
+- `tabIndicatorSparkleSizeRange`: 1.5
+- Animation speeds for radius, opacity, and size
+- Opacity and blur multipliers for each layer
+
+**Performance**:
+- Reusable Paint objects (no allocations in paint method)
+- Efficient polar-to-cartesian coordinate conversion
+- Optimized sparkle count for smooth 60fps
+
+**Usage**:
+```dart
+// Automatically used in _AnimatedMagicalTabBar
+TabBar(
+  indicator: _MagicalTabIndicator(
+    gradient: widget.gradient,
+    colorScheme: widget.colorScheme,
+    animationValue: _sparkleController.value * 2 * math.pi,
+    breathingValue: _breathingController.value,
+  ),
+  // ... other properties
+)
+```
+
 ## Effects
 
 ### ConfettiBurst
@@ -330,5 +381,5 @@ Contains:
 
 ---
 
-**Last Updated**: 2025
+**Last Updated**: January 2025
 
