@@ -838,8 +838,9 @@ sequenceDiagram
     participant CapsuleRepo as CapsuleRepository<br/>(Python)
     participant DB as Supabase PostgreSQL
 
-    User->>CapsuleScreen: Click "Delete" button
-    CapsuleScreen->>CapsuleScreen: Show confirmation dialog
+    User->>CapsuleScreen: Click "Withdraw" button (top-right)
+    CapsuleScreen->>CapsuleScreen: Verify letter not opened
+    CapsuleScreen->>CapsuleScreen: Show thoughtful confirmation dialog
     
     alt User cancels
         CapsuleScreen->>User: Close dialog
@@ -871,16 +872,16 @@ sequenceDiagram
                 CapsuleRepo-->>CapsuleScreen: Error message
                 CapsuleScreen->>User: Show "Access denied"
             else Is owner
-                CapsuleAPI->>CapsuleAPI: Check capsule.status == CapsuleStatus.SEALED
+                CapsuleAPI->>CapsuleAPI: Check capsule.opened_at IS NULL<br/>(letter not yet opened)
                 
-                alt Status not sealed
-                    CapsuleAPI-->>ApiClient: HTTP 400<br/>("Can only delete sealed capsules")
-                    ApiClient-->>CapsuleRepo: ValidationException
+                alt Letter already opened
+                    CapsuleAPI-->>ApiClient: HTTP 403<br/>("Cannot withdraw opened letter")
+                    ApiClient-->>CapsuleRepo: AuthenticationException
                     CapsuleRepo-->>CapsuleScreen: Error message
-                    CapsuleScreen->>User: Show error
-                else Status is sealed
-                    CapsuleAPI->>CapsuleRepo: update(capsule, deleted_at=NOW())
-                    CapsuleRepo->>DB: UPDATE capsules<br/>SET deleted_at = NOW()<br/>WHERE id = ?
+                    CapsuleScreen->>User: Show error: "Letter already opened"
+                else Letter not opened
+                    CapsuleAPI->>CapsuleRepo: update(capsule_id, deleted_at=NOW())
+                    CapsuleRepo->>DB: UPDATE capsules<br/>SET deleted_at = NOW()<br/>WHERE id = ?<br/>(soft delete)
                     DB-->>CapsuleRepo: Success
                     CapsuleRepo-->>CapsuleAPI: Success
                     
@@ -888,8 +889,9 @@ sequenceDiagram
                     
                     ApiClient-->>CapsuleRepo: Success response
                     CapsuleRepo-->>CapsuleScreen: Success
+                    CapsuleScreen->>CapsuleScreen: Invalidate providers<br/>(refresh inbox/outbox)
                     CapsuleScreen->>CapsuleScreen: Navigate back<br/>(context.pop())
-                    CapsuleScreen->>User: Show "Capsule deleted"
+                    CapsuleScreen->>User: Show "Letter withdrawn. It will not be delivered."
                 end
             end
         end

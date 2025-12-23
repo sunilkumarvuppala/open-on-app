@@ -40,9 +40,12 @@
 
 ### 3. **Dual Home Screens**
 - ✅ **Outbox (Sender's Home)**: View sent capsules
-  - Tabs: Upcoming, Unlocking Soon, Opened
-  - Filter by status
-  - Pull-to-refresh
+  - Tabs: Unfolding, Sealed, Opened
+  - Floating Action Button (FAB) for creating letters
+  - Subtle drafts button with count
+  - Empty state with CTA for first-time users
+  - Pull-to-refresh on all tabs
+  - More letters visible above the fold
 - ✅ **Inbox (Receiver's Home)**: View received capsules
   - Tabs: Sealed, Ready, Opened
   - Filter by status
@@ -64,6 +67,11 @@
 
 ### 5. **Capsule Viewing**
 - ✅ **Locked Capsule View**: Shows countdown and details
+  - Real-time countdown timer (updates every second)
+  - Progress indicator for time until unlock
+  - Pull-to-refresh to update capsule data
+  - Withdraw option (for unopened letters sent by user)
+  - Share countdown button
 - ✅ **Opening Animation**: Magical envelope opening effect
 - ✅ **Opened Letter View**: Full letter content display
 - ✅ Sender/recipient information display
@@ -106,7 +114,19 @@
 - ✅ Draft persistence (SharedPreferences)
 - ✅ Draft metadata (title, recipient, timestamp)
 
-### 8. **Recipient Management**
+### 9. **Letter Withdrawal** ⭐ NEW
+- ✅ Withdraw unopened letters (sender only)
+- ✅ Irreversible recall before delivery
+- ✅ Immediate removal from recipient's inbox
+- ✅ Anonymous identity never revealed if withdrawn
+- ✅ Thoughtful confirmation dialog
+- ✅ Auto-disabled once letter is opened
+- ✅ Calm, reflective UI (not destructive)
+- ✅ Production-ready with race condition protection
+- ✅ Comprehensive error handling
+- ✅ Analytics logging for monitoring
+
+### 10. **Recipient Management**
 - ✅ Add recipients (name, email, avatar)
 - ✅ List recipients
 - ✅ Update recipient information

@@ -190,8 +190,8 @@ class AppConstants {
   // Note: Offset cannot be const in this context, use const Offset(0, 2) directly in widgets
   
   // Opacity values
-  static const double shadowOpacityDark = 0.3;
-  static const double shadowOpacityLight = 0.08;
+  static const double shadowOpacityDark = 0.1;
+  static const double shadowOpacityLight = 0.3;
   
   // Badge indicator positioning
   static const double badgeIndicatorTop = 6.0;
@@ -277,6 +277,77 @@ class AppConstants {
   // Animation threshold: only animate if unlock time is less than this duration away
   // Using Duration for precise comparison (6 hours = 21600 seconds)
   static const Duration sealedLetterAnimationThreshold = Duration(hours: 6);
+
+  // Locked capsule screen constants
+  static const double lockedCapsuleAvatarSize = 60.0;
+  static const double lockedCapsuleAvatarRadius = 30.0; // Half of avatar size
+  static const double lockedCapsuleEmojiSize = 30.0;
+  static const double lockedCapsuleEmojiContainerSize = 36.0; // Slightly larger than emoji for circular glow
+  static const double lockedCapsuleEmojiStackHeight = 100.0;
+  static const double lockedCapsuleEmojiTextTopPosition = 65.0;
+  static const double lockedCapsuleLockIconSize = 70.0;
+  static const double lockedCapsuleLockHaloSize = 90.0;
+  static const double lockedCapsuleCircleSizeMin = 160.0;
+  static const double lockedCapsuleCircleSizeMax = 180.0;
+  
+  // Locked capsule emoji animation constants
+  static const Duration lockedCapsuleEmojiAnimationDuration = Duration(milliseconds: 2000);
+  static const Duration lockedCapsuleEmojiTimerInterval = Duration(seconds: 2);
+  static const double lockedCapsuleEmojiBaseOpacity = 0.75;
+  static const double lockedCapsuleEmojiOpacityFade = 0.15; // Amount to fade during animation
+  static const double lockedCapsuleEmojiOpacityMin = 0.6;
+  static const double lockedCapsuleEmojiOpacityMax = 0.75;
+  static const double lockedCapsuleEmojiScaleMin = 0.8;
+  static const double lockedCapsuleEmojiScaleMax = 1.0;
+  static const double lockedCapsuleEmojiScaleRange = 0.2; // Scale range (max - min)
+  
+  // Locked capsule emoji glow constants
+  static const double lockedCapsuleEmojiGlowOpacity = 0.1;
+  static const double lockedCapsuleEmojiGlowBlurRadius = 4.0;
+  static const double lockedCapsuleEmojiGlowSpreadRadius = 1.0;
+  static const double lockedCapsuleEmojiTextShadowOpacity = 0.15;
+  static const double lockedCapsuleEmojiTextShadowBlurRadius = 3.0;
+  
+  // Locked capsule halo animation constants
+  static const double lockedCapsuleHaloOpacityMin = 0.0;
+  static const double lockedCapsuleHaloOpacityMax = 0.25;
+  static const double lockedCapsuleHaloBlurRadius = 20.0;
+  static const double lockedCapsuleHaloSpreadRadius = 5.0;
+  
+  // Locked capsule layout constants
+  static const double lockedCapsuleMinScreenWidth = 200.0;
+  static const double lockedCapsuleAvatarSpacing = 2.0; // Multiplier for spacingXl
+  static const double lockedCapsuleTextFontSize = 12.0;
+  static const double lockedCapsuleEmojiFontSize = 30.0;
+  static const double lockedCapsuleTextLineHeight = 1.0;
+  static const double lockedCapsuleEnvelopeContainerSize = 180.0;
+  static const double lockedCapsuleCountdownFontSize = 30.0;
+  static const double lockedCapsuleTitleFontSize = 22.0;
+  static const double lockedCapsuleSubtitleFontSize = 16.0;
+
+  // Tab indicator sparkle animation constants
+  static const int tabIndicatorSparkleCount = 3;
+  static const double tabIndicatorMaxRadiusMultiplier = 0.3;
+  static const double tabIndicatorRadiusMinMultiplier = 0.3;
+  static const double tabIndicatorRadiusRangeMultiplier = 0.7;
+  static const double tabIndicatorSparkleSizeBase = 2.5;
+  static const double tabIndicatorSparkleSizeRange = 1.5;
+  static const double tabIndicatorAnimationSpeedRadius = 2.0;
+  static const double tabIndicatorAnimationSpeedOpacity = 3.0;
+  static const double tabIndicatorAnimationSpeedSize = 4.0;
+  static const Duration tabIndicatorBreathingAnimationDuration = Duration(seconds: 3);
+  
+  // Tab indicator sparkle layer constants
+  static const double tabIndicatorAccentGlowOpacityMultiplier = 0.25;
+  static const double tabIndicatorAccentGlowBlurMultiplier = 1.2;
+  static const double tabIndicatorAccentGlowSizeMultiplier = 0.7;
+  static const double tabIndicatorMainSparkleOpacityMultiplier = 0.5;
+  static const double tabIndicatorMainSparkleBlurMultiplier = 0.6;
+  static const double tabIndicatorCenterGlowOpacityMultiplier = 0.7;
+  static const double tabIndicatorCenterGlowBlurMultiplier = 1.2;
+  static const double tabIndicatorCenterGlowSizeMultiplier = 0.6;
+  static const double tabIndicatorInnerCircleOpacityMultiplier = 0.8;
+  static const double tabIndicatorInnerCircleSizeMultiplier = 0.25;
   
   // Badge shimmer animation constants
   static const int badgeSparkleCount = 2; // Number of sparkles in badge shimmer
@@ -339,6 +410,7 @@ class AppConstants {
   
   // Date format strings
   static const String connectionDateFormat = 'MMM dd, yyyy';
+  static const String previewUnlockDateFormat = 'EEEE, MMMM d, y \'at\' h:mm a';
 
   // Asset paths
   static const String avatarPriya = 'assets/images/avatar_priya.png';
@@ -352,5 +424,58 @@ class AppConstants {
   static const String mockAnanyaId = 'ananya-456';
   static const String mockRajId = 'raj-789';
   static const String mockMomId = 'mom-999';
+  
+  // Preview screen dimensions
+  static const double previewEnvelopeIconSize = 60.0;
+  static const double previewEnvelopeIconInnerSize = 30.0;
+  static const double previewAvatarSize = 60.0;
+  static const double previewArrowIconSizeLarge = 18.0;
+  static const double previewArrowIconSizeSmall = 16.0;
+  static const double previewSmallIconSize = 14.0;
+  static const double previewButtonIconSize = 20.0;
+  static const double previewDetailRowIconSize = 20.0;
+  
+  // Preview screen spacing
+  static const double previewIconTextSpacing = 6.0;
+  static const double previewAnonymousIconSpacing = 4.0;
+  static const double previewArrowOffsetStart = -12.0;
+  static const double previewArrowOffsetEnd = 8.0;
+  
+  // Preview screen font sizes
+  static const double previewLabelFontSize = 18.0;
+  static const double previewRecipientFontSize = 14.0;
+  static const double previewUnlockTimeFontSize = 12.0;
+  static const double previewLetterContentFontSize = 16.0;
+  static const double previewDetailRowLabelFontSize = 12.0;
+  static const double previewDetailRowValueFontSize = 16.0;
+  
+  // Preview screen animation durations
+  static const Duration previewArrowAnimationDuration = Duration(seconds: 2);
+  static const Duration previewButtonAnimationDuration = Duration(milliseconds: 600);
+  static const Duration previewButtonDelayDuration = Duration(milliseconds: 400);
+  
+  // Preview screen animation values
+  static const double previewArrowOpacityThresholdLow = 0.2;
+  static const double previewArrowOpacityThresholdHigh = 0.8;
+  static const double previewSecondArrowDelay = 0.5;
+  static const double previewArrowOpacityFade = 0.8;
+  
+  // Preview screen shadow/glow values
+  static const double previewEnvelopeShadowOpacity = 0.3;
+  static const double previewEnvelopeShadowBlur = 20.0;
+  static const double previewEnvelopeShadowOffsetY = 10.0;
+  static const double previewLetterShadowOpacityDark = 0.1;
+  static const double previewLetterShadowOpacityLight = 0.03;
+  static const double previewLetterShadowBlur = 4.0;
+  static const double previewLetterShadowOffsetY = 1.0;
+  static const double previewNavBarShadowBlur = 10.0;
+  static const double previewNavBarShadowOffsetY = -5.0;
+  
+  // Preview screen other values
+  static const double previewBorderWidth = 1.0;
+  static const double previewLetterLineHeight = 1.6;
+  static const double previewButtonMinHeight = 56.0;
+  static const double previewGradientOpacityEnd = 0.7;
+  static const double previewTextOpacity = 0.9;
 }
 

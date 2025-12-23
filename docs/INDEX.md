@@ -1,8 +1,7 @@
 # OpenOn Documentation Index
 
 > **Complete navigation guide for all OpenOn documentation.**  
-> For documentation overview, see [README.md](./README.md).
-> For quick navigation tips, see [NAVIGATION_GUIDE.md](./NAVIGATION_GUIDE.md).  
+> For documentation overview, see [README.md](./README.md).  
 > For quick navigation tips, see [NAVIGATION_GUIDE.md](./NAVIGATION_GUIDE.md).
 
 ---

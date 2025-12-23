@@ -14,6 +14,7 @@ import 'package:openon_app/core/widgets/common_widgets.dart';
 import 'package:openon_app/core/widgets/magic_dust_background.dart';
 
 /// Custom FAB location to position it right above bottom navigation
+/// The Scaffold's extendBody: true and SafeArea in body ensure safe area handling
 class _CustomFABLocation extends FloatingActionButtonLocation {
   @override
   Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
@@ -69,9 +70,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           child: SafeArea(
             child: Column(
               children: [
-                // Header
+                // Header - Same structure as Receiver Home
                 Padding(
-                  padding: EdgeInsets.all(AppTheme.spacingLg),
+                  padding: EdgeInsets.only(
+                    left: AppTheme.spacingLg,
+                    right: AppTheme.spacingLg,
+                    bottom: AppTheme.spacingLg,
+                  ),
                   child: Row(
                     children: [
                       // User Avatar
@@ -115,36 +120,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       ),
 
                       // Notifications icon
-                      IconButton(
-                        icon: Icon(
-                          Icons.notifications_outlined,
-                          color: colorScheme.primary1,
-                        ),
-                        onPressed: () {
-                          // Feature: Notifications screen - to be implemented
-                          final colorScheme =
-                              ref.read(selectedColorSchemeProvider);
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Notifications coming soon!',
-                                style: TextStyle(
-                                  color: DynamicTheme.getSnackBarTextColor(
-                                      colorScheme),
+                      Semantics(
+                        label: 'Notifications',
+                        button: true,
+                        child: IconButton(
+                          icon: const Icon(Icons.notifications_outlined),
+                          tooltip: 'Notifications',
+                          onPressed: () {
+                            // Safety check - ensure widget is still mounted
+                            if (!mounted) return;
+                            
+                            final colorScheme = ref.read(selectedColorSchemeProvider);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Notifications coming soon!',
+                                  style: TextStyle(
+                                    color: DynamicTheme.getSnackBarTextColor(colorScheme),
+                                  ),
                                 ),
+                                backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                                ),
+                                duration: const Duration(seconds: 2),
                               ),
-                              backgroundColor:
-                                  DynamicTheme.getSnackBarBackgroundColor(
-                                      colorScheme),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(AppTheme.radiusMd),
-                              ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
                     ],
                   ),
@@ -168,105 +172,128 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ),
                 ),
 
-                // Create New Letter Button
+                // Tabs with Drafts link
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
-                  child: Center(
-                    child: _CreateLetterButton(
-                      colorScheme: colorScheme,
-                      onPressed: () => context.push(Routes.createCapsule),
-                    ),
-                  ),
-                ),
-
-                // Drafts Button
-                Padding(
-                  padding: EdgeInsets.only(
-                    top: AppTheme.spacingXs, // Moved closer to Create button
-                    left: AppTheme.spacingLg,
-                    right: AppTheme.spacingLg,
-                  ),
-                  child: Center(
-                    child: Consumer(
-                      builder: (context, ref, child) {
-                        final userAsync = ref.watch(currentUserProvider);
-                        final userId = userAsync.asData?.value?.id ?? '';
-                        final draftsCount = ref.watch(draftsCountProvider(userId));
-                        return _DraftsButton(
-                          draftsCount: draftsCount,
+                  child: Column(
+                    children: [
+                      // Drafts button - subtle but highlighted, near tabs
+                      Consumer(
+                        builder: (context, ref, child) {
+                          final userAsync = ref.watch(currentUserProvider);
+                          final userId = userAsync.asData?.value?.id ?? '';
+                          final draftsCount = ref.watch(draftsCountProvider(userId));
+                          return Align(
+                            alignment: Alignment.centerRight,
+                            child: Semantics(
+                              label: 'Drafts, $draftsCount draft${draftsCount != 1 ? 's' : ''}',
+                              button: true,
+                              child: TextButton(
+                                onPressed: () => context.push(Routes.drafts),
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: AppTheme.spacingMd,
+                                    vertical: AppTheme.spacingXs + 2,
+                                  ),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                                    side: BorderSide(
+                                      color: DynamicTheme.getButtonBorderColor(colorScheme).withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.edit_note_outlined,
+                                      size: 16,
+                                      color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                                    ),
+                                    SizedBox(width: AppTheme.spacingXs),
+                                    Text(
+                                      'Drafts ($draftsCount)',
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                            color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      SizedBox(height: AppTheme.spacingXs),
+                      // Tabs container
+                      Container(
+                        decoration: BoxDecoration(
+                          color: colorScheme.isDarkTheme
+                              ? Colors.white.withOpacity(AppTheme.opacityLow)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                          border: DynamicTheme.getTabContainerBorder(colorScheme),
+                        ),
+                        child: _AnimatedMagicalTabBar(
+                          tabController: _tabController,
+                          gradient: DynamicTheme.dreamyGradient(colorScheme),
                           colorScheme: colorScheme,
-                          onTap: () => context.push(Routes.drafts),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-
-                SizedBox(height: AppTheme.spacingSm),
-
-                // Tabs
-                Container(
-                  margin: EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
-                  decoration: BoxDecoration(
-                    color: colorScheme.isDarkTheme
-                        ? Colors.white.withOpacity(AppTheme
-                            .opacityLow) // Semi-transparent white for dark theme
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                    border: DynamicTheme.getTabContainerBorder(colorScheme),
-                  ),
-                  child: _AnimatedMagicalTabBar(
-                    tabController: _tabController,
-                    gradient: DynamicTheme.dreamyGradient(colorScheme),
-                    colorScheme: colorScheme,
-                    tabs: [
-                      Tab(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(Icons.auto_awesome, size: 14),
-                            SizedBox(width: AppConstants.tabSpacing),
-                            Flexible(
-                              child: Text(
-                                'Unfolding',
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
+                          tabs: [
+                            Tab(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  Icon(Icons.auto_awesome, size: 14),
+                                  SizedBox(width: AppConstants.tabSpacing),
+                                  Flexible(
+                                    child: Text(
+                                      'Unfolding',
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      Tab(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(Icons.lock_outline,
-                                size: 14), // Already outline version
-                            SizedBox(width: AppConstants.tabSpacing),
-                            Flexible(
-                              child: Text(
-                                'Sealed',
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
+                            Tab(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  Icon(Icons.lock_outline, size: 14),
+                                  SizedBox(width: AppConstants.tabSpacing),
+                                  Flexible(
+                                    child: Text(
+                                      'Sealed',
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      Tab(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(Icons.favorite_outline, size: 14),
-                            SizedBox(width: AppConstants.tabSpacing),
-                            Flexible(
-                              child: Text(
-                                'Opened',
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
+                            Tab(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  Icon(Icons.favorite_outline, size: 14),
+                                  SizedBox(width: AppConstants.tabSpacing),
+                                  Flexible(
+                                    child: Text(
+                                      'Opened',
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -294,176 +321,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          context.push(Routes.recipients);
-        },
-        backgroundColor: fabColor,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.people_outline, size: 18, color: DynamicTheme.getPrimaryIconColor(colorScheme)),
-            SizedBox(width: AppConstants.tabSpacing),
-            Text('+',
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: DynamicTheme.getPrimaryIconColor(colorScheme))),
-          ],
+      floatingActionButton: Semantics(
+        label: 'Create new letter',
+        button: true,
+        child: FloatingActionButton(
+          onPressed: () => context.push(Routes.createCapsule),
+          backgroundColor: fabColor,
+          elevation: 0,
+          tooltip: 'Create new letter',
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.edit_outlined,
+                size: 18,
+                color: DynamicTheme.getPrimaryIconColor(colorScheme),
+              ),
+              SizedBox(width: 4),
+              Icon(
+                Icons.mail_outline,
+                size: 18,
+                color: DynamicTheme.getPrimaryIconColor(colorScheme),
+              ),
+            ],
+          ),
         ),
       ),
       floatingActionButtonLocation: _CustomFABLocation(),
-    );
-  }
-}
-
-/// Drafts button with enhanced styling and tap glow effect
-class _DraftsButton extends StatefulWidget {
-  final int draftsCount;
-  final AppColorScheme colorScheme;
-  final VoidCallback onTap;
-
-  const _DraftsButton({
-    required this.draftsCount,
-    required this.colorScheme,
-    required this.onTap,
-  });
-
-  @override
-  State<_DraftsButton> createState() => _DraftsButtonState();
-}
-
-class _DraftsButtonState extends State<_DraftsButton>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _glowController;
-  bool _isPressed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _glowController = AnimationController(
-      vsync: this,
-      duration: AppConstants.animationDurationShort,
-    );
-  }
-
-  @override
-  void dispose() {
-    _glowController.dispose();
-    super.dispose();
-  }
-
-  void _handleTapDown(TapDownDetails details) {
-    setState(() => _isPressed = true);
-    _glowController.forward();
-  }
-
-  void _handleTapUp(TapUpDetails details) {
-    setState(() => _isPressed = false);
-    _glowController.reverse();
-  }
-
-  void _handleTapCancel() {
-    setState(() => _isPressed = false);
-    _glowController.reverse();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Use theme-aware colors
-    final iconColor = DynamicTheme.getButtonTextColor(widget.colorScheme);
-    final textColor = DynamicTheme.getButtonTextColor(widget.colorScheme);
-    final backgroundColor =
-        DynamicTheme.getButtonBackgroundColor(widget.colorScheme);
-    final borderColor = DynamicTheme.getButtonBorderColor(widget.colorScheme);
-
-    return GestureDetector(
-      onTapDown: _handleTapDown,
-      onTapUp: _handleTapUp,
-      onTapCancel: _handleTapCancel,
-      onTap: widget.onTap,
-      child: AnimatedBuilder(
-        animation: _glowController,
-        builder: (context, child) {
-          final glowOpacity = _glowController.value * 0.15; // Very subtle glow
-
-          return Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: AppTheme.spacingSm + 4,
-              vertical: AppTheme.spacingXs + 2,
-            ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-              color: backgroundColor,
-              border: Border.all(
-                color: borderColor,
-                width: AppTheme.borderWidthStandard,
-              ),
-              boxShadow: [
-                // Inner shadow effect (0.5% opacity) - using subtle shadow
-                BoxShadow(
-                  color: Colors.black
-                      .withOpacity(AppTheme.shadowOpacityVerySubtle),
-                  blurRadius: 2,
-                  offset: const Offset(0, 1),
-                  spreadRadius: 0,
-                ),
-                // Subtle glow when tapped
-                if (_isPressed || _glowController.value > 0)
-                  BoxShadow(
-                    color: DynamicTheme.getButtonGlowColor(widget.colorScheme,
-                        opacity: glowOpacity),
-                    blurRadius: 8,
-                    spreadRadius: 2,
-                  ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.edit_note_outlined,
-                      size: 14,
-                      color: iconColor,
-                    ),
-                    SizedBox(width: AppTheme.spacingXs),
-                    Text(
-                      'Drafts (${widget.draftsCount})',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: textColor,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 13,
-                          ),
-                    ),
-                  ],
-                ),
-                // Inner shadow overlay (0.5% opacity)
-                Positioned.fill(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withOpacity(0.005),
-                          ],
-                          stops: const [0.0, 1.0],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
     );
   }
 }
@@ -502,7 +387,7 @@ class _AnimatedMagicalTabBarState extends State<_AnimatedMagicalTabBar>
     // Breathing glow animation - slow, gentle pulse
     _breathingController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 3), // Slow breathing cycle
+      duration: AppConstants.tabIndicatorBreathingAnimationDuration,
     )..repeat(reverse: true);
   }
 
@@ -580,13 +465,10 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
 
   // Reusable Paint objects to avoid allocation
   final Paint _gradientPaint = Paint()..style = PaintingStyle.fill;
-  final Paint _glowPaint = Paint()..style = PaintingStyle.stroke;
-  final Paint _shadowPaint = Paint()..style = PaintingStyle.fill;
   final Paint _sparklePaint = Paint()..style = PaintingStyle.fill;
   final Paint _accentGlowPaint = Paint()..style = PaintingStyle.fill;
   final Paint _centerGlowPaint = Paint()..style = PaintingStyle.fill;
   final Paint _innerCirclePaint = Paint()..style = PaintingStyle.fill;
-  final Paint _breathingGlowPaint = Paint()..style = PaintingStyle.fill;
 
   _MagicalTabIndicatorPainter({
     required this.gradient,
@@ -608,94 +490,80 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
       _gradientPaint,
     );
 
-    // Breathing glow effect - pulses in and out
-    // Breathing value goes from 0 to 1, creating a smooth pulse
-    final breathingOpacity =
-        0.15 + (breathingValue * 0.15); // 0.15 to 0.3 opacity
-    final breathingBlur = 8 + (breathingValue * 8); // 8 to 16 blur radius
-
-    _breathingGlowPaint
-      ..color = colorScheme.primary1.withOpacity(breathingOpacity)
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, breathingBlur);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, Radius.circular(radius)),
-      _breathingGlowPaint,
-    );
-
-    // Glow ring effect
-    _glowPaint
-      ..color = colorScheme.primary1.withOpacity(AppTheme.opacityHigh)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8)
-      ..strokeWidth = 2;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect.deflate(1), Radius.circular(radius)),
-      _glowPaint,
-    );
-
-    // Shadow/glow effect
-    _shadowPaint
-      ..color = colorScheme.primary1.withOpacity(AppTheme.opacityMediumHigh)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, Radius.circular(radius)),
-      _shadowPaint,
-    );
-
     // Sparkle micro-animation
     _drawSparkles(canvas, rect, animationValue);
   }
 
   void _drawSparkles(Canvas canvas, Rect rect, double time) {
-    const int sparkleCount = 3; // Reduced from 4 to 3 for better performance
-    final double centerX = rect.center.dx;
-    final double centerY = rect.center.dy;
-    final double maxRadius =
-        math.min(rect.width, rect.height) * 0.3; // Reduced from 0.35
+    final int sparkleCount = AppConstants.tabIndicatorSparkleCount;
+    final Offset center = rect.center;
+    final double maxRadius = math.min(rect.width, rect.height) * 
+        AppConstants.tabIndicatorMaxRadiusMultiplier;
 
     for (int i = 0; i < sparkleCount; i++) {
+      // Calculate angle: evenly spaced around circle
       final double angle = time + (i * 2 * math.pi / sparkleCount);
-      final double radius = maxRadius * (0.3 + 0.7 * math.sin(time * 2 + i));
-      final double x = centerX + math.cos(angle) * radius;
-      final double y = centerY + math.sin(angle) * radius;
-      final double opacity = (math.sin(time * 3 + i) + 1) / 2;
-      final double size =
-          2.5 + math.sin(time * 4 + i) * 1.5; // Reduced from 3 + 2.5
+      
+      // Dynamic radius: pulses between min and max based on animation
+      final double radiusVariation = AppConstants.tabIndicatorRadiusMinMultiplier + 
+          (AppConstants.tabIndicatorRadiusRangeMultiplier * 
+           math.sin(time * AppConstants.tabIndicatorAnimationSpeedRadius + i));
+      final double radius = maxRadius * radiusVariation;
+      
+      // Convert polar coordinates to cartesian
+      final double x = center.dx + math.cos(angle) * radius;
+      final double y = center.dy + math.sin(angle) * radius;
+      
+      // Opacity: oscillates between 0 and 1
+      final double opacity = (math.sin(time * AppConstants.tabIndicatorAnimationSpeedOpacity + i) + 1) / 2;
+      
+      // Size: oscillates between base and base + range
+      final double size = AppConstants.tabIndicatorSparkleSizeBase + 
+          (math.sin(time * AppConstants.tabIndicatorAnimationSpeedSize + i) * 
+           AppConstants.tabIndicatorSparkleSizeRange);
 
-      // Reuse paint objects
+      // Layer 1: Accent glow (outermost, colored)
       _accentGlowPaint
-        ..color = colorScheme.accent.withOpacity(opacity * 0.25)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, size * 1.2);
+        ..color = colorScheme.accent.withOpacity(
+            opacity * AppConstants.tabIndicatorAccentGlowOpacityMultiplier)
+        ..maskFilter = MaskFilter.blur(
+            BlurStyle.normal, size * AppConstants.tabIndicatorAccentGlowBlurMultiplier);
       canvas.drawCircle(
         Offset(x, y),
-        size * 0.7,
+        size * AppConstants.tabIndicatorAccentGlowSizeMultiplier,
         _accentGlowPaint,
       );
 
-      // Draw simplified sparkle (circle instead of star for performance)
+      // Layer 2: Main sparkle (white circle)
       _sparklePaint
-        ..color = Colors.white.withOpacity(opacity * 0.5)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, size * 0.6);
+        ..color = Colors.white.withOpacity(
+            opacity * AppConstants.tabIndicatorMainSparkleOpacityMultiplier)
+        ..maskFilter = MaskFilter.blur(
+            BlurStyle.normal, size * AppConstants.tabIndicatorMainSparkleBlurMultiplier);
       canvas.drawCircle(
         Offset(x, y),
         size,
         _sparklePaint,
       );
 
-      // Center glow
+      // Layer 3: Center glow (white, larger blur)
       _centerGlowPaint
-        ..color = Colors.white.withOpacity(opacity * 0.7)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, size * 1.2);
+        ..color = Colors.white.withOpacity(
+            opacity * AppConstants.tabIndicatorCenterGlowOpacityMultiplier)
+        ..maskFilter = MaskFilter.blur(
+            BlurStyle.normal, size * AppConstants.tabIndicatorCenterGlowBlurMultiplier);
       canvas.drawCircle(
         Offset(x, y),
-        size * 0.6,
+        size * AppConstants.tabIndicatorCenterGlowSizeMultiplier,
         _centerGlowPaint,
       );
 
-      // Inner circle
-      _innerCirclePaint.color = Colors.white.withOpacity(opacity * 0.8);
+      // Layer 4: Inner circle (brightest, smallest)
+      _innerCirclePaint.color = Colors.white.withOpacity(
+          opacity * AppConstants.tabIndicatorInnerCircleOpacityMultiplier);
       canvas.drawCircle(
         Offset(x, y),
-        size * 0.25,
+        size * AppConstants.tabIndicatorInnerCircleSizeMultiplier,
         _innerCirclePaint,
       );
     }
@@ -717,6 +585,7 @@ class _UpcomingTab extends ConsumerWidget {
     final userAsync = ref.watch(currentUserProvider);
     final userId = userAsync.asData?.value?.id ?? '';
     final capsulesAsync = ref.watch(upcomingCapsulesProvider(userId));
+    final allCapsulesAsync = ref.watch(capsulesProvider(userId));
     final colorScheme = ref.watch(selectedColorSchemeProvider);
 
     return RefreshIndicator(
@@ -730,15 +599,45 @@ class _UpcomingTab extends ConsumerWidget {
       child: capsulesAsync.when(
         data: (capsules) {
           if (capsules.isEmpty) {
-            return SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: EmptyState(
-                icon: Icons.mail_outline,
-                title: 'No upcoming letters',
-                message: 'Create a new letter to get started',
-                action: ElevatedButton(
-                  onPressed: () => context.push(Routes.createCapsule),
-                  child: const Text('Create Letter'),
+            // Check if user has zero sent letters total
+            // Use whenData for safer async handling
+            return allCapsulesAsync.when(
+              data: (allCapsules) {
+                final hasAnyLetters = allCapsules.isNotEmpty;
+                
+                // Show special empty state with CTA only if user has zero letters
+                if (!hasAnyLetters) {
+                  return SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: EmptyState(
+                      icon: Icons.mail_outline,
+                      title: 'No letters yet',
+                      message: 'Start your journey by writing your first letter',
+                      action: ElevatedButton(
+                        onPressed: () => context.push(Routes.createCapsule),
+                        child: const Text('Write your first letter'),
+                      ),
+                    ),
+                  );
+                }
+                
+                // Normal empty state without CTA (FAB is the creation affordance)
+                return SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: EmptyState(
+                    icon: Icons.mail_outline,
+                    title: 'No upcoming letters',
+                    message: 'Letters scheduled to unlock will appear here',
+                  ),
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (_, __) => SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: EmptyState(
+                  icon: Icons.mail_outline,
+                  title: 'No upcoming letters',
+                  message: 'Letters scheduled to unlock will appear here',
                 ),
               ),
             );
@@ -814,17 +713,19 @@ class _UnlockingSoonTab extends ConsumerWidget {
               physics: AlwaysScrollableScrollPhysics(),
               child: EmptyState(
                 icon: Icons.schedule_outlined,
-                title: 'Nothing unlocking soon',
-                message: 'Letters within 7 days will appear here',
+                title: 'Nothing unfolding yet',
+                message: 'When a letter is close to opening, you’ll see it here.',
               ),
             );
           }
 
           return ListView.builder(
             key: const PageStorageKey('unlocking_soon_capsules'),
-            padding: EdgeInsets.symmetric(
-              horizontal: AppTheme.spacingLg,
-              vertical: AppTheme.spacingSm,
+            padding: EdgeInsets.only(
+              left: AppTheme.spacingLg,
+              right: AppTheme.spacingLg,
+              top: AppTheme.spacingXs,
+              bottom: AppTheme.spacingSm,
             ),
             itemCount: capsules.length,
             itemBuilder: (context, index) {
@@ -975,8 +876,7 @@ class _CapsuleCard extends ConsumerWidget {
                 BoxShadow(
                   color: colorScheme.isDarkTheme
                       ? Colors.black.withOpacity(AppConstants.shadowOpacityDark)
-                      : Colors.black
-                          .withOpacity(AppConstants.shadowOpacityLight),
+                      : Colors.black.withOpacity(AppConstants.shadowOpacityLight),
                   blurRadius: AppConstants.capsuleCardShadowBlur,
                   spreadRadius: AppConstants.capsuleCardShadowSpread,
                   offset: const Offset(0, 2),
@@ -1244,60 +1144,3 @@ class _CapsuleCard extends ConsumerWidget {
   }
 }
 
-/// Create New Letter Button
-class _CreateLetterButton extends StatelessWidget {
-  final AppColorScheme colorScheme;
-  final VoidCallback onPressed;
-
-  const _CreateLetterButton({
-    required this.colorScheme,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: AppConstants.createButtonHeight,
-      decoration: BoxDecoration(
-        gradient: DynamicTheme.dreamyGradient(colorScheme),
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: DynamicTheme.getTabContainerBorder(colorScheme),
-        boxShadow: DynamicTheme.getButtonGlowShadows(colorScheme),
-      ),
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          padding: EdgeInsets.zero,
-          minimumSize: Size(double.infinity, AppConstants.createButtonHeight),
-          side: DynamicTheme.getSubtleButtonBorderSide(colorScheme),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.mail_outline,
-              color: DynamicTheme.getPrimaryIconColor(colorScheme),
-              size: 20,
-            ),
-            SizedBox(width: AppTheme.spacingXs),
-            Text(
-              'Create a New Letter',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: DynamicTheme.getPrimaryTextColor(colorScheme),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

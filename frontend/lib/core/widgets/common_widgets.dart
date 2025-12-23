@@ -162,20 +162,6 @@ class UserAvatar extends ConsumerWidget {
           color: colorScheme.accent.withOpacity(0.65), // Reduced from 0.8 (18.75% reduction) for softer appearance
           width: 1.0,
         ),
-        boxShadow: [
-          // Reduced glow - softer to match border
-          BoxShadow(
-            color: colorScheme.accent.withOpacity(0.15), // Reduced from 0.2 for softer glow
-            blurRadius: 12,
-            spreadRadius: 1,
-          ),
-          // Subtle shadow
-          BoxShadow(
-            color: colorScheme.primary1.withOpacity(0.2),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: hasImage
           ? ClipOval(

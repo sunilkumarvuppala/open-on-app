@@ -166,7 +166,7 @@ Feature modules organized by functionality. Each feature is self-contained.
 **Tabs**:
 - Unfolding: Capsules unlocking within 7 days (Tab 0)
 - Sealed: Capsules unlocking later (Tab 1)
-- Revealed: Already opened capsules (Tab 2)
+- Opened: Already opened capsules (Tab 2)
 
 #### Receiver (`features/receiver/`)
 

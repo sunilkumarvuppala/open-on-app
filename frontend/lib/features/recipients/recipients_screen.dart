@@ -254,6 +254,7 @@ class RecipientsScreen extends ConsumerWidget {
             },
           ),
           floatingActionButton: FloatingActionButton(
+            elevation: 0,
             onPressed: () => context.push(Routes.addRecipient),
             child: const Icon(Icons.add),
           ),

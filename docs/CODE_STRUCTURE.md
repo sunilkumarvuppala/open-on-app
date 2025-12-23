@@ -266,7 +266,7 @@ Main Navigation (Bottom Nav)
     └── Outbox (Sender) - Tab 1 (SECONDARY)
         ├── Unfolding Tab
         ├── Sealed Tab
-        └── Revealed Tab
+        └── Opened Tab
     ↓
 Feature Screens
     ├── Create Capsule
