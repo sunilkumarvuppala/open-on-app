@@ -384,11 +384,11 @@
 ## Related Documentation
 
 - [Features Documentation](./frontend/FEATURES.md) - Detailed feature documentation
-- [Letters to Self](./letters_to_self.md) - Complete letters to self guide
-- [Anonymous Letters](./anonymous_letters.md) - Complete anonymous letters guide
+- [Letters to Self](./frontend/features/LETTERS_TO_SELF.md) - Complete letters to self guide
+- [Anonymous Letters](./frontend/features/ANONYMOUS_LETTERS.md) - Complete anonymous letters guide
 - [Architecture](./ARCHITECTURE.md) - System architecture
 - [API Reference](./backend/API_REFERENCE.md) - Backend API endpoints
-- [Security Review](./SECURITY_AND_BEST_PRACTICES_REVIEW.md) - Security analysis
+- [Security Review](./archive/reviews/SECURITY_AND_BEST_PRACTICES_REVIEW.md) - Security analysis
 
 ---
 

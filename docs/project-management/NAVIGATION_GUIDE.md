@@ -66,7 +66,7 @@
 **README.md** = Overview/index files
 - Root `README.md` = Project overview
 - `docs/README.md` = Documentation hub
-- `docs/supabase/README.md` = Supabase docs overview
+- `docs/supabase/INDEX.md` = Supabase docs overview
 
 **INDEX.md** = Navigation index files
 - `docs/INDEX.md` = Master navigation index

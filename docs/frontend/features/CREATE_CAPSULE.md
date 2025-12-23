@@ -494,7 +494,7 @@ Future<void> _saveAsDraft() async {
 - [Drafts Feature](./DRAFTS.md) - For draft management and auto-save
 - [Home Screen](./HOME.md) - For navigation after creation
 - [Anonymous Letters Feature](../../anonymous_letters.md) - Complete anonymous letters documentation
-- [API Reference](../API_REFERENCE.md) - For repository APIs
+- [API Reference](../../reference/API_REFERENCE.md) - For repository APIs
 
 ---
 

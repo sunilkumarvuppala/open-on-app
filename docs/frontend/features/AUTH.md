@@ -217,8 +217,8 @@ try {
 
 ## Related Documentation
 
-- [API Reference](../API_REFERENCE.md) - For provider and repository APIs
-- [Architecture](../../ARCHITECTURE.md) - For overall architecture
+- [API Reference](../../reference/API_REFERENCE.md) - For provider and repository APIs
+- [Architecture](../../architecture/ARCHITECTURE.md) - For overall architecture
 - [Navigation Feature](./NAVIGATION.md) - For navigation patterns
 
 ---

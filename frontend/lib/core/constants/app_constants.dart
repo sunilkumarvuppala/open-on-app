@@ -477,5 +477,22 @@ class AppConstants {
   static const double previewButtonMinHeight = 56.0;
   static const double previewGradientOpacityEnd = 0.7;
   static const double previewTextOpacity = 0.9;
+  
+  // ============================================================================
+  // Thoughts Feature Constants
+  // ============================================================================
+  
+  // Pagination limits (should match database config, but used for client-side validation)
+  static const int thoughtsDefaultLimit = 30;
+  static const int thoughtsMinLimit = 1;
+  static const int thoughtsMaxLimit = 100;
+  
+  // Client source identifiers
+  static const String clientSourceIOS = 'ios';
+  static const String clientSourceAndroid = 'android';
+  static const String clientSourceWeb = 'web';
+  
+  // Default fallback values
+  static const String defaultSenderName = 'Someone';
 }
 

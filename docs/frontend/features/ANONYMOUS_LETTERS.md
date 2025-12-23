@@ -273,7 +273,7 @@ if (capsule.isAnonymous && !capsule.isRevealed) {
 ## Related Documentation
 
 - [Database Schema](../supabase/DATABASE_SCHEMA.md)
-- [RLS Policies](../supabase/README.md)
+- [RLS Policies](../supabase/INDEX.md)
 - [API Reference](../backend/API_REFERENCE.md)
 - [Flutter Features](../frontend/features/CREATE_CAPSULE.md)
 

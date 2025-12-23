@@ -178,7 +178,7 @@ WHERE owner_id = ? AND LOWER(email) = LOWER(?);
 
 - **Detailed Index Strategy**: `PRODUCTION_INDEX_STRATEGY.md`
 - **Database Optimizations**: `DATABASE_OPTIMIZATIONS.md`
-- **Performance Optimizations**: `../PERFORMANCE_OPTIMIZATIONS.md`
+- **Performance Optimizations**: `../development/PERFORMANCE_OPTIMIZATIONS.md`
 
 ---
 

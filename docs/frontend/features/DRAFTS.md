@@ -399,10 +399,11 @@ ref.invalidate(draftsProvider(userId));
 
 - [Create Capsule Feature](./CREATE_CAPSULE.md) - Letter creation flow
 - [Home Screen](./HOME.md) - Access to drafts
-- [Performance Optimizations](../../PERFORMANCE_OPTIMIZATIONS.md) - Draft performance improvements
+- [Performance Optimizations](../../development/PERFORMANCE_OPTIMIZATIONS.md) - Draft performance improvements
 
 ---
 
 **Last Updated**: January 2025
+
 
 

@@ -1,0 +1,284 @@
+-- ============================================================================
+-- Thoughts Feature - SQL Tests & Validation Queries
+-- ============================================================================
+-- WHAT: Test queries to validate Thoughts feature implementation
+-- WHY: Ensure constraints, RLS policies, and RPC functions work correctly
+-- USAGE: Run these queries manually or integrate into test suite
+-- NOTE: This is NOT a migration - it's a test/validation file
+-- ============================================================================
+
+-- ============================================================================
+-- SETUP: Create test users (run as service role)
+-- ============================================================================
+-- Note: In real tests, you'd use Supabase test helpers or create users via Auth API
+-- These are example queries assuming test users exist
+
+-- ============================================================================
+-- TEST 1: Cannot send thought to non-connection
+-- ============================================================================
+-- Expected: Should raise THOUGHT_ERROR:NOT_CONNECTED
+-- 
+-- Setup: Ensure user_a and user_b are NOT connected
+-- 
+-- SELECT public.rpc_send_thought('user_b_id'::uuid, 'test');
+-- Expected error: THOUGHT_ERROR:NOT_CONNECTED
+
+-- ============================================================================
+-- TEST 2: Cannot send thought if blocked
+-- ============================================================================
+-- Expected: Should raise THOUGHT_ERROR:BLOCKED
+-- 
+-- Setup:
+--   1. Create connection between user_a and user_b
+--   2. Block user_b (blocker_id = user_a, blocked_id = user_b)
+-- 
+-- SELECT public.rpc_send_thought('user_b_id'::uuid, 'test');
+-- Expected error: THOUGHT_ERROR:BLOCKED
+
+-- ============================================================================
+-- TEST 3: Cannot send more than 1 per pair/day (cooldown)
+-- ============================================================================
+-- Expected: Should raise THOUGHT_ERROR:THOUGHT_ALREADY_SENT_TODAY
+-- 
+-- Setup:
+--   1. Ensure user_a and user_b are connected
+--   2. Send first thought: SELECT public.rpc_send_thought('user_b_id'::uuid, 'test');
+--   3. Try to send second thought immediately
+-- 
+-- SELECT public.rpc_send_thought('user_b_id'::uuid, 'test');
+-- Expected error: THOUGHT_ERROR:THOUGHT_ALREADY_SENT_TODAY
+
+-- ============================================================================
+-- TEST 4: Cannot exceed global daily cap (20/day)
+-- ============================================================================
+-- Expected: Should raise THOUGHT_ERROR:DAILY_LIMIT_REACHED
+-- 
+-- Setup:
+--   1. Connect user_a to 21 different users (user_b through user_v)
+--   2. Send thoughts to first 20 users
+--   3. Try to send 21st thought
+-- 
+-- -- Send 20 thoughts (example for user_b through user_u)
+-- -- SELECT public.rpc_send_thought('user_b_id'::uuid, 'test');
+-- -- ... repeat 19 more times ...
+-- 
+-- -- Try 21st thought
+-- SELECT public.rpc_send_thought('user_v_id'::uuid, 'test');
+-- Expected error: THOUGHT_ERROR:DAILY_LIMIT_REACHED
+
+-- ============================================================================
+-- TEST 5: Receiver can only read their thoughts
+-- ============================================================================
+-- Expected: RLS policy should only return thoughts where receiver_id = auth.uid()
+-- 
+-- Setup:
+--   1. As user_a, send thought to user_b
+--   2. As user_c (different user), try to read user_b's thoughts
+-- 
+-- -- As user_c, this should return empty:
+-- SELECT * FROM public.thoughts WHERE receiver_id = 'user_b_id'::uuid;
+-- Expected: Empty result (user_c cannot see user_b's thoughts)
+
+-- ============================================================================
+-- TEST 6: Sender can only read their sent thoughts
+-- ============================================================================
+-- Expected: RLS policy should only return thoughts where sender_id = auth.uid()
+-- 
+-- Setup:
+--   1. As user_a, send thought to user_b
+--   2. As user_c, try to read user_a's sent thoughts
+-- 
+-- -- As user_c, this should return empty:
+-- SELECT * FROM public.thoughts WHERE sender_id = 'user_a_id'::uuid;
+-- Expected: Empty result (user_c cannot see user_a's sent thoughts)
+
+-- ============================================================================
+-- TEST 7: Cannot send to self
+-- ============================================================================
+-- Expected: Should raise error about self-send
+-- 
+-- SELECT public.rpc_send_thought(auth.uid(), 'test');
+-- Expected error: Cannot send thought to yourself
+
+-- ============================================================================
+-- TEST 8: Valid thought send succeeds
+-- ============================================================================
+-- Expected: Should return JSONB with thought_id
+-- 
+-- Setup:
+--   1. Ensure user_a and user_b are connected
+--   2. Ensure neither is blocked
+--   3. Ensure user_a hasn't sent to user_b today
+--   4. Ensure user_a hasn't reached daily limit
+-- 
+-- SELECT public.rpc_send_thought('user_b_id'::uuid, 'ios');
+-- Expected: JSONB with thought_id, status='sent', sender_id, receiver_id, created_at
+
+-- ============================================================================
+-- TEST 9: List incoming thoughts returns correct data
+-- ============================================================================
+-- Expected: Should return thoughts for current user as receiver
+-- 
+-- Setup:
+--   1. As user_a, send thoughts to user_b (from multiple senders)
+--   2. As user_b, list incoming thoughts
+-- 
+-- -- As user_b:
+-- SELECT public.rpc_list_incoming_thoughts(NULL, 30);
+-- Expected: JSONB array with thoughts where receiver_id = user_b, ordered by created_at DESC
+
+-- ============================================================================
+-- TEST 10: List sent thoughts returns correct data
+-- ============================================================================
+-- Expected: Should return thoughts for current user as sender
+-- 
+-- Setup:
+--   1. As user_a, send thoughts to multiple receivers
+--   2. As user_a, list sent thoughts
+-- 
+-- -- As user_a:
+-- SELECT public.rpc_list_sent_thoughts(NULL, 30);
+-- Expected: JSONB array with thoughts where sender_id = user_a, ordered by created_at DESC
+
+-- ============================================================================
+-- TEST 11: Pagination works correctly
+-- ============================================================================
+-- Expected: Should return thoughts after cursor
+-- 
+-- Setup:
+--   1. As user_a, send 5 thoughts to user_b
+--   2. Get first page (limit=2)
+--   3. Use cursor from 2nd thought to get next page
+-- 
+-- -- Get first page
+-- SELECT public.rpc_list_incoming_thoughts(NULL, 2);
+-- -- Note the created_at of the 2nd thought, use as cursor
+-- 
+-- -- Get second page
+-- SELECT public.rpc_list_incoming_thoughts('2024-01-01T12:00:00Z'::timestamptz, 2);
+-- Expected: Should return thoughts 3-4 (or remaining if less)
+
+-- ============================================================================
+-- TEST 12: Unique constraint prevents duplicate inserts
+-- ============================================================================
+-- Expected: Unique constraint should prevent race condition duplicates
+-- 
+-- Setup:
+--   1. Ensure user_a and user_b are connected
+--   2. Try to insert duplicate thought directly (bypassing RPC)
+-- 
+-- -- First insert (should succeed)
+-- INSERT INTO public.thoughts (sender_id, receiver_id, day_bucket, created_at)
+-- VALUES ('user_a_id'::uuid, 'user_b_id'::uuid, CURRENT_DATE, NOW());
+-- 
+-- -- Second insert (should fail)
+-- INSERT INTO public.thoughts (sender_id, receiver_id, day_bucket, created_at)
+-- VALUES ('user_a_id'::uuid, 'user_b_id'::uuid, CURRENT_DATE, NOW());
+-- Expected error: duplicate key value violates unique constraint
+
+-- ============================================================================
+-- TEST 13: Rate limit counter increments correctly
+-- ============================================================================
+-- Expected: thought_rate_limits.sent_count should increment
+-- 
+-- Setup:
+--   1. Ensure user_a has no thoughts sent today
+--   2. Send thought via RPC
+--   3. Check rate limit counter
+-- 
+-- -- Before sending
+-- SELECT sent_count FROM public.thought_rate_limits 
+-- WHERE sender_id = 'user_a_id'::uuid AND day_bucket = CURRENT_DATE;
+-- Expected: NULL or 0
+-- 
+-- -- Send thought
+-- SELECT public.rpc_send_thought('user_b_id'::uuid, 'test');
+-- 
+-- -- After sending
+-- SELECT sent_count FROM public.thought_rate_limits 
+-- WHERE sender_id = 'user_a_id'::uuid AND day_bucket = CURRENT_DATE;
+-- Expected: 1
+
+-- ============================================================================
+-- TEST 14: Day bucket is set correctly
+-- ============================================================================
+-- Expected: day_bucket should match created_at date
+-- 
+-- Setup:
+--   1. Send thought
+--   2. Check day_bucket matches created_at date
+-- 
+-- SELECT public.rpc_send_thought('user_b_id'::uuid, 'test');
+-- 
+-- SELECT id, created_at, day_bucket, DATE(created_at) as created_date
+-- FROM public.thoughts
+-- WHERE sender_id = auth.uid()
+-- ORDER BY created_at DESC
+-- LIMIT 1;
+-- Expected: day_bucket = DATE(created_at)
+
+-- ============================================================================
+-- TEST 15: Indexes are used for performance
+-- ============================================================================
+-- Expected: Query planner should use indexes
+-- 
+-- -- Check index usage for receiver queries
+-- EXPLAIN ANALYZE
+-- SELECT * FROM public.thoughts
+-- WHERE receiver_id = 'user_b_id'::uuid
+-- ORDER BY created_at DESC
+-- LIMIT 30;
+-- Expected: Should use idx_thoughts_receiver_created
+-- 
+-- -- Check index usage for sender queries
+-- EXPLAIN ANALYZE
+-- SELECT * FROM public.thoughts
+-- WHERE sender_id = 'user_a_id'::uuid
+-- ORDER BY created_at DESC
+-- LIMIT 30;
+-- Expected: Should use idx_thoughts_sender_created
+
+-- ============================================================================
+-- CLEANUP QUERIES (Run as service role for testing)
+-- ============================================================================
+
+-- Delete test thoughts (for cleanup between test runs)
+-- DELETE FROM public.thoughts WHERE client_source = 'test';
+
+-- Delete test rate limits (for cleanup between test runs)
+-- DELETE FROM public.thought_rate_limits WHERE day_bucket = CURRENT_DATE;
+
+-- ============================================================================
+-- PRODUCTION MONITORING QUERIES
+-- ============================================================================
+
+-- Count thoughts sent today
+-- SELECT COUNT(*) as thoughts_sent_today
+-- FROM public.thoughts
+-- WHERE day_bucket = CURRENT_DATE;
+
+-- Count unique senders today
+-- SELECT COUNT(DISTINCT sender_id) as unique_senders_today
+-- FROM public.thoughts
+-- WHERE day_bucket = CURRENT_DATE;
+
+-- Count unique receivers today
+-- SELECT COUNT(DISTINCT receiver_id) as unique_receivers_today
+-- FROM public.thoughts
+-- WHERE day_bucket = CURRENT_DATE;
+
+-- Top senders today (for abuse monitoring)
+-- SELECT sender_id, COUNT(*) as sent_count
+-- FROM public.thoughts
+-- WHERE day_bucket = CURRENT_DATE
+-- GROUP BY sender_id
+-- ORDER BY sent_count DESC
+-- LIMIT 10;
+
+-- Rate limit status (users approaching daily cap)
+-- SELECT sender_id, sent_count
+-- FROM public.thought_rate_limits
+-- WHERE day_bucket = CURRENT_DATE
+--   AND sent_count >= 15  -- Approaching 20 limit
+-- ORDER BY sent_count DESC;
+

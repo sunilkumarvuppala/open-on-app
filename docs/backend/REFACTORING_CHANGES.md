@@ -1,7 +1,7 @@
 # Backend Refactoring Changes
 
 > **Note**: This document covers backend-specific refactoring details.  
-> For comprehensive refactoring documentation (backend + frontend), see [../REFACTORING.md](../REFACTORING.md).
+> For comprehensive refactoring documentation (backend + frontend), see [../development/REFACTORING.md](../development/REFACTORING.md).
 
 This document details backend-specific refactoring improvements.
 

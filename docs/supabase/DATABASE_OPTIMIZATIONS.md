@@ -3,7 +3,7 @@
 This document provides detailed information about database query optimizations, indexing strategies, and performance improvements in the OpenOn backend.
 
 > **Note**: 
-> - For frontend optimizations, see [../PERFORMANCE_OPTIMIZATIONS.md](../PERFORMANCE_OPTIMIZATIONS.md)
+> - For frontend optimizations, see [../development/PERFORMANCE_OPTIMIZATIONS.md](../development/PERFORMANCE_OPTIMIZATIONS.md)
 > - For database schema, see [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md)
 
 ## Table of Contents

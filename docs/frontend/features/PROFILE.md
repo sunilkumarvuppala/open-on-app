@@ -265,7 +265,7 @@ class ColorSchemeScreen extends ConsumerWidget {
 
 - [Home Screen](./HOME.md) - For profile navigation
 - [Navigation](./NAVIGATION.md) - For navigation patterns
-- [API Reference](../API_REFERENCE.md) - For user repository API
+- [API Reference](../../reference/API_REFERENCE.md) - For user repository API
 
 ---
 

@@ -17,7 +17,7 @@ docs/backend/
 ├── API_REFERENCE.md                  # Complete API documentation
 ├── SECURITY.md                       # Security practices
 ├── CONFIGURATION.md                  # Configuration guide
-├── REFACTORING_CHANGES.md            # Backend-specific refactoring details (see ../REFACTORING.md for consolidated docs)
+├── REFACTORING_CHANGES.md            # Backend-specific refactoring details (see ../development/REFACTORING.md for consolidated docs)
 ├── CLEARING_DATABASE.md              # Guide for clearing database data
 └── DEVELOPMENT.md                    # Development guide
 ```
@@ -90,7 +90,7 @@ docs/backend/
 - Code quality enhancements
 - Performance optimizations
 - Security improvements
-- **Note**: For comprehensive refactoring (backend + frontend), see [../REFACTORING.md](../REFACTORING.md)
+- **Note**: For comprehensive refactoring (backend + frontend), see [../development/REFACTORING.md](../development/REFACTORING.md)
 
 ### [CLEARING_DATABASE.md](./CLEARING_DATABASE.md)
 - Guide for clearing database data
@@ -139,7 +139,7 @@ All documentation follows these principles:
 When making changes:
 1. Update relevant documentation files
 2. Update [REFACTORING_CHANGES.md](./REFACTORING_CHANGES.md) for significant changes
-3. Update [CHANGELOG.md](../CHANGELOG.md) in parent docs folder
+3. Update [project-management/CHANGELOG.md](../project-management/CHANGELOG.md) in parent docs folder
 4. Ensure examples still work
 
 ## 📞 Need Help?

@@ -345,7 +345,7 @@ Anonymous letters are displayed with special indicators:
 - [Home Screen](./HOME.md) - For sender home screen
 - [Capsule Viewing](./CAPSULE.md) - For capsule detail screens
 - [Anonymous Letters Feature](../../anonymous_letters.md) - Complete anonymous letters documentation
-- [Performance Optimizations](../PERFORMANCE_OPTIMIZATIONS.md) - For performance details
+- [Performance Optimizations](../../development/PERFORMANCE_OPTIMIZATIONS.md) - For performance details
 
 ---
 

@@ -20,11 +20,11 @@ This directory contains detailed documentation for each feature in the OpenOn ap
 
 ## Quick Navigation
 
-- **Getting Started**: [QUICK_START.md](./QUICK_START.md)
-- **Architecture**: [../ARCHITECTURE.md](../ARCHITECTURE.md)
-- **Code Structure**: [../CODE_STRUCTURE.md](../CODE_STRUCTURE.md)
-- **Performance**: [../PERFORMANCE_OPTIMIZATIONS.md](../PERFORMANCE_OPTIMIZATIONS.md)
-- **API Reference**: [../API_REFERENCE.md](../API_REFERENCE.md)
+- **Getting Started**: [../getting-started/QUICK_START.md](../getting-started/QUICK_START.md)
+- **Architecture**: [../architecture/ARCHITECTURE.md](../architecture/ARCHITECTURE.md)
+- **Code Structure**: [../architecture/CODE_STRUCTURE.md](../architecture/CODE_STRUCTURE.md)
+- **Performance**: [../development/PERFORMANCE_OPTIMIZATIONS.md](../development/PERFORMANCE_OPTIMIZATIONS.md)
+- **API Reference**: [../reference/API_REFERENCE.md](../reference/API_REFERENCE.md)
 
 ## Feature Documentation Index
 

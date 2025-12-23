@@ -235,7 +235,7 @@ The Letters to Self feature allows users to write sealed, irreversible, time-del
 - [Database Schema](../supabase/DATABASE_SCHEMA.md) - Complete schema reference
 - [Backend API Reference](../backend/API_REFERENCE.md) - API endpoints
 - [Frontend Features](../frontend/FEATURES.md) - Frontend features overview
-- [Features List](../FEATURES_LIST.md) - Complete features list
+- [Features List](../../reference/FEATURES_LIST.md) - Complete features list
 
 ---
 
