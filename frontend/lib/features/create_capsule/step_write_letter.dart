@@ -7,6 +7,7 @@ import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/utils/logger.dart';
+import 'package:openon_app/core/widgets/common_widgets.dart';
 
 class StepWriteLetter extends ConsumerStatefulWidget {
   final VoidCallback onNext;
@@ -192,6 +193,95 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
     ref.read(draftCapsuleProvider.notifier).setPhoto(null);
   }
   
+  void _showTimeLockedInfo() {
+    final colorScheme = ref.read(selectedColorSchemeProvider);
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isDismissible: true,
+      enableDrag: true,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: DynamicTheme.getCardBackgroundColor(colorScheme),
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppTheme.radiusLg),
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: AppTheme.spacingSm),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: DynamicTheme.getPrimaryTextColor(colorScheme).withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              
+              Padding(
+                padding: EdgeInsets.all(AppTheme.spacingLg),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Time-Locked Letters',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                          ),
+                    ),
+                    SizedBox(height: AppTheme.spacingMd),
+                    Text(
+                      'They won\'t see this until you choose a time.',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                            height: 1.5,
+                          ),
+                    ),
+                    SizedBox(height: AppTheme.spacingSm),
+                    Text(
+                      'You\'ll set the unlock date and time in the next step. Until then, your letter stays sealed and private.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(0.8),
+                            height: 1.5,
+                          ),
+                    ),
+                    SizedBox(height: AppTheme.spacingLg),
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                          ),
+                        ),
+                        child: Text(
+                          'Got it',
+                          style: TextStyle(
+                            color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
   Future<void> _saveAndContinue() async {
     // Save immediately before continuing
     await _saveDraftImmediately();
@@ -225,72 +315,173 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
       children: [
         Expanded(
           child: SingleChildScrollView(
-            padding: EdgeInsets.all(AppTheme.spacingLg),
+            padding: EdgeInsets.only(
+              left: AppTheme.spacingLg,
+              right: AppTheme.spacingLg,
+              top: AppTheme.spacingMd, // Reduced top padding to bring closer to progress bar
+              bottom: AppTheme.spacingLg,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Write your letter to ${recipient?.name ?? "them"}',
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: titleColor,
+                // Recipient pill - reinforces who this is for
+                if (recipient != null)
+                  InkWell(
+                    onTap: _showTimeLockedInfo,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppTheme.spacingMd,
+                        vertical: AppTheme.spacingSm,
                       ),
-                ),
-                SizedBox(height: AppTheme.spacingSm),
+                      decoration: BoxDecoration(
+                        color: DynamicTheme.getCardBackgroundColor(colorScheme),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                        border: Border.all(
+                          color: DynamicTheme.getButtonBorderColor(colorScheme).withOpacity(0.2),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          UserAvatar(
+                            name: recipient.name,
+                            imageUrl: recipient.avatar.isNotEmpty ? recipient.avatar : null,
+                            size: 24, // Smaller avatar for pill
+                          ),
+                          SizedBox(width: AppTheme.spacingSm),
+                          Flexible(
+                            child: Text(
+                              '${recipient.name} - Will receive this letter',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                                    fontSize: 13,
+                                  ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          SizedBox(width: AppTheme.spacingXs),
+                          Icon(
+                            Icons.info_outline,
+                            size: 16,
+                            color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(0.6),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  Text(
+                    'Write to them',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: titleColor,
+                        ),
+                  ),
+                SizedBox(height: AppTheme.spacingXs),
                 Text(
-                  'Share what\'s in your heart ♥',
+                  'This will open when the time is right.',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: bodyColor,
                       ),
                 ),
-                SizedBox(height: AppTheme.spacingXl),
+                SizedBox(height: AppTheme.spacingSm),
                 
-                // Label/title field
-                TextField(
-                  controller: _labelController,
-                  style: TextStyle(
-                    color: DynamicTheme.getInputTextColor(colorScheme),
-                  ),
-                  decoration: InputDecoration(
-                    labelText: 'Letter Title (optional)',
-                    hintText: 'e.g., "Open on your birthday 🎂"',
-                    prefixIcon: Icon(
-                      Icons.label_outline,
-                      color: DynamicTheme.getInputHintColor(colorScheme),
+                // Letter content field - Canvas feel, not a text field
+                Container(
+                  decoration: BoxDecoration(
+                    // Subtle gradient for paper-like texture - reduced brightness
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        DynamicTheme.getCardBackgroundColor(colorScheme, opacity: AppTheme.opacityLow), // Reduced brightness
+                        DynamicTheme.getCardBackgroundColor(colorScheme, opacity: AppTheme.opacityLow).withOpacity(0.7), // Reduced bottom-right brightness
+                      ],
+                      stops: const [0.0, 1.0],
                     ),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                    border: Border.all(
+                      color: DynamicTheme.getButtonBorderColor(colorScheme).withOpacity(0.1), // Further reduced contrast
+                      width: 1, // Thinner border
+                    ),
+                    // Very subtle shadow for depth without boxiness
+                    boxShadow: [
+                      BoxShadow(
+                        color: colorScheme.isDarkTheme
+                            ? Colors.black.withOpacity(0.1)
+                            : Colors.black.withOpacity(0.03),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
                   ),
-                  textCapitalization: TextCapitalization.sentences,
+                  clipBehavior: Clip.antiAlias, // Ensure background fills to border
+                  child: TextField(
+                    controller: _contentController,
+                    maxLines: null,
+                    minLines: 14, // Expanded height for more writing space
+                    maxLength: _maxCharacters,
+                    style: TextStyle(
+                      color: DynamicTheme.getInputTextColor(colorScheme),
+                      fontSize: 16,
+                      height: 1.6, // Slightly more line spacing for readability
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Write from your heart…',
+                      hintStyle: TextStyle(
+                        color: DynamicTheme.getInputHintColor(colorScheme).withOpacity(0.6),
+                        fontSize: 16,
+                        height: 1.6,
+                      ),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      filled: true, // Fill the background
+                      fillColor: Colors.transparent, // Use container's background color
+                      contentPadding: const EdgeInsets.all(AppTheme.spacingLg), // Increased inner padding
+                      counterText: '',
+                    ),
+                    textCapitalization: TextCapitalization.sentences,
+                    onChanged: (value) {
+                      setState(() {}); // Update character count
+                    },
+                  ),
+                ),
+                // Character count and supportive hint - subtle, below body field
+                Padding(
+                  padding: const EdgeInsets.only(top: AppTheme.spacingXs, left: AppTheme.spacingMd, right: AppTheme.spacingMd),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      // Supportive hint
+                      Expanded(
+                        child: Text(
+                          'You can always edit before sealing.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(0.6),
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                              ),
+                        ),
+                      ),
+                      // Character count
+                      Text(
+                        '$characterCount / $_maxCharacters',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(0.6),
+                              fontSize: 12,
+                            ),
+                      ),
+                    ],
+                  ),
                 ),
                 
-                SizedBox(height: AppTheme.spacingLg),
+                SizedBox(height: AppTheme.spacingMd),
                 
-                // Letter content field
-                TextField(
-                  controller: _contentController,
-                  maxLines: null,
-                  minLines: 10,
-                  maxLength: _maxCharacters,
-                  style: TextStyle(
-                    color: DynamicTheme.getInputTextColor(colorScheme),
-                  ),
-                  decoration: InputDecoration(
-                    labelText: 'Your Letter *',
-                    hintText: 'Write from the heart...',
-                    alignLabelWithHint: true,
-                    counterText: '$characterCount / $_maxCharacters',
-                    counterStyle: TextStyle(
-                      color: DynamicTheme.getSecondaryTextColor(colorScheme),
-                    ),
-                  ),
-                  textCapitalization: TextCapitalization.sentences,
-                  onChanged: (value) {
-                    setState(() {}); // Update character count
-                  },
-                ),
-                
-                SizedBox(height: AppTheme.spacingLg),
-                
-                // Photo section
+                // Photo section (when photo is attached)
                 if (photoPath != null) ...[
                   Row(
                     children: [
@@ -322,74 +513,90 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
                       fit: BoxFit.cover,
                     ),
                   ),
-                  SizedBox(height: AppTheme.spacingMd),
-                ] else ...[
+                  SizedBox(height: AppTheme.spacingLg),
+                ],
+                
+                // Title field - DEMOTED, smaller, lighter
+                TextField(
+                  controller: _labelController,
+                  style: TextStyle(
+                    color: DynamicTheme.getInputTextColor(colorScheme),
+                    fontSize: 14, // Smaller text
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Add a title (optional, but better)',
+                    labelStyle: TextStyle(
+                      color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(0.7), // Lighter label
+                      fontSize: 13,
+                    ),
+                    hintText: 'e.g., "Open on your birthday 🎂"',
+                    hintStyle: TextStyle(
+                      color: DynamicTheme.getInputHintColor(colorScheme).withOpacity(0.5),
+                      fontSize: 14,
+                    ),
+                    isDense: true, // More compact
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacingMd,
+                      vertical: AppTheme.spacingSm,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      borderSide: BorderSide(
+                        color: DynamicTheme.getButtonBorderColor(colorScheme).withOpacity(0.2), // Lighter border
+                        width: 1,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      borderSide: BorderSide(
+                        color: DynamicTheme.getButtonBorderColor(colorScheme).withOpacity(0.2),
+                        width: 1,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      borderSide: BorderSide(
+                        color: DynamicTheme.getButtonBorderColor(colorScheme).withOpacity(0.4),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  textCapitalization: TextCapitalization.sentences,
+                ),
+                
+                SizedBox(height: AppTheme.spacingLg),
+                
+                // Add Photo - at the very bottom
+                if (photoPath == null) ...[
                   OutlinedButton.icon(
                     onPressed: _pickImage,
                     icon: Icon(
                       Icons.add_photo_alternate_outlined,
+                      size: 18, // Smaller icon
                       color: DynamicTheme.getOutlinedButtonTextColor(colorScheme),
                     ),
                     label: Text(
                       'Add Photo (Optional)',
                       style: TextStyle(
+                        fontSize: 14, // Smaller text
                         color: DynamicTheme.getOutlinedButtonTextColor(colorScheme),
                       ),
                     ),
                     style: OutlinedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppTheme.spacingMd,
+                        vertical: AppTheme.spacingSm, // Smaller padding
+                      ),
                       side: BorderSide(
-                        color: DynamicTheme.getOutlinedButtonBorderColor(colorScheme),
+                        color: DynamicTheme.getOutlinedButtonBorderColor(colorScheme).withOpacity(0.5),
+                        width: 1,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                       ),
                     ),
                   ),
-                  SizedBox(height: AppTheme.spacingMd),
                 ],
-                
-                // AI assist button (stubbed)
-                OutlinedButton.icon(
-                  onPressed: () {
-                    // TODO: Implement AI writing assistance
-                    final colorScheme = ref.read(selectedColorSchemeProvider);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'AI writing assistance coming soon',
-                          style: TextStyle(
-                            color: DynamicTheme.getSnackBarTextColor(colorScheme),
-                          ),
-                        ),
-                        backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                        ),
-                      ),
-                    );
-                  },
-                  icon: Icon(
-                    Icons.auto_awesome,
-                    color: DynamicTheme.getButtonTextColor(colorScheme),
-                  ),
-                  label: Text(
-                    'Improve with AI',
-                    style: TextStyle(
-                      color: DynamicTheme.getButtonTextColor(colorScheme),
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
-                    side: BorderSide(
-                        color: DynamicTheme.getButtonBorderColor(colorScheme),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
@@ -397,7 +604,12 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
         
         // Navigation buttons
         Container(
-          padding: EdgeInsets.all(AppTheme.spacingLg),
+          padding: EdgeInsets.only(
+            left: AppTheme.spacingLg,
+            right: AppTheme.spacingLg,
+            top: AppTheme.spacingSm,
+            bottom: AppTheme.spacingMd,
+          ),
           decoration: BoxDecoration(
             color: DynamicTheme.getNavBarBackgroundColor(colorScheme),
             boxShadow: [
@@ -408,40 +620,65 @@ class _StepWriteLetterState extends ConsumerState<StepWriteLetter> {
               ),
             ],
           ),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: widget.onBack,
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
-                    side: BorderSide(
-                      color: DynamicTheme.getOutlinedButtonBorderColor(colorScheme),
-                    ),
-                    foregroundColor: DynamicTheme.getOutlinedButtonTextColor(colorScheme),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                    ),
+              // Micro-feedback hint - fades out when text appears
+              AnimatedOpacity(
+                opacity: isValid ? 0.0 : 1.0,
+                duration: const Duration(milliseconds: 300),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: AppTheme.spacingXs),
+                  child: Text(
+                    'Write a few words to continue.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(0.6),
+                          fontSize: 12,
+                        ),
                   ),
-                  child: const Text('Back'),
                 ),
               ),
-              SizedBox(width: AppTheme.spacingMd),
-              Expanded(
-                flex: 2,
-                child: ElevatedButton(
-                  onPressed: isValid ? _saveAndContinue : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary1,
-                    foregroundColor: DynamicTheme.getButtonTextColor(colorScheme),
-                    padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
-                    side: DynamicTheme.getButtonBorderSide(colorScheme),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: widget.onBack,
+                      style: OutlinedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                        side: BorderSide(
+                          color: DynamicTheme.getOutlinedButtonBorderColor(colorScheme),
+                        ),
+                        foregroundColor: DynamicTheme.getOutlinedButtonTextColor(colorScheme),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                        ),
+                      ),
+                      child: const Text('Back'),
                     ),
                   ),
-                  child: const Text('Continue'),
-                ),
+                  SizedBox(width: AppTheme.spacingMd),
+                  Expanded(
+                    flex: 2,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      child: ElevatedButton(
+                        onPressed: isValid ? _saveAndContinue : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: colorScheme.primary1,
+                          foregroundColor: DynamicTheme.getButtonTextColor(colorScheme),
+                          padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                          side: DynamicTheme.getButtonBorderSide(colorScheme),
+                          elevation: isValid ? 3.0 : 1.0, // Subtly brighter elevation when enabled
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                          ),
+                        ),
+                        child: const Text('Continue'),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

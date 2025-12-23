@@ -24,6 +24,7 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   String? _errorMessage;
+  bool _isCustomSectionExpanded = false;
   
   @override
   void initState() {
@@ -39,6 +40,8 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
         hour: draft.unlockAt!.hour,
         minute: draft.unlockAt!.minute,
       );
+      // Auto-expand custom section if a custom date/time is already selected
+      _isCustomSectionExpanded = true;
     }
   }
   
@@ -69,6 +72,7 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
       setState(() {
         _selectedDate = date;
         _errorMessage = null;
+        _isCustomSectionExpanded = true; // Expand section when date is selected
       });
     }
   }
@@ -89,6 +93,7 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
       setState(() {
         _selectedTime = time;
         _errorMessage = null;
+        _isCustomSectionExpanded = true; // Expand section when time is selected
       });
     }
   }
@@ -169,152 +174,226 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                         color: DynamicTheme.getSecondaryTextColor(colorScheme),
                       ),
                 ),
-                SizedBox(height: AppTheme.spacingXl),
+                SizedBox(height: AppTheme.spacingMd),
                 
                 // Quick selection chips
-                Wrap(
-                  spacing: AppTheme.chipSpacing,
-                  runSpacing: AppTheme.chipSpacing,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _quickSelectChip('Tomorrow, 9 AM', 1),
-                    _quickSelectChip('In 1 week', 7),
-                    _quickSelectChip('In 1 month', 30),
-                    _quickSelectChip('In 3 months', 90),
-                    _quickSelectChip('In 1 year', 365),
+                    Wrap(
+                      spacing: AppTheme.chipSpacing,
+                      runSpacing: AppTheme.chipSpacing,
+                      children: [
+                        _quickSelectChip('Tomorrow, 9 AM', 1, isRecommended: false),
+                        _quickSelectChip('In 1 week', 7, isRecommended: true),
+                        _quickSelectChip('In 1 month', 30, isRecommended: false),
+                        _quickSelectChip('In 3 months', 90, isRecommended: false),
+                        _quickSelectChip('In 1 year', 365, isRecommended: false),
+                      ],
+                    ),
+                    // Recommendation hint for "In 1 week"
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppTheme.spacingXs, left: AppTheme.spacingXs),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.star_outline,
+                            size: 14,
+                            color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(0.6),
+                          ),
+                          SizedBox(width: AppTheme.spacingXs),
+                          Text(
+                            'A thoughtful default',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(0.6),
+                                  fontSize: 11,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
                 
-                SizedBox(height: AppTheme.spacingXl),
+                SizedBox(height: AppTheme.spacingMd),
                 
                 Divider(
                   color: DynamicTheme.getDividerColor(colorScheme),
                 ),
                 
-                SizedBox(height: AppTheme.spacingXl),
-                
-                Text(
-                  'Or choose a custom date and time',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: DynamicTheme.getPrimaryTextColor(colorScheme),
-                      ),
-                ),
-                
-                SizedBox(height: AppTheme.spacingLg),
-                
-                // Date picker
-                Card(
-                  elevation: 2,
-                  color: DynamicTheme.getCardBackgroundColor(colorScheme),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                  ),
-                  child: InkWell(
-                    onTap: _pickDate,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                    child: Padding(
-                      padding: EdgeInsets.all(AppTheme.spacingMd),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.calendar_today, 
-                            color: DynamicTheme.getPrimaryIconColor(colorScheme),
-                          ),
-                          SizedBox(width: AppTheme.spacingMd),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Date',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: DynamicTheme.getLabelTextColor(colorScheme),
-                                  ),
-                                ),
-                                SizedBox(height: AppTheme.spacingXs),
-                                Text(
-                                  _selectedDate != null
-                                      ? DateFormat('EEEE, MMMM d, y').format(_selectedDate!)
-                                      : 'Select a date',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: _selectedDate != null
-                                        ? DynamicTheme.getPrimaryTextColor(colorScheme)
-                                        : DynamicTheme.getDisabledTextColor(colorScheme),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Icon(
-                            Icons.chevron_right, 
-                            color: DynamicTheme.getSecondaryIconColor(colorScheme),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                
                 SizedBox(height: AppTheme.spacingMd),
                 
-                // Time picker
-                Card(
-                  elevation: 2,
-                  color: DynamicTheme.getCardBackgroundColor(colorScheme),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                // Collapsible custom date section
+                Container(
+                  decoration: BoxDecoration(
+                    color: DynamicTheme.getCardBackgroundColor(colorScheme).withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    border: Border.all(
+                      color: DynamicTheme.getButtonBorderColor(colorScheme).withOpacity(0.2),
+                      width: 1,
+                    ),
                   ),
                   child: InkWell(
-                    onTap: _pickTime,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                    onTap: () {
+                      setState(() {
+                        _isCustomSectionExpanded = !_isCustomSectionExpanded;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                     child: Padding(
-                      padding: EdgeInsets.all(AppTheme.spacingMd),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppTheme.spacingMd,
+                        vertical: AppTheme.spacingSm,
+                      ),
                       child: Row(
                         children: [
                           Icon(
-                            Icons.access_time, 
-                            color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                            Icons.calendar_today_outlined,
+                            size: 20,
+                            color: DynamicTheme.getPrimaryIconColor(colorScheme).withOpacity(0.7),
                           ),
-                          SizedBox(width: AppTheme.spacingMd),
+                          SizedBox(width: AppTheme.spacingSm),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Time',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: DynamicTheme.getLabelTextColor(colorScheme),
-                                  ),
-                                ),
-                                SizedBox(height: AppTheme.spacingXs),
-                                Text(
-                                  _selectedTime != null
-                                      ? _selectedTime!.format(context)
-                                      : 'Select a time',
-                                  style: TextStyle(
-                                    fontSize: 16,
+                            child: Text(
+                              'Choose a custom date and time',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w600,
-                                    color: _selectedTime != null
-                                        ? DynamicTheme.getPrimaryTextColor(colorScheme)
-                                        : DynamicTheme.getDisabledTextColor(colorScheme),
+                                    color: DynamicTheme.getPrimaryTextColor(colorScheme),
                                   ),
-                                ),
-                              ],
                             ),
                           ),
                           Icon(
-                            Icons.chevron_right, 
-                            color: DynamicTheme.getSecondaryIconColor(colorScheme),
+                            _isCustomSectionExpanded
+                                ? Icons.expand_less
+                                : Icons.expand_more,
+                            color: DynamicTheme.getPrimaryIconColor(colorScheme),
                           ),
                         ],
                       ),
                     ),
                   ),
                 ),
+                
+                // Date and time pickers - only show when expanded
+                if (_isCustomSectionExpanded) ...[
+                  SizedBox(height: AppTheme.spacingMd),
+                  
+                  // Date picker
+                  Card(
+                    elevation: 2,
+                    color: DynamicTheme.getCardBackgroundColor(colorScheme),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                    ),
+                    child: InkWell(
+                      onTap: _pickDate,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                      child: Padding(
+                        padding: EdgeInsets.all(AppTheme.spacingMd),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.calendar_today, 
+                              color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                            ),
+                            SizedBox(width: AppTheme.spacingMd),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Date',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: DynamicTheme.getLabelTextColor(colorScheme),
+                                    ),
+                                  ),
+                                  SizedBox(height: AppTheme.spacingXs),
+                                  Text(
+                                    _selectedDate != null
+                                        ? DateFormat('EEEE, MMMM d, y').format(_selectedDate!)
+                                        : 'Select a date',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: _selectedDate != null
+                                          ? DynamicTheme.getPrimaryTextColor(colorScheme)
+                                          : DynamicTheme.getDisabledTextColor(colorScheme),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.chevron_right, 
+                              color: DynamicTheme.getSecondaryIconColor(colorScheme),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  SizedBox(height: AppTheme.spacingXs),
+                  
+                  // Time picker
+                  Card(
+                    elevation: 2,
+                    color: DynamicTheme.getCardBackgroundColor(colorScheme),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                    ),
+                    child: InkWell(
+                      onTap: _pickTime,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                      child: Padding(
+                        padding: EdgeInsets.all(AppTheme.spacingMd),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.access_time, 
+                              color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                            ),
+                            SizedBox(width: AppTheme.spacingMd),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Time',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: DynamicTheme.getLabelTextColor(colorScheme),
+                                    ),
+                                  ),
+                                  SizedBox(height: AppTheme.spacingXs),
+                                  Text(
+                                    _selectedTime != null
+                                        ? _selectedTime!.format(context)
+                                        : 'Select a time',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: _selectedTime != null
+                                          ? DynamicTheme.getPrimaryTextColor(colorScheme)
+                                          : DynamicTheme.getDisabledTextColor(colorScheme),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.chevron_right, 
+                              color: DynamicTheme.getSecondaryIconColor(colorScheme),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
                 
                 if (_combinedDateTime != null && _isValidTime) ...[
                   SizedBox(height: AppTheme.spacingMd),
@@ -432,7 +511,7 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
     );
   }
   
-  Widget _quickSelectChip(String label, int days) {
+  Widget _quickSelectChip(String label, int days, {bool isRecommended = false}) {
     final colorScheme = ref.read(selectedColorSchemeProvider);
     
     // Check if this chip's time matches the currently selected date/time
@@ -451,29 +530,69 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
         _selectedTime!.hour == 9 &&
         _selectedTime!.minute == 0;
     
-    return ActionChip(
-      label: Text(
-        label,
-        style: TextStyle(
-          color: DynamicTheme.getChipLabelColor(colorScheme, isSelected),
-          fontSize: 13,
+    // Determine border color - recommended chips get a subtle glow
+    final borderColor = isSelected
+        ? DynamicTheme.getChipBorderColor(colorScheme, isSelected)
+        : (isRecommended
+            ? colorScheme.primary1.withOpacity(0.3) // Subtle glow for recommended
+            : DynamicTheme.getChipBorderColor(colorScheme, isSelected));
+    
+    // Determine border width - recommended chips get slightly thicker border
+    final borderWidth = isSelected
+        ? DynamicTheme.getChipBorderWidth(isSelected)
+        : (isRecommended ? 1.5 : 1.0);
+    
+    return Container(
+      decoration: isRecommended && !isSelected
+          ? BoxDecoration(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+              boxShadow: [
+                BoxShadow(
+                  color: colorScheme.primary1.withOpacity(0.15),
+                  blurRadius: 8,
+                  spreadRadius: 0,
+                ),
+              ],
+            )
+          : null,
+      child: ActionChip(
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isRecommended && !isSelected) ...[
+              Icon(
+                Icons.star,
+                size: 14,
+                color: colorScheme.primary1.withOpacity(0.7),
+              ),
+              SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                color: DynamicTheme.getChipLabelColor(colorScheme, isSelected),
+                fontSize: 13,
+                fontWeight: isRecommended ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
         ),
+        onPressed: () {
+          setState(() {
+            _selectedDate = chipDate;
+            _selectedTime = const TimeOfDay(hour: 9, minute: 0);
+            _errorMessage = null;
+          });
+        },
+        backgroundColor: DynamicTheme.getChipBackgroundColor(colorScheme, isSelected),
+        side: BorderSide(
+          color: borderColor,
+          width: borderWidth,
+        ),
+        elevation: DynamicTheme.getChipElevation(isSelected),
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
-      onPressed: () {
-        setState(() {
-          _selectedDate = chipDate;
-          _selectedTime = const TimeOfDay(hour: 9, minute: 0);
-          _errorMessage = null;
-        });
-      },
-      backgroundColor: DynamicTheme.getChipBackgroundColor(colorScheme, isSelected),
-      side: BorderSide(
-        color: DynamicTheme.getChipBorderColor(colorScheme, isSelected),
-        width: DynamicTheme.getChipBorderWidth(isSelected),
-      ),
-      elevation: DynamicTheme.getChipElevation(isSelected),
-      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
 }

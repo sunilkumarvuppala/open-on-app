@@ -133,7 +133,7 @@ class _StepAnonymousSettingsState extends ConsumerState<StepAnonymousSettings> {
                         color: DynamicTheme.getSecondaryTextColor(colorScheme),
                       ),
                 ),
-                SizedBox(height: AppTheme.spacingXl),
+                SizedBox(height: AppTheme.spacingMd),
                 
                 // Check if mutual connection
                 if (_isCheckingConnection)
@@ -218,7 +218,7 @@ class _StepAnonymousSettingsState extends ConsumerState<StepAnonymousSettings> {
                   
                   // Reveal delay selector (only shown if anonymous is enabled)
                   if (draft.isAnonymous) ...[
-                    SizedBox(height: AppTheme.spacingXl),
+                    SizedBox(height: AppTheme.spacingMd),
                     Text(
                       'Reveal delay',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -226,7 +226,7 @@ class _StepAnonymousSettingsState extends ConsumerState<StepAnonymousSettings> {
                             color: DynamicTheme.getPrimaryTextColor(colorScheme),
                           ),
                     ),
-                    SizedBox(height: AppTheme.spacingSm),
+                    SizedBox(height: AppTheme.spacingXs),
                     Text(
                       'Identity reveals automatically after opening (default: 6 hours, max: 3 days)',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
