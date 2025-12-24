@@ -544,7 +544,6 @@ class AnimatedUnlockingSoonBadge extends ConsumerStatefulWidget {
 class _AnimatedUnlockingSoonBadgeState
     extends ConsumerState<AnimatedUnlockingSoonBadge>
     with TickerProviderStateMixin {
-  late AnimationController _sparkleController;
   late AnimationController _shimmerController;
   late AnimationController _countdownController;
   final math.Random _random = math.Random();
@@ -552,11 +551,6 @@ class _AnimatedUnlockingSoonBadgeState
   @override
   void initState() {
     super.initState();
-    // Sparkle animation: 3 seconds for twinkle effect (same as tabs)
-    _sparkleController = AnimationController(
-      vsync: this,
-      duration: AppConstants.sparkleAnimationDuration,
-    )..repeat();
     
     // Shimmer animation: random intervals (2-5 seconds) for less distracting effect
     _shimmerController = AnimationController(
@@ -598,7 +592,6 @@ class _AnimatedUnlockingSoonBadgeState
 
   @override
   void dispose() {
-    _sparkleController.dispose();
     _shimmerController.dispose();
     _countdownController.dispose();
     super.dispose();
@@ -634,13 +627,11 @@ class _AnimatedUnlockingSoonBadgeState
     return RepaintBoundary(
       child: AnimatedBuilder(
         animation: Listenable.merge([
-          _sparkleController,
           _shimmerController,
           _countdownController, // Include countdown controller to trigger rebuilds
         ]),
         builder: (context, child) {
-          // Calculate animation value inside builder (same as tabs)
-          final animationValue = _sparkleController.value * 2 * math.pi;
+          // Calculate shimmer progress
           final shimmerProgress = _shimmerController.value;
           
           // Recalculate countdown text on each rebuild (updates every second)
@@ -656,15 +647,6 @@ class _AnimatedUnlockingSoonBadgeState
                   text: currentCountdownText,
                   backgroundColor: badgeColor,
                   textColor: textColor,
-                ),
-                // Sparkle overlay
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: _BadgeSparklePainter(
-                      animationValue: animationValue,
-                      colorScheme: colorScheme,
-                    ),
-                  ),
                 ),
                 // Shimmer overlay
                 Positioned.fill(
@@ -692,98 +674,6 @@ class _AnimatedUnlockingSoonBadgeState
     // Use white text for dark backgrounds (luminance < 0.5)
     // Use dark text for light backgrounds (luminance >= 0.5)
     return luminance < 0.5 ? Colors.white : AppTheme.textDark;
-  }
-}
-
-/// Sparkle painter for badge - horizontal sweep animation (left to right)
-class _BadgeSparklePainter extends CustomPainter {
-  final double animationValue;
-  final AppColorScheme colorScheme;
-  
-  // Reusable Paint objects to avoid allocation
-  final Paint _sparklePaint = Paint()..style = PaintingStyle.fill;
-  final Paint _accentGlowPaint = Paint()..style = PaintingStyle.fill;
-  final Paint _centerGlowPaint = Paint()..style = PaintingStyle.fill;
-  final Paint _innerCirclePaint = Paint()..style = PaintingStyle.fill;
-  
-  _BadgeSparklePainter({
-    required this.animationValue,
-    required this.colorScheme,
-  });
-  
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    
-    // Use sparkles for horizontal sweep
-    final int sparkleCount = AppConstants.badgeSparkleCount;
-    final double centerY = rect.center.dy;
-    
-    // Convert animation value (0 to 2π) to progress (0 to 1)
-    final double progress = (animationValue % (2 * math.pi)) / (2 * math.pi);
-    
-    for (int i = 0; i < sparkleCount; i++) {
-      // Calculate horizontal position (left to right sweep)
-      // Offset each sparkle slightly for staggered effect
-      final double sparkleProgress = (progress + i * 0.3) % 1.0;
-      final double x = rect.left + sparkleProgress * rect.width;
-      
-      // Vertical position with slight variation
-      final double yVariation = math.sin(animationValue * 2 + i) * 3;
-      final double y = centerY + yVariation;
-      
-      // Enhanced opacity - minimum 0.4 for better visibility, brighter in center
-      final double centerDistance = (sparkleProgress - 0.5).abs() * 2; // 0 at center, 1 at edges
-      final double baseOpacity = 0.4 + (1.0 - centerDistance * 0.4) * 0.6; // 0.4 to 1.0
-      final double twinkleOpacity = (math.sin(animationValue * 3 + i) + 1) / 2;
-      final double opacity = baseOpacity * (0.7 + twinkleOpacity * 0.3); // Enhanced visibility
-      
-      // Larger sparkle size for better visibility
-      final double sparkleSize = 3.5 + math.sin(animationValue * 4 + i) * 2.0; // 3.5-5.5
-      
-      // Accent glow - more visible
-      _accentGlowPaint
-        ..color = colorScheme.accent.withOpacity(opacity * 0.5) // Increased from 0.25
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, sparkleSize * 1.5); // Increased blur
-      canvas.drawCircle(
-        Offset(x, y),
-        sparkleSize * 0.8, // Increased from 0.7
-        _accentGlowPaint,
-      );
-      
-      // Main sparkle (white circle) - much more visible
-      _sparklePaint
-        ..color = Colors.white.withOpacity(opacity * 0.9) // Increased from 0.5
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, sparkleSize * 0.8); // Increased blur
-      canvas.drawCircle(
-        Offset(x, y),
-        sparkleSize,
-        _sparklePaint,
-      );
-      
-      // Center glow - more visible
-      _centerGlowPaint
-        ..color = Colors.white.withOpacity(opacity * 1.0) // Increased from 0.7
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, sparkleSize * 1.5); // Increased blur
-      canvas.drawCircle(
-        Offset(x, y),
-        sparkleSize * 0.7, // Increased from 0.6
-        _centerGlowPaint,
-      );
-      
-      // Inner circle - very visible
-      _innerCirclePaint.color = Colors.white.withOpacity(opacity * 1.0); // Increased from 0.8
-      canvas.drawCircle(
-        Offset(x, y),
-        sparkleSize * 0.3, // Increased from 0.25
-        _innerCirclePaint,
-      );
-    }
-  }
-  
-  @override
-  bool shouldRepaint(_BadgeSparklePainter oldDelegate) {
-    return animationValue != oldDelegate.animationValue || colorScheme != oldDelegate.colorScheme;
   }
 }
 

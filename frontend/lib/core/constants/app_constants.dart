@@ -494,5 +494,31 @@ class AppConstants {
   
   // Default fallback values
   static const String defaultSenderName = 'Someone';
+  
+  // ============================================================================
+  // Countdown Share Configuration
+  // ============================================================================
+  // Share base URL - can be overridden via environment variable
+  static String get shareBaseUrl {
+    // Check environment variable first (for production)
+    const envUrl = String.fromEnvironment('SHARE_BASE_URL');
+    if (envUrl.isNotEmpty) {
+      return envUrl;
+    }
+    // Default production URL
+    return 'https://openon.app/share';
+  }
+  
+  // Share page cache TTL in seconds (60 seconds = 1 minute)
+  static const int sharePageCacheTtl = 60;
+  
+  // Share creation debounce duration (prevents double-clicks)
+  static const Duration shareCreationDebounce = Duration(milliseconds: 500);
+  
+  // Maximum retry attempts for share creation
+  static const int shareCreationMaxRetries = 3;
+  
+  // Retry delay for share creation (exponential backoff)
+  static const Duration shareCreationRetryDelay = Duration(milliseconds: 500);
 }
 

@@ -58,6 +58,7 @@
 - **[frontend/features/DRAFTS.md](./frontend/features/DRAFTS.md)** - Draft management
 - **[frontend/features/CONNECTIONS.md](./frontend/features/CONNECTIONS.md)** - Connections & friend requests
 - **[frontend/features/THOUGHTS.md](./frontend/features/THOUGHTS.md)** - Thoughts feature (presence signals) ⭐ NEW
+- **[features/COUNTDOWN_SHARES.md](./features/COUNTDOWN_SHARES.md)** - Countdown Shares feature (viral sharing) ⭐ NEW
 - **[frontend/features/RECIPIENTS.md](./frontend/features/RECIPIENTS.md)** - Recipient management
 - **[frontend/features/PROFILE.md](./frontend/features/PROFILE.md)** - Profile & settings
 - **[frontend/features/NAVIGATION.md](./frontend/features/NAVIGATION.md)** - Navigation system

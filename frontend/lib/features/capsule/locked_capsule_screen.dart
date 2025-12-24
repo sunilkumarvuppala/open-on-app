@@ -1,19 +1,26 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
+import 'dart:io' show Platform;
 import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/theme/app_text_styles.dart';
+import 'package:openon_app/core/theme/color_scheme.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:openon_app/core/utils/logger.dart';
 import 'package:openon_app/core/utils/error_handler.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
 import 'package:openon_app/core/constants/app_constants.dart';
+import 'package:openon_app/core/models/countdown_share_models.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class LockedCapsuleScreen extends ConsumerStatefulWidget {
   final Capsule capsule;
@@ -31,6 +38,11 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
   late Capsule _capsule;
   bool _isWithdrawing = false; // Prevent double-withdrawal
   bool _isRefreshing = false; // Prevent concurrent refreshes
+  bool _isCreatingShare = false; // Prevent concurrent share creation
+  String? _cachedShareUrl; // Cache share URL per letter to avoid recreating
+  ValueNotifier<String?>? _shareUrlNotifier; // For updating dialog content
+  bool _isPreviewDialogOpen = false; // Track if preview dialog is open
+  bool _isPreviewOpen = false; // Track if preview dialog is open
   late AnimationController _breathingController;
   late Animation<double> _breathingAnimation;
   late AnimationController _circlePulseController;
@@ -38,6 +50,9 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
   late Animation<double> _lockHaloAnimation;
   late AnimationController _emojiAnimationController;
   late Animation<double> _emojiPositionAnimation;
+  late AnimationController _countdownShimmerController;
+  late AnimationController _envelopeGlowController;
+  late Animation<double> _envelopeGlowAnimation;
   String? _currentEmoji;
   final Random _random = Random();
   static const List<String> _emojis = ['💌', '✨', '🤍'];
@@ -102,6 +117,26 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
       curve: Curves.easeOut, // Ease out for natural movement
     ));
     
+    // Countdown shimmer animation for gradient effect
+    _countdownShimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
+    
+    // Envelope glow animation - pulses every 2 seconds
+    _envelopeGlowController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+    
+    _envelopeGlowAnimation = Tween<double>(
+      begin: 0.2,
+      end: 0.5,
+    ).animate(CurvedAnimation(
+      parent: _envelopeGlowController,
+      curve: Curves.easeInOut,
+    ));
+    
     // Start emoji timer - trigger at configured interval
     _emojiTimer = Timer.periodic(AppConstants.lockedCapsuleEmojiTimerInterval, (_) {
       if (mounted && !_capsule.isOpened) {
@@ -131,6 +166,8 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
     _breathingController.dispose();
     _circlePulseController.dispose();
     _emojiAnimationController.dispose();
+    _countdownShimmerController.dispose();
+    _envelopeGlowController.dispose();
     super.dispose();
   }
   
@@ -289,30 +326,703 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
   void _handleShare() async {
     if (!mounted) return;
     
-    try {
-      // TODO: Generate and share beautiful countdown image
-      final message = '⏰ I have a special letter unlocking on ${DateFormat('MMMM d, y').format(_capsule.unlockAt)}!\n\nMade with OpenOn 💌';
-      
-      await Share.share(message);
-    } catch (e, stackTrace) {
-      Logger.error('Failed to share countdown', error: e, stackTrace: stackTrace);
-      if (mounted) {
-        final colorScheme = ref.read(selectedColorSchemeProvider);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Unable to share. Please try again.',
-              style: TextStyle(
-                color: DynamicTheme.getSnackBarTextColor(colorScheme),
-              ),
-            ),
-            backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+    // Prevent concurrent share creation
+    if (_isCreatingShare) {
+      return;
+    }
+    
+    final colorScheme = ref.read(selectedColorSchemeProvider);
+    
+    // Check if letter is locked
+    if (!_capsule.isLocked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Only locked letters can be shared',
+            style: TextStyle(
+              color: DynamicTheme.getSnackBarTextColor(colorScheme),
             ),
           ),
+          backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          ),
+        ),
+      );
+      return;
+    }
+    
+    // Prevent opening multiple previews
+    if (_isPreviewOpen) {
+      return;
+    }
+    
+    // Use cached share URL if available (instant preview)
+    if (_cachedShareUrl != null) {
+      await _showSharePreview(_cachedShareUrl!, _cachedShareUrl!);
+      return;
+    }
+    
+    // Show preview immediately with loading state, create share in background
+    _shareUrlNotifier = ValueNotifier<String?>(null);
+    _isPreviewDialogOpen = true;
+    
+    // Show dialog first (don't await - let it run in parallel with share creation)
+    _showSharePreview(null, null).then((_) {
+      // Dialog was closed - clean up
+      _isPreviewDialogOpen = false;
+      _isCreatingShare = false;
+      if (_shareUrlNotifier != null) {
+        _shareUrlNotifier?.dispose();
+        _shareUrlNotifier = null;
+      }
+    });
+    
+    // Start share creation after a small delay to ensure dialog is built
+    Future.microtask(() {
+      if (!_isCreatingShare && _isPreviewDialogOpen && mounted) {
+        _performShareCreationInBackground();
+      }
+    });
+  }
+  
+  Future<void> _performShareCreationInBackground() async {
+    // Prevent multiple concurrent share creations and check if dialog is still open
+    if (!mounted || _isCreatingShare || !_isPreviewDialogOpen) {
+      Logger.debug('Share creation skipped: mounted=$mounted, creating=$_isCreatingShare, dialogOpen=$_isPreviewDialogOpen');
+      return;
+    }
+    
+    _isCreatingShare = true;
+    Logger.debug('Starting share creation in background');
+    
+    try {
+      String? shareUrl;
+      String? errorMessage;
+      
+      try {
+        // Check if dialog is still open before starting share creation
+        if (!_isPreviewDialogOpen || !mounted) {
+          Logger.debug('Dialog closed before share creation started, aborting');
+          return;
+        }
+        
+        final controller = ref.read(createCountdownShareControllerProvider.notifier);
+        await controller.createShare(
+          CreateShareRequest(
+            letterId: _capsule.id,
+            shareType: ShareType.story,
+          ),
         );
+        
+        // Check again after async operation
+        if (!_isPreviewDialogOpen || !mounted) {
+          Logger.debug('Dialog closed during share creation, aborting');
+          return;
+        }
+        
+        final result = ref.read(createCountdownShareControllerProvider).value;
+        
+        if (result != null && result.success && result.shareUrl != null) {
+          shareUrl = result.shareUrl;
+          _cachedShareUrl = shareUrl; // Cache for future use
+          Logger.info('Share created successfully: $shareUrl');
+          
+          // Update preview dialog content via ValueNotifier (only if dialog is still open)
+          if (_shareUrlNotifier != null && _isPreviewDialogOpen && mounted) {
+            // Update immediately - ValueNotifier will trigger rebuild
+            _shareUrlNotifier!.value = shareUrl;
+            Logger.info('Share URL updated in preview dialog via ValueNotifier: $shareUrl');
+          } else {
+            Logger.warning('Cannot update share URL: notifier=${_shareUrlNotifier != null}, dialogOpen=$_isPreviewDialogOpen, mounted=$mounted');
+          }
+        } else {
+          final errorCode = result?.errorCode ?? 'UNKNOWN';
+          errorMessage = result?.errorMessage ?? 'Failed to create share';
+          
+          // Make error message more user-friendly
+          if (errorCode == 'FUNCTION_NOT_FOUND') {
+            errorMessage = result?.errorMessage ?? 'Share feature not available. Make sure the Edge Function is running locally.';
+          } else if (errorCode == 'NETWORK_ERROR') {
+            errorMessage = 'Network error. Please check your connection.';
+          } else if (errorCode == 'NOT_AUTHENTICATED') {
+            errorMessage = 'Please sign in to create a share.';
+          } else if (errorCode == 'LETTER_NOT_LOCKED') {
+            errorMessage = 'Only locked letters can be shared.';
+          } else if (errorCode == 'DAILY_LIMIT_REACHED') {
+            errorMessage = 'You have reached your daily limit of 5 shares.';
+          } else if (errorCode == 'NOT_AUTHORIZED') {
+            errorMessage = 'You do not have permission to share this letter.';
+          }
+          
+          Logger.warning('Share creation failed: code=$errorCode, message=$errorMessage');
+          
+          // Show error and close preview (only if dialog is still open)
+          if (mounted && _isPreviewDialogOpen) {
+            _isPreviewDialogOpen = false;
+            Navigator.of(context).pop(); // Close loading preview
+            final colorScheme = ref.read(selectedColorSchemeProvider);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  errorMessage,
+                  style: TextStyle(
+                    color: DynamicTheme.getSnackBarTextColor(colorScheme),
+                  ),
+                ),
+                backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                ),
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
+        }
+      } catch (e, stackTrace) {
+        Logger.error('Exception creating share', error: e, stackTrace: stackTrace);
+        errorMessage = 'Failed to create share: ${e.toString()}';
+        
+          // Show error and close preview (only if dialog is still open)
+          if (mounted && _isPreviewDialogOpen) {
+            _isPreviewDialogOpen = false;
+            _shareUrlNotifier?.dispose();
+            _shareUrlNotifier = null;
+            Navigator.of(context).pop(); // Close loading preview
+            final colorScheme = ref.read(selectedColorSchemeProvider);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                errorMessage,
+                style: TextStyle(
+                  color: DynamicTheme.getSnackBarTextColor(colorScheme),
+                ),
+              ),
+              backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              ),
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    } finally {
+      if (mounted) {
+        _isCreatingShare = false;
+      }
+    }
+  }
+  
+  
+  Future<void> _showSharePreview(String? shareUrl, String? message) async {
+    if (!mounted) return;
+    
+    // Show loading state if shareUrl is null
+    final bool isLoading = shareUrl == null;
+    final String displayShareUrl = shareUrl ?? 'Creating share link...';
+    
+    // Calculate countdown (optimized - pre-calculate before dialog)
+    final now = DateTime.now();
+    final timeUntilUnlock = _capsule.unlockAt.difference(now);
+    final isUnlocked = timeUntilUnlock <= Duration.zero;
+    
+    int daysRemaining = 0;
+    if (!isUnlocked) {
+      daysRemaining = timeUntilUnlock.inDays;
+    }
+    
+    // Format countdown text - romantic, contextual messages
+    final String countdownText = isUnlocked
+        ? "Ready to open"
+        : daysRemaining > 30
+            ? "Saved for a special day"
+            : daysRemaining >= 14
+                ? "When the time comes"
+                : daysRemaining >= 7
+                    ? "Getting closer"
+                    : daysRemaining >= 2
+                        ? "In a few days"
+                        : "Almost here";
+    
+    // Get theme colors (default to purple gradient if no theme)
+    // Optimized: Use const colors for better performance
+    const Color gradientStart = Color(0xFF667eea);
+    const Color gradientEnd = Color(0xFF764ba2);
+    
+    // Format date - no year for a softer feel (pre-calculate)
+    final formattedDate = DateFormat('MMMM d').format(_capsule.unlockAt);
+    final displayTitle = _capsule.label.isNotEmpty ? _capsule.label : "Something is waiting";
+    
+    // Use ValueNotifier for dynamic updates if shareUrl is null initially
+    // Ensure we use the same notifier instance that will be updated
+    // IMPORTANT: When shareUrl is null, we MUST use _shareUrlNotifier so updates work
+    final ValueNotifier<String?> notifierToUse;
+    if (shareUrl == null) {
+      // Create or reuse the shared notifier for loading state
+      _shareUrlNotifier ??= ValueNotifier<String?>(null);
+      notifierToUse = _shareUrlNotifier!;
+    } else {
+      // For existing shareUrl, create a one-time notifier (will be disposed on dialog close)
+      notifierToUse = ValueNotifier<String?>(shareUrl);
+    }
+    
+    return showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.7),
+      builder: (dialogContext) {
+        return RepaintBoundary(
+          child: ValueListenableBuilder<String?>(
+            valueListenable: notifierToUse,
+            builder: (context, currentShareUrl, _) {
+              final bool isCurrentlyLoading = currentShareUrl == null;
+              final String displayCurrentUrl = currentShareUrl ?? displayShareUrl;
+              
+              return Dialog(
+                backgroundColor: Colors.transparent,
+                insetPadding: EdgeInsets.all(AppTheme.spacingLg),
+                child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+            maxWidth: 500,
+          ),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [gradientStart, gradientEnd],
+            ),
+            borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 30,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                // Header with close button
+                Padding(
+                  padding: EdgeInsets.all(AppTheme.spacingMd),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Share',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close, color: Colors.white),
+                        onPressed: () {
+                          // Mark dialog as closed and stop share creation
+                          _isPreviewDialogOpen = false;
+                          _isCreatingShare = false;
+                          // Clean up ValueNotifier (only if it was the loading notifier)
+                          if (shareUrl == null && _shareUrlNotifier != null) {
+                            _shareUrlNotifier?.dispose();
+                            _shareUrlNotifier = null;
+                          }
+                          // Dispose the notifier we created for this dialog
+                          if (shareUrl != null) {
+                            notifierToUse.dispose();
+                          }
+                          Navigator.of(dialogContext).pop();
+                        },
+                        padding: EdgeInsets.zero,
+                        constraints: BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                ),
+                // Preview card content
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppTheme.spacingXl,
+                        vertical: AppTheme.spacingLg,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Card container with glassmorphism
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: AppTheme.spacingXl,
+                              vertical: AppTheme.spacingLg + 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.2),
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Envelope icon with glowing border animation
+                                AnimatedBuilder(
+                                  animation: _envelopeGlowAnimation,
+                                  builder: (context, child) {
+                                    return Container(
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.white.withOpacity(_envelopeGlowAnimation.value),
+                                            blurRadius: 12 + (_envelopeGlowAnimation.value * 8),
+                                            spreadRadius: 2 + (_envelopeGlowAnimation.value * 4),
+                                          ),
+                                          BoxShadow(
+                                            color: Colors.white.withOpacity(_envelopeGlowAnimation.value * 0.5),
+                                            blurRadius: 20 + (_envelopeGlowAnimation.value * 12),
+                                            spreadRadius: 0,
+                                          ),
+                                        ],
+                                      ),
+                                      child: Text(
+                                        '💌',
+                                        style: TextStyle(fontSize: 56),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    );
+                                  },
+                                ),
+                                SizedBox(height: AppTheme.spacingMd),
+                                // Title
+                                Text(
+                                  displayTitle,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.3,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                SizedBox(height: AppTheme.spacingLg),
+                                // Countdown - visual anchor, magical feel with gradient and shimmer
+                                AnimatedBuilder(
+                                  animation: _countdownShimmerController,
+                                  builder: (context, child) {
+                                    // Common text style to ensure alignment
+                                    final baseTextStyle = GoogleFonts.tangerine(
+                                      fontSize: 42,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 0.5,
+                                      height: 1.2,
+                                    );
+                                    
+                                    return Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        // White border/outline layer
+                                        Text(
+                                          countdownText,
+                                          style: baseTextStyle.copyWith(
+                                            foreground: Paint()
+                                              ..style = PaintingStyle.stroke
+                                              ..strokeWidth = 0.6
+                                              ..color = Colors.white.withOpacity(0.8),
+                                          ),
+                                          textAlign: TextAlign.center,
+                                          maxLines: 3,
+                                          overflow: TextOverflow.visible,
+                                        ),
+                                        // Gradient fill layer
+                                        ShaderMask(
+                                          shaderCallback: (bounds) {
+                                            final shimmerOffset = _countdownShimmerController.value * 2 - 1;
+                                            return ui.Gradient.linear(
+                                              Offset(bounds.width * (0.3 + shimmerOffset * 0.4), 0),
+                                              Offset(bounds.width * (0.7 + shimmerOffset * 0.4), bounds.height),
+                                              [
+                                                Color(0xFF1e40af), // Darker Blue
+                                                Color(0xFFbe185d), // Darker Pink
+                                                Color(0xFF1e40af), // Darker Blue
+                                              ],
+                                              [0.0, 0.5, 1.0],
+                                            );
+                                          },
+                                          child: Text(
+                                            countdownText,
+                                            style: baseTextStyle.copyWith(
+                                              color: Colors.white,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                            maxLines: 3,
+                                            overflow: TextOverflow.visible,
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                                SizedBox(height: AppTheme.spacingLg),
+                                // Date - smaller, lighter
+                                Text(
+                                  'Opening $formattedDate',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.7),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                SizedBox(height: AppTheme.spacingLg),
+                                // CTA Button - moved to bottom
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      onTap: () {},
+                                      borderRadius: BorderRadius.circular(30),
+                                      child: Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: AppTheme.spacingXl,
+                                          vertical: AppTheme.spacingSm,
+                                        ),
+                                        child: Text(
+                                          'Get OpenOn',
+                                          style: TextStyle(
+                                            color: gradientStart,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: AppTheme.spacingLg),
+                          // Share URL info
+                          Container(
+                            padding: EdgeInsets.all(AppTheme.spacingMd),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                            ),
+                            child: Row(
+                              children: [
+                                if (isCurrentlyLoading) ...[
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                  ),
+                                  SizedBox(width: AppTheme.spacingSm),
+                                ],
+                                Expanded(
+                                  child: Text(
+                                    displayCurrentUrl,
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(isCurrentlyLoading ? 0.6 : 0.9),
+                                      fontSize: 12,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (!isCurrentlyLoading && currentShareUrl != null) ...[
+                                  SizedBox(width: AppTheme.spacingSm),
+                                  IconButton(
+                                    icon: Icon(Icons.copy, color: Colors.white, size: 18),
+                                    onPressed: () async {
+                                      await Clipboard.setData(ClipboardData(text: currentShareUrl!));
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Link copied to clipboard'),
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    padding: EdgeInsets.all(4),
+                                    constraints: BoxConstraints(),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          if (!isCurrentlyLoading && currentShareUrl != null) ...[
+                            SizedBox(height: AppTheme.spacingLg),
+                            // Share platform buttons row (only show when share URL is ready)
+                            Builder(
+                              builder: (buttonContext) => SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                padding: EdgeInsets.symmetric(horizontal: AppTheme.spacingXs),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    _ShareOptionButton(
+                                      key: GlobalKey(),
+                                      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Instagram_icon.png/1024px-Instagram_icon.png',
+                                      label: 'Instagram',
+                                      onTap: () async {
+                                        if (currentShareUrl != null) {
+                                          await _shareMessage(currentShareUrl!, buttonContext);
+                                        }
+                                      },
+                                      colorScheme: ref.read(selectedColorSchemeProvider),
+                                    ),
+                                    SizedBox(width: AppTheme.spacingSm),
+                                    _ShareOptionButton(
+                                      key: GlobalKey(),
+                                      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/TikTok_logo.svg/512px-TikTok_logo.svg.png',
+                                      label: 'TikTok',
+                                      onTap: () async {
+                                        if (currentShareUrl != null) {
+                                          await _shareMessage(currentShareUrl!, buttonContext);
+                                        }
+                                      },
+                                      colorScheme: ref.read(selectedColorSchemeProvider),
+                                    ),
+                                    SizedBox(width: AppTheme.spacingSm),
+                                    _ShareOptionButton(
+                                      key: GlobalKey(),
+                                      iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/WhatsApp.svg/512px-WhatsApp.svg.png',
+                                      label: 'WhatsApp',
+                                      onTap: () async {
+                                        if (currentShareUrl != null) {
+                                          await _shareMessage(currentShareUrl!, buttonContext);
+                                        }
+                                      },
+                                      colorScheme: ref.read(selectedColorSchemeProvider),
+                                    ),
+                                    SizedBox(width: AppTheme.spacingSm),
+                                    _ShareOptionButton(
+                                      icon: Icons.message,
+                                      label: 'Text',
+                                      onTap: () async {
+                                        if (currentShareUrl != null) {
+                                          await _shareMessage(currentShareUrl!, buttonContext);
+                                        }
+                                      },
+                                      colorScheme: ref.read(selectedColorSchemeProvider),
+                                    ),
+                                    SizedBox(width: AppTheme.spacingSm),
+                                    _ShareOptionButton(
+                                      icon: Icons.link,
+                                      label: 'Copy Link',
+                                      onTap: () async {
+                                        if (currentShareUrl != null) {
+                                          await Clipboard.setData(ClipboardData(text: currentShareUrl!));
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text('Link copied to clipboard'),
+                                                duration: Duration(seconds: 2),
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      },
+                                      colorScheme: ref.read(selectedColorSchemeProvider),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+            },
+          ),
+        );
+      },
+    ).then((_) {
+      // Mark dialog as closed and clean up when dialog is dismissed
+      _isPreviewDialogOpen = false;
+      _isCreatingShare = false; // Stop any ongoing share creation
+      // Only dispose if this was the loading notifier (not a one-time notifier for existing shareUrl)
+      if (shareUrl == null && _shareUrlNotifier != null) {
+        _shareUrlNotifier?.dispose();
+        _shareUrlNotifier = null;
+      }
+      // Dispose the notifier we created for this dialog if shareUrl was provided
+      if (shareUrl != null) {
+        notifierToUse.dispose();
+      }
+    });
+  }
+  
+  Future<void> _shareMessage(String message, BuildContext buttonContext) async {
+    try {
+      if (Platform.isIOS) {
+        // Get the button position for iOS share sheet
+        final RenderBox? box = buttonContext.findRenderObject() as RenderBox?;
+        if (box != null && box.hasSize) {
+          final Offset position = box.localToGlobal(Offset.zero);
+          final Size size = box.size;
+          // Ensure position is valid
+          if (size.width > 0 && size.height > 0) {
+            await Share.share(
+              message,
+              sharePositionOrigin: Rect.fromLTWH(
+                position.dx,
+                position.dy,
+                size.width,
+                size.height,
+              ),
+            );
+            return;
+          }
+        }
+        // Fallback: use a default position at bottom center
+        final screenSize = MediaQuery.of(buttonContext).size;
+        await Share.share(
+          message,
+          sharePositionOrigin: Rect.fromLTWH(
+            screenSize.width / 2 - 50,
+            screenSize.height - 100,
+            100,
+            100,
+          ),
+        );
+      } else {
+        await Share.share(message);
+      }
+    } catch (e) {
+      Logger.error('Error sharing message', error: e);
+      // Fallback to simple share without position
+      try {
+        await Share.share(message);
+      } catch (e2) {
+        Logger.error('Error in fallback share', error: e2);
       }
     }
   }
@@ -1092,4 +1802,92 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
     );
   }
   
+}
+
+class _ShareOptionButton extends StatelessWidget {
+  final String? iconUrl;
+  final IconData? icon;
+  final String label;
+  final VoidCallback onTap;
+  final AppColorScheme colorScheme;
+
+  const _ShareOptionButton({
+    super.key,
+    this.iconUrl,
+    this.icon,
+    required this.label,
+    required this.onTap,
+    required this.colorScheme,
+  }) : assert(iconUrl != null || icon != null, 'Either iconUrl or icon must be provided');
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: DynamicTheme.getCardBackgroundColor(colorScheme),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(
+                color: DynamicTheme.getPrimaryIconColor(colorScheme).withOpacity(0.2),
+                width: 1,
+              ),
+            ),
+            child: Center(
+              child: iconUrl != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      child: CachedNetworkImage(
+                        imageUrl: iconUrl!,
+                        width: 40,
+                        height: 40,
+                        fit: BoxFit.contain,
+                        placeholder: (context, url) => SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                              ),
+                            ),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Icon(
+                          Icons.share,
+                          size: 24,
+                          color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                        ),
+                      ),
+                    )
+                  : Icon(
+                      icon,
+                      size: 24,
+                      color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                    ),
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: DynamicTheme.getPrimaryTextColor(colorScheme).withOpacity(0.7),
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
 }
