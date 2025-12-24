@@ -34,6 +34,8 @@ docs/
         ├── NAVIGATION.md        # Navigation system
         ├── THOUGHTS.md          # Thoughts feature (presence signals) ⭐ NEW
         └── ANIMATIONS.md        # Animation system
+    └── features/                # Cross-platform feature docs
+        └── COUNTDOWN_SHARES.md # Countdown Shares feature (viral sharing) ⭐ NEW
 ```
 
 ## 🚀 Quick Navigation
@@ -65,6 +67,7 @@ docs/
 - **[DRAFTS.md](./features/DRAFTS.md)** - Draft management and auto-save
 - **[CONNECTIONS.md](./features/CONNECTIONS.md)** - Connections & friend requests ⭐
 - **[THOUGHTS.md](./features/THOUGHTS.md)** - Thoughts feature (presence signals) ⭐ NEW
+- **[../features/COUNTDOWN_SHARES.md](../features/COUNTDOWN_SHARES.md)** - Countdown Shares feature (viral sharing) ⭐ NEW
 - **[RECIPIENTS.md](./features/RECIPIENTS.md)** - Recipient management
 - **[PROFILE.md](./features/PROFILE.md)** - Profile and settings
 - **[NAVIGATION.md](./features/NAVIGATION.md)** - Navigation system

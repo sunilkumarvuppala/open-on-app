@@ -43,6 +43,9 @@ dependencies:
   freezed_annotation: ^2.4.1
   json_annotation: ^4.9.0
   
+  # Fonts
+  google_fonts: ^6.1.0
+  
   # Icons
   cupertino_icons: ^1.0.6
 

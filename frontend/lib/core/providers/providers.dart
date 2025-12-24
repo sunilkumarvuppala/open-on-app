@@ -5,9 +5,11 @@ import 'package:openon_app/core/data/repositories.dart';
 import 'package:openon_app/core/data/api_repositories.dart';
 import 'package:openon_app/core/data/connection_repository.dart';
 import 'package:openon_app/core/data/thought_repository.dart';
+import 'package:openon_app/core/data/countdown_share_repository.dart';
 import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/models/connection_models.dart';
 import 'package:openon_app/core/models/thought_models.dart';
+import 'package:openon_app/core/models/countdown_share_models.dart';
 import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/color_scheme_service.dart';
 import 'package:openon_app/core/utils/logger.dart';
@@ -54,6 +56,10 @@ final selfLetterRepositoryProvider = Provider<SelfLetterRepository>((ref) {
 
 final thoughtRepositoryProvider = Provider<ThoughtRepository>((ref) {
   return SupabaseThoughtRepository();
+});
+
+final countdownShareRepositoryProvider = Provider<CountdownShareRepository>((ref) {
+  return SupabaseCountdownShareRepository();
 });
 
 // Auth state providers
@@ -1121,4 +1127,80 @@ class SendThoughtController extends StateNotifier<AsyncValue<SendThoughtResult>>
 final sendThoughtControllerProvider = StateNotifierProvider<SendThoughtController, AsyncValue<SendThoughtResult>>((ref) {
   final repo = ref.watch(thoughtRepositoryProvider);
   return SendThoughtController(repo);
+});
+
+// ============================================================================
+// Countdown Share Providers
+// ============================================================================
+
+/// Active countdown shares for a user
+final activeCountdownSharesProvider = FutureProvider.family<List<CountdownShare>, String>((ref, userId) async {
+  final repo = ref.watch(countdownShareRepositoryProvider);
+  try {
+    final shares = await repo.listActiveShares(userId: userId);
+    // Filter out expired/revoked shares
+    return shares.where((share) => share.isValid).toList();
+  } catch (error, stackTrace) {
+    Logger.error('Error loading active countdown shares', error: error, stackTrace: stackTrace);
+    return <CountdownShare>[];
+  }
+});
+
+/// Controller for creating countdown shares
+class CreateCountdownShareController extends StateNotifier<AsyncValue<CreateShareResult>> {
+  CreateCountdownShareController(this._repository) : super(AsyncValue.data(CreateShareResult(success: false)));
+
+  final CountdownShareRepository _repository;
+
+  Future<void> createShare(CreateShareRequest request) async {
+    state = const AsyncValue.loading();
+    try {
+      final result = await _repository.createShare(request);
+      Logger.debug('Controller received result: success=${result.success}, errorCode=${result.errorCode}');
+      state = AsyncValue.data(result);
+    } catch (error, stackTrace) {
+      Logger.error('Controller caught exception', error: error, stackTrace: stackTrace);
+      // Even if there's an exception, wrap it in a CreateShareResult for consistent handling
+      state = AsyncValue.data(CreateShareResult(
+        success: false,
+        errorCode: 'EXCEPTION',
+        errorMessage: error.toString(),
+      ));
+    }
+  }
+
+  void reset() {
+    state = AsyncValue.data(CreateShareResult(success: false));
+  }
+}
+
+final createCountdownShareControllerProvider = StateNotifierProvider<CreateCountdownShareController, AsyncValue<CreateShareResult>>((ref) {
+  final repo = ref.watch(countdownShareRepositoryProvider);
+  return CreateCountdownShareController(repo);
+});
+
+/// Controller for revoking countdown shares
+class RevokeCountdownShareController extends StateNotifier<AsyncValue<RevokeShareResult>> {
+  RevokeCountdownShareController(this._repository) : super(AsyncValue.data(RevokeShareResult(success: false)));
+
+  final CountdownShareRepository _repository;
+
+  Future<void> revokeShare(String shareId) async {
+    state = const AsyncValue.loading();
+    try {
+      final result = await _repository.revokeShare(shareId);
+      state = AsyncValue.data(result);
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+    }
+  }
+
+  void reset() {
+    state = AsyncValue.data(RevokeShareResult(success: false));
+  }
+}
+
+final revokeCountdownShareControllerProvider = StateNotifierProvider<RevokeCountdownShareController, AsyncValue<RevokeShareResult>>((ref) {
+  final repo = ref.watch(countdownShareRepositoryProvider);
+  return RevokeCountdownShareController(repo);
 });
