@@ -1043,3 +1043,73 @@ class SelfLetterReflectionRequest(BaseModel):
         if v not in ('yes', 'no', 'skipped'):
             raise ValueError('answer must be one of: yes, no, skipped')
         return v
+
+
+# ===== Letter Reply Models =====
+class LetterReplyCreate(BaseModel):
+    """
+    Request model for creating a letter reply.
+    
+    Fields:
+    - reply_text: Reply text content (max 60 characters)
+    - reply_emoji: Selected emoji from fixed set: ❤️ 🥹 😊 😎 😢 🤍 🙏
+    """
+    reply_text: str = Field(..., max_length=60, description="Reply text, max 60 characters")
+    reply_emoji: str = Field(..., description="Selected emoji: ❤️ 🥹 😊 😎 😢 🤍 🙏")
+    
+    @field_validator('reply_text')
+    @classmethod
+    def validate_reply_text(cls, v: str) -> str:
+        """Validate reply text length."""
+        if len(v) > 60:
+            raise ValueError('reply_text must be 60 characters or less')
+        if not v.strip():
+            raise ValueError('reply_text cannot be empty')
+        return v.strip()
+    
+    @field_validator('reply_emoji')
+    @classmethod
+    def validate_reply_emoji(cls, v: str) -> str:
+        """Validate emoji is from allowed set."""
+        allowed_emojis = {'❤️', '🥹', '😊', '😎', '😢', '🤍', '🙏'}
+        if v not in allowed_emojis:
+            raise ValueError(f'reply_emoji must be one of: {", ".join(allowed_emojis)}')
+        return v
+
+
+class LetterReplyResponse(BaseModel):
+    """
+    Response model for letter reply.
+    
+    Fields:
+    - id: Reply UUID
+    - letter_id: Letter (capsule) UUID this reply is for
+    - reply_text: Reply text content
+    - reply_emoji: Selected emoji
+    - receiver_animation_seen_at: When receiver saw animation (after sending)
+    - sender_animation_seen_at: When sender saw animation (when viewing)
+    - created_at: Creation timestamp
+    """
+    id: UUID
+    letter_id: UUID
+    reply_text: str
+    reply_emoji: str
+    receiver_animation_seen_at: Optional[datetime] = None
+    sender_animation_seen_at: Optional[datetime] = None
+    created_at: datetime
+    
+    @classmethod
+    def from_orm_reply(cls, reply: "LetterReply") -> "LetterReplyResponse":
+        """Create LetterReplyResponse from LetterReply database model."""
+        return cls(
+            id=reply.id,
+            letter_id=reply.letter_id,
+            reply_text=reply.reply_text,
+            reply_emoji=reply.reply_emoji,
+            receiver_animation_seen_at=reply.receiver_animation_seen_at,
+            sender_animation_seen_at=reply.sender_animation_seen_at,
+            created_at=reply.created_at
+        )
+    
+    class Config:
+        from_attributes = True

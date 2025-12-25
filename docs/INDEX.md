@@ -88,6 +88,7 @@
 - **[development/REFACTORING_GUIDE.md](./development/REFACTORING_GUIDE.md)** - Refactoring patterns & best practices
 - **[development/DEVELOPER_GUIDE.md](./development/DEVELOPER_GUIDE.md)** - Complete developer reference
 - **[development/PERFORMANCE_OPTIMIZATIONS.md](./development/PERFORMANCE_OPTIMIZATIONS.md)** - Comprehensive performance optimizations (frontend, animations, database)
+- **[development/OPENED_LETTER_SCREEN_OPTIMIZATION.md](./development/OPENED_LETTER_SCREEN_OPTIMIZATION.md)** - Opened letter screen code quality improvements ⭐ NEW
 
 ### Project Management
 - **[project-management/CHANGES_2025.md](./project-management/CHANGES_2025.md)** - Comprehensive code changes record

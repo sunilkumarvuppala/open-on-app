@@ -632,3 +632,71 @@ class SelfLetter {
   /// Check if reflection can be submitted (opened but not yet reflected)
   bool get canReflect => isOpened && !hasReflection;
 }
+
+/// Letter Reply model - one-time acknowledgment reply from receiver to sender
+class LetterReply {
+  final String id;
+  final String letterId;
+  final String replyText;
+  final String replyEmoji;
+  final DateTime? receiverAnimationSeenAt;
+  final DateTime? senderAnimationSeenAt;
+  final DateTime createdAt;
+  
+  LetterReply({
+    required this.id,
+    required this.letterId,
+    required this.replyText,
+    required this.replyEmoji,
+    this.receiverAnimationSeenAt,
+    this.senderAnimationSeenAt,
+    required this.createdAt,
+  });
+  
+  /// Check if receiver has seen the animation
+  bool get hasReceiverSeenAnimation => receiverAnimationSeenAt != null;
+  
+  /// Check if sender has seen the animation
+  bool get hasSenderSeenAnimation => senderAnimationSeenAt != null;
+  
+  /// Allowed emoji set
+  static const List<String> allowedEmojis = ['❤️', '🥹', '😊', '😎', '😢', '🤍', '🙏'];
+  
+  /// Validate emoji is from allowed set
+  static bool isValidEmoji(String emoji) {
+    return allowedEmojis.contains(emoji);
+  }
+  
+  /// Validate reply text length
+  static bool isValidReplyText(String text) {
+    return text.trim().isNotEmpty && text.length <= 60;
+  }
+  
+  factory LetterReply.fromJson(Map<String, dynamic> json) {
+    return LetterReply(
+      id: json['id'] as String,
+      letterId: json['letter_id'] as String,
+      replyText: json['reply_text'] as String,
+      replyEmoji: json['reply_emoji'] as String,
+      receiverAnimationSeenAt: json['receiver_animation_seen_at'] != null
+          ? DateTime.parse(json['receiver_animation_seen_at'] as String)
+          : null,
+      senderAnimationSeenAt: json['sender_animation_seen_at'] != null
+          ? DateTime.parse(json['sender_animation_seen_at'] as String)
+          : null,
+      createdAt: DateTime.parse(json['created_at'] as String),
+    );
+  }
+  
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'letter_id': letterId,
+      'reply_text': replyText,
+      'reply_emoji': replyEmoji,
+      'receiver_animation_seen_at': receiverAnimationSeenAt?.toIso8601String(),
+      'sender_animation_seen_at': senderAnimationSeenAt?.toIso8601String(),
+      'created_at': createdAt.toIso8601String(),
+    };
+  }
+}

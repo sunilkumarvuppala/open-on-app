@@ -199,5 +199,39 @@ class Validation {
     }
     return sanitized;
   }
+
+  /// Sanitizes SharedPreferences key to prevent security issues
+  /// Removes dangerous characters and limits length
+  /// Keys should only contain alphanumeric characters, underscores, and hyphens
+  static String sanitizeSharedPreferencesKey(String key) {
+    if (key.isEmpty) {
+      throw const ValidationException('SharedPreferences key cannot be empty');
+    }
+    // Remove any characters that could be dangerous in storage keys
+    // Only allow alphanumeric, underscore, hyphen, and dot
+    final sanitized = key.replaceAll(RegExp(r'[^a-zA-Z0-9_\-.]'), '');
+    if (sanitized.isEmpty) {
+      throw const ValidationException('SharedPreferences key contains only invalid characters');
+    }
+    // Limit key length to prevent abuse
+    const maxKeyLength = 200;
+    if (sanitized.length > maxKeyLength) {
+      return sanitized.substring(0, maxKeyLength);
+    }
+    return sanitized;
+  }
+
+  /// Validates and sanitizes capsule/letter ID for use in SharedPreferences keys
+  /// Ensures the ID is a valid UUID and sanitizes it for safe use in storage keys
+  static String validateAndSanitizeCapsuleId(String capsuleId) {
+    final sanitized = sanitizeString(capsuleId);
+    if (sanitized.isEmpty) {
+      throw const ValidationException('Capsule ID cannot be empty');
+    }
+    if (!isValidUUID(sanitized)) {
+      throw const ValidationException('Invalid capsule ID format');
+    }
+    return sanitized;
+  }
 }
 

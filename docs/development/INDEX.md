@@ -10,6 +10,7 @@ This folder contains guides for development practices, refactoring patterns, and
 - **[REFACTORING.md](./REFACTORING.md)** - Refactoring history and changes
 - **[REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md)** - Refactoring patterns and best practices
 - **[PERFORMANCE_OPTIMIZATIONS.md](./PERFORMANCE_OPTIMIZATIONS.md)** - Performance optimization guide
+- **[OPENED_LETTER_SCREEN_OPTIMIZATION.md](./OPENED_LETTER_SCREEN_OPTIMIZATION.md)** - Opened letter screen code quality improvements
 
 ## When to Use
 
@@ -17,6 +18,7 @@ This folder contains guides for development practices, refactoring patterns, and
 - **Making code changes?** → Follow [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md)
 - **Understanding past refactoring?** → See [REFACTORING.md](./REFACTORING.md)
 - **Optimizing performance?** → Check [PERFORMANCE_OPTIMIZATIONS.md](./PERFORMANCE_OPTIMIZATIONS.md)
+- **Working on opened letter screen?** → See [OPENED_LETTER_SCREEN_OPTIMIZATION.md](./OPENED_LETTER_SCREEN_OPTIMIZATION.md)
 
 ---
 

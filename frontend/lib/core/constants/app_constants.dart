@@ -226,6 +226,81 @@ class AppConstants {
   static const double openedLetterCardShadowBlur = 10.0;
   static const double openedLetterCardShadowOffsetY = 4.0;
   static const double openedLetterBottomBarShadowOffsetY = -5.0;
+  
+  // Opened letter screen animation durations
+  static const Duration openedLetterHeaderFadeDuration = Duration(milliseconds: 400);
+  static const Duration openedLetterMessageFadeDuration = Duration(milliseconds: 600);
+  static const Duration openedLetterEnvelopeOpacityDuration = Duration(milliseconds: 800);
+  static const Duration openedLetterReplyFadeDuration = Duration(milliseconds: 600);
+  static const Duration openedLetterHeaderFadeDelay = Duration(milliseconds: 500);
+  static const Duration openedLetterMessageFadeDelay = Duration(milliseconds: 400);
+  static const Duration openedLetterEnvelopeOpacityDelay = Duration(milliseconds: 600);
+  static const Duration openedLetterReplyFadeDelay = Duration(milliseconds: 1000);
+  static const Duration openedLetterIconToggleInterval = Duration(seconds: 5);
+  static const Duration openedLetterIconToggleTransitionDuration = Duration(milliseconds: 3000);
+  
+  // Opened letter screen opacity values
+  static const double openedLetterHeaderOpacity = 0.5;
+  static const double openedLetterEnvelopeOpacityEnd = 0.5;
+  static const double openedLetterMessageContainerOpacity = 0.91;
+  static const double openedLetterCardBackgroundOpacity = 0.3;
+  static const double openedLetterShadowOpacity = 0.15;
+  static const double openedLetterAvatarGradientOpacity = 0.2;
+  static const double openedLetterSeeReplyButtonOpacity = 0.85;
+  static const double openedLetterSeeReplyTextOpacity = 0.95;
+  static const double openedLetterWhisperTextOpacity = 0.5;
+  static const double openedLetterSecondaryTextOpacity = 0.6;
+  static const double openedLetterSecondaryTextOpacityMedium = 0.7;
+  
+  // Opened letter screen sizes and spacing
+  static const double openedLetterTitleFontSize = 48.0;
+  static const double openedLetterTitleSpacing = 2.0;
+  static const double openedLetterMessageMinHeight = 300.0;
+  static const double openedLetterMessageVerticalPadding = 2.0; // Multiplier for spacingXl
+  static const double openedLetterDateFontSize = 12.0;
+  static const double openedLetterCountdownIconSize = 14.0;
+  
+  // Opened letter screen gradient blend values
+  static const double openedLetterGradientBlendTop = 0.15;
+  static const double openedLetterGradientBlendTopSecondary = 0.08;
+  static const double openedLetterGradientBlendBottom = 0.05;
+  static const double openedLetterGradientBlendDark = 0.03;
+  static const double openedLetterWarmColorBlendRed = 0.08;
+  static const double openedLetterWarmColorBlendGreen = 0.07;
+  static const double openedLetterWarmColorBlendBlue = 0.90;
+  static const double openedLetterWarmColorBlendGray = 0.20;
+  static const double openedLetterWarmColorBlendWhite = 0.15;
+  static const double openedLetterLightEnvelopeBlend1 = 0.65;
+  static const double openedLetterLightEnvelopeBlend2 = 0.70;
+  static const double openedLetterLightEnvelopeBlendMix = 0.6;
+  
+  // Opened letter screen colors
+  static const int openedLetterTextColorDark = 0xFF1A1A1A;
+  static const int openedLetterPaperGrayColor = 0xFF2A2A2A;
+  
+  // Letter reply composer dimensions
+  static const double letterReplyEmojiSize = 32.0;
+  static const double letterReplyEmojiContainerSize = 56.0;
+  static const double letterReplyEmojiRowHeight = 64.0;
+  static const double letterReplyEmojiSpacing = 0.0;
+  static const double letterReplyArrowGradientWidth = 40.0;
+  static const double letterReplyArrowIconSize = 26.0;
+  static const double letterReplyLoadingIndicatorSize = 20.0;
+  static const double letterReplyBorderWidth = 2.0;
+  static const Duration letterReplyEmojiAnimationDuration = Duration(milliseconds: 200);
+  
+  // Letter reply composer opacity values
+  static const double letterReplyDividerOpacity = 0.3;
+  static const double letterReplySecondaryTextOpacity = 0.7;
+  static const double letterReplyHintTextOpacity = 0.5;
+  static const double letterReplyEmojiSelectedOpacity = 0.2;
+  static const double letterReplyEmojiDisabledOpacity = 0.5;
+  static const double letterReplyDisabledBackgroundOpacity = 0.3;
+  
+  // Star dust particle settings
+  static const int starDustParticleCount = 15;
+  static const double starDustOpacityMultiplier = 0.50;
+  static const double starDustSpeedMultiplier = 0.4;
 
   // Reaction emojis (centralized for consistency)
   static const List<String> reactionEmojis = ['❤️', '😭', '🤗', '😍', '🥰'];
