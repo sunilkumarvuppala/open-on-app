@@ -599,16 +599,26 @@ class _AnimatedUnlockingSoonBadgeState
 
   /// Formats countdown duration for badge display (compact format)
   String _formatCountdownForBadge(Duration duration) {
+    // If duration is negative or zero, it's ready to open
+    if (duration.isNegative || duration.inSeconds <= 0) {
+      return 'Opens now';
+    }
+    
+    final totalSeconds = duration.inSeconds;
     final days = duration.inDays;
     final hours = duration.inHours.remainder(24);
-    final minutes = duration.inMinutes.remainder(60);
+    // Calculate minutes from total seconds (not using duration.inMinutes which can truncate)
+    // This ensures 1 minute is shown when there's 60+ seconds remaining
+    final totalMinutes = totalSeconds ~/ 60;
+    final minutes = (days > 0 || hours > 0) ? totalMinutes.remainder(60) : totalMinutes;
 
     String timeText;
     if (days > 0) {
       timeText = '${days}d ${hours}h';
     } else if (hours > 0) {
       timeText = '${hours}h ${minutes}m';
-    } else if (minutes > 0) {
+    } else if (totalSeconds >= 60) {
+      // At least 60 seconds remaining - show minutes
       timeText = '${minutes}m';
     } else {
       return 'Opens now';

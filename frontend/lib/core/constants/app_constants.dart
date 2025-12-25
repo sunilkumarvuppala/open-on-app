@@ -200,6 +200,9 @@ class AppConstants {
   // Opening animation screen dimensions
   static const double openingAnimationCardWidth = 300.0;
   static const double openingAnimationCardHeight = 400.0;
+  
+  // Identity lock card dimensions
+  static const double identityLockCardWidth = 300.0;
   static const double openingAnimationIconSize = 60.0;
   static const double openingAnimationTitleFontSize = 24.0;
   static const double openingAnimationSubtitleFontSize = 16.0;

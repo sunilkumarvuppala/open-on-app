@@ -511,7 +511,12 @@ class _CreateCapsuleScreenState extends ConsumerState<CreateCapsuleScreen> {
       );
       
       final repo = ref.read(capsuleRepositoryProvider);
-      await repo.createCapsule(capsule);
+      await repo.createCapsule(
+        capsule,
+        hint1: draft.hint1,
+        hint2: draft.hint2,
+        hint3: draft.hint3,
+      );
       
       Logger.info('Capsule created successfully');
       

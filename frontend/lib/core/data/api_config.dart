@@ -44,6 +44,7 @@ class ApiConfig {
   static const String capsules = '/capsules';
   static String capsuleById(String id) => '/capsules/$id';
   static String openCapsule(String id) => '/capsules/$id/open';
+  static String capsuleHint(String id) => '/capsules/$id/hint';
 
   static const String recipients = '/recipients';
   static String recipientById(String id) => '/recipients/$id';

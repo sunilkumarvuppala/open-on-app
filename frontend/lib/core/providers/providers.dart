@@ -601,6 +601,18 @@ class DraftCapsuleNotifier extends StateNotifier<DraftCapsule> {
     state = state.copyWith(revealDelaySeconds: revealDelaySeconds);
   }
   
+  void setHint1(String? hint1) {
+    state = state.copyWith(hint1: hint1);
+  }
+  
+  void setHint2(String? hint2) {
+    state = state.copyWith(hint2: hint2);
+  }
+  
+  void setHint3(String? hint3) {
+    state = state.copyWith(hint3: hint3);
+  }
+  
   void reset() {
     state = const DraftCapsule();
   }
@@ -1163,10 +1175,13 @@ class CreateCountdownShareController extends StateNotifier<AsyncValue<CreateShar
     state = const AsyncValue.loading();
     try {
       final result = await _repository.createShare(request);
-      Logger.debug('Controller received result: success=${result.success}, errorCode=${result.errorCode}');
+      Logger.debug('Controller received result: success=${result.success}, errorCode=${result.errorCode}, errorMessage=${result.errorMessage}');
+      Logger.debug('Controller result details: shareUrl=${result.shareUrl}');
       state = AsyncValue.data(result);
     } catch (error, stackTrace) {
       Logger.error('Controller caught exception', error: error, stackTrace: stackTrace);
+      Logger.error('Exception type: ${error.runtimeType}');
+      Logger.error('Exception details: $error');
       // Even if there's an exception, wrap it in a CreateShareResult for consistent handling
       state = AsyncValue.data(CreateShareResult(
         success: false,

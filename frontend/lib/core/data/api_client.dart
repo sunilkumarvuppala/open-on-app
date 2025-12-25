@@ -127,6 +127,11 @@ class ApiClient {
 
       _handleResponse(response);
 
+      // Handle 204 No Content - return empty map (no body to parse)
+      if (response.statusCode == 204) {
+        return {};
+      }
+
       if (response.body.isEmpty) {
         return {};
       }

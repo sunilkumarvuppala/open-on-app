@@ -29,7 +29,7 @@ from sqlalchemy.exc import ProgrammingError, DBAPIError
 from app.db.models import (
     UserProfile, Capsule, Recipient, Theme, Animation, Notification,
     UserSubscription, AuditLog, SelfLetter, CapsuleStatus, NotificationType,
-    SubscriptionStatus, RecipientRelationship, LetterReply
+    SubscriptionStatus, RecipientRelationship, LetterReply, AnonymousIdentityHints
 )
 from app.db.repository import BaseRepository
 
@@ -1252,3 +1252,79 @@ class LetterReplyRepository(BaseRepository[LetterReply]):
         result = await self.session.execute(stmt)
         await self.session.flush()
         return result.rowcount > 0
+
+
+class AnonymousIdentityHintsRepository(BaseRepository[AnonymousIdentityHints]):
+    """
+    Repository for anonymous identity hints operations.
+    
+    This repository handles progressive hints for anonymous letters.
+    Hints are optional and reveal automatically based on time rules.
+    """
+    
+    def __init__(self, session: AsyncSession):
+        super().__init__(AnonymousIdentityHints, session)
+    
+    async def get_by_letter_id(self, letter_id: UUID) -> Optional[AnonymousIdentityHints]:
+        """Get hints for a specific letter."""
+        result = await self.session.execute(
+            select(AnonymousIdentityHints).where(AnonymousIdentityHints.letter_id == letter_id)
+        )
+        return result.scalar_one_or_none()
+    
+    async def create(
+        self,
+        letter_id: UUID,
+        hint_1: Optional[str] = None,
+        hint_2: Optional[str] = None,
+        hint_3: Optional[str] = None
+    ) -> AnonymousIdentityHints:
+        """Create hints for an anonymous letter."""
+        # Only create if at least one hint is provided
+        if not any([hint_1, hint_2, hint_3]):
+            raise ValueError("At least one hint must be provided")
+        
+        # Strip and validate hints
+        hint_1_clean = hint_1.strip() if hint_1 and hint_1.strip() else None
+        hint_2_clean = hint_2.strip() if hint_2 and hint_2.strip() else None
+        hint_3_clean = hint_3.strip() if hint_3 and hint_3.strip() else None
+        
+        # Validate length
+        if hint_1_clean and len(hint_1_clean) > 60:
+            raise ValueError("hint_1 must be 60 characters or less")
+        if hint_2_clean and len(hint_2_clean) > 60:
+            raise ValueError("hint_2 must be 60 characters or less")
+        if hint_3_clean and len(hint_3_clean) > 60:
+            raise ValueError("hint_3 must be 60 characters or less")
+        
+        instance = AnonymousIdentityHints(
+            letter_id=letter_id,
+            hint_1=hint_1_clean,
+            hint_2=hint_2_clean,
+            hint_3=hint_3_clean
+        )
+        self.session.add(instance)
+        await self.session.flush()
+        await self.session.refresh(instance)
+        return instance
+    
+    async def get_current_hint(self, letter_id: UUID) -> Optional[tuple[str, int]]:
+        """
+        Get the current eligible hint for a letter using the database function.
+        
+        Returns:
+            Tuple of (hint_text, hint_index) if a hint is eligible, None otherwise.
+            hint_index is 1, 2, or 3.
+        """
+        from sqlalchemy import text
+        
+        # Explicitly cast the string parameter to UUID in the SQL query
+        # PostgreSQL needs the type to be explicit to match the function signature
+        result = await self.session.execute(
+            text("SELECT hint_text, hint_index FROM public.get_current_anonymous_hint(CAST(:letter_id AS UUID))"),
+            {"letter_id": str(letter_id)}
+        )
+        row = result.first()
+        if row and row[0] is not None:
+            return (row[0], row[1])
+        return None

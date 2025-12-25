@@ -441,7 +441,19 @@ class CapsuleService:
                 detail="Capsule not found"
             )
         
-        if capsule.status != CapsuleStatus.READY:
+        # Allow opening if status is READY or if status is SEALED but unlocks_at has passed
+        # This handles the race condition where unlocks_at has passed but background worker
+        # hasn't updated status to READY yet. The open_letter RPC function will handle the
+        # actual state transition.
+        now = datetime.now(timezone.utc)
+        can_open = (
+            capsule.status == CapsuleStatus.READY or
+            (capsule.status == CapsuleStatus.SEALED and 
+             capsule.unlocks_at is not None and 
+             capsule.unlocks_at <= now)
+        )
+        
+        if not can_open:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Capsule is not ready yet (current status: {capsule.status.value})"

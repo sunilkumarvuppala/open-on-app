@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:openon_app/core/data/supabase_config.dart';
 import 'package:openon_app/core/data/token_storage.dart';
 import 'package:openon_app/core/models/countdown_share_models.dart';
@@ -122,6 +123,8 @@ class SupabaseCountdownShareRepository implements CountdownShareRepository {
       
       while (retryCount <= maxRetries) {
         try {
+          Logger.debug('Invoking Edge Function: create-countdown-share, attempt $retryCount');
+          Logger.debug('Request body: ${request.toJson()}');
           response = await _supabase.functions.invoke(
             'create-countdown-share',
             body: request.toJson(),
@@ -129,8 +132,11 @@ class SupabaseCountdownShareRepository implements CountdownShareRepository {
               'Authorization': 'Bearer ${session.accessToken}',
             },
           );
+          Logger.debug('Edge Function response received: status=${response.status}');
           break; // Success, exit retry loop
         } catch (e) {
+          Logger.error('Edge Function invocation error (attempt $retryCount): $e');
+          Logger.error('Error type: ${e.runtimeType}');
           lastException = e is Exception ? e : Exception(e.toString());
           retryCount++;
           
@@ -158,10 +164,45 @@ class SupabaseCountdownShareRepository implements CountdownShareRepository {
       
       // If we don't have a response, handle the error
       if (response == null) {
+        Logger.error('Share creation failed: No response after $maxRetries retries');
         if (lastException != null) {
-          throw lastException;
+          Logger.error('Last exception: $lastException');
+          // Try to extract error code from exception message
+          final exceptionMessage = lastException.toString().toLowerCase();
+          String? errorCode;
+          String errorMessage = 'Failed to create share';
+          
+          if (exceptionMessage.contains('letter_not_found') || exceptionMessage.contains('404')) {
+            errorCode = 'LETTER_NOT_FOUND';
+            errorMessage = 'Letter not found';
+          } else if (exceptionMessage.contains('not authenticated') || exceptionMessage.contains('unauthorized')) {
+            errorCode = 'NOT_AUTHENTICATED';
+            errorMessage = 'Please sign in to create a share';
+          } else if (exceptionMessage.contains('letter_not_locked')) {
+            errorCode = 'LETTER_NOT_LOCKED';
+            errorMessage = 'This letter cannot be shared at this time';
+          } else if (exceptionMessage.contains('letter_already_revealed')) {
+            errorCode = 'LETTER_ALREADY_REVEALED';
+            errorMessage = 'Anonymous sender has been revealed';
+          } else if (exceptionMessage.contains('network') || exceptionMessage.contains('connection')) {
+            errorCode = 'NETWORK_ERROR';
+            errorMessage = 'Network error. Please check your connection';
+          } else {
+            errorCode = 'UNEXPECTED_ERROR';
+            errorMessage = 'Unable to create share. Please try again';
+          }
+          
+          return CreateShareResult(
+            success: false,
+            errorCode: errorCode,
+            errorMessage: errorMessage,
+          );
         }
-        throw Exception('Failed to create share after $maxRetries retries');
+        return CreateShareResult(
+          success: false,
+          errorCode: 'UNEXPECTED_ERROR',
+          errorMessage: 'Failed to create share after $maxRetries retries',
+        );
       }
       
       Logger.debug('Edge Function response status: ${response.status}');
@@ -169,11 +210,39 @@ class SupabaseCountdownShareRepository implements CountdownShareRepository {
       Logger.debug('Edge Function response data type: ${response.data.runtimeType}');
       
       if (response.status != 200) {
-        final errorData = response.data as Map<String, dynamic>?;
-        final errorCode = errorData?['error_code'] as String?;
-        final errorMessage = errorData?['error_message'] as String? ?? 'Failed to create share';
-        Logger.error('Edge Function returned error: status=${response.status}, code=$errorCode, message=$errorMessage');
+        Logger.error('Edge Function returned non-200 status: ${response.status}');
+        Logger.error('Response data: ${response.data}');
+        Logger.error('Response data type: ${response.data.runtimeType}');
+        
+        Map<String, dynamic>? errorData;
+        try {
+          if (response.data is Map) {
+            errorData = response.data as Map<String, dynamic>;
+            Logger.debug('Error data is Map: $errorData');
+          } else if (response.data is String) {
+            // Try to parse JSON string
+            Logger.debug('Error data is String, attempting to parse: ${response.data}');
+            errorData = jsonDecode(response.data as String) as Map<String, dynamic>?;
+            Logger.debug('Parsed error data: $errorData');
+          } else if (response.data != null) {
+            Logger.warning('Unexpected error data type: ${response.data.runtimeType}');
+          }
+        } catch (e, stackTrace) {
+          Logger.error('Failed to parse error data: $e', stackTrace: stackTrace);
+          Logger.error('Raw error data that failed to parse: ${response.data}');
+        }
+        
+        final errorCode = errorData?['error_code'] as String? ?? 
+                         errorData?['errorCode'] as String? ??
+                         'UNEXPECTED_ERROR';
+        final errorMessage = errorData?['error_message'] as String? ?? 
+                            errorData?['errorMessage'] as String? ??
+                            errorData?['message'] as String? ?? 
+                            (errorData?.toString() ?? 'Failed to create share');
+        
+        Logger.error('Edge Function error: code=$errorCode, message=$errorMessage');
         Logger.error('Full error data: $errorData');
+        
         return CreateShareResult(
           success: false,
           errorCode: errorCode,
@@ -222,6 +291,9 @@ class SupabaseCountdownShareRepository implements CountdownShareRepository {
       } else if (message.contains('LETTER_ALREADY_OPENED')) {
         errorCode = 'LETTER_ALREADY_OPENED';
         errorMessage = 'Letter has already been opened';
+      } else if (message.contains('LETTER_ALREADY_REVEALED')) {
+        errorCode = 'LETTER_ALREADY_REVEALED';
+        errorMessage = 'Anonymous sender has already been revealed';
       } else if (message.contains('LETTER_DELETED')) {
         errorCode = 'LETTER_DELETED';
         errorMessage = 'Letter has been deleted';

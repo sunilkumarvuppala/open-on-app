@@ -7,6 +7,7 @@ import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
+import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/utils/logger.dart';
 
 /// Linear interval curve for truly constant speed
@@ -297,8 +298,8 @@ class _EmotionalReplyRevealScreenState extends ConsumerState<EmotionalReplyRevea
   Widget build(BuildContext context) {
     final colorScheme = ref.watch(selectedColorSchemeProvider);
     final theme = Theme.of(context);
-    // Pure white background
-    final backgroundColor = Colors.white;
+    // Use theme-based background color (same as scaffold background)
+    final backgroundColor = colorScheme.secondary2;
     
     return GestureDetector(
       // Only allow tap to skip during animation, not after completion
@@ -350,8 +351,8 @@ class _EmotionalReplyRevealScreenState extends ConsumerState<EmotionalReplyRevea
                 child: Padding(
                   padding: EdgeInsets.all(AppTheme.spacingMd),
                   child: IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    color: Colors.black87,
+                    icon: Icon(Icons.arrow_back),
+                    color: DynamicTheme.getPrimaryIconColor(colorScheme),
                     onPressed: () {
                       // Call completion callback when user explicitly navigates back
                       widget.onComplete?.call();
@@ -466,34 +467,50 @@ class _EmotionalReplyRevealScreenState extends ConsumerState<EmotionalReplyRevea
   }
   
   Widget _buildTextContent(ThemeData theme, dynamic colorScheme) {
-    // Use dark color for white background to ensure visibility
-    final textColor = Colors.black87;
-    final secondaryTextColor = Colors.black54;
-    
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Reply text
+        // Reply text in a card
         Padding(
           padding: EdgeInsets.symmetric(horizontal: AppTheme.spacingXl),
-          child: Text(
-            widget.reply.replyText,
-            style: theme.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.w400,
-              color: textColor,
-              height: 1.4,
+          child: Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(AppTheme.spacingXl),
+            decoration: BoxDecoration(
+              color: DynamicTheme.getCardBackgroundColor(colorScheme),
+              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 20,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            textAlign: TextAlign.center,
-          ),
-        ),
-        
-        SizedBox(height: AppTheme.spacingMd),
-        
-        // Secondary text
-        Text(
-          'Sent.',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: secondaryTextColor,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Reply emoji (larger, centered)
+                Text(
+                  widget.reply.replyEmoji,
+                  style: TextStyle(
+                    fontSize: 48,
+                  ),
+                ),
+                SizedBox(height: AppTheme.spacingLg),
+                // Reply text
+                Text(
+                  widget.reply.replyText,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w400,
+                    color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                    height: 1.4,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
         ),
       ],

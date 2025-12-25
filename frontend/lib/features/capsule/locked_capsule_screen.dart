@@ -168,6 +168,14 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
     _emojiAnimationController.dispose();
     _countdownShimmerController.dispose();
     _envelopeGlowController.dispose();
+    // Clean up share URL notifier
+    try {
+      _shareUrlNotifier?.dispose();
+    } catch (e) {
+      // Ignore if already disposed
+      Logger.debug('Error disposing share URL notifier: $e');
+    }
+    _shareUrlNotifier = null;
     super.dispose();
   }
   
@@ -244,16 +252,29 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
     if (!capsule.isLocked) return 'Ready to open';
     
     final duration = capsule.timeUntilUnlock;
+    // If duration is negative or zero, it's ready to open
+    if (duration.isNegative || duration.inSeconds <= 0) {
+      return 'Ready to open';
+    }
+    
+    final totalSeconds = duration.inSeconds;
     final days = duration.inDays;
     final hours = duration.inHours % 24;
-    final minutes = duration.inMinutes % 60;
+    // Calculate minutes from total seconds (not using duration.inMinutes which can truncate)
+    // This ensures 1 minute is shown when there's 60+ seconds remaining
+    final totalMinutes = totalSeconds ~/ 60;
+    final minutes = (days > 0 || hours > 0) ? (totalMinutes % 60) : totalMinutes;
     
     if (days > 0) {
       return 'Opens in $days day${days != 1 ? 's' : ''}';
     } else if (hours > 0) {
       return 'Opens in $hours hour${hours != 1 ? 's' : ''}';
-    } else {
+    } else if (totalSeconds >= 60) {
+      // At least 60 seconds remaining - show minutes
       return 'Opens in $minutes minute${minutes != 1 ? 's' : ''}';
+    } else {
+      // Less than 60 seconds remaining - show "Ready to open"
+      return 'Ready to open';
     }
   }
   
@@ -279,13 +300,22 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
         });
         
         // Invalidate only relevant providers (optimize for performance)
-        final userAsync = ref.read(currentUserProvider);
-        final userId = userAsync.asData?.value?.id ?? '';
-        if (userId.isNotEmpty) {
-          // Batch invalidations - only invalidate what's needed
-          // Base providers will refresh derived providers automatically
-          ref.invalidate(capsulesProvider(userId));
-          ref.invalidate(incomingCapsulesProvider(userId));
+        // Wrap in try-catch to prevent provider invalidation errors from breaking refresh
+        try {
+          final userAsync = ref.read(currentUserProvider);
+          final userId = userAsync.asData?.value?.id ?? '';
+          if (userId.isNotEmpty) {
+            // Batch invalidations - only invalidate what's needed
+            // Base providers will refresh derived providers automatically
+            ref.invalidate(capsulesProvider(userId));
+            ref.invalidate(incomingCapsulesProvider(userId));
+          }
+        } catch (providerError, providerStack) {
+          // Log provider invalidation errors but don't fail the refresh
+          // The capsule data was successfully updated, which is the main goal
+          Logger.warning('Failed to invalidate providers during refresh', 
+            error: providerError, 
+            stackTrace: providerStack);
         }
       } else {
         // Capsule was deleted or not found - navigate back
@@ -296,13 +326,42 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
     } catch (e, stackTrace) {
       Logger.error('Failed to refresh capsule', error: e, stackTrace: stackTrace);
       
-      // Show user-friendly error feedback
+      // Import exception types for proper error detection
+      final errorMessage = e.toString().toLowerCase();
+      final isNetworkError = errorMessage.contains('network') || 
+                            errorMessage.contains('timeout') ||
+                            errorMessage.contains('connection') ||
+                            errorMessage.contains('socket');
+      
+      // Check if it's a 403/Forbidden error (API client converts 403 to AuthenticationException)
+      // Also check for permission-related errors
+      final is403Error = errorMessage.contains('403') || 
+                        errorMessage.contains('forbidden') ||
+                        errorMessage.contains('access denied') ||
+                        errorMessage.contains('permission') ||
+                        errorMessage.contains('not ready yet');
+      
+      // For 403 errors on locked capsules, this is expected behavior
+      // Recipients can view locked capsules but backend restricts refresh
+      // Don't show error - just silently fail (user can still see cached data)
+      if (is403Error) {
+        Logger.warning('Refresh blocked by 403 - this is expected for locked capsules viewed by recipients');
+        // Silently fail - user still has the cached capsule data visible
+        if (mounted) {
+          _isRefreshing = false;
+        }
+        return;
+      }
+      
+      // Show user-friendly error feedback for other errors
       if (mounted) {
         final colorScheme = ref.read(selectedColorSchemeProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Unable to refresh. Please try again.',
+              isNetworkError 
+                ? 'Connection issue. Please check your network and try again.'
+                : 'Unable to refresh. Please try again.',
               style: TextStyle(
                 color: DynamicTheme.getSnackBarTextColor(colorScheme),
               ),
@@ -439,24 +498,45 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
           }
         } else {
           final errorCode = result?.errorCode ?? 'UNKNOWN';
-          errorMessage = result?.errorMessage ?? 'Failed to create share';
+          final rawErrorMessage = result?.errorMessage ?? '';
           
-          // Make error message more user-friendly
-          if (errorCode == 'FUNCTION_NOT_FOUND') {
-            errorMessage = result?.errorMessage ?? 'Share feature not available. Make sure the Edge Function is running locally.';
-          } else if (errorCode == 'NETWORK_ERROR') {
-            errorMessage = 'Network error. Please check your connection.';
+          // Always use user-friendly error messages (never show technical errors)
+          if (errorCode == 'FUNCTION_NOT_FOUND' || errorCode == 'UNEXPECTED_ERROR') {
+            // Check if it's an Edge Function availability issue
+            if (rawErrorMessage.toLowerCase().contains('function') || 
+                rawErrorMessage.toLowerCase().contains('edge') ||
+                rawErrorMessage.toLowerCase().contains('not available') ||
+                rawErrorMessage.toLowerCase().contains('deployed')) {
+              errorMessage = 'Share feature is temporarily unavailable. Please try again later.';
+            } else {
+              errorMessage = 'Unable to create share. Please try again.';
+            }
+          } else if (errorCode == 'NETWORK_ERROR' || errorCode == 'PARSE_ERROR') {
+            errorMessage = 'Network error. Please check your connection and try again.';
           } else if (errorCode == 'NOT_AUTHENTICATED') {
             errorMessage = 'Please sign in to create a share.';
           } else if (errorCode == 'LETTER_NOT_LOCKED') {
-            errorMessage = 'Only locked letters can be shared.';
+            errorMessage = 'This letter cannot be shared at this time.';
+          } else if (errorCode == 'LETTER_ALREADY_REVEALED') {
+            errorMessage = 'Anonymous sender has been revealed. Letter cannot be shared.';
           } else if (errorCode == 'DAILY_LIMIT_REACHED') {
             errorMessage = 'You have reached your daily limit of 5 shares.';
           } else if (errorCode == 'NOT_AUTHORIZED') {
             errorMessage = 'You do not have permission to share this letter.';
+          } else if (errorCode == 'LETTER_NOT_FOUND') {
+            errorMessage = 'Letter not found.';
+          } else if (errorCode == 'LETTER_ALREADY_OPENED') {
+            errorMessage = 'This letter has already been opened and cannot be shared.';
+          } else if (errorCode == 'LETTER_DELETED') {
+            errorMessage = 'This letter has been deleted and cannot be shared.';
+          } else if (errorCode == 'INVALID_RESPONSE' || errorCode == 'INVALID_REQUEST') {
+            errorMessage = 'Unable to create share. Please try again.';
+          } else {
+            // Generic error - always use user-friendly message
+            errorMessage = 'Unable to create share. Please try again.';
           }
           
-          Logger.warning('Share creation failed: code=$errorCode, message=$errorMessage');
+          Logger.warning('Share creation failed: code=$errorCode, rawMessage=$rawErrorMessage, userMessage=$errorMessage');
           
           // Show error and close preview (only if dialog is still open)
           if (mounted && _isPreviewDialogOpen) {
@@ -483,15 +563,26 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
         }
       } catch (e, stackTrace) {
         Logger.error('Exception creating share', error: e, stackTrace: stackTrace);
-        errorMessage = 'Failed to create share: ${e.toString()}';
         
-          // Show error and close preview (only if dialog is still open)
-          if (mounted && _isPreviewDialogOpen) {
-            _isPreviewDialogOpen = false;
-            _shareUrlNotifier?.dispose();
-            _shareUrlNotifier = null;
-            Navigator.of(context).pop(); // Close loading preview
-            final colorScheme = ref.read(selectedColorSchemeProvider);
+        // Provide user-friendly error message based on exception type
+        final errorString = e.toString().toLowerCase();
+        if (errorString.contains('function') || errorString.contains('edge')) {
+          errorMessage = 'Share feature is temporarily unavailable. Please try again later.';
+        } else if (errorString.contains('network') || errorString.contains('connection') || errorString.contains('timeout')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (errorString.contains('not authenticated') || errorString.contains('unauthorized')) {
+          errorMessage = 'Please sign in to create a share.';
+        } else {
+          errorMessage = 'Unable to create share. Please try again.';
+        }
+        
+        // Show error and close preview (only if dialog is still open)
+        if (mounted && _isPreviewDialogOpen) {
+          _isPreviewDialogOpen = false;
+          _shareUrlNotifier?.dispose();
+          _shareUrlNotifier = null;
+          Navigator.of(context).pop(); // Close loading preview
+          final colorScheme = ref.read(selectedColorSchemeProvider);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -561,13 +652,16 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
     // Ensure we use the same notifier instance that will be updated
     // IMPORTANT: When shareUrl is null, we MUST use _shareUrlNotifier so updates work
     final ValueNotifier<String?> notifierToUse;
+    final bool isOneTimeNotifier; // Track if this is a one-time notifier that needs disposal
     if (shareUrl == null) {
       // Create or reuse the shared notifier for loading state
       _shareUrlNotifier ??= ValueNotifier<String?>(null);
       notifierToUse = _shareUrlNotifier!;
+      isOneTimeNotifier = false; // Shared notifier, don't dispose here
     } else {
       // For existing shareUrl, create a one-time notifier (will be disposed on dialog close)
       notifierToUse = ValueNotifier<String?>(shareUrl);
+      isOneTimeNotifier = true; // One-time notifier, needs disposal
     }
     
     return showDialog(
@@ -629,15 +723,8 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                           // Mark dialog as closed and stop share creation
                           _isPreviewDialogOpen = false;
                           _isCreatingShare = false;
-                          // Clean up ValueNotifier (only if it was the loading notifier)
-                          if (shareUrl == null && _shareUrlNotifier != null) {
-                            _shareUrlNotifier?.dispose();
-                            _shareUrlNotifier = null;
-                          }
-                          // Dispose the notifier we created for this dialog
-                          if (shareUrl != null) {
-                            notifierToUse.dispose();
-                          }
+                          // Don't dispose notifiers here - let the .then() callback handle it
+                          // This prevents double-disposal issues
                           Navigator.of(dialogContext).pop();
                         },
                         padding: EdgeInsets.zero,
@@ -966,16 +1053,22 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
       },
     ).then((_) {
       // Mark dialog as closed and clean up when dialog is dismissed
+      if (!mounted) return; // Don't do anything if widget is disposed
+      
       _isPreviewDialogOpen = false;
       _isCreatingShare = false; // Stop any ongoing share creation
-      // Only dispose if this was the loading notifier (not a one-time notifier for existing shareUrl)
-      if (shareUrl == null && _shareUrlNotifier != null) {
-        _shareUrlNotifier?.dispose();
-        _shareUrlNotifier = null;
-      }
-      // Dispose the notifier we created for this dialog if shareUrl was provided
-      if (shareUrl != null) {
-        notifierToUse.dispose();
+      
+      // Only dispose one-time notifiers (created for existing shareUrl)
+      // Don't dispose the shared _shareUrlNotifier here - it's managed separately
+      if (isOneTimeNotifier) {
+        try {
+          // Safely dispose the one-time notifier
+          notifierToUse.dispose();
+        } catch (e) {
+          // Ignore disposal errors - notifier might already be disposed
+          // This can happen if the widget was disposed before the dialog closed
+          Logger.debug('Error disposing one-time notifier (expected if already disposed): $e');
+        }
       }
     });
   }
@@ -1023,6 +1116,41 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
         await Share.share(message);
       } catch (e2) {
         Logger.error('Error in fallback share', error: e2);
+        // Show user-friendly error message
+        if (mounted) {
+          final colorScheme = ref.read(selectedColorSchemeProvider);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Unable to open share dialog. Please try again or copy the link manually.',
+                style: TextStyle(
+                  color: DynamicTheme.getSnackBarTextColor(colorScheme),
+                ),
+              ),
+              backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              ),
+              duration: Duration(seconds: 3),
+              action: SnackBarAction(
+                label: 'Copy Link',
+                textColor: DynamicTheme.getSnackBarTextColor(colorScheme),
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: message));
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Link copied to clipboard'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ),
+          );
+        }
       }
     }
   }
@@ -1707,15 +1835,6 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                                             );
                                           },
                                         ),
-                                      // Show anonymous icon if capsule is anonymous and not revealed
-                                      if (capsule.isAnonymous && !capsule.isRevealed) ...[
-                                        SizedBox(width: 8),
-                                        Icon(
-                                          Icons.visibility_off_outlined,
-                                          size: 35,
-                                          color: DynamicTheme.getPrimaryIconColor(colorScheme).withOpacity(0.8),
-                                        ),
-                                      ],
                                     ],
                                   ),
                                 ],

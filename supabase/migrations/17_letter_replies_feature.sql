@@ -49,6 +49,7 @@ CREATE INDEX IF NOT EXISTS idx_letter_replies_created_at ON public.letter_replie
 ALTER TABLE public.letter_replies ENABLE ROW LEVEL SECURITY;
 
 -- SELECT Policy: Users can view replies for letters they sent or received
+DROP POLICY IF EXISTS letter_replies_select_policy ON public.letter_replies;
 CREATE POLICY letter_replies_select_policy ON public.letter_replies
   FOR SELECT
   USING (
@@ -75,6 +76,7 @@ CREATE POLICY letter_replies_select_policy ON public.letter_replies
   );
 
 -- INSERT Policy: Only receivers can create replies, and only once per letter
+DROP POLICY IF EXISTS letter_replies_insert_policy ON public.letter_replies;
 CREATE POLICY letter_replies_insert_policy ON public.letter_replies
   FOR INSERT
   WITH CHECK (
@@ -103,6 +105,7 @@ CREATE POLICY letter_replies_insert_policy ON public.letter_replies
 -- UPDATE Policy: Allow receivers and senders to update animation seen timestamps
 -- Note: Column-level restrictions (only animation timestamps can be updated) are
 -- enforced by the backend repository methods, not by RLS policies.
+DROP POLICY IF EXISTS letter_replies_update_policy ON public.letter_replies;
 CREATE POLICY letter_replies_update_policy ON public.letter_replies
   FOR UPDATE
   USING (
@@ -144,6 +147,7 @@ CREATE POLICY letter_replies_update_policy ON public.letter_replies
   );
 
 -- DELETE Policy: No deletes allowed (replies are permanent)
+DROP POLICY IF EXISTS letter_replies_delete_policy ON public.letter_replies;
 CREATE POLICY letter_replies_delete_policy ON public.letter_replies
   FOR DELETE
   USING (false);  -- Never allow deletes
@@ -153,6 +157,7 @@ CREATE POLICY letter_replies_delete_policy ON public.letter_replies
 -- ============================================================================
 
 -- Function to create a reply (with validation)
+DROP FUNCTION IF EXISTS public.create_letter_reply(UUID, VARCHAR(60), VARCHAR(4));
 CREATE OR REPLACE FUNCTION public.create_letter_reply(
   p_letter_id UUID,
   p_reply_text VARCHAR(60),
@@ -227,6 +232,7 @@ END;
 $$;
 
 -- Function to mark receiver animation as seen
+DROP FUNCTION IF EXISTS public.mark_receiver_animation_seen(UUID);
 CREATE OR REPLACE FUNCTION public.mark_receiver_animation_seen(
   p_letter_id UUID
 )
@@ -277,6 +283,7 @@ END;
 $$;
 
 -- Function to mark sender animation as seen
+DROP FUNCTION IF EXISTS public.mark_sender_animation_seen(UUID);
 CREATE OR REPLACE FUNCTION public.mark_sender_animation_seen(
   p_letter_id UUID
 )

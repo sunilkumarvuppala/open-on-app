@@ -37,6 +37,10 @@ class Capsule {
   final DateTime? revealAt; // When sender will be revealed (openedAt + revealDelaySeconds)
   final DateTime? senderRevealedAt; // When sender was actually revealed
   
+  // Anonymous identity hints (current hint shown to receiver)
+  final String? currentHintText; // Current eligible hint text (fetched from backend)
+  final int? currentHintIndex; // Current hint index (1, 2, or 3)
+  
   Capsule({
     String? id,
     required this.senderId,
@@ -56,6 +60,8 @@ class Capsule {
     this.revealDelaySeconds,
     this.revealAt,
     this.senderRevealedAt,
+    this.currentHintText,
+    this.currentHintIndex,
   })  : id = id ?? _uuid.v4(),
         senderAvatar = senderAvatarValue ?? '',
         receiverAvatar = receiverAvatarValue ?? '',
@@ -126,16 +132,29 @@ class Capsule {
     if (!isLocked) return AppConstants.readyToOpenText;
     
     final duration = timeUntilUnlock;
+    // If duration is negative or zero, it's ready to open
+    if (duration.isNegative || duration.inSeconds <= 0) {
+      return AppConstants.readyToOpenText;
+    }
+    
+    final totalSeconds = duration.inSeconds;
     final days = duration.inDays;
     final hours = duration.inHours % 24;
-    final minutes = duration.inMinutes % 60;
+    // Calculate minutes from total seconds (not using duration.inMinutes which can truncate)
+    // This ensures 1 minute is shown when there's 60+ seconds remaining
+    final totalMinutes = totalSeconds ~/ 60;
+    final minutes = (days > 0 || hours > 0) ? (totalMinutes % 60) : totalMinutes;
     
     if (days > 0) {
       return '$days day${days != 1 ? 's' : ''} ${hours}h';
     } else if (hours > 0) {
       return '${hours}h ${minutes}m';
-    } else {
+    } else if (totalSeconds >= 60) {
+      // At least 60 seconds remaining - show minutes
       return '${minutes}m';
+    } else {
+      // Less than 60 seconds remaining - show "Ready to open"
+      return AppConstants.readyToOpenText;
     }
   }
   
@@ -245,6 +264,8 @@ class Capsule {
     int? revealDelaySeconds,
     DateTime? revealAt,
     DateTime? senderRevealedAt,
+    String? currentHintText,
+    int? currentHintIndex,
   }) {
     return Capsule(
       id: id ?? this.id,
@@ -265,6 +286,8 @@ class Capsule {
       revealDelaySeconds: revealDelaySeconds ?? this.revealDelaySeconds,
       revealAt: revealAt ?? this.revealAt,
       senderRevealedAt: senderRevealedAt ?? this.senderRevealedAt,
+      currentHintText: currentHintText ?? this.currentHintText,
+      currentHintIndex: currentHintIndex ?? this.currentHintIndex,
     );
   }
 }
@@ -369,6 +392,11 @@ class DraftCapsule {
   final bool isAnonymous;
   final int? revealDelaySeconds; // Delay in seconds (0-259200, default 21600 = 6 hours)
   
+  // Anonymous identity hints (optional, only for anonymous letters)
+  final String? hint1;
+  final String? hint2;
+  final String? hint3;
+  
   const DraftCapsule({
     this.recipient,
     this.content,
@@ -378,6 +406,9 @@ class DraftCapsule {
     this.draftId,
     this.isAnonymous = false,
     this.revealDelaySeconds,
+    this.hint1,
+    this.hint2,
+    this.hint3,
   });
   
   bool get isValid {
@@ -398,6 +429,9 @@ class DraftCapsule {
     bool clearPhoto = false,
     bool? isAnonymous,
     int? revealDelaySeconds,
+    String? hint1,
+    String? hint2,
+    String? hint3,
   }) {
     return DraftCapsule(
       recipient: recipient ?? this.recipient,
@@ -408,6 +442,9 @@ class DraftCapsule {
       draftId: draftId ?? this.draftId,
       isAnonymous: isAnonymous ?? this.isAnonymous,
       revealDelaySeconds: revealDelaySeconds ?? this.revealDelaySeconds,
+      hint1: hint1 ?? this.hint1,
+      hint2: hint2 ?? this.hint2,
+      hint3: hint3 ?? this.hint3,
     );
   }
   

@@ -63,12 +63,13 @@ CREATE INDEX IF NOT EXISTS idx_countdown_shares_expires
 ALTER TABLE public.countdown_shares ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================================
--- INSERT Policy: Owner can create shares for their own locked letters
+-- INSERT Policy: Owner can create shares for their own letters
 -- ============================================================================
 -- Validation:
 --   - owner_user_id must equal auth.uid()
 --   - Letter must belong to auth.uid() (as sender or recipient)
---   - Letter must be locked (unlocks_at > now())
+--   - Letter must be locked (unlocks_at > now() AND opened_at IS NULL) OR
+--     Letter must be opened, anonymous, and not revealed
 DROP POLICY IF EXISTS "Users can create shares for own locked letters" ON public.countdown_shares;
 CREATE POLICY "Users can create shares for own locked letters"
   ON public.countdown_shares
@@ -80,11 +81,22 @@ CREATE POLICY "Users can create shares for own locked letters"
       WHERE c.id = letter_id
         AND (c.sender_id = auth.uid() OR EXISTS (
           SELECT 1 FROM public.recipients r
-          WHERE r.id = c.recipient_id AND r.owner_id = auth.uid()
+          WHERE r.id = c.recipient_id 
+            AND (r.owner_id = auth.uid() OR r.linked_user_id = auth.uid())
         ))
-        AND c.unlocks_at > now()
-        AND c.opened_at IS NULL
         AND c.deleted_at IS NULL
+        AND (
+          -- Locked letters (not yet opened)
+          (c.unlocks_at > now() AND c.opened_at IS NULL)
+          OR
+          -- Opened anonymous letters that haven't been revealed
+          (
+            c.opened_at IS NOT NULL
+            AND c.is_anonymous = TRUE
+            AND c.sender_revealed_at IS NULL
+            AND (c.reveal_at IS NULL OR c.reveal_at > now())
+          )
+        )
     )
   );
 
@@ -147,6 +159,7 @@ DECLARE
   v_share_token TEXT;
   v_share_url TEXT;
   v_base_url TEXT;
+  v_open_at TIMESTAMPTZ;
 BEGIN
   -- Get current user
   v_user_id := auth.uid();
@@ -161,7 +174,7 @@ BEGIN
   END IF;
   
   -- Get letter and validate ownership
-  SELECT c.id, c.unlocks_at, c.sender_id, c.recipient_id, c.opened_at, c.deleted_at
+  SELECT c.id, c.unlocks_at, c.sender_id, c.recipient_id, c.opened_at, c.deleted_at, c.is_anonymous, c.reveal_at, c.sender_revealed_at
   INTO v_letter
   FROM public.capsules c
   WHERE c.id = p_letter_id;
@@ -175,22 +188,39 @@ BEGIN
     RAISE EXCEPTION 'COUNTDOWN_SHARE_ERROR:LETTER_DELETED';
   END IF;
   
-  -- Check if letter is already opened
-  IF v_letter.opened_at IS NOT NULL THEN
-    RAISE EXCEPTION 'COUNTDOWN_SHARE_ERROR:LETTER_ALREADY_OPENED';
+  -- Allow sharing if:
+  -- 1. Letter is locked (unlocks_at > now() and opened_at IS NULL), OR
+  -- 2. Letter is opened, anonymous, and not yet revealed (reveal_at > now() OR sender_revealed_at IS NULL)
+  IF v_letter.opened_at IS NULL THEN
+    -- Letter is locked - check if unlocks_at is in the future
+    IF v_letter.unlocks_at <= now() THEN
+      RAISE EXCEPTION 'COUNTDOWN_SHARE_ERROR:LETTER_NOT_LOCKED: unlocks_at must be in the future';
+    END IF;
+  ELSE
+    -- Letter is opened - only allow if anonymous and not revealed
+    IF NOT v_letter.is_anonymous THEN
+      RAISE EXCEPTION 'COUNTDOWN_SHARE_ERROR:LETTER_ALREADY_OPENED: Only anonymous letters can be shared after opening';
+    END IF;
+    
+    -- Check if anonymous sender has been revealed
+    IF v_letter.sender_revealed_at IS NOT NULL THEN
+      RAISE EXCEPTION 'COUNTDOWN_SHARE_ERROR:LETTER_ALREADY_REVEALED: Anonymous sender has already been revealed';
+    END IF;
+    
+    -- Check if reveal_at has passed (if set)
+    IF v_letter.reveal_at IS NOT NULL AND v_letter.reveal_at <= now() THEN
+      RAISE EXCEPTION 'COUNTDOWN_SHARE_ERROR:LETTER_ALREADY_REVEALED: Reveal time has passed';
+    END IF;
   END IF;
   
-  -- Check if letter is locked (unlocks_at > now())
-  IF v_letter.unlocks_at <= now() THEN
-    RAISE EXCEPTION 'COUNTDOWN_SHARE_ERROR:LETTER_NOT_LOCKED: unlocks_at must be in the future';
-  END IF;
-  
-  -- Validate ownership: user must be sender or recipient owner
+  -- Validate ownership: user must be sender OR recipient (via owner_id or linked_user_id)
   IF v_letter.sender_id != v_user_id THEN
-    -- Check if user is the recipient owner
+    -- Check if user is the recipient owner (for email-based recipients)
+    -- OR the linked_user_id (for connection-based recipients)
     IF NOT EXISTS (
       SELECT 1 FROM public.recipients r
-      WHERE r.id = v_letter.recipient_id AND r.owner_id = v_user_id
+      WHERE r.id = v_letter.recipient_id 
+        AND (r.owner_id = v_user_id OR r.linked_user_id = v_user_id)
     ) THEN
       RAISE EXCEPTION 'COUNTDOWN_SHARE_ERROR:NOT_AUTHORIZED: You do not own this letter';
     END IF;
@@ -219,6 +249,22 @@ BEGIN
   
   v_share_url := v_base_url || '/' || v_share_token;
   
+  -- Determine the appropriate open_at value for the share
+  -- For locked letters: use unlocks_at
+  -- For opened anonymous letters: use reveal_at (when identity will be revealed)
+  IF v_letter.opened_at IS NULL THEN
+    -- Letter is locked - use unlocks_at
+    v_open_at := v_letter.unlocks_at;
+  ELSE
+    -- Letter is opened - for anonymous letters, use reveal_at
+    IF v_letter.is_anonymous AND v_letter.reveal_at IS NOT NULL THEN
+      v_open_at := v_letter.reveal_at;
+    ELSE
+      -- Should not happen (validation above should prevent this)
+      RAISE EXCEPTION 'COUNTDOWN_SHARE_ERROR:INVALID_STATE: Cannot determine open_at for this letter';
+    END IF;
+  END IF;
+  
   -- Insert share record
   INSERT INTO public.countdown_shares (
     letter_id,
@@ -234,7 +280,7 @@ BEGIN
     v_share_token,
     p_share_type,
     p_expires_at,
-    v_letter.unlocks_at
+    v_open_at
   )
   RETURNING id INTO v_share_id;
   
