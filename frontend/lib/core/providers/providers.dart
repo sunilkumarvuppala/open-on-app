@@ -62,6 +62,13 @@ final countdownShareRepositoryProvider = Provider<CountdownShareRepository>((ref
   return SupabaseCountdownShareRepository();
 });
 
+final letterReplyRepositoryProvider = Provider<LetterReplyRepository>((ref) {
+  if (useApiRepositories) {
+    return ApiLetterReplyRepository();
+  }
+  throw UnimplementedError('Mock letter reply repository not implemented');
+});
+
 // Auth state providers
 final currentUserProvider = StreamProvider<User?>((ref) async* {
   final authRepo = ref.watch(authRepositoryProvider);

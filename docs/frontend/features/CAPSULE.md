@@ -89,6 +89,8 @@ features/capsule/
 
 **Purpose**: Display opened letter content.
 
+**Documentation**: For code quality improvements, security enhancements, and optimizations, see [Opened Letter Screen Optimization](../../development/OPENED_LETTER_SCREEN_OPTIMIZATION.md).
+
 **Key Features**:
 - Letter title
 - Letter content
@@ -98,6 +100,7 @@ features/capsule/
 - Opened date/time
 - Reaction options
 - Share letter (future)
+- Letter reply composer (receiver can reply)
 - Beautiful letter UI
 - Realtime updates for anonymous reveal
 

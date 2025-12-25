@@ -1563,3 +1563,125 @@ class ApiSelfLetterRepository implements SelfLetterRepository {
   }
 }
 
+/// API-based Letter Reply Repository
+class ApiLetterReplyRepository implements LetterReplyRepository {
+  final ApiClient _apiClient = ApiClient();
+
+  @override
+  Future<LetterReply?> getReplyByLetterId(String letterId) async {
+    try {
+      UuidUtils.validateCapsuleId(letterId);
+      
+      Logger.info('Fetching reply for letter: $letterId');
+      
+      final response = await _apiClient.get(ApiConfig.letterReplyByLetterId(letterId));
+      
+      return LetterReply.fromJson(response as Map<String, dynamic>);
+    } catch (e, stackTrace) {
+      Logger.error('Failed to get reply by letter ID', error: e, stackTrace: stackTrace);
+      if (e is NotFoundException) {
+        return null;
+      }
+      if (e is AppException) {
+        rethrow;
+      }
+      throw RepositoryException(
+        'Failed to get reply: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  @override
+  Future<LetterReply> createReply(String letterId, String replyText, String replyEmoji) async {
+    try {
+      UuidUtils.validateCapsuleId(letterId);
+      
+      // Validate inputs
+      if (!LetterReply.isValidReplyText(replyText)) {
+        throw ValidationException('Reply text must be between 1 and 60 characters');
+      }
+      if (!LetterReply.isValidEmoji(replyEmoji)) {
+        throw ValidationException('Invalid emoji. Must be one of: ${LetterReply.allowedEmojis.join(", ")}');
+      }
+      
+      Logger.info('Creating reply for letter: $letterId');
+      
+      final response = await _apiClient.post(
+        ApiConfig.createLetterReply(letterId),
+        {
+          'reply_text': replyText.trim(),
+          'reply_emoji': replyEmoji,
+        },
+      );
+      
+      final reply = LetterReply.fromJson(response as Map<String, dynamic>);
+      Logger.info('Reply created successfully: ${reply.id}');
+      return reply;
+    } catch (e, stackTrace) {
+      Logger.error('Failed to create reply', error: e, stackTrace: stackTrace);
+      if (e is AppException) {
+        rethrow;
+      }
+      throw RepositoryException(
+        'Failed to create reply: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  @override
+  Future<void> markReceiverAnimationSeen(String letterId) async {
+    try {
+      UuidUtils.validateCapsuleId(letterId);
+      
+      Logger.info('Marking receiver animation as seen for letter: $letterId');
+      
+      await _apiClient.post(
+        ApiConfig.markReceiverAnimationSeen(letterId),
+        {},
+      );
+      
+      Logger.info('Receiver animation marked as seen');
+    } catch (e, stackTrace) {
+      Logger.error('Failed to mark receiver animation as seen', error: e, stackTrace: stackTrace);
+      if (e is AppException) {
+        rethrow;
+      }
+      throw RepositoryException(
+        'Failed to mark receiver animation as seen: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  @override
+  Future<void> markSenderAnimationSeen(String letterId) async {
+    try {
+      UuidUtils.validateCapsuleId(letterId);
+      
+      Logger.info('Marking sender animation as seen for letter: $letterId');
+      
+      await _apiClient.post(
+        ApiConfig.markSenderAnimationSeen(letterId),
+        {},
+      );
+      
+      Logger.info('Sender animation marked as seen');
+    } catch (e, stackTrace) {
+      Logger.error('Failed to mark sender animation as seen', error: e, stackTrace: stackTrace);
+      if (e is AppException) {
+        rethrow;
+      }
+      throw RepositoryException(
+        'Failed to mark sender animation as seen: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+}
+

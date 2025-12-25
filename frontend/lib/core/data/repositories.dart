@@ -955,3 +955,18 @@ class MockAuthRepository implements AuthRepository {
     }
   }
 }
+
+/// Repository interface for letter reply operations
+abstract class LetterReplyRepository {
+  /// Get reply for a letter (if exists)
+  Future<LetterReply?> getReplyByLetterId(String letterId);
+  
+  /// Create a reply for a letter (one-time only)
+  Future<LetterReply> createReply(String letterId, String replyText, String replyEmoji);
+  
+  /// Mark receiver animation as seen (after sending reply)
+  Future<void> markReceiverAnimationSeen(String letterId);
+  
+  /// Mark sender animation as seen (when viewing reply)
+  Future<void> markSenderAnimationSeen(String letterId);
+}

@@ -61,6 +61,12 @@ class ApiConfig {
   static String openSelfLetter(String id) => '/self-letters/$id/open';
   static String submitReflection(String id) => '/self-letters/$id/reflection';
 
+  // Letter reply endpoints
+  static String letterReplyByLetterId(String letterId) => '/letter-replies/letters/$letterId';
+  static String createLetterReply(String letterId) => '/letter-replies/letters/$letterId';
+  static String markReceiverAnimationSeen(String letterId) => '/letter-replies/letters/$letterId/mark-receiver-animation-seen';
+  static String markSenderAnimationSeen(String letterId) => '/letter-replies/letters/$letterId/mark-sender-animation-seen';
+
   // Helper method to build full URL
   static String buildUrl(String endpoint) {
     return '$baseUrl$endpoint';

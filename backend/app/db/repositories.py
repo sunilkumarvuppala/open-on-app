@@ -29,7 +29,7 @@ from sqlalchemy.exc import ProgrammingError, DBAPIError
 from app.db.models import (
     UserProfile, Capsule, Recipient, Theme, Animation, Notification,
     UserSubscription, AuditLog, SelfLetter, CapsuleStatus, NotificationType,
-    SubscriptionStatus, RecipientRelationship
+    SubscriptionStatus, RecipientRelationship, LetterReply
 )
 from app.db.repository import BaseRepository
 
@@ -1184,3 +1184,71 @@ class SelfLetterRepository(BaseRepository[SelfLetter]):
         
         result = await self.session.execute(query)
         return list(result.scalars().all())
+
+
+class LetterReplyRepository(BaseRepository[LetterReply]):
+    """
+    Repository for letter reply operations.
+    
+    This repository handles one-time replies from receivers to senders.
+    Each letter can have at most one reply, enforced by UNIQUE constraint.
+    """
+    
+    def __init__(self, session: AsyncSession):
+        super().__init__(LetterReply, session)
+    
+    async def get_by_letter_id(self, letter_id: UUID) -> Optional[LetterReply]:
+        """Get reply for a specific letter."""
+        result = await self.session.execute(
+            select(LetterReply).where(LetterReply.letter_id == letter_id)
+        )
+        return result.scalar_one_or_none()
+    
+    async def create(
+        self,
+        letter_id: UUID,
+        reply_text: str,
+        reply_emoji: str
+    ) -> LetterReply:
+        """Create a new reply for a letter."""
+        instance = LetterReply(
+            letter_id=letter_id,
+            reply_text=reply_text,
+            reply_emoji=reply_emoji
+        )
+        self.session.add(instance)
+        await self.session.flush()
+        await self.session.refresh(instance)
+        return instance
+    
+    async def mark_receiver_animation_seen(self, letter_id: UUID) -> bool:
+        """Mark receiver animation as seen for a reply."""
+        stmt = (
+            update(LetterReply)
+            .where(
+                and_(
+                    LetterReply.letter_id == letter_id,
+                    LetterReply.receiver_animation_seen_at.is_(None)
+                )
+            )
+            .values(receiver_animation_seen_at=datetime.now(timezone.utc))
+        )
+        result = await self.session.execute(stmt)
+        await self.session.flush()
+        return result.rowcount > 0
+    
+    async def mark_sender_animation_seen(self, letter_id: UUID) -> bool:
+        """Mark sender animation as seen for a reply."""
+        stmt = (
+            update(LetterReply)
+            .where(
+                and_(
+                    LetterReply.letter_id == letter_id,
+                    LetterReply.sender_animation_seen_at.is_(None)
+                )
+            )
+            .values(sender_animation_seen_at=datetime.now(timezone.utc))
+        )
+        result = await self.session.execute(stmt)
+        await self.session.flush()
+        return result.rowcount > 0

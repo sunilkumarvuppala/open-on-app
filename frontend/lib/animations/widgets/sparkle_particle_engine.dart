@@ -128,6 +128,8 @@ class SparkleParticleEngine extends StatefulWidget {
   final SparkleMode mode;
   final Color? primaryColor;
   final Color? secondaryColor;
+  final double? opacityMultiplier; // Multiplier for particle opacity (0.0 to 1.0)
+  final double? speedMultiplier; // Multiplier for particle speed (0.0 to 1.0)
   
   const SparkleParticleEngine({
     super.key,
@@ -137,6 +139,8 @@ class SparkleParticleEngine extends StatefulWidget {
     this.mode = SparkleMode.drift,
     this.primaryColor,
     this.secondaryColor,
+    this.opacityMultiplier,
+    this.speedMultiplier,
   });
   
   @override
@@ -180,14 +184,24 @@ class _SparkleParticleEngineState extends State<SparkleParticleEngine>
       AnimationTheme.whitePure,
     ];
     
+    // Apply opacity multiplier if provided (default: 1.0 for full opacity)
+    final opacityMult = widget.opacityMultiplier ?? 1.0;
+    final baseOpacity = 0.4 + _random.nextDouble() * 0.6;
+    final finalOpacity = baseOpacity * opacityMult;
+    
+    // Apply speed multiplier if provided (default: 1.0 for normal speed)
+    final speedMult = widget.speedMultiplier ?? 1.0;
+    final baseSpeed = 0.5 + _random.nextDouble() * 1.5;
+    final finalSpeed = baseSpeed * speedMult;
+    
     return Sparkle(
       x: _random.nextDouble(),
       y: _random.nextDouble(),
       size: AnimationTheme.sparkleMinSize +
           _random.nextDouble() *
               (AnimationTheme.sparkleMaxSize - AnimationTheme.sparkleMinSize),
-      speed: 0.5 + _random.nextDouble() * 1.5,
-      opacity: 0.4 + _random.nextDouble() * 0.6,
+      speed: finalSpeed,
+      opacity: finalOpacity,
       angle: _random.nextDouble() * 2 * math.pi,
       lifetime: _random.nextDouble(),
       color: colorPalette[_random.nextInt(colorPalette.length)],
@@ -228,7 +242,10 @@ class _SparkleParticleEngineState extends State<SparkleParticleEngine>
   
   void _updateDriftMode(Sparkle sparkle, Size size, double dt) {
     // Gentle upward drift with slight horizontal sway
-    sparkle.y -= (sparkle.speed * AnimationTheme.sparkleDriftSpeed * dt) / size.height;
+    // Apply speed multiplier to drift speed for slower movement
+    final speedMult = widget.speedMultiplier ?? 1.0;
+    final driftSpeed = AnimationTheme.sparkleDriftSpeed * speedMult;
+    sparkle.y -= (sparkle.speed * driftSpeed * dt) / size.height;
     sparkle.x += math.sin(sparkle.lifetime * math.pi * 2) * 0.001;
     
     // Wrap around
