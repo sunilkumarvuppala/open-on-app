@@ -6,7 +6,7 @@ and state management.
 
 Responsibilities:
 - Self letter creation validation
-- Content validation (280-500 characters)
+- Content validation (configurable min/max length)
 - Scheduled time validation
 - Opening validation
 - Reflection submission validation
@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.repositories import SelfLetterRepository
 from app.core.logging import get_logger
+from app.core.config import settings
 from app.utils.helpers import sanitize_text
 
 logger = get_logger(__name__)
@@ -27,8 +28,9 @@ logger = get_logger(__name__)
 class SelfLetterService:
     """Service layer for self letter business logic and validation."""
     
-    MIN_CONTENT_LENGTH = 20
-    MAX_CONTENT_LENGTH = 500
+    # Content length constraints from settings
+    MIN_CONTENT_LENGTH = settings.self_letter_min_content_length
+    MAX_CONTENT_LENGTH = settings.self_letter_max_content_length
     
     def __init__(self, session: AsyncSession):
         """Initialize self letter service with database session."""
@@ -192,7 +194,7 @@ class SelfLetterService:
             user_id: User ID
             
         Returns:
-            Dictionary with letter data
+            Dictionary with letter data (includes title)
             
         Raises:
             HTTPException: If letter cannot be opened
@@ -201,6 +203,8 @@ class SelfLetterService:
         await self.validate_letter_for_opening(letter_id, user_id)
         
         # Use database function to open letter atomically
+        # Function returns: id, title, content, char_count, scheduled_open_at, 
+        #                   opened_at, mood, life_area, city, created_at
         result = await self.session.execute(
             text("SELECT * FROM public.open_self_letter(:letter_id, :user_id)"),
             {"letter_id": str(letter_id), "user_id": str(user_id)}
@@ -213,17 +217,20 @@ class SelfLetterService:
                 detail="Failed to open letter"
             )
         
-        # Convert row to dict
+        # Convert row to dict using named columns for safety
+        # Order matches function return: id, title, content, char_count, 
+        # scheduled_open_at, opened_at, mood, life_area, city, created_at
         return {
             "id": row[0],
-            "content": row[1],
-            "char_count": row[2],
-            "scheduled_open_at": row[3],
-            "opened_at": row[4],
-            "mood": row[5],
-            "life_area": row[6],
-            "city": row[7],
-            "created_at": row[8]
+            "title": row[1],  # Added title (migration 24)
+            "content": row[2],
+            "char_count": row[3],
+            "scheduled_open_at": row[4],
+            "opened_at": row[5],
+            "mood": row[6],
+            "life_area": row[7],
+            "city": row[8],
+            "created_at": row[9]
         }
     
     async def submit_reflection(

@@ -36,6 +36,7 @@
 
 ### Frontend (Flutter/Dart)
 - **[frontend/INDEX.md](./frontend/INDEX.md)** - Frontend documentation index
+- **[frontend/features/LETTERS_TO_SELF.md](./frontend/features/LETTERS_TO_SELF.md)** - Self Letters frontend implementation
 - **[frontend/GETTING_STARTED.md](./frontend/GETTING_STARTED.md)** - Setup and quick start
 - **[frontend/DEVELOPMENT_GUIDE.md](./frontend/DEVELOPMENT_GUIDE.md)** - Complete development guide
 - **[frontend/RECIPIENT_ID_REFACTOR.md](./frontend/RECIPIENT_ID_REFACTOR.md)** - **Critical**: Understanding recipientId vs user IDs ⭐ IMPORTANT
@@ -71,8 +72,9 @@
 - **[frontend/features/ANIMATIONS.md](./frontend/features/ANIMATIONS.md)** - Animation system
 
 ### Special Features
+- **[features/SELF_LETTERS.md](./features/SELF_LETTERS.md)** - **Self Letters feature (complete documentation)** ⭐ NEW
 - **[frontend/features/ANONYMOUS_LETTERS.md](./frontend/features/ANONYMOUS_LETTERS.md)** - Anonymous Letters feature
-- **[frontend/features/LETTERS_TO_SELF.md](./frontend/features/LETTERS_TO_SELF.md)** - Letters to Self feature
+- **[frontend/features/LETTERS_TO_SELF.md](./frontend/features/LETTERS_TO_SELF.md)** - Self Letters frontend implementation ⭐ NEW
 - **[features/COUNTDOWN_SHARES.md](./features/COUNTDOWN_SHARES.md)** - Countdown Shares feature (viral sharing)
 - **[features/LETTER_REPLIES.md](./features/LETTER_REPLIES.md)** - Letter Replies feature (one-time recipient replies) ⭐ NEW
 - **[features/ANONYMOUS_IDENTITY_HINTS.md](./features/ANONYMOUS_IDENTITY_HINTS.md)** - Anonymous Identity Hints feature (progressive hint revelation) ⭐ NEW

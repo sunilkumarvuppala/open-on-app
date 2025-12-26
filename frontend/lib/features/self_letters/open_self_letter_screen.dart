@@ -742,9 +742,14 @@ class _OpenSelfLetterScreenState extends ConsumerState<OpenSelfLetterScreen>
     final dateFormat = DateFormat('MMM d, yyyy');
     parts.add(dateFormat.format(letter.createdAt));
     
-    // Mood emoji
+    // Mood emoji with text (e.g., "😊 happy")
     if (letter.mood != null && letter.mood!.isNotEmpty) {
-      parts.add(letter.mood!);
+      final moodText = _getMoodText(letter.mood!);
+      if (moodText != null) {
+        parts.add('${letter.mood} $moodText');
+      } else {
+        parts.add(letter.mood!);
+      }
     }
     
     if (parts.isEmpty) return const SizedBox.shrink();
@@ -756,6 +761,32 @@ class _OpenSelfLetterScreenState extends ConsumerState<OpenSelfLetterScreen>
         fontSize: 12,
       ),
     );
+  }
+  
+  /// Get descriptive text for mood emoji (lowercase)
+  String? _getMoodText(String emoji) {
+    const moodMap = {
+      '😊': 'happy',
+      '😔': 'sad',
+      '😌': 'peaceful',
+      '🥹': 'touched',
+      '😐': 'neutral',
+      '😄': 'joyful',
+      '😢': 'crying',
+      '😴': 'tired',
+      '🤔': 'thoughtful',
+      '😍': 'loving',
+      '😤': 'frustrated',
+      '🙂': 'grateful',
+      '😕': 'confused',
+      '😎': 'confident',
+      '🥰': 'adoring',
+      '😟': 'worried',
+      '😇': 'blessed',
+      '🤗': 'hugging',
+      '😑': 'expressionless',
+    };
+    return moodMap[emoji];
   }
   
   Widget _buildReflectionDisplay(SelfLetter letter, AppColorScheme colorScheme, ThemeData theme) {

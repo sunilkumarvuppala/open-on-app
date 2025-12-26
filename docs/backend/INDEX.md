@@ -34,6 +34,7 @@ docs/backend/
 1. **API Reference**: [API_REFERENCE.md](./API_REFERENCE.md) - Complete endpoint documentation
 2. **Authentication**: See [API_REFERENCE.md#authentication](./API_REFERENCE.md#authentication)
 3. **Capsules**: See [API_REFERENCE.md#capsules](./API_REFERENCE.md#capsules)
+4. **Self Letters**: See [API_REFERENCE.md#self-letters-endpoints](./API_REFERENCE.md#self-letters-endpoints) ⭐ NEW
 
 ### For Configuration & Deployment
 1. **Configuration**: [CONFIGURATION.md](./CONFIGURATION.md) - Environment setup

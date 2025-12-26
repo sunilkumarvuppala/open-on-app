@@ -33,6 +33,7 @@ from app.dependencies import DatabaseSession, CurrentUser
 from app.db.repositories import SelfLetterRepository
 from app.core.logging import get_logger
 from app.core.pagination import calculate_pagination
+from app.core.config import settings
 from app.services.self_letter_service import SelfLetterService
 
 # Router for all self letter endpoints
@@ -111,7 +112,12 @@ async def list_self_letters(
     current_user: CurrentUser,
     session: DatabaseSession,
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(50, ge=1, le=100, description="Maximum number of records to return")
+    limit: int = Query(
+        settings.default_page_size,
+        ge=settings.min_page_size,
+        le=settings.max_page_size,
+        description="Maximum number of records to return"
+    )
 ) -> SelfLetterListResponse:
     """
     List all self letters for the current user.
@@ -199,14 +205,25 @@ async def open_self_letter(
     
     logger.info(f"Self letter opened: letter_id={letter_id}, user_id={current_user.user_id}")
     
-    # Reload letter to get all fields
+    # Reload letter to get all fields (including reflection_answer, reflected_at, etc.)
+    # RLS policies ensure only the owner can access their letter
+    # The database function already validated ownership, so this is safe
     self_letter_repo = SelfLetterRepository(session)
     letter = await self_letter_repo.get_by_id(letter_id)
     
     if not letter:
+        # This should not happen since function validated ownership
+        # But provides safety in case of race condition
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Letter not found"
+        )
+    
+    # Extra safety: Verify ownership (RLS should already enforce this, but explicit check is safer)
+    if letter.user_id != current_user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to access this letter"
         )
     
     return SelfLetterResponse(

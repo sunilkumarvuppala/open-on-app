@@ -120,6 +120,10 @@ class Settings(BaseSettings):
     max_title_length: int = 255  # Maximum capsule title length
     max_theme_length: int = 50  # Maximum theme name length
     
+    # ===== Self Letter Constraints =====
+    self_letter_min_content_length: int = 20  # Minimum self letter content length
+    self_letter_max_content_length: int = 500  # Maximum self letter content length
+    
     # ===== Background Worker =====
     worker_check_interval_seconds: int = 60
     # Interval for background worker to check capsule unlock times

@@ -110,16 +110,20 @@
 - ✅ Single claim enforcement (first user wins)
 - ✅ Revocable (deleting letter invalidates invite)
 
-### 8. **Letters to Self** ⭐ NEW
+### 8. **Self Letters** ⭐ NEW
 - ✅ Write sealed letters to future self
 - ✅ Irreversible after creation (no edit/delete)
 - ✅ Time-locked content (no previews before scheduled time)
-- ✅ Character limit: 280-500 characters
-- ✅ Optional context capture (mood, life area, city)
+- ✅ Character limit: 20-500 characters (configurable)
+- ✅ Optional title field for better organization
+- ✅ Optional context capture (mood with text, life area, city)
+- ✅ Searchable mood dropdown (20 options with emoji + text)
 - ✅ One-time reflection prompt after opening
-- ✅ Reflection options: "Yes", "Not anymore", "Skip"
-- ✅ Waiting/Archive tabs for organization
+- ✅ Reflection options: "Still true", "Changed", "Skipped"
+- ✅ Integrated into Home screen (Sealed/Opened tabs)
+- ✅ Lock animations and dynamic badges (matching regular capsules)
 - ✅ Database-level immutability enforcement
+- ✅ Complete isolation from regular capsules (no interference)
 
 ### 8. **Draft Management**
 - ✅ Auto-save drafts while writing (debounced, 800ms)
