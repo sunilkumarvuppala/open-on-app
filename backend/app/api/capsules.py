@@ -32,7 +32,9 @@ from app.models.schemas import (
     CapsuleResponse,
     CapsuleListResponse,
     MessageResponse,
-    AnonymousHintResponse
+    AnonymousHintResponse,
+    SenderLockStateResponse,
+    TrackViewResponse
 )
 from app.dependencies import DatabaseSession, CurrentUser
 from app.db.repositories import CapsuleRepository, RecipientRepository
@@ -849,3 +851,144 @@ async def delete_capsule(
     logger.info(f"Capsule {capsule_id} soft-deleted by user {current_user.user_id}")
     
     return MessageResponse(message="Capsule deleted successfully")
+
+
+@router.post("/{capsule_id}/track-view", response_model=TrackViewResponse)
+async def track_receiver_view(
+    capsule_id: UUID,
+    request: Request,
+    current_user: CurrentUser,
+    session: DatabaseSession
+) -> TrackViewResponse:
+    """
+    Track when receiver views a locked letter.
+    
+    This endpoint increments pre_open_view_count when:
+    - Letter is locked (status sealed/ready, opened_at IS NULL)
+    - Current user is the recipient
+    - Letter open time has not passed OR status is 'ready'
+    
+    This is idempotent - should only be called once per session.
+    Receiver must NEVER see this tracking data.
+    """
+    from sqlalchemy import text
+    
+    user_email = getattr(request.state, 'user_email', None)
+    
+    # Verify recipient access (raises 404 or 403 if not authorized)
+    # This ensures only the recipient can track views
+    await verify_capsule_recipient(
+        session,
+        capsule_id,
+        current_user.user_id,
+        user_email
+    )
+    
+    try:
+        # Call RPC function to track view (pass user_id as parameter)
+        result = await session.execute(
+            text("SELECT * FROM public.rpc_track_receiver_view_locked_letter(:capsule_id, :user_id)"),
+            {"capsule_id": str(capsule_id), "user_id": str(current_user.user_id)}
+        )
+        rows = result.fetchall()
+        
+        if not rows:
+            logger.warning(
+                f"rpc_track_receiver_view_locked_letter returned no rows for capsule {capsule_id}, "
+                f"user {current_user.user_id}"
+            )
+            return TrackViewResponse(success=True, tracked=False, reason="no_result")
+        
+        # Parse JSONB result
+        result_data = rows[0][0] if rows else {}
+        tracked = result_data.get('tracked', False)
+        reason = result_data.get('reason')
+        
+        logger.debug(
+            f"Tracked view for capsule {capsule_id} by user {current_user.user_id}: "
+            f"tracked={tracked}, reason={reason}"
+        )
+        
+        return TrackViewResponse(
+            success=True,
+            tracked=tracked,
+            reason=reason
+        )
+    except Exception as e:
+        # Log error but don't expose details to client
+        logger.error(
+            f"Failed to track view for capsule {capsule_id} by user {current_user.user_id}: {e}",
+            exc_info=True
+        )
+        # Return success=False only for critical errors
+        # For most cases, return success=True with tracked=False to avoid revealing letter existence
+        if "ANTICIPATION_ERROR" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e).replace("ANTICIPATION_ERROR:", "")
+            )
+        return TrackViewResponse(success=True, tracked=False, reason="error")
+
+
+@router.get("/{capsule_id}/sender-lock-state", response_model=SenderLockStateResponse)
+async def get_sender_lock_state(
+    capsule_id: UUID,
+    current_user: CurrentUser,
+    session: DatabaseSession
+) -> SenderLockStateResponse:
+    """
+    Get sender-only anticipation message for locked letter.
+    
+    Returns anticipation message only if:
+    - Letter is locked (status sealed/ready, opened_at IS NULL)
+    - Receiver has checked at least once (pre_open_view_count > 0)
+    - Current user is the sender
+    
+    This data is NEVER visible to the receiver.
+    """
+    from sqlalchemy import text
+    
+    # Verify sender access (raises 404 or 403 if not authorized)
+    await verify_capsule_sender(
+        session,
+        capsule_id,
+        current_user.user_id
+    )
+    
+    try:
+        # Call RPC function to get sender lock state (pass user_id as parameter)
+        result = await session.execute(
+            text("SELECT * FROM public.rpc_get_sender_lock_state(:capsule_id, :user_id)"),
+            {"capsule_id": str(capsule_id), "user_id": str(current_user.user_id)}
+        )
+        rows = result.fetchall()
+        
+        if not rows:
+            logger.warning(
+                f"rpc_get_sender_lock_state returned no rows for capsule {capsule_id}, "
+                f"user {current_user.user_id}"
+            )
+            return SenderLockStateResponse(showAnticipation=False)
+        
+        # Parse JSONB result
+        result_data = rows[0][0] if rows else {}
+        show_anticipation = result_data.get('showAnticipation', False)
+        message = result_data.get('message')
+        
+        return SenderLockStateResponse(
+            showAnticipation=show_anticipation,
+            message=message
+        )
+    except Exception as e:
+        # Log error and handle appropriately
+        logger.error(
+            f"Failed to get sender lock state for capsule {capsule_id} by user {current_user.user_id}: {e}",
+            exc_info=True
+        )
+        if "ANTICIPATION_ERROR" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e).replace("ANTICIPATION_ERROR:", "")
+            )
+        # Return no anticipation on error
+        return SenderLockStateResponse(showAnticipation=False)

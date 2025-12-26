@@ -7,6 +7,28 @@ This document tracks the documentation creation and updates.
 
 ## Documentation Created - 2025
 
+### December 2025 - Recipient ID Refactor Documentation
+
+**Critical Documentation Added**:
+- ✅ **[frontend/RECIPIENT_ID_REFACTOR.md](../frontend/RECIPIENT_ID_REFACTOR.md)** - Comprehensive production-ready documentation for recipient ID refactor
+- ✅ **[architecture/DATA_MODEL_GUIDE.md](../architecture/DATA_MODEL_GUIDE.md)** - Complete guide to understanding users, recipients, and capsules
+- ✅ **[frontend/CHANGELOG_RECIPIENT_ID_REFACTOR.md](../frontend/CHANGELOG_RECIPIENT_ID_REFACTOR.md)** - Detailed changelog for refactor
+
+**Documentation Updates**:
+- ✅ Updated `frontend/INDEX.md` - Added reference to recipient ID refactor
+- ✅ Updated `frontend/features/CAPSULE.md` - Added data model section
+- ✅ Updated `frontend/features/RECIPIENTS.md` - Added clarification about recipient types
+- ✅ Updated `architecture/INDEX.md` - Added reference to data model guide
+- ✅ Updated `docs/INDEX.md` - Added references to critical docs
+- ✅ Updated `docs/README.md` - Added references to critical docs
+- ✅ Updated `getting-started/ONBOARDING.md` - Added to essential reading
+
+**Purpose**: Production-ready, acquisition-ready documentation that prevents future confusion about recipient IDs vs user IDs. Clear for new developers and due diligence.
+
+---
+
+## Documentation Created - 2025 (Historical)
+
 ### Initial Documentation Suite
 
 Created comprehensive documentation covering all aspects of the OpenOn app codebase:

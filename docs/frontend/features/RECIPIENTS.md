@@ -4,6 +4,12 @@
 
 The Recipients feature allows users to manage their letter recipients. Users can view, add, edit, and delete recipients.
 
+**⚠️ Important**: Recipients are contact list entries, not user accounts. A recipient record can represent either:
+- **Email-based recipient**: A contact with an email address (may or may not be a registered user)
+- **Connection-based recipient**: A registered user you're connected with (has `linked_user_id`)
+
+**📖 See**: [Recipient ID Refactor Documentation](../RECIPIENT_ID_REFACTOR.md) for complete understanding of recipient records vs user IDs.
+
 ## Purpose
 
 - Manage letter recipients
@@ -317,9 +323,12 @@ Future<void> _saveRecipient() async {
 
 ## Related Documentation
 
+- **[Recipient ID Refactor](../RECIPIENT_ID_REFACTOR.md)** - **Critical**: Understanding recipient records vs user IDs
 - [Create Capsule](./CREATE_CAPSULE.md) - For recipient selection
 - [Home Screen](./HOME.md) - For FAB navigation
+- [Capsule Feature](./CAPSULE.md) - How recipients are used in capsules
 - [API Reference](../../reference/API_REFERENCE.md) - For recipient repository API
+- [Database Schema](../../supabase/DATABASE_SCHEMA.md) - Recipients table structure
 
 ---
 

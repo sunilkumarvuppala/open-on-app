@@ -45,6 +45,8 @@ class ApiConfig {
   static String capsuleById(String id) => '/capsules/$id';
   static String openCapsule(String id) => '/capsules/$id/open';
   static String capsuleHint(String id) => '/capsules/$id/hint';
+  static String trackCapsuleView(String id) => '/capsules/$id/track-view';
+  static String senderLockState(String id) => '/capsules/$id/sender-lock-state';
 
   static const String recipients = '/recipients';
   static String recipientById(String id) => '/recipients/$id';

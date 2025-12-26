@@ -45,6 +45,7 @@
 
 **Architecture** (`architecture/`):
 - **[ARCHITECTURE.md](./architecture/ARCHITECTURE.md)** - System architecture
+- **[DATA_MODEL_GUIDE.md](./architecture/DATA_MODEL_GUIDE.md)** - **Critical**: Understanding users, recipients, and capsules ⭐ IMPORTANT
 - **[ARCHITECTURE_IMPROVEMENTS.md](./architecture/ARCHITECTURE_IMPROVEMENTS.md)** - Architecture patterns
 - **[CODE_STRUCTURE.md](./architecture/CODE_STRUCTURE.md)** - Code organization
 - **[SEQUENCE_DIAGRAMS.md](./architecture/SEQUENCE_DIAGRAMS.md)** - User flow diagrams
@@ -84,6 +85,7 @@
 - **[INDEX.md](./frontend/INDEX.md)** - Frontend documentation index
 - **[GETTING_STARTED.md](./frontend/GETTING_STARTED.md)** - Frontend setup guide
 - **[DEVELOPMENT_GUIDE.md](./frontend/DEVELOPMENT_GUIDE.md)** - Complete development guide
+- **[RECIPIENT_ID_REFACTOR.md](./frontend/RECIPIENT_ID_REFACTOR.md)** - **Critical**: Understanding recipientId vs user IDs ⭐ IMPORTANT
 - **[CORE_COMPONENTS.md](./frontend/CORE_COMPONENTS.md)** - Core components
 - **[THEME_SYSTEM.md](./frontend/THEME_SYSTEM.md)** - Theming system
 - **[FEATURES.md](./frontend/FEATURES.md)** - Features overview
@@ -270,6 +272,16 @@ docs/
 
 ---
 
-**Last Updated**: 2025-12-25  
+## ⭐ Critical Documentation
+
+**New Developers Must Read**:
+1. **[architecture/DATA_MODEL_GUIDE.md](./architecture/DATA_MODEL_GUIDE.md)** - Understanding users, recipients, and capsules
+2. **[frontend/RECIPIENT_ID_REFACTOR.md](./frontend/RECIPIENT_ID_REFACTOR.md)** - Understanding recipientId vs user IDs
+
+These documents prevent common mistakes when working with recipient IDs and user IDs.
+
+---
+
+**Last Updated**: December 2025-12-25  
 **Maintainer**: Engineering Team  
 **Status**: Production Ready

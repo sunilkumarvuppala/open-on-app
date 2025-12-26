@@ -9,11 +9,13 @@ This folder contains documentation about the system architecture, code organizat
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Complete system architecture overview
 - **[ARCHITECTURE_IMPROVEMENTS.md](./ARCHITECTURE_IMPROVEMENTS.md)** - Architecture patterns and improvements
 - **[CODE_STRUCTURE.md](./CODE_STRUCTURE.md)** - Code organization and structure
+- **[DATA_MODEL_GUIDE.md](./DATA_MODEL_GUIDE.md)** - **Critical**: Understanding users, recipients, and capsules ⭐ IMPORTANT
 - **[SEQUENCE_DIAGRAMS.md](./SEQUENCE_DIAGRAMS.md)** - User flow diagrams with method-level detail
 
 ## When to Use
 
 - **Understanding the system?** → Read [ARCHITECTURE.md](./ARCHITECTURE.md)
+- **Understanding data models?** → **Start here**: [DATA_MODEL_GUIDE.md](./DATA_MODEL_GUIDE.md) ⭐
 - **Looking for design patterns?** → Check [ARCHITECTURE_IMPROVEMENTS.md](./ARCHITECTURE_IMPROVEMENTS.md)
 - **Finding code locations?** → Use [CODE_STRUCTURE.md](./CODE_STRUCTURE.md)
 - **Understanding user flows?** → See [SEQUENCE_DIAGRAMS.md](./SEQUENCE_DIAGRAMS.md)

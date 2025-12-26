@@ -46,7 +46,7 @@ class MockCapsuleRepository implements CapsuleRepository {
         senderId: AppConstants.mockUserId,
         senderName: 'You',
         senderAvatarValue: '', // User's own avatar (can be empty for mock)
-        receiverId: AppConstants.mockPriyaId,
+        recipientId: AppConstants.mockPriyaId,
         receiverName: 'Priya',
         receiverAvatarValue: AppConstants.avatarPriya,
         label: 'Open on your birthday 🎂',
@@ -59,7 +59,7 @@ class MockCapsuleRepository implements CapsuleRepository {
         senderId: AppConstants.mockUserId,
         senderName: 'You',
         senderAvatarValue: '', // User's own avatar (can be empty for mock)
-        receiverId: AppConstants.mockAnanyaId,
+        recipientId: AppConstants.mockAnanyaId,
         receiverName: 'Ananya',
         receiverAvatarValue: AppConstants.avatarAnanya,
         label: 'For your graduation day',
@@ -72,7 +72,7 @@ class MockCapsuleRepository implements CapsuleRepository {
         senderId: AppConstants.mockUserId,
         senderName: 'You',
         senderAvatarValue: '', // User's own avatar (can be empty for mock)
-        receiverId: AppConstants.mockRajId,
+        recipientId: AppConstants.mockRajId,
         receiverName: 'Raj',
         receiverAvatarValue: AppConstants.avatarRaj,
         label: 'Anniversary surprise',
@@ -85,7 +85,7 @@ class MockCapsuleRepository implements CapsuleRepository {
         senderId: AppConstants.mockUserId,
         senderName: 'You',
         senderAvatarValue: '', // User's own avatar (can be empty for mock)
-        receiverId: AppConstants.mockMomId,
+        recipientId: AppConstants.mockMomId,
         receiverName: 'Mom',
         receiverAvatarValue: AppConstants.avatarMom,
         label: 'Mother\'s Day letter',
@@ -101,7 +101,7 @@ class MockCapsuleRepository implements CapsuleRepository {
         senderId: AppConstants.mockPriyaId,
         senderName: 'Priya',
         senderAvatarValue: AppConstants.avatarPriya, // Sender's avatar
-        receiverId: AppConstants.mockUserId,
+        recipientId: AppConstants.mockUserId,
         receiverName: 'You',
         receiverAvatarValue: '', // User's own avatar (can be empty for mock)
         label: 'Open on your birthday 🎂',
@@ -114,7 +114,7 @@ class MockCapsuleRepository implements CapsuleRepository {
         senderId: AppConstants.mockAnanyaId,
         senderName: 'Ananya',
         senderAvatarValue: AppConstants.avatarAnanya, // Sender's avatar
-        receiverId: AppConstants.mockUserId,
+        recipientId: AppConstants.mockUserId,
         receiverName: 'You',
         receiverAvatarValue: '', // User's own avatar (can be empty for mock)
         label: 'For when you need encouragement',
@@ -127,7 +127,7 @@ class MockCapsuleRepository implements CapsuleRepository {
         senderId: AppConstants.mockMomId,
         senderName: 'Mom',
         senderAvatarValue: AppConstants.avatarMom, // Sender's avatar
-        receiverId: AppConstants.mockUserId,
+        recipientId: AppConstants.mockUserId,
         receiverName: 'You',
         receiverAvatarValue: '', // User's own avatar (can be empty for mock)
         label: 'A letter from your mom',
@@ -172,7 +172,7 @@ class MockCapsuleRepository implements CapsuleRepository {
 
       final filteredCapsules = asSender
           ? _capsules.where((c) => c.senderId == userId).toList()
-          : _capsules.where((c) => c.receiverId == userId).toList();
+          : _capsules.where((c) => c.recipientId == userId).toList();
 
       // Don't sort here - sorting is handled by providers based on tab requirements
       return filteredCapsules;

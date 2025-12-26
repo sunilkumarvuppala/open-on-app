@@ -1209,3 +1209,35 @@ class LetterInviteClaimResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class SenderLockStateResponse(BaseModel):
+    """
+    Response model for sender-only anticipation message.
+    
+    Returns anticipation message only if:
+    - Letter is locked (status sealed/ready, opened_at IS NULL)
+    - Receiver has checked at least once (pre_open_view_count > 0)
+    - Current user is the sender
+    
+    This data is NEVER visible to the receiver.
+    """
+    showAnticipation: bool
+    message: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class TrackViewResponse(BaseModel):
+    """
+    Response model for tracking receiver view of locked letter.
+    
+    Returns success status and tracking information.
+    """
+    success: bool
+    tracked: bool
+    reason: Optional[str] = None
+    
+    class Config:
+        from_attributes = True

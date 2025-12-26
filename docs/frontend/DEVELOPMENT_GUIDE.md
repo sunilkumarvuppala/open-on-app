@@ -402,7 +402,7 @@ void main() {
       final capsule = Capsule(
         senderId: '1',
         senderName: 'John',
-        receiverId: '2',
+        recipientId: '2',
         receiverName: 'Jane',
         receiverAvatar: '',
         label: 'Test',

@@ -49,6 +49,8 @@ docs/
 
 ### Core Documentation
 - **[UTILITIES.md](./UTILITIES.md)** - UUID utilities, RecipientResolver, and other utilities ⭐ NEW
+- **[RECIPIENT_ID_REFACTOR.md](./RECIPIENT_ID_REFACTOR.md)** - **Critical**: Understanding recipientId vs user IDs ⭐ IMPORTANT
+- **[QUICK_REFERENCE_RECIPIENT_ID.md](./QUICK_REFERENCE_RECIPIENT_ID.md)** - Quick reference for recipient ID patterns
 - **[CORE_COMPONENTS.md](./CORE_COMPONENTS.md)** - Core components documentation
 - **[THEME_SYSTEM.md](./THEME_SYSTEM.md)** - Complete theme system guide
 - **[VISUAL_FLOWS.md](./VISUAL_FLOWS.md)** - Visual diagrams and flows

@@ -98,7 +98,7 @@ class CapsuleMapper {
             senderId: _safeString(senderIdValue) ?? '',
             senderName: senderName,  // Use actual sender name from backend (or 'Anonymous')
             senderAvatarValue: _safeString(senderAvatarUrlValue),
-            receiverId: _safeString(recipientIdValue) ?? '',
+            recipientId: _safeString(recipientIdValue) ?? '',
             receiverName: recipientName,  // Use actual recipient name from backend
             receiverAvatarValue: recipientAvatarUrl,
             label: _safeString(titleValue) ?? '',
