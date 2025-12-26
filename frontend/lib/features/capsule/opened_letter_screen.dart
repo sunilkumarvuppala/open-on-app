@@ -137,9 +137,18 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
     );
     
     // Start reply fade-in after message appears
+    // But if reply already exists, show it immediately (no delay)
     Future.delayed(AppConstants.openedLetterReplyFadeDelay, () {
       if (mounted) {
         _replyFadeController.forward();
+      }
+    });
+    
+    // If reply already exists when screen loads, show it immediately
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _reply != null) {
+        // Ensure animation is at full opacity if reply exists
+        _replyFadeController.value = 1.0;
       }
     });
     
@@ -184,6 +193,12 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
           
           // Don't automatically show animation - user will click "See Reply" button
         });
+        
+        // If reply exists, ensure the reply section is visible (fade animation at full opacity)
+        if (reply != null && mounted) {
+          // Ensure animation is at full opacity so button is visible
+          _replyFadeController.value = 1.0;
+        }
         
         // Log state changes for debugging
         if (!hadReply && hasReply) {
