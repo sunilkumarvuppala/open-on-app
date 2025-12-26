@@ -16,8 +16,9 @@
 
 ### Understanding the System
 1. **[architecture/ARCHITECTURE.md](./architecture/ARCHITECTURE.md)** - System architecture
-2. **[architecture/SEQUENCE_DIAGRAMS.md](./architecture/SEQUENCE_DIAGRAMS.md)** - Complete user flow diagrams with method-level detail
-3. **[architecture/CODE_STRUCTURE.md](./architecture/CODE_STRUCTURE.md)** - Code organization
+2. **[architecture/DATA_MODEL_GUIDE.md](./architecture/DATA_MODEL_GUIDE.md)** - **Critical**: Understanding users, recipients, and capsules ⭐ START HERE
+3. **[architecture/SEQUENCE_DIAGRAMS.md](./architecture/SEQUENCE_DIAGRAMS.md)** - Complete user flow diagrams with method-level detail
+4. **[architecture/CODE_STRUCTURE.md](./architecture/CODE_STRUCTURE.md)** - Code organization
 
 ---
 
@@ -37,6 +38,7 @@
 - **[frontend/INDEX.md](./frontend/INDEX.md)** - Frontend documentation index
 - **[frontend/GETTING_STARTED.md](./frontend/GETTING_STARTED.md)** - Setup and quick start
 - **[frontend/DEVELOPMENT_GUIDE.md](./frontend/DEVELOPMENT_GUIDE.md)** - Complete development guide
+- **[frontend/RECIPIENT_ID_REFACTOR.md](./frontend/RECIPIENT_ID_REFACTOR.md)** - **Critical**: Understanding recipientId vs user IDs ⭐ IMPORTANT
 - **[frontend/CORE_COMPONENTS.md](./frontend/CORE_COMPONENTS.md)** - Core components
 - **[frontend/THEME_SYSTEM.md](./frontend/THEME_SYSTEM.md)** - Theming system
 - **[frontend/FEATURES.md](./frontend/FEATURES.md)** - Features overview
@@ -86,6 +88,7 @@
 
 ### Architecture & Design
 - **[architecture/ARCHITECTURE.md](./architecture/ARCHITECTURE.md)** - System architecture
+- **[architecture/DATA_MODEL_GUIDE.md](./architecture/DATA_MODEL_GUIDE.md)** - **Critical**: Understanding users, recipients, and capsules ⭐ IMPORTANT
 - **[architecture/CODE_STRUCTURE.md](./architecture/CODE_STRUCTURE.md)** - Code organization
 - **[architecture/SEQUENCE_DIAGRAMS.md](./architecture/SEQUENCE_DIAGRAMS.md)** - User flow diagrams with method-level detail
 - **[architecture/ARCHITECTURE_IMPROVEMENTS.md](./architecture/ARCHITECTURE_IMPROVEMENTS.md)** - Architecture patterns & improvements

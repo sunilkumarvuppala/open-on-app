@@ -491,8 +491,41 @@ Anonymous letters temporarily hide the sender's identity until a reveal time is 
 - `capsule.displaySenderAvatar` - Returns empty string or avatar URL
 - `capsule.revealCountdownText` - Returns "Reveals in 5h 12m" format
 
+## Data Model
+
+### Capsule Model
+
+The `Capsule` model represents a time-locked letter with the following key fields:
+
+- `id`: Capsule UUID
+- `senderId`: User UUID of the sender (always a user ID)
+- `recipientId`: **Recipient record UUID** (from `recipients` table, NOT a user ID)
+- `senderName`: Display name of sender
+- `receiverName`: Display name of receiver
+- `label`: Letter title
+- `content`: Letter body text
+- `unlockAt`: When capsule becomes available
+- `openedAt`: When capsule was opened (null if not opened)
+
+**⚠️ Important**: `recipientId` is a recipient record UUID, not a user UUID. For connection-based recipients, the actual user ID is in `recipient.linked_user_id`, which is not available in the `Capsule` model.
+
+**✅ Use Helper Methods**:
+```dart
+// Check if current user is sender (safe and reliable)
+if (capsule.isCurrentUserSender(currentUserId)) {
+  // Sender-specific logic
+}
+
+// For receiver checks, always use backend verification
+await apiClient.post('/capsules/${id}/track-view');
+// Backend verifies receiver status
+```
+
+**📖 See**: [Recipient ID Refactor Documentation](../RECIPIENT_ID_REFACTOR.md) for complete details.
+
 ## Related Documentation
 
+- [Recipient ID Refactor](../RECIPIENT_ID_REFACTOR.md) - **Important**: Understanding recipientId vs user IDs
 - [Home Screen](./HOME.md) - For navigation to capsules
 - [Receiver Screen](./RECEIVER.md) - For receiver capsule views
 - [Create Capsule](./CREATE_CAPSULE.md) - For creating anonymous letters

@@ -510,7 +510,7 @@ class _CreateCapsuleScreenState extends ConsumerState<CreateCapsuleScreen> {
       
       Logger.info(
         'Creating capsule: recipientId=${draft.recipient?.id}, '
-        'receiverId=${capsule.receiverId}, receiverName=${capsule.receiverName}'
+        'recipientId=${capsule.recipientId}, receiverName=${capsule.receiverName}'
       );
       
       final repo = ref.read(capsuleRepositoryProvider);

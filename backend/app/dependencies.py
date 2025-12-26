@@ -26,13 +26,14 @@ from app.core.security import verify_supabase_token
 # ===== Security Scheme =====
 # HTTPBearer extracts Bearer token from Authorization header
 # Used by FastAPI to automatically extract JWT tokens
-security = HTTPBearer()
+# auto_error=False allows us to return 401 instead of 403 when header is missing
+security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
     request: Request,
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
-    session: Annotated[AsyncSession, Depends(get_db)]
+    session: Annotated[AsyncSession, Depends(get_db)],
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
 ) -> UserProfile:
     """
     Get current authenticated user from Supabase JWT token.
@@ -62,6 +63,16 @@ async def get_current_user(
         Authentication is handled by Supabase Auth. This backend only
         verifies the JWT token and looks up the user profile.
     """
+    # ===== Check Authorization Header =====
+    # If credentials are missing, return 401 (not 403)
+    # This provides clearer error messages for missing authentication
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing authentication credentials. Please provide a Bearer token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     token = credentials.credentials
     
     # ===== Supabase Token Verification =====

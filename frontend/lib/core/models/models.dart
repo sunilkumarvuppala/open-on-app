@@ -15,12 +15,16 @@ enum CapsuleStatus {
 }
 
 /// Capsule model - represents a time-locked letter
+/// 
+/// IMPORTANT: recipientId is the UUID of the recipient record (from recipients table),
+/// NOT the user ID of the receiver. For connection-based recipients, use the recipient's
+/// linked_user_id to find the actual user. For email-based recipients, match by email.
 class Capsule {
   final String id;
   final String senderId;
   final String senderName;
   final String senderAvatar;
-  final String receiverId;
+  final String recipientId; // UUID of recipient record (references recipients table)
   final String receiverName;
   final String receiverAvatar;
   final String label; // e.g., "Open on your birthday"
@@ -49,7 +53,7 @@ class Capsule {
     required this.senderId,
     required this.senderName,
     String? senderAvatarValue,
-    required this.receiverId,
+    required this.recipientId,
     required this.receiverName,
     String? receiverAvatarValue,
     required this.label,
@@ -123,6 +127,36 @@ class Capsule {
   }
   
   String get recipientName => receiverName;
+  
+  /// Check if the current user is the sender of this capsule
+  /// 
+  /// This is a simple comparison since senderId is always a user UUID.
+  bool isCurrentUserSender(String currentUserId) {
+    return senderId == currentUserId;
+  }
+  
+  /// Check if the current user is the receiver of this capsule
+  /// 
+  /// WARNING: This method cannot reliably determine receiver status on the frontend
+  /// because recipientId is a recipient record UUID, not a user UUID.
+  /// 
+  /// For connection-based recipients: recipientId points to a recipient record
+  /// that has a linked_user_id field containing the actual user ID.
+  /// 
+  /// For email-based recipients: recipientId points to a recipient record
+  /// that has an email field that must be matched.
+  /// 
+  /// RECOMMENDATION: Always verify receiver status via backend API endpoints
+  /// that have access to the full recipient data and can properly match users.
+  /// 
+  /// This method is provided for convenience but should be used with caution.
+  /// Prefer backend verification for critical operations.
+  @Deprecated('Use backend API verification instead. This cannot reliably determine receiver status.')
+  bool isCurrentUserReceiver(String currentUserId) {
+    // This is intentionally always false to prevent misuse
+    // The frontend cannot reliably determine receiver status without recipient data
+    return false;
+  }
   
   DateTime get unlockTime => unlockAt;
   
@@ -254,7 +288,7 @@ class Capsule {
     String? senderId,
     String? senderName,
     String? senderAvatar,
-    String? receiverId,
+    String? recipientId,
     String? receiverName,
     String? receiverAvatar,
     String? label,
@@ -277,7 +311,7 @@ class Capsule {
       senderId: senderId ?? this.senderId,
       senderName: senderName ?? this.senderName,
       senderAvatarValue: senderAvatar ?? this.senderAvatar,
-      receiverId: receiverId ?? this.receiverId,
+      recipientId: recipientId ?? this.recipientId,
       receiverName: receiverName ?? this.receiverName,
       receiverAvatarValue: receiverAvatar ?? this.receiverAvatar,
       label: label ?? this.label,
@@ -485,9 +519,9 @@ class DraftCapsule {
       throw Exception('Cannot convert invalid draft to capsule');
     }
     
-    // For unregistered recipients, receiverId will be set by backend
+    // For unregistered recipients, recipientId will be set by backend
     // For registered recipients, use recipient.id
-    final receiverId = isUnregisteredRecipient ? '' : (recipient?.id ?? '');
+    final recipientId = isUnregisteredRecipient ? '' : (recipient?.id ?? '');
     final receiverName = isUnregisteredRecipient 
         ? (this.unregisteredRecipientName ?? 'Someone special') 
         : (recipient?.name ?? 'Recipient');
@@ -501,7 +535,7 @@ class DraftCapsule {
     return Capsule(
       senderId: senderId,
       senderName: senderName,
-      receiverId: receiverId, // Will be validated and resolved by backend
+      recipientId: recipientId, // Will be validated and resolved by backend
       receiverName: receiverName,
       receiverAvatarValue: receiverAvatar,
       label: label ?? 'A special letter',

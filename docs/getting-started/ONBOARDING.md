@@ -41,12 +41,13 @@ Welcome to the OpenOn project! This guide will help you get started quickly and 
 ### Essential Reading (In Order)
 
 1. **[README.md](../README.md)** - Project overview
-2. **[docs/README.md](./README.md)** - Documentation navigation
-3. **[docs/INDEX.md](./INDEX.md)** - Master documentation index
-4. **[docs/ARCHITECTURE.md](./ARCHITECTURE.md)** - System architecture
-5. **[docs/CODE_STRUCTURE.md](./CODE_STRUCTURE.md)** - Code organization
-6. **[docs/SEQUENCE_DIAGRAMS.md](./SEQUENCE_DIAGRAMS.md)** - Complete user flow diagrams
-7. **[docs/QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Quick reference for common tasks
+2. **[docs/README.md](../README.md)** - Documentation navigation
+3. **[docs/INDEX.md](../INDEX.md)** - Master documentation index
+4. **[docs/architecture/DATA_MODEL_GUIDE.md](../architecture/DATA_MODEL_GUIDE.md)** - **Critical**: Understanding users, recipients, and capsules ⭐ START HERE
+5. **[docs/architecture/ARCHITECTURE.md](../architecture/ARCHITECTURE.md)** - System architecture
+6. **[docs/architecture/CODE_STRUCTURE.md](../architecture/CODE_STRUCTURE.md)** - Code organization
+7. **[docs/architecture/SEQUENCE_DIAGRAMS.md](../architecture/SEQUENCE_DIAGRAMS.md)** - Complete user flow diagrams
+8. **[docs/getting-started/QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Quick reference for common tasks
 
 ### Backend Developers
 
@@ -58,11 +59,13 @@ Welcome to the OpenOn project! This guide will help you get started quickly and 
 
 ### Frontend Developers
 
-1. **[docs/frontend/GETTING_STARTED.md](./frontend/GETTING_STARTED.md)** - Frontend quick start
-2. **[docs/frontend/DEVELOPMENT_GUIDE.md](./frontend/DEVELOPMENT_GUIDE.md)** - Development guide
-3. **[docs/frontend/CORE_COMPONENTS.md](./frontend/CORE_COMPONENTS.md)** - Core components
-4. **[docs/frontend/THEME_SYSTEM.md](./frontend/THEME_SYSTEM.md)** - Theming system
-5. **[docs/frontend/features/](./frontend/features/)** - Feature-specific docs
+1. **[docs/frontend/GETTING_STARTED.md](../frontend/GETTING_STARTED.md)** - Frontend quick start
+2. **[docs/architecture/DATA_MODEL_GUIDE.md](../architecture/DATA_MODEL_GUIDE.md)** - **Critical**: Understanding users, recipients, and capsules ⭐ MUST READ
+3. **[docs/frontend/RECIPIENT_ID_REFACTOR.md](../frontend/RECIPIENT_ID_REFACTOR.md)** - **Critical**: Understanding recipientId vs user IDs ⭐ MUST READ
+4. **[docs/frontend/DEVELOPMENT_GUIDE.md](../frontend/DEVELOPMENT_GUIDE.md)** - Development guide
+5. **[docs/frontend/CORE_COMPONENTS.md](../frontend/CORE_COMPONENTS.md)** - Core components
+6. **[docs/frontend/THEME_SYSTEM.md](../frontend/THEME_SYSTEM.md)** - Theming system
+7. **[docs/frontend/features/](../frontend/features/)** - Feature-specific docs
 
 ## 🏗️ Project Structure
 

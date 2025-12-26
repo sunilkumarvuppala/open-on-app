@@ -537,6 +537,10 @@ class Capsule(Base):
     )
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     
+    # Sender-only anticipation tracking (never visible to receiver)
+    pre_open_view_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    pre_open_message_tier: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    
     # Timestamps (timezone-aware UTC)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)

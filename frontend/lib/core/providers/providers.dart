@@ -476,14 +476,14 @@ final letterCountProvider = FutureProvider.family<int, String>((ref, key) async 
           // OPTIMIZATION: Use fold instead of where().length to avoid creating intermediate list
           count = sentCapsules.fold<int>(
             0,
-            (sum, c) => c.receiverId == recipientId ? sum + 1 : sum,
+            (sum, c) => c.recipientId == recipientId ? sum + 1 : sum,
           );
         } else {
           // For regular recipients: Count both sent + received (bidirectional exchange)
           // OPTIMIZATION: Use fold for efficient counting without intermediate lists
           count = sentCapsules.fold<int>(
             0,
-            (sum, c) => c.receiverId == recipientId ? sum + 1 : sum,
+            (sum, c) => c.recipientId == recipientId ? sum + 1 : sum,
           );
           
           // Count letters received: For connection-based recipients, count letters from linkedUserId

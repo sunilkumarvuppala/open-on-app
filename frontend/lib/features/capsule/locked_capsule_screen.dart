@@ -21,6 +21,8 @@ import 'package:openon_app/core/constants/app_constants.dart';
 import 'package:openon_app/core/models/countdown_share_models.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:openon_app/core/data/api_client.dart';
+import 'package:openon_app/core/data/api_config.dart';
 
 class LockedCapsuleScreen extends ConsumerStatefulWidget {
   final Capsule capsule;
@@ -57,12 +59,18 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
   final Random _random = Random();
   static const List<String> _emojis = ['💌', '✨', '🤍'];
   
+  // Sender-only anticipation message (never visible to receiver)
+  String? _anticipationMessage;
+  bool _hasTrackedView = false; // Track if we've already tracked view this session
+  
   @override
   void initState() {
     super.initState();
     _capsule = widget.capsule;
     // Fetch invite URL if missing for unregistered recipients
     _fetchInviteUrlIfNeeded();
+    // Track view if receiver, fetch anticipation message if sender
+    _handleAnticipationTracking();
     
     // Breathing animation for lock icon - very slow, subtle pulse (6s cycle)
     _breathingController = AnimationController(
@@ -301,11 +309,18 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
           _capsule = updatedCapsule;
         });
         
+        // Fetch anticipation message if sender (on refresh)
+        final userAsync = ref.read(currentUserProvider);
+        final currentUserId = userAsync.asData?.value?.id ?? '';
+        final isSender = currentUserId.isNotEmpty && _capsule.isCurrentUserSender(currentUserId);
+        if (isSender && _capsule.isLocked) {
+          _fetchAnticipationMessage();
+        }
+        
         // Invalidate only relevant providers (optimize for performance)
         // Wrap in try-catch to prevent provider invalidation errors from breaking refresh
         try {
-          final userAsync = ref.read(currentUserProvider);
-          final userId = userAsync.asData?.value?.id ?? '';
+          final userId = currentUserId;
           if (userId.isNotEmpty) {
             // Batch invalidations - only invalidate what's needed
             // Base providers will refresh derived providers automatically
@@ -791,7 +806,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                                     );
                                   },
                                 ),
-                                SizedBox(height: AppTheme.spacingMd),
+                                SizedBox(height: AppTheme.spacingSm),
                                 // Title
                                 Text(
                                   displayTitle,
@@ -1187,6 +1202,89 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
     }
   }
   
+  /// Handle anticipation tracking: track view if receiver, fetch message if sender
+  Future<void> _handleAnticipationTracking() async {
+    if (!mounted || _capsule.isOpened) {
+      return; // Don't track if letter is opened
+    }
+    
+    final userAsync = ref.read(currentUserProvider);
+    final currentUserId = userAsync.asData?.value?.id ?? '';
+    if (currentUserId.isEmpty) {
+      return; // Not authenticated
+    }
+    
+    // Use helper method for clarity and consistency
+    final isSender = _capsule.isCurrentUserSender(currentUserId);
+    
+    // For receivers: Always try to track view (backend will verify if user is recipient)
+    // This works for both email-based and connection-based recipients
+    // Note: recipientId in Capsule is the recipient UUID, not user UUID, so we can't check it directly
+    if (!isSender && !_hasTrackedView && _capsule.isLocked) {
+      // Track view when receiver views locked letter (only once per session)
+      // Backend will verify if current user is actually the recipient
+      _trackReceiverView();
+    }
+    
+    // For senders: Fetch anticipation message
+    if (isSender && _capsule.isLocked) {
+      // Fetch anticipation message for sender
+      _fetchAnticipationMessage();
+    }
+  }
+  
+  /// Track when receiver views locked letter
+  Future<void> _trackReceiverView() async {
+    if (_hasTrackedView || !mounted || _capsule.isOpened) {
+      return; // Already tracked or letter opened
+    }
+    
+    _hasTrackedView = true; // Mark as tracked to prevent duplicate calls
+    
+    try {
+      final apiClient = ApiClient();
+      await apiClient.post(
+        ApiConfig.trackCapsuleView(_capsule.id),
+        {},
+      );
+      Logger.debug('Tracked receiver view for capsule ${_capsule.id}');
+    } catch (e) {
+      // Silently fail - don't show error to receiver
+      Logger.debug('Failed to track receiver view for capsule ${_capsule.id}', error: e);
+      _hasTrackedView = false; // Reset on error to allow retry
+    }
+  }
+  
+  /// Fetch sender-only anticipation message
+  Future<void> _fetchAnticipationMessage() async {
+    if (!mounted || _capsule.isOpened) {
+      return; // Don't fetch if letter is opened
+    }
+    
+    try {
+      final apiClient = ApiClient();
+      final response = await apiClient.get(
+        ApiConfig.senderLockState(_capsule.id),
+      );
+      
+      if (mounted) {
+        final showAnticipation = response['showAnticipation'] as bool? ?? false;
+        final message = response['message'] as String?;
+        
+        setState(() {
+          _anticipationMessage = showAnticipation && message != null ? message : null;
+        });
+        
+        if (_anticipationMessage != null) {
+          Logger.debug('Fetched anticipation message for capsule ${_capsule.id}: $_anticipationMessage');
+        }
+      }
+    } catch (e) {
+      // Silently fail - don't show error to sender
+      Logger.debug('Failed to fetch anticipation message for capsule ${_capsule.id}', error: e);
+    }
+  }
+  
   Future<void> _handleInviteShare(String inviteUrl) async {
     if (!mounted) return;
     
@@ -1507,7 +1605,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
       
       // Log withdrawal action for analytics (production monitoring)
       Logger.info(
-        'Withdrawing letter: capsule_id=${_capsule.id}, recipient_id=${_capsule.receiverId}, is_anonymous=${_capsule.isAnonymous}, time_until_unlock_hours=${_capsule.timeUntilUnlock.inHours}',
+        'Withdrawing letter: capsule_id=${_capsule.id}, recipient_id=${_capsule.recipientId}, is_anonymous=${_capsule.isAnonymous}, time_until_unlock_hours=${_capsule.timeUntilUnlock.inHours}',
       );
       
       await capsuleRepo.deleteCapsule(_capsule.id);
@@ -1624,7 +1722,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
     final gradient = DynamicTheme.dreamyGradient(colorScheme);
     final userAsync = ref.watch(currentUserProvider);
     final currentUserId = userAsync.asData?.value?.id ?? '';
-    final isSender = currentUserId.isNotEmpty && capsule.senderId == currentUserId;
+    final isSender = currentUserId.isNotEmpty && capsule.isCurrentUserSender(currentUserId);
     
     return Scaffold(
       body: Container(
@@ -1636,7 +1734,12 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
             children: [
               // App bar
               Padding(
-                padding: EdgeInsets.all(AppTheme.spacingMd),
+                padding: EdgeInsets.only(
+                  top: AppTheme.spacingMd,
+                  left: AppTheme.spacingMd,
+                  right: AppTheme.spacingMd,
+                  bottom: AppTheme.spacingSm,
+                ),
                 child: Row(
                   children: [
                     IconButton(
@@ -2133,7 +2236,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                               letterSpacing: 2,
                             ),
                           ),
-                          SizedBox(height: AppTheme.spacingLg),
+                          SizedBox(height: AppTheme.spacingSm),
                           Text(
                             'Opens on ${DateFormat('MMMM d, y \'at\' h:mm a').format(capsule.unlockAt)}',
                             style: TextStyle(
@@ -2141,6 +2244,46 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                               fontSize: 14,
                             ),
                             textAlign: TextAlign.center,
+                          ),
+                        ],
+                        
+                        // Sender-only anticipation message (below countdown, above CTA)
+                        // CRITICAL: Only shown to sender, never to receiver
+                        if (isSender && !capsule.isOpened && _anticipationMessage != null) ...[
+                          SizedBox(height: AppTheme.spacingLg),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppTheme.spacingMd,
+                              vertical: AppTheme.spacingSm,
+                            ),
+                            decoration: BoxDecoration(
+                              color: DynamicTheme.getCardBackgroundColor(
+                                colorScheme,
+                                opacity: AppTheme.opacityLow,
+                              ),
+                              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                              border: Border.all(
+                                color: DynamicTheme.getBorderColor(
+                                  colorScheme,
+                                  opacity: AppTheme.opacityMedium,
+                                ),
+                                width: AppTheme.borderWidthThin,
+                              ),
+                            ),
+                            child: Text(
+                              _anticipationMessage!,
+                              style: TextStyle(
+                                color: DynamicTheme.getSecondaryTextColor(
+                                  colorScheme,
+                                  opacity: AppTheme.opacityAlmostFull2,
+                                ),
+                                fontSize: 15,
+                                fontStyle: FontStyle.italic,
+                                fontWeight: FontWeight.w400,
+                                height: 1.4,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
                         ],
                         ],

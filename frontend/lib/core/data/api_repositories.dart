@@ -462,7 +462,7 @@ class ApiCapsuleRepository implements CapsuleRepository {
         // Resolve recipient UUID (handles UUID validation and lookup) - only for registered recipients
         final recipientRepo = ApiRecipientRepository();
         final recipientId = await RecipientResolver.resolveRecipientId(
-          recipientId: capsule.receiverId,
+          recipientId: capsule.recipientId,
           currentUserId: currentUser.id,
           recipientRepo: recipientRepo,
           recipientName: capsule.receiverName,
@@ -1416,7 +1416,7 @@ class ApiConnectionRepository with StreamPollingMixin implements ConnectionRepos
           
           // Count only capsules sent to this specific recipient (exact UUID match)
           lettersSent = outboxCapsules
-              .where((c) => c.receiverId == currentUserRecipientId)
+              .where((c) => c.recipientId == currentUserRecipientId)
               .length;
           
           Logger.info(
@@ -1474,7 +1474,7 @@ class ApiConnectionRepository with StreamPollingMixin implements ConnectionRepos
               // Find the most common recipient_id (should be the one representing current user)
               final recipientIdCounts = <String, int>{};
               for (final capsule in capsulesFromConnection) {
-                final recipientId = capsule.receiverId;
+                final recipientId = capsule.recipientId;
                 if (recipientId.length == 36 && recipientId.contains('-')) {
                   recipientIdCounts[recipientId] = (recipientIdCounts[recipientId] ?? 0) + 1;
                 }
@@ -1502,7 +1502,7 @@ class ApiConnectionRepository with StreamPollingMixin implements ConnectionRepos
           );
           
           lettersReceived = inboxCapsules
-              .where((c) => c.senderId == connectionId && c.receiverId == otherUserRecipientId)
+              .where((c) => c.senderId == connectionId && c.recipientId == otherUserRecipientId)
               .length;
           
           Logger.info(

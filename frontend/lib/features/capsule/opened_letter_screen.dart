@@ -451,7 +451,7 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
     // (backend only allows viewing capsules you sent or received)
     final isReceiver = currentUserId != null && currentUserId != capsule.senderId;
     // Check if this is a self letter (sender and receiver are the same)
-    final isSelfLetter = capsule.senderId == capsule.receiverId;
+    final isSelfLetter = capsule.senderId == capsule.recipientId;
     
     // Show animation if needed (only for sender viewing reply)
     // Note: Animation is shown to sender when they click "See Reply" button
@@ -811,7 +811,7 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
                                   'Reply UI check - isSender: $isSender, isReceiver: $isReceiver, '
                                   'currentUserId: $currentUserId, '
                                   'senderId: ${capsule.senderId}, '
-                                  'receiverId: ${capsule.receiverId}, '
+                                  'recipientId: ${capsule.recipientId}, '
                                   'hasReply: ${_reply != null}, '
                                   'isLoading: $_isLoadingReply, '
                                   'replySkipped: $_replySkipped'
