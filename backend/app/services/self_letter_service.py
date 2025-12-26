@@ -27,7 +27,7 @@ logger = get_logger(__name__)
 class SelfLetterService:
     """Service layer for self letter business logic and validation."""
     
-    MIN_CONTENT_LENGTH = 280
+    MIN_CONTENT_LENGTH = 20
     MAX_CONTENT_LENGTH = 500
     
     def __init__(self, session: AsyncSession):
@@ -202,8 +202,8 @@ class SelfLetterService:
         
         # Use database function to open letter atomically
         result = await self.session.execute(
-            text("SELECT * FROM public.open_self_letter(:letter_id)"),
-            {"letter_id": str(letter_id)}
+            text("SELECT * FROM public.open_self_letter(:letter_id, :user_id)"),
+            {"letter_id": str(letter_id), "user_id": str(user_id)}
         )
         row = result.fetchone()
         
@@ -258,8 +258,8 @@ class SelfLetterService:
         
         # Use database function to submit reflection atomically
         result = await self.session.execute(
-            text("SELECT public.submit_self_letter_reflection(:letter_id, :answer)"),
-            {"letter_id": str(letter_id), "answer": answer}
+            text("SELECT public.submit_self_letter_reflection(:letter_id, :user_id, :answer)"),
+            {"letter_id": str(letter_id), "user_id": str(user_id), "answer": answer}
         )
         success = result.scalar_one()
         

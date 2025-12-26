@@ -756,6 +756,7 @@ abstract class SelfLetterRepository {
   Future<SelfLetter> createSelfLetter({
     required String content,
     required DateTime scheduledOpenAt,
+    String? title,
     String? mood,
     String? lifeArea,
     String? city,

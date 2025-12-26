@@ -616,8 +616,9 @@ class _UpcomingTab extends ConsumerWidget {
   Future<void> _onRefresh(WidgetRef ref, String userId) async {
     ref.invalidate(upcomingCapsulesProvider(userId));
     ref.invalidate(capsulesProvider(userId));
-    // Wait a bit for the provider to refresh
-    await Future.delayed(const Duration(milliseconds: 100));
+    ref.invalidate(selfLettersProvider);
+    // Wait a bit for the providers to refresh
+    await Future.delayed(const Duration(milliseconds: 300));
   }
 
   @override
@@ -625,6 +626,7 @@ class _UpcomingTab extends ConsumerWidget {
     final userAsync = ref.watch(currentUserProvider);
     final userId = userAsync.asData?.value?.id ?? '';
     final capsulesAsync = ref.watch(sendFilteredUpcomingCapsulesProvider(userId));
+    final selfLettersAsync = ref.watch(selfLettersProvider);
     final allCapsulesAsync = ref.watch(capsulesProvider(userId));
     final filterQuery = ref.watch(sendFilterQueryProvider);
     final colorScheme = ref.watch(selectedColorSchemeProvider);
@@ -639,87 +641,167 @@ class _UpcomingTab extends ConsumerWidget {
       displacement: 40.0,
       child: capsulesAsync.when(
         data: (capsules) {
-          if (capsules.isEmpty) {
-            // Show different empty state if filtering
-            if (filterQuery.trim().isNotEmpty) {
-              return const SingleChildScrollView(
-                physics: AlwaysScrollableScrollPhysics(),
-                child: EmptyState(
-                  icon: Icons.search_off,
-                  title: 'No letters found',
-                  message: 'No letters found for that name.',
-                ),
-              );
-            }
-            
-            // Check if user has zero sent letters total
-            // Use whenData for safer async handling
-            return allCapsulesAsync.when(
-              data: (allCapsules) {
-                final hasAnyLetters = allCapsules.isNotEmpty;
-                
-                // Show special empty state with CTA only if user has zero letters
-                if (!hasAnyLetters) {
-                  return SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
+          // Use previous data during refresh to avoid flickering
+          final selfLetters = selfLettersAsync.asData?.value ?? <SelfLetter>[];
+          
+          // If loading and we have no previous data, show loading
+          if (selfLettersAsync.isLoading && selfLetters.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          
+          // Filter self letters to only sealed ones (not yet opened)
+          final sealedSelfLetters = selfLetters.where((l) => !l.isOpened).toList();
+          
+          // Combine capsules and self letters
+          final allItems = <_SealedItem>[];
+          
+          // Add self letters first (they should appear at top or mixed)
+          for (final letter in sealedSelfLetters) {
+            allItems.add(_SealedItem.selfLetter(letter));
+          }
+          
+          // Add capsules
+          for (final capsule in capsules) {
+            allItems.add(_SealedItem.capsule(capsule));
+          }
+          
+          // Sort by unlock/scheduled date (most recent first)
+          allItems.sort((a, b) {
+            final aDate = a.isSelfLetter ? a.selfLetter!.scheduledOpenAt : a.capsule!.unlockAt;
+            final bDate = b.isSelfLetter ? b.selfLetter!.scheduledOpenAt : b.capsule!.unlockAt;
+            return bDate.compareTo(aDate);
+          });
+          
+          if (allItems.isEmpty) {
+                // Show different empty state if filtering
+                if (filterQuery.trim().isNotEmpty) {
+                  return const SingleChildScrollView(
+                    physics: AlwaysScrollableScrollPhysics(),
                     child: EmptyState(
-                      icon: Icons.mail_outline,
-                      title: 'No letters yet',
-                      message: 'Start your journey by writing your first letter',
-                      action: ElevatedButton(
-                        onPressed: () => context.push(Routes.createCapsule),
-                        child: const Text('Write your first letter'),
-                      ),
+                      icon: Icons.search_off,
+                      title: 'No letters found',
+                      message: 'No letters found for that name.',
                     ),
                   );
                 }
                 
-                // Normal empty state without CTA (FAB is the creation affordance)
-                return SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: EmptyState(
-                    icon: Icons.mail_outline,
-                    title: 'No upcoming letters',
-                    message: 'Letters scheduled to unlock will appear here',
+                // Check if user has zero sent letters total
+                return allCapsulesAsync.when(
+                  data: (allCapsules) {
+                    final hasAnyLetters = allCapsules.isNotEmpty || selfLetters.isNotEmpty;
+                    
+                    // Show special empty state with CTA only if user has zero letters
+                    if (!hasAnyLetters) {
+                      return SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Column(
+                          children: [
+                            EmptyState(
+                              icon: Icons.mail_outline,
+                              title: 'No letters yet',
+                              message: 'Start your journey by writing your first letter',
+                              action: ElevatedButton(
+                                onPressed: () => context.push(Routes.createCapsule),
+                                child: const Text('Write your first letter'),
+                              ),
+                            ),
+                            const SizedBox(height: AppTheme.spacingLg),
+                            // "Write to myself" entry point
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
+                              child: OutlinedButton.icon(
+                                onPressed: () => context.push(Routes.createSelfLetter),
+                                icon: const Icon(Icons.person_outline, size: 18),
+                                label: const Text('Write to myself'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppTheme.spacingLg,
+                                    vertical: AppTheme.spacingMd,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    
+                    // Normal empty state with "Write to myself" option
+                    return SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Column(
+                        children: [
+                          const EmptyState(
+                            icon: Icons.mail_outline,
+                            title: 'No upcoming letters',
+                            message: 'Letters scheduled to unlock will appear here',
+                          ),
+                          const SizedBox(height: AppTheme.spacingLg),
+                          // "Write to myself" entry point
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
+                            child: OutlinedButton.icon(
+                              onPressed: () => context.push(Routes.createSelfLetter),
+                              icon: const Icon(Icons.person_outline, size: 18),
+                              label: const Text('Write to myself'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppTheme.spacingLg,
+                                  vertical: AppTheme.spacingMd,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (_, __) => SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: const EmptyState(
+                      icon: Icons.mail_outline,
+                      title: 'No upcoming letters',
+                      message: 'Letters scheduled to unlock will appear here',
+                    ),
                   ),
                 );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: EmptyState(
-                  icon: Icons.mail_outline,
-                  title: 'No upcoming letters',
-                  message: 'Letters scheduled to unlock will appear here',
-                ),
-              ),
-            );
-          }
+              }
 
-          return ListView.builder(
-            key: const PageStorageKey('upcoming_capsules'),
-            padding: EdgeInsets.only(
-              left: AppTheme.spacingLg,
-              right: AppTheme.spacingLg,
-              top: AppTheme.spacingXs,
-              bottom: AppTheme.spacingSm,
-            ),
-            itemCount: capsules.length,
-            itemBuilder: (context, index) {
-              final capsule = capsules[index];
-              return Padding(
-                key: ValueKey('upcoming_${capsule.id}'),
-                padding:
-                    EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
-                child: InkWell(
-                  onTap: () =>
-                      context.push('/capsule/${capsule.id}', extra: capsule),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                  child: _CapsuleCard(capsule: capsule),
+              return ListView.builder(
+                key: const PageStorageKey('upcoming_capsules'),
+                padding: EdgeInsets.only(
+                  left: AppTheme.spacingLg,
+                  right: AppTheme.spacingLg,
+                  top: AppTheme.spacingXs,
+                  bottom: AppTheme.spacingSm,
                 ),
+                itemCount: allItems.length,
+                itemBuilder: (context, index) {
+                  final item = allItems[index];
+                  if (item.isSelfLetter) {
+                    return Padding(
+                      key: ValueKey('self_letter_${item.selfLetter!.id}'),
+                      padding: EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
+                      child: InkWell(
+                        onTap: () => context.push(Routes.openSelfLetter(item.selfLetter!.id)),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                        child: _SelfLetterCard(letter: item.selfLetter!),
+                      ),
+                    );
+                  } else {
+                    return Padding(
+                      key: ValueKey('upcoming_${item.capsule!.id}'),
+                      padding: EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
+                      child: InkWell(
+                        onTap: () => context.push('/capsule/${item.capsule!.id}', extra: item.capsule),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                        child: _CapsuleCard(capsule: item.capsule!),
+                      ),
+                    );
+                  }
+                },
               );
-            },
-          );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => SingleChildScrollView(
@@ -732,6 +814,18 @@ class _UpcomingTab extends ConsumerWidget {
       ),
     );
   }
+}
+
+// Helper class to combine capsules and self letters in a single list
+class _SealedItem {
+  final Capsule? capsule;
+  final SelfLetter? selfLetter;
+  
+  _SealedItem.capsule(this.capsule) : selfLetter = null;
+  _SealedItem.selfLetter(this.selfLetter) : capsule = null;
+  
+  bool get isSelfLetter => selfLetter != null;
+  bool get isCapsule => capsule != null;
 }
 
 class _UnlockingSoonTab extends ConsumerWidget {
@@ -830,11 +924,42 @@ class _OpenedTab extends ConsumerWidget {
     final userAsync = ref.watch(currentUserProvider);
     final userId = userAsync.asData?.value?.id ?? '';
     final capsulesAsync = ref.watch(sendFilteredOpenedCapsulesProvider(userId));
+    final selfLettersAsync = ref.watch(selfLettersProvider);
     final filterQuery = ref.watch(sendFilterQueryProvider);
 
     return capsulesAsync.when(
       data: (capsules) {
-        if (capsules.isEmpty) {
+        // Get self letters from async value
+        final selfLetters = selfLettersAsync.asData?.value ?? <SelfLetter>[];
+        
+        // Filter self letters to only opened ones
+        final openedSelfLetters = selfLetters.where((l) => l.isOpened).toList();
+        
+        // Combine capsules and opened self letters
+        final allItems = <_OpenedItem>[];
+        
+        // Add opened self letters
+        for (final letter in openedSelfLetters) {
+          allItems.add(_OpenedItem.selfLetter(letter));
+        }
+        
+        // Add capsules
+        for (final capsule in capsules) {
+          allItems.add(_OpenedItem.capsule(capsule));
+        }
+        
+        // Sort by opened date (most recent first)
+        allItems.sort((a, b) {
+          final aDate = a.isSelfLetter 
+              ? (a.selfLetter!.openedAt ?? a.selfLetter!.scheduledOpenAt)
+              : (a.capsule!.openedAt ?? a.capsule!.unlockAt);
+          final bDate = b.isSelfLetter 
+              ? (b.selfLetter!.openedAt ?? b.selfLetter!.scheduledOpenAt)
+              : (b.capsule!.openedAt ?? b.capsule!.unlockAt);
+          return bDate.compareTo(aDate);
+        });
+        
+        if (allItems.isEmpty) {
         final colorScheme = ref.watch(selectedColorSchemeProvider);
         
         // Show different empty state if filtering
@@ -876,8 +1001,9 @@ class _OpenedTab extends ConsumerWidget {
         final colorScheme = ref.watch(selectedColorSchemeProvider);
         return RefreshIndicator(
           onRefresh: () async {
-            // Invalidate the base provider to force refresh
+            // Invalidate the base providers to force refresh
             ref.invalidate(capsulesProvider(userId));
+            ref.invalidate(selfLettersProvider);
             // Wait for refresh to complete
             await Future.delayed(const Duration(milliseconds: 300));
           },
@@ -888,25 +1014,35 @@ class _OpenedTab extends ConsumerWidget {
           strokeWidth: 3.0,
           displacement: 40.0,
           child: ListView.builder(
-            key: const PageStorageKey('opened_capsules'),
+            key: const PageStorageKey('opened_items'),
             padding: EdgeInsets.only(
               left: AppTheme.spacingLg,
               right: AppTheme.spacingLg,
               top: AppTheme.spacingXs,
               bottom: AppTheme.spacingSm,
             ),
-            itemCount: capsules.length,
+            itemCount: allItems.length,
             itemBuilder: (context, index) {
-              final capsule = capsules[index];
+              final item = allItems[index];
               return Padding(
-                key: ValueKey('opened_${capsule.id}'),
+                key: ValueKey(item.isSelfLetter 
+                    ? 'opened_self_${item.selfLetter!.id}'
+                    : 'opened_${item.capsule!.id}'),
                 padding:
                     EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
                 child: InkWell(
-                  onTap: () => context.push('/capsule/${capsule.id}/opened',
-                      extra: capsule),
+                  onTap: () {
+                    if (item.isSelfLetter) {
+                      context.push(Routes.openSelfLetter(item.selfLetter!.id));
+                    } else {
+                      context.push('/capsule/${item.capsule!.id}/opened',
+                          extra: item.capsule);
+                    }
+                  },
                   borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                  child: _CapsuleCard(capsule: capsule),
+                  child: item.isSelfLetter
+                      ? _SelfLetterCard(letter: item.selfLetter!, isOpened: true)
+                      : _CapsuleCard(capsule: item.capsule!),
                 ),
               );
             },
@@ -915,13 +1051,25 @@ class _OpenedTab extends ConsumerWidget {
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, stack) => ErrorDisplay(
-        message: 'Failed to load capsules',
+        message: 'Failed to load items',
         onRetry: () {
           ref.invalidate(capsulesProvider(userId));
+          ref.invalidate(selfLettersProvider);
         },
       ),
     );
   }
+}
+
+// Helper class to combine capsules and self letters in opened tab
+class _OpenedItem {
+  final Capsule? capsule;
+  final SelfLetter? selfLetter;
+  
+  _OpenedItem.capsule(this.capsule) : selfLetter = null;
+  _OpenedItem.selfLetter(this.selfLetter) : capsule = null;
+  
+  bool get isSelfLetter => selfLetter != null;
 }
 
 /// Outbox capsule card - matches inbox layout with badge at top-right
@@ -1217,6 +1365,484 @@ class _CapsuleCard extends ConsumerWidget {
     }
 
     return lockIcon;
+  }
+}
+
+/// Self letter card - similar to capsule card but for self letters
+class _SelfLetterCard extends ConsumerWidget {
+  final SelfLetter letter;
+  final bool isOpened;
+
+  const _SelfLetterCard({
+    required this.letter,
+    this.isOpened = false,
+  });
+
+  static final _dateFormat = DateFormat('MMM dd, yyyy');
+  static final _timeFormat = DateFormat('h:mm a');
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
+
+    return RepaintBoundary(
+      child: Stack(
+        children: [
+          Container(
+            margin: EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
+            decoration: BoxDecoration(
+              color: DynamicTheme.getCardBackgroundColor(colorScheme),
+              borderRadius: BorderRadius.circular(AppConstants.capsuleCardBorderRadius),
+              boxShadow: [
+                BoxShadow(
+                  color: colorScheme.isDarkTheme
+                      ? Colors.black.withOpacity(AppConstants.shadowOpacityDark)
+                      : Colors.black.withOpacity(AppConstants.shadowOpacityLight),
+                  blurRadius: AppConstants.capsuleCardShadowBlur,
+                  spreadRadius: AppConstants.capsuleCardShadowSpread,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(AppTheme.spacingSm),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Left: Self icon (no avatar for self letters)
+                  Container(
+                    width: AppConstants.capsuleCardAvatarSize,
+                    height: AppConstants.capsuleCardAvatarSize,
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary1.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.person_outline,
+                      size: AppConstants.capsuleCardAvatarSize * 0.5,
+                      color: colorScheme.primary1,
+                    ),
+                  ),
+                  SizedBox(width: AppTheme.spacingMd),
+                  // Middle: Text content
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Top section: "To myself" and Badge
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Text(
+                                    'To myself',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: AppConstants.capsuleCardTitleFontSize,
+                                          height: AppConstants.textLineHeightTight,
+                                        ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(width: AppTheme.spacingXs),
+                                  // Subtle "Self" tag
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.primary1.withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      'Self',
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: colorScheme.primary1,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: AppTheme.spacingSm),
+                            // Status badge - top-right corner with fixed width
+                            SizedBox(
+                              width: AppConstants.badgeFixedWidth,
+                              child: AnimatedScale(
+                                scale: 1,
+                                duration: AppConstants.badgeAnimationDuration,
+                                curve: Curves.easeInOut,
+                                alignment: Alignment.topRight,
+                                child: isOpened
+                                    ? StatusPill.opened(colorScheme)
+                                    : letter.isOpenable
+                                        ? StatusPill.readyToOpen()
+                                        : _isSelfLetterUnlockingSoon(letter)
+                                            ? _buildAnimatedUnlockingSoonBadgeForSelfLetter(letter, colorScheme)
+                                            : StatusPill.lockedDynamic(
+                                                colorScheme.primary1, colorScheme),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        SizedBox(height: AppConstants.capsuleCardTitleSpacing),
+
+                        // Title (extracted from content or default)
+                        Flexible(
+                          child: Text(
+                            _getSelfLetterTitle(letter),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w400,
+                                  color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                                  fontSize: AppConstants.capsuleCardLabelFontSize,
+                                  height: AppConstants.textLineHeightTight,
+                                ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
+                          ),
+                        ),
+
+                        SizedBox(height: AppConstants.capsuleCardLabelSpacing * 1.5),
+
+                        // Bottom: Scheduled open date (for sealed) or opened date (for opened)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isOpened ? Icons.check_circle_outline : Icons.schedule_outlined,
+                              size: AppConstants.capsuleCardDateIconSize,
+                              color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                            ),
+                            SizedBox(width: AppConstants.capsuleCardDateIconSpacing),
+                            Flexible(
+                              child: Text(
+                                isOpened && letter.openedAt != null
+                                    ? 'Opened ${_dateFormat.format(letter.openedAt!)} ${_timeFormat.format(letter.openedAt!)}'
+                                    : '${_dateFormat.format(letter.scheduledOpenAt)} ${_timeFormat.format(letter.scheduledOpenAt)}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                                      fontSize: AppConstants.capsuleCardDateFontSize,
+                                      fontWeight: FontWeight.w500,
+                                      height: AppConstants.textLineHeightTight,
+                                    ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Heartbeat animation - only show on ready self letters (bottom right of card)
+          if (letter.isOpenable && !letter.isOpened)
+            Positioned(
+              bottom: AppConstants.heartbeatBottomMargin,
+              right: AppConstants.heartbeatRightMargin,
+              child: HeartbeatAnimation(
+                size: AppConstants.heartbeatIconSize,
+                margin: EdgeInsets.zero, // No margin since we're positioning it manually
+              ),
+            ),
+          // Opened letter pulse animation - only show on opened self letters (bottom right of card)
+          if (letter.isOpened)
+            Positioned(
+              bottom: AppConstants.openedLetterPulseBottomMargin,
+              right: AppConstants.openedLetterPulseRightMargin,
+              child: OpenedLetterPulse(
+                size: AppConstants.openedLetterPulseIconSize,
+                margin: EdgeInsets.zero, // No margin since we're positioning it manually
+              ),
+            ),
+          // Sealed letter animation - only show on locked self letters (bottom right of card)
+          // Animate only if unlock time is less than threshold away, otherwise show static lock icon
+          if (!letter.isOpenable && !letter.isOpened)
+            Positioned(
+              bottom: AppConstants.sealedLetterBottomMargin,
+              right: AppConstants.sealedLetterRightMargin,
+              child: _buildSealedSelfLetterIcon(letter, colorScheme),
+            ),
+        ],
+      ),
+    );
+  }
+  
+  /// Get title for self letter (use provided title or fallback)
+  String _getSelfLetterTitle(SelfLetter letter) {
+    // Use provided title if available
+    if (letter.title != null && letter.title!.trim().isNotEmpty) {
+      return letter.title!.trim();
+    }
+    
+    // Fallback: extract from content if available
+    if (letter.content != null && letter.content!.isNotEmpty) {
+      final content = letter.content!.trim();
+      
+      // Try to get first sentence (before period, exclamation, or question mark)
+      final sentenceEnders = ['.', '!', '?', '\n'];
+      int? firstSentenceEnd;
+      for (final ender in sentenceEnders) {
+        final index = content.indexOf(ender);
+        if (index != -1 && (firstSentenceEnd == null || index < firstSentenceEnd)) {
+          firstSentenceEnd = index;
+        }
+      }
+      
+      String title;
+      if (firstSentenceEnd != null && firstSentenceEnd > 0) {
+        // Use first sentence, but limit to 40 characters
+        title = content.substring(0, firstSentenceEnd).trim();
+        if (title.length > 40) {
+          title = '${title.substring(0, 40)}...';
+        }
+      } else {
+        // No sentence ender found, use first 30 characters
+        title = content.length > 30 
+            ? '${content.substring(0, 30)}...'
+            : content;
+      }
+      
+      // Remove any trailing punctuation from title
+      title = title.replaceAll(RegExp(r'[.,!?;:]+$'), '');
+      
+      return title.isNotEmpty ? title : 'Letter to myself';
+    }
+    
+    // Default title if no title and content not available (sealed letter)
+    return 'Letter to myself';
+  }
+  
+  /// Check if self letter is unlocking soon (within threshold days)
+  bool _isSelfLetterUnlockingSoon(SelfLetter letter) {
+    if (letter.isOpenable || letter.isOpened) return false;
+    final timeUntilOpen = letter.timeUntilOpen;
+    if (timeUntilOpen == null) return false;
+    return timeUntilOpen.inDays <= AppConstants.unlockingSoonDaysThreshold;
+  }
+  
+  /// Build animated unlocking soon badge for self letter
+  Widget _buildAnimatedUnlockingSoonBadgeForSelfLetter(SelfLetter letter, AppColorScheme colorScheme) {
+    // Use the same animated badge widget but create a wrapper
+    return _AnimatedUnlockingSoonSelfLetterBadge(letter: letter);
+  }
+  
+  /// Builds the sealed self letter icon (animated or static) based on time until open
+  ///
+  /// Returns animated lock icon if open time is less than threshold,
+  /// otherwise returns static lock icon for better performance and visual consistency.
+  Widget _buildSealedSelfLetterIcon(SelfLetter letter, AppColorScheme colorScheme) {
+    final timeUntilOpen = letter.timeUntilOpen;
+    
+    // Theme-aware lock icon color for better visibility
+    final lockIconColor = DynamicTheme.getPrimaryIconColor(colorScheme);
+    
+    // Only animate if time until open is positive (future) and less than threshold
+    // Using Duration comparison for precise time-based logic
+    final shouldAnimate = timeUntilOpen != null &&
+        timeUntilOpen > Duration.zero &&
+        timeUntilOpen < AppConstants.sealedLetterAnimationThreshold;
+    
+    Widget lockIcon;
+    if (shouldAnimate) {
+      lockIcon = SealedLetterAnimation(
+        size: AppConstants.sealedLetterIconSize,
+        color: lockIconColor,
+        margin: EdgeInsets.zero, // No margin since we're positioning it manually
+      );
+    } else {
+      // Static emoji icon for letters with open time >= threshold
+      // Matches animated icon appearance exactly for visual consistency
+      lockIcon = LockEmojiWithOutline(
+        iconSize: AppConstants.sealedLetterIconSize,
+        opacity: AppConstants.sealedLetterOpacity,
+      );
+    }
+    
+    return lockIcon;
+  }
+}
+
+/// Animated unlocking soon badge for self letters
+/// Similar to AnimatedUnlockingSoonBadge but for SelfLetter
+class _AnimatedUnlockingSoonSelfLetterBadge extends ConsumerStatefulWidget {
+  final SelfLetter letter;
+
+  const _AnimatedUnlockingSoonSelfLetterBadge({
+    required this.letter,
+  });
+
+  @override
+  ConsumerState<_AnimatedUnlockingSoonSelfLetterBadge> createState() =>
+      _AnimatedUnlockingSoonSelfLetterBadgeState();
+}
+
+class _AnimatedUnlockingSoonSelfLetterBadgeState
+    extends ConsumerState<_AnimatedUnlockingSoonSelfLetterBadge>
+    with TickerProviderStateMixin {
+  late AnimationController _shimmerController;
+  late AnimationController _countdownController;
+  final math.Random _random = math.Random();
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Shimmer animation: random intervals (2-5 seconds) for less distracting effect
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: _getRandomShimmerDuration(),
+    );
+    _startShimmerAnimation();
+    
+    // Countdown update: trigger rebuild every second to update countdown text
+    _countdownController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    )..repeat();
+  }
+
+  /// Generates a random duration between 2-5 seconds for shimmer animation
+  Duration _getRandomShimmerDuration() {
+    // Random duration between 2-5 seconds (2000-5000ms)
+    final milliseconds = 2000 + _random.nextInt(3000);
+    return Duration(milliseconds: milliseconds);
+  }
+
+  /// Starts shimmer animation with random duration, then schedules next random interval
+  void _startShimmerAnimation() {
+    _shimmerController.forward().then((_) {
+      if (mounted) {
+        _shimmerController.reset();
+        // Set new random duration for next shimmer
+        _shimmerController.duration = _getRandomShimmerDuration();
+        // Schedule next shimmer with random delay (2-5 seconds)
+        Future.delayed(_getRandomShimmerDuration(), () {
+          if (mounted) {
+            _startShimmerAnimation();
+          }
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _shimmerController.dispose();
+    _countdownController.dispose();
+    super.dispose();
+  }
+
+  /// Formats countdown duration for badge display (compact format)
+  String _formatCountdownForBadge(Duration? duration) {
+    if (duration == null || duration.isNegative || duration.inSeconds <= 0) {
+      return 'Opens now';
+    }
+    
+    final totalSeconds = duration.inSeconds;
+    final days = duration.inDays;
+    final hours = duration.inHours.remainder(24);
+    final totalMinutes = totalSeconds ~/ 60;
+    final minutes = (days > 0 || hours > 0) ? totalMinutes.remainder(60) : totalMinutes;
+
+    String timeText;
+    if (days > 0) {
+      timeText = '${days}d ${hours}h';
+    } else if (hours > 0) {
+      timeText = '${hours}h ${minutes}m';
+    } else if (totalSeconds >= 60) {
+      timeText = '${minutes}m';
+    } else {
+      return 'Opens now';
+    }
+    
+    return 'Opens in $timeText';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
+    // Use accent color for the badge (magical color)
+    final badgeColor = colorScheme.accent;
+    final textColor = _getContrastingTextColor(badgeColor);
+    
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: Listenable.merge([
+          _shimmerController,
+          _countdownController, // Include countdown controller to trigger rebuilds
+        ]),
+        builder: (context, child) {
+          // Recalculate countdown text on each rebuild (updates every second)
+          final currentTimeUntilOpen = widget.letter.timeUntilOpen;
+          final currentCountdownText = _formatCountdownForBadge(currentTimeUntilOpen);
+          
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            child: Stack(
+              children: [
+                // Base badge with countdown text
+                StatusPill(
+                  text: currentCountdownText,
+                  backgroundColor: badgeColor,
+                  textColor: textColor,
+                ),
+                // Shimmer overlay (simplified - just use opacity animation)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Opacity(
+                      opacity: _shimmerController.value * 0.3,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.white.withOpacity(0.0),
+                              Colors.white.withOpacity(0.5),
+                              Colors.white.withOpacity(0.0),
+                            ],
+                            stops: const [0.0, 0.5, 1.0],
+                          ),
+                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Calculates contrasting text color based on background color luminance
+  Color _getContrastingTextColor(Color backgroundColor) {
+    final luminance = backgroundColor.computeLuminance();
+    return luminance > 0.5 ? Colors.black : Colors.white;
   }
 }
 

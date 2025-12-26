@@ -1131,6 +1131,7 @@ class SelfLetterRepository(BaseRepository[SelfLetter]):
         content: str,
         char_count: int,
         scheduled_open_at: datetime,
+        title: Optional[str] = None,
         mood: Optional[str] = None,
         life_area: Optional[str] = None,
         city: Optional[str] = None
@@ -1141,6 +1142,7 @@ class SelfLetterRepository(BaseRepository[SelfLetter]):
             content=content,
             char_count=char_count,
             scheduled_open_at=scheduled_open_at,
+            title=title,
             mood=mood,
             life_area=life_area,
             city=city,

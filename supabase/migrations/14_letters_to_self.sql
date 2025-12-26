@@ -127,8 +127,8 @@ BEGIN
   -- Get the letter
   SELECT * INTO v_letter
   FROM public.self_letters
-  WHERE id = letter_id
-    AND user_id = auth.uid();
+  WHERE self_letters.id = letter_id
+    AND self_letters.user_id = auth.uid();
   
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Letter not found or access denied';

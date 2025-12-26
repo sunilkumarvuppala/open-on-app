@@ -75,6 +75,7 @@ async def create_self_letter(
         content=sanitized_content,
         char_count=char_count,
         scheduled_open_at=letter_data.scheduled_open_at,
+        title=letter_data.title,
         mood=letter_data.mood,
         life_area=letter_data.life_area,
         city=letter_data.city
@@ -90,6 +91,7 @@ async def create_self_letter(
     return SelfLetterResponse(
         id=letter.id,
         user_id=letter.user_id,
+        title=letter.title,
         content=letter.content if now >= letter.scheduled_open_at else None,
         char_count=letter.char_count,
         scheduled_open_at=letter.scheduled_open_at,
@@ -147,6 +149,7 @@ async def list_self_letters(
         letter_responses.append(SelfLetterResponse(
             id=letter.id,
             user_id=letter.user_id,
+            title=letter.title,
             content=content,
             char_count=letter.char_count,
             scheduled_open_at=letter.scheduled_open_at,
@@ -209,6 +212,7 @@ async def open_self_letter(
     return SelfLetterResponse(
         id=letter.id,
         user_id=letter.user_id,
+        title=letter.title,
         content=letter.content,
         char_count=letter.char_count,
         scheduled_open_at=letter.scheduled_open_at,

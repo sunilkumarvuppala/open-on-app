@@ -57,8 +57,23 @@ class _StepPreviewState extends ConsumerState<StepPreview>
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
     final draft = ref.watch(draftCapsuleProvider);
+    final userAsync = ref.watch(currentUserProvider);
+    final user = userAsync.asData?.value;
     final isUnregistered = draft.isUnregisteredRecipient;
     final recipient = draft.recipient;
+    
+    // Check if this is a self letter
+    final isSelfLetter = user != null && 
+                        recipient != null && 
+                        recipient.linkedUserId == user.id;
+    
+    // Validate content length for self letters (20-500 characters)
+    final contentLength = draft.content?.trim().length ?? 0;
+    final isSelfLetterValid = !isSelfLetter || (contentLength >= 20 && contentLength <= 500);
+    
+    // Button should be enabled if draft is valid AND (not self letter OR self letter content is valid length)
+    final canSubmit = draft.isValid && isSelfLetterValid;
+    
     final recipientName = isUnregistered 
         ? (draft.unregisteredRecipientName ?? 'Someone special')
         : (recipient?.name ?? 'Recipient');
@@ -448,6 +463,92 @@ class _StepPreviewState extends ConsumerState<StepPreview>
                     ),
                   ),
                 ],
+                
+                // Show validation message if button is disabled
+                if (!canSubmit) ...[
+                  SizedBox(height: AppTheme.spacingLg),
+                  Container(
+                    padding: const EdgeInsets.all(AppTheme.spacingMd),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      border: Border.all(
+                        color: AppColors.error.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: AppColors.error,
+                              size: 20,
+                            ),
+                            const SizedBox(width: AppTheme.spacingSm),
+                            Expanded(
+                              child: Text(
+                                'Cannot send letter',
+                                style: TextStyle(
+                                  color: AppColors.error,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppTheme.spacingXs),
+                        if (isSelfLetter && !isSelfLetterValid) ...[
+                          Text(
+                            contentLength < 20
+                                ? '• Self letters must be at least 20 characters (currently $contentLength)'
+                                : '• Self letters must be at most 500 characters (currently $contentLength)',
+                            style: TextStyle(
+                              color: AppColors.error,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ] else if (!draft.isValid) ...[
+                          if (draft.recipient == null && !draft.isUnregisteredRecipient)
+                            Text(
+                              '• Please select a recipient',
+                              style: TextStyle(
+                                color: AppColors.error,
+                                fontSize: 13,
+                              ),
+                            ),
+                          if (draft.content == null || draft.content!.trim().isEmpty)
+                            Text(
+                              '• Please write your letter content',
+                              style: TextStyle(
+                                color: AppColors.error,
+                                fontSize: 13,
+                              ),
+                            ),
+                          if (draft.unlockAt == null)
+                            Text(
+                              '• Please select when the letter should open',
+                              style: TextStyle(
+                                color: AppColors.error,
+                                fontSize: 13,
+                              ),
+                            ),
+                          if (draft.unlockAt != null && !draft.unlockAt!.isAfter(DateTime.now()))
+                            Text(
+                              '• Please select a future date and time',
+                              style: TextStyle(
+                                color: AppColors.error,
+                                fontSize: 13,
+                              ),
+                            ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -493,7 +594,7 @@ class _StepPreviewState extends ConsumerState<StepPreview>
               Expanded(
                 flex: 2,
                 child: _CeremonialSendButton(
-                  onPressed: widget.onSubmit,
+                  onPressed: canSubmit ? widget.onSubmit : null,
                   colorScheme: colorScheme,
                 ),
               ),
@@ -557,11 +658,11 @@ class _StepPreviewState extends ConsumerState<StepPreview>
 
 /// Ceremonial Send Letter button with icon animation and intentional delay
 class _CeremonialSendButton extends StatefulWidget {
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final AppColorScheme colorScheme;
   
   const _CeremonialSendButton({
-    required this.onPressed,
+    this.onPressed,
     required this.colorScheme,
   });
   
@@ -600,7 +701,7 @@ class _CeremonialSendButtonState extends State<_CeremonialSendButton>
   }
   
   Future<void> _handlePress() async {
-    if (_isPressed) return;
+    if (_isPressed || widget.onPressed == null) return;
     
     setState(() {
       _isPressed = true;
@@ -613,14 +714,14 @@ class _CeremonialSendButtonState extends State<_CeremonialSendButton>
     await Future.delayed(AppConstants.previewButtonDelayDuration);
     
     if (mounted) {
-      widget.onPressed();
+      widget.onPressed?.call();
     }
   }
   
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(
-      onPressed: _isPressed ? null : _handlePress,
+      onPressed: (_isPressed || widget.onPressed == null) ? null : _handlePress,
       style: ElevatedButton.styleFrom(
         backgroundColor: widget.colorScheme.primary1,
         foregroundColor: DynamicTheme.getButtonTextColor(widget.colorScheme),

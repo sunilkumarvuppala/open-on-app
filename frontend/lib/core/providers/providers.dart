@@ -819,6 +819,18 @@ class DraftCapsuleNotifier extends StateNotifier<DraftCapsule> {
     state = state.copyWith(hint3: hint3);
   }
   
+  void setSelfLetterMetadata({
+    String? mood,
+    String? lifeArea,
+    String? city,
+  }) {
+    state = state.copyWith(
+      mood: mood,
+      lifeArea: lifeArea,
+      city: city,
+    );
+  }
+  
   void reset() {
     state = const DraftCapsule();
   }
