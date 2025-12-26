@@ -79,6 +79,7 @@
 - ✅ Reaction system (emoji reactions)
 - ✅ Beautiful letter presentation UI
 - ✅ **Letter Replies** ⭐ NEW: One-time recipient replies with emoji shower animation
+- ✅ **Letter Invites** ⭐ NEW: Send letters to unregistered users via private invite links
 
 ---
 
@@ -96,7 +97,18 @@
 - ✅ Server-side reveal timing calculation
 - ✅ **Anonymous Identity Hints** ⭐ NEW: Progressive hint revelation (1-3 hints, time-based display)
 
-### 7. **Letters to Self** ⭐ NEW
+### 7. **Letter Invites** ⭐ NEW
+- ✅ Send letters to unregistered users via private invite links
+- ✅ Secure token generation (32+ characters, cryptographically secure)
+- ✅ Public invite preview (no authentication required)
+- ✅ Automatic connection creation on claim
+- ✅ Seamless signup integration
+- ✅ Immediate letter unlock after signup
+- ✅ Privacy-preserving (no sender identity exposed)
+- ✅ Single claim enforcement (first user wins)
+- ✅ Revocable (deleting letter invalidates invite)
+
+### 8. **Letters to Self** ⭐ NEW
 - ✅ Write sealed letters to future self
 - ✅ Irreversible after creation (no edit/delete)
 - ✅ Time-locked content (no previews before scheduled time)

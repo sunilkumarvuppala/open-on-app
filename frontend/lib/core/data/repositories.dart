@@ -17,6 +17,8 @@ abstract class CapsuleRepository {
     String? hint1,
     String? hint2,
     String? hint3,
+    bool isUnregisteredRecipient = false,
+    String? unregisteredRecipientName,
   });
   Future<Capsule> updateCapsule(Capsule capsule);
   Future<void> deleteCapsule(String capsuleId);
@@ -194,6 +196,8 @@ class MockCapsuleRepository implements CapsuleRepository {
     String? hint1,
     String? hint2,
     String? hint3,
+    bool isUnregisteredRecipient = false,
+    String? unregisteredRecipientName,
   }) async {
     try {
       Validation.validateContent(capsule.content);

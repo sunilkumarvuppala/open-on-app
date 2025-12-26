@@ -34,6 +34,7 @@ class CapsuleMapper {
         final revealDelaySecondsValue = json['reveal_delay_seconds'];
         final revealAtValue = json['reveal_at'];
         final senderRevealedAtValue = json['sender_revealed_at'];
+        final inviteUrlValue = json['invite_url'];
         
         // Extract content from body_text or body_rich_text
         final content = _extractContent(bodyTextValue, bodyRichTextValue);
@@ -110,6 +111,7 @@ class CapsuleMapper {
             revealDelaySeconds: revealDelaySeconds,
             revealAt: revealAt,
             senderRevealedAt: senderRevealedAt,
+            inviteUrl: _safeString(inviteUrlValue),
         );
     }
 

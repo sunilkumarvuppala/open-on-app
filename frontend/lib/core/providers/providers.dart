@@ -93,7 +93,7 @@ final capsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, user
   final userAsync = ref.watch(currentUserProvider);
   
   return userAsync.when(
-    data: (currentUser) {
+    data: (currentUser) async {
       if (currentUser == null) {
         throw AuthenticationException('Not authenticated. Please sign in.');
       }
@@ -109,7 +109,15 @@ final capsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, user
       }
       
       final repo = ref.watch(capsuleRepositoryProvider);
-      return repo.getCapsules(userId: authenticatedUserId, asSender: true);
+      final capsules = await repo.getCapsules(userId: authenticatedUserId, asSender: true);
+      Logger.info('capsulesProvider: Fetched ${capsules.length} capsules for sender $authenticatedUserId');
+      // Log any capsules with invite URLs
+      for (final capsule in capsules) {
+        if (capsule.inviteUrl != null && capsule.inviteUrl!.isNotEmpty) {
+          Logger.info('capsulesProvider: Found letter with invite: id=${capsule.id}, inviteUrl=${capsule.inviteUrl}, status=${capsule.status}, daysUntil=${capsule.timeUntilUnlock.inDays}');
+        }
+      }
+      return capsules;
     },
     loading: () async {
       // Wait a bit for user to load, but don't wait too long
@@ -137,10 +145,21 @@ final upcomingCapsulesProvider = FutureProvider.family<List<Capsule>, String>((r
   
   return capsulesAsync.when(
     data: (capsules) {
+      Logger.info('upcomingCapsulesProvider: Total capsules=${capsules.length}');
       final threshold = AppConstants.unlockingSoonDaysThreshold;
       final filtered = capsules
-          .where((c) => c.status == CapsuleStatus.locked && c.timeUntilUnlock.inDays > threshold)
+          .where((c) {
+            final status = c.status;
+            final isLocked = status == CapsuleStatus.locked;
+            final daysUntil = c.timeUntilUnlock.inDays;
+            final matches = isLocked && daysUntil > threshold;
+            if (c.inviteUrl != null && c.inviteUrl!.isNotEmpty) {
+              Logger.info('Found letter with invite: id=${c.id}, status=$status, isLocked=$isLocked, daysUntil=$daysUntil, matches=$matches');
+            }
+            return matches;
+          })
           .toList();
+      Logger.info('upcomingCapsulesProvider: Filtered to ${filtered.length} upcoming capsules');
       // Sort by ascending order of time remaining (shortest time first)
       filtered.sort((a, b) => a.timeUntilUnlock.compareTo(b.timeUntilUnlock));
       return filtered;
@@ -155,9 +174,18 @@ final unlockingSoonCapsulesProvider = FutureProvider.family<List<Capsule>, Strin
   
   return capsulesAsync.when(
     data: (capsules) {
+      Logger.info('unlockingSoonCapsulesProvider: Total capsules=${capsules.length}');
       final filtered = capsules
-          .where((c) => c.status == CapsuleStatus.unlockingSoon)
+          .where((c) {
+            final status = c.status;
+            final isUnlockingSoon = status == CapsuleStatus.unlockingSoon;
+            if (c.inviteUrl != null && c.inviteUrl!.isNotEmpty) {
+              Logger.info('Found letter with invite: id=${c.id}, status=$status, isUnlockingSoon=$isUnlockingSoon, daysUntil=${c.timeUntilUnlock.inDays}');
+            }
+            return isUnlockingSoon;
+          })
           .toList();
+      Logger.info('unlockingSoonCapsulesProvider: Filtered to ${filtered.length} unlocking soon capsules');
       // Sort by ascending order of time remaining (shortest time first)
       filtered.sort((a, b) => a.timeUntilUnlock.compareTo(b.timeUntilUnlock));
       return filtered;
@@ -565,8 +593,31 @@ final recipientsProvider = FutureProvider.family<List<Recipient>, String>((ref, 
 class DraftCapsuleNotifier extends StateNotifier<DraftCapsule> {
   DraftCapsuleNotifier() : super(const DraftCapsule());
   
-  void setRecipient(Recipient recipient) {
-    state = state.copyWith(recipient: recipient);
+  void setRecipient(Recipient? recipient) {
+    state = state.copyWith(
+      recipient: recipient,
+      isUnregisteredRecipient: false, // Clear unregistered recipient when selecting a regular recipient
+      unregisteredRecipientName: null, // Clear unregistered recipient name
+      unregisteredPhoneNumber: null,
+      clearUnregisteredPhone: recipient != null, // Clear phone if selecting a recipient
+    );
+  }
+  
+  void setUnregisteredRecipient({String? phoneNumber, String? recipientName}) {
+    state = state.copyWith(
+      isUnregisteredRecipient: true,
+      recipient: null,
+      unregisteredRecipientName: recipientName ?? 'Someone special',
+      unregisteredPhoneNumber: phoneNumber,
+    );
+  }
+  
+  void clearUnregisteredRecipient() {
+    state = state.copyWith(
+      isUnregisteredRecipient: false,
+      unregisteredPhoneNumber: null,
+      clearUnregisteredPhone: true,
+    );
   }
   
   void setContent(String content) {

@@ -382,24 +382,50 @@ class CapsuleCreate(CapsuleBase):
     Capsule creation model matching Supabase schema.
     
     Extends CapsuleBase with recipient_id and unlocks_at fields.
+    Also supports unregistered recipients via is_unregistered_recipient flag.
     
     Fields:
     - Inherits all fields from CapsuleBase
-    - recipient_id: UUID of the recipient (references recipients table)
+    - recipient_id: UUID of the recipient (references recipients table) - required if is_unregistered_recipient is False
     - unlocks_at: When capsule becomes available to open (required, must be future)
+    - is_unregistered_recipient: True if sending to someone not on OpenOn
+    - unregistered_recipient_name: Name for unregistered recipient (required if is_unregistered_recipient is True)
     
     Validation:
-    - recipient_id must be a valid UUID
-    - recipient_id must reference an existing recipient
+    - recipient_id must be provided if is_unregistered_recipient is False
+    - unregistered_recipient_name must be provided if is_unregistered_recipient is True
     - unlocks_at must be in the future
     - Must have either body_text OR body_rich_text
     
     Note:
         Capsules are created in 'sealed' status
         unlocks_at is required (no draft state in Supabase)
+        For unregistered recipients, a recipient will be created automatically
     """
-    recipient_id: UUID  # UUID of recipient (references recipients table)
+    recipient_id: Optional[UUID] = None  # UUID of recipient (required if is_unregistered_recipient is False)
     unlocks_at: datetime  # When capsule unlocks (required)
+    
+    # Unregistered recipient fields (for sending to users not on OpenOn)
+    is_unregistered_recipient: bool = False
+    unregistered_recipient_name: Optional[str] = Field(None, min_length=1, max_length=255)  # Name for unregistered recipient
+    
+    @field_validator('recipient_id')
+    @classmethod
+    def validate_recipient(cls, v: Optional[UUID], info) -> Optional[UUID]:
+        """Validate that recipient_id is provided if not unregistered recipient."""
+        is_unregistered = info.data.get('is_unregistered_recipient', False)
+        if not is_unregistered and v is None:
+            raise ValueError('recipient_id is required when is_unregistered_recipient is False')
+        return v
+    
+    @field_validator('unregistered_recipient_name')
+    @classmethod
+    def validate_unregistered_name(cls, v: Optional[str], info) -> Optional[str]:
+        """Validate that unregistered_recipient_name is provided if is_unregistered_recipient is True."""
+        is_unregistered = info.data.get('is_unregistered_recipient', False)
+        if is_unregistered and (v is None or v.strip() == ''):
+            raise ValueError('unregistered_recipient_name is required when is_unregistered_recipient is True')
+        return v
 
 
 class CapsuleUpdate(BaseModel):
@@ -510,6 +536,7 @@ class CapsuleResponse(CapsuleBase):
     sender_id: Optional[UUID] = None  # None if is_anonymous
     sender_name: Optional[str] = None  # 'Anonymous' if is_anonymous, otherwise sender's display name
     sender_avatar_url: Optional[str] = None  # None if is_anonymous
+    invite_url: Optional[str] = None  # Invite URL if this is for an unregistered recipient
     recipient_id: UUID
     recipient_name: Optional[str] = None  # Name from recipients table
     recipient_avatar_url: Optional[str] = None  # Avatar URL of recipient (from linked user profile or recipient's own avatar_url)
@@ -1128,6 +1155,57 @@ class AnonymousHintResponse(BaseModel):
     """
     hint_text: Optional[str] = None
     hint_index: Optional[int] = Field(None, ge=1, le=3)
+    
+    class Config:
+        from_attributes = True
+
+
+# ===== Letter Invite Models =====
+class LetterInviteCreateResponse(BaseModel):
+    """
+    Response model for creating a letter invite.
+    
+    Returns the invite ID, token, and URL for sharing.
+    """
+    invite_id: UUID
+    invite_token: str
+    invite_url: str
+    already_exists: bool = False
+    
+    class Config:
+        from_attributes = True
+
+
+class LetterInvitePreviewResponse(BaseModel):
+    """
+    Response model for letter invite preview (public, no auth required).
+    
+    Returns only safe public data - no sender identity or private information.
+    """
+    invite_id: UUID
+    letter_id: UUID
+    unlocks_at: datetime
+    is_unlocked: bool
+    days_remaining: int
+    hours_remaining: int
+    minutes_remaining: int
+    seconds_remaining: int
+    title: Optional[str] = None
+    theme: Optional[dict] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class LetterInviteClaimResponse(BaseModel):
+    """
+    Response model for claiming a letter invite.
+    
+    Returns success status and letter ID.
+    """
+    success: bool
+    letter_id: UUID
+    message: str
     
     class Config:
         from_attributes = True

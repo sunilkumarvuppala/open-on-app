@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/providers/providers.dart';
-import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/utils/logger.dart';
@@ -59,6 +57,8 @@ class StepChooseRecipient extends ConsumerStatefulWidget {
 
 class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
   String _searchQuery = '';
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _inviteOptionKey = GlobalKey();
   
   @override
   void initState() {
@@ -75,9 +75,29 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
   }
   
   @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+  
+  void _scrollToInviteOption() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients && _inviteOptionKey.currentContext != null) {
+        final context = _inviteOptionKey.currentContext!;
+        Scrollable.ensureVisible(
+          context,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+  
+  @override
   Widget build(BuildContext context) {
     final userAsync = ref.watch(currentUserProvider);
-    final selectedRecipient = ref.watch(draftCapsuleProvider).recipient;
+    final draftCapsule = ref.watch(draftCapsuleProvider);
+    final selectedRecipient = draftCapsule.recipient;
     final colorScheme = ref.watch(selectedColorSchemeProvider);
     
     return userAsync.when(
@@ -130,18 +150,24 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
               );
             }
             
-            // STEP 1: Filter out "To Self" recipients completely
-            final recipientsWithoutToSelf = deduplicatedRecipients.where((r) {
-              final nameLower = r.name.toLowerCase().trim();
-              if (nameLower == 'to self') {
-                return false;
-              }
-              return true;
-            }).toList();
+            // STEP 1: Filter out "To Self" recipients and separate self/other recipients in one pass (optimized)
+            final selfRecipients = <Recipient>[];
+            final otherRecipients = <Recipient>[];
+            const toSelfName = 'to self'; // Constant for comparison
             
-            // STEP 2: Ensure only ONE self-recipient exists (where linkedUserId == user.id)
-            final selfRecipients = recipientsWithoutToSelf.where((r) => r.linkedUserId == user.id).toList();
-            final otherRecipients = recipientsWithoutToSelf.where((r) => r.linkedUserId != user.id).toList();
+            for (final recipient in deduplicatedRecipients) {
+              final nameLower = recipient.name.toLowerCase().trim();
+              // Skip "To Self" recipients
+              if (nameLower == toSelfName) {
+                continue;
+              }
+              // Categorize as self or other
+              if (recipient.linkedUserId == user.id) {
+                selfRecipients.add(recipient);
+              } else {
+                otherRecipients.add(recipient);
+              }
+            }
             
             // If multiple self-recipients exist, keep only the first one
             // If no self-recipient exists, create a temporary one (backend will create the real one when sending)
@@ -175,18 +201,161 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
               children: [
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: EdgeInsets.all(AppTheme.spacingLg),
+                    controller: _scrollController,
+                    padding: EdgeInsets.fromLTRB(
+                      AppTheme.spacingLg,
+                      AppTheme.spacingSm,
+                      AppTheme.spacingLg,
+                      AppTheme.spacingLg,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Who is this letter for?',
-                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Who is this letter for?',
+                                style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                                    ),
                               ),
+                            ),
+                            TextButton.icon(
+                              icon: Icon(
+                                Icons.person_add,
+                                color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                                size: 20,
+                              ),
+                              label: Text(
+                                'Invite',
+                                style: TextStyle(
+                                  color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              onPressed: () {
+                                // Automatically select unregistered recipient option
+                                // setUnregisteredRecipient already clears the regular recipient
+                                ref.read(draftCapsuleProvider.notifier).setUnregisteredRecipient();
+                                // Scroll to invite option
+                                _scrollToInviteOption();
+                              },
+                            ),
+                          ],
                         ),
                         SizedBox(height: AppTheme.spacingSm),
+                        
+                        // Show "Invite with a letter" option at top when selected
+                        Builder(
+                          builder: (context) {
+                            final draftCapsule = ref.watch(draftCapsuleProvider);
+                            // Show invite option when selected (setUnregisteredRecipient already clears recipient)
+                            final isUnregisteredSelected = draftCapsule.isUnregisteredRecipient;
+                            
+                            if (!isUnregisteredSelected) {
+                              return const SizedBox.shrink();
+                            }
+                            
+                            return Column(
+                              children: [
+                                Card(
+                                  key: _inviteOptionKey,
+                                  elevation: 2,
+                                  color: DynamicTheme.getButtonBackgroundColor(colorScheme, opacity: AppTheme.opacityHigh),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                                  ),
+                                  child: InkWell(
+                                    onTap: () {
+                                      // Deselect unregistered option
+                                      ref.read(draftCapsuleProvider.notifier).clearUnregisteredRecipient();
+                                      ref.read(draftCapsuleProvider.notifier).setRecipient(null);
+                                    },
+                                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                                    child: Padding(
+                                      padding: EdgeInsets.all(AppTheme.spacingMd),
+                                      child: Column(
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Container(
+                                                width: 56,
+                                                height: 56,
+                                                decoration: BoxDecoration(
+                                                  color: DynamicTheme.getButtonBackgroundColor(colorScheme, opacity: AppTheme.opacityHigh),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: Icon(
+                                                  Icons.mail_outline,
+                                                  color: DynamicTheme.getButtonTextColor(colorScheme),
+                                                  size: 28,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      'Invite with a letter',
+                                                      style: TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                                                      ),
+                                                    ),
+                                                    SizedBox(height: AppTheme.spacingXs),
+                                                    Text(
+                                                      "We'll send them a private link to unlock this letter",
+                                                      style: TextStyle(
+                                                        color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                                                        fontSize: 14,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Icon(
+                                                Icons.check_circle,
+                                                color: DynamicTheme.getButtonTextColor(colorScheme),
+                                                size: 28,
+                                              ),
+                                            ],
+                                          ),
+                                          // Name input field (shown when unregistered recipient is selected)
+                                          SizedBox(height: AppTheme.spacingMd),
+                                          TextFormField(
+                                            initialValue: draftCapsule.unregisteredRecipientName,
+                                            decoration: InputDecoration(
+                                              labelText: 'Recipient Name (Optional)',
+                                              hintText: 'Enter their name',
+                                              prefixIcon: Icon(
+                                                Icons.person_outline,
+                                                color: DynamicTheme.getInputHintColor(colorScheme),
+                                              ),
+                                            ),
+                                            style: TextStyle(
+                                              color: DynamicTheme.getInputTextColor(colorScheme),
+                                            ),
+                                            onChanged: (value) {
+                                              ref.read(draftCapsuleProvider.notifier).setUnregisteredRecipient(
+                                                recipientName: value.trim().isNotEmpty ? value.trim() : null,
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: AppTheme.spacingLg),
+                              ],
+                            );
+                          },
+                        ),
                         
                         // Search field
                         TextField(
@@ -234,7 +403,9 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                           ),
                         ] else
                           ...filteredRecipients.map((recipient) {
-                            final isSelected = selectedRecipient?.id == recipient.id;
+                            // Ensure mutual exclusivity: only selected if recipient matches AND unregistered is NOT selected
+                            final isSelected = !draftCapsule.isUnregisteredRecipient && 
+                                              selectedRecipient?.id == recipient.id;
                             final letterCountKey = '${user.id}|${recipient.id}|${recipient.linkedUserId ?? ''}';
                             
                             return Padding(
@@ -250,8 +421,8 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                                     : DynamicTheme.getCardBackgroundColor(colorScheme),
                                 child: InkWell(
                                   onTap: () {
-                                    ref.read(draftCapsuleProvider.notifier)
-                                        .setRecipient(recipient);
+                                    // setRecipient automatically clears unregistered recipient
+                                    ref.read(draftCapsuleProvider.notifier).setRecipient(recipient);
                                   },
                                   borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                                   child: Padding(
@@ -319,68 +490,84 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                         
                         SizedBox(height: AppTheme.spacingLg),
                         
-                        // Add new recipient button at bottom
-                        Card(
-                          elevation: 2,
-                          color: DynamicTheme.getCardBackgroundColor(colorScheme),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                          ),
-                          child: InkWell(
-                            onTap: () async {
-                              await context.push(Routes.addRecipient);
-                              ref.invalidate(recipientsProvider(user.id));
-                            },
-                            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                            child: Padding(
-                              padding: EdgeInsets.all(AppTheme.spacingMd),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 56,
-                                    height: 56,
-                                    decoration: BoxDecoration(
-                                      color: DynamicTheme.getButtonBackgroundColor(colorScheme, opacity: 0.2),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      Icons.add,
-                                      color: DynamicTheme.getButtonTextColor(colorScheme),
-                                      size: 28,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Add New Recipient',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                            color: DynamicTheme.getPrimaryTextColor(colorScheme),
-                                          ),
-                                        ),
-                                        SizedBox(height: AppTheme.spacingXs),
-                                        Text(
-                                          'Create a new person to send letters to',
-                                          style: TextStyle(
-                                            color: DynamicTheme.getSecondaryTextColor(colorScheme),
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Icon(
-                                    Icons.chevron_right,
-                                    color: DynamicTheme.getSecondaryIconColor(colorScheme),
-                                  ),
-                                ],
+                        // Send to unregistered user option - at bottom (only show when NOT selected)
+                        Builder(
+                          builder: (context) {
+                            final draftCapsule = ref.watch(draftCapsuleProvider);
+                            // Only show at bottom when NOT selected (when selected, it shows at top)
+                            if (draftCapsule.isUnregisteredRecipient) {
+                              return const SizedBox.shrink();
+                            }
+                            
+                            return Card(
+                              key: _inviteOptionKey,
+                              elevation: 2,
+                              color: DynamicTheme.getCardBackgroundColor(colorScheme),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                               ),
-                            ),
-                          ),
+                              child: InkWell(
+                                onTap: () {
+                                  // Select unregistered option (automatically clears regular recipient)
+                                  // setUnregisteredRecipient already clears the regular recipient
+                                  ref.read(draftCapsuleProvider.notifier).setUnregisteredRecipient();
+                                },
+                                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                                child: Padding(
+                                  padding: EdgeInsets.all(AppTheme.spacingMd),
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            width: 56,
+                                            height: 56,
+                                            decoration: BoxDecoration(
+                                              color: DynamicTheme.getButtonBackgroundColor(colorScheme, opacity: 0.2),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: Icon(
+                                              Icons.mail_outline,
+                                              color: DynamicTheme.getButtonTextColor(colorScheme),
+                                              size: 28,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Invite with a letter',
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                                                  ),
+                                                ),
+                                                SizedBox(height: AppTheme.spacingXs),
+                                                Text(
+                                                  "We'll send them a private link to unlock this letter",
+                                                  style: TextStyle(
+                                                    color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Icon(
+                                            Icons.chevron_right,
+                                            color: DynamicTheme.getSecondaryIconColor(colorScheme),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -400,11 +587,14 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                       ),
                     ],
                   ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: selectedRecipient != null ? widget.onNext : null,
+                  child: Builder(
+                    builder: (context) {
+                      final draftCapsule = ref.watch(draftCapsuleProvider);
+                      return SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: (selectedRecipient != null || draftCapsule.isUnregisteredRecipient) ? widget.onNext : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colorScheme.primary1,
                         foregroundColor: DynamicTheme.getButtonTextColor(colorScheme),
@@ -413,8 +603,10 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
                           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                         ),
                       ),
-                      child: const Text('Continue'),
-                    ),
+                          child: const Text('Continue'),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],

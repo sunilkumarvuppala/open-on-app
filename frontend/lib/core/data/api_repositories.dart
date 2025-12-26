@@ -359,8 +359,8 @@ class ApiCapsuleRepository implements CapsuleRepository {
       // Use a reasonable page size that balances performance and UX
       // Loading too many capsules (100) causes performance issues
       // But we need enough to show most users' capsules without pagination
-      // Using 50 as a middle ground - fast enough but shows most users' capsules
-      final pageSize = 50; // Balance between performance (20) and completeness (100)
+      // Using 100 to ensure we get all letters including recent ones
+      final pageSize = 100; // Increased to ensure all letters are loaded
       final response = await _apiClient.get(
         ApiConfig.capsules,
         queryParams: {
@@ -380,8 +380,23 @@ class ApiCapsuleRepository implements CapsuleRepository {
       }
       
       final capsules = capsulesList
-          .map((json) => CapsuleMapper.fromJson(json as Map<String, dynamic>))
+          .map((json) {
+            final capsule = CapsuleMapper.fromJson(json as Map<String, dynamic>);
+            // Log capsules with invite URLs
+            if (capsule.inviteUrl != null && capsule.inviteUrl!.isNotEmpty) {
+              Logger.info('Found capsule with invite URL: id=${capsule.id}, inviteUrl=${capsule.inviteUrl}, status=${capsule.status}');
+            }
+            return capsule;
+          })
           .toList();
+      
+      Logger.info('Mapped ${capsules.length} capsules. Checking for unregistered recipient letters...');
+      final unregisteredLetters = capsules.where((c) => c.inviteUrl != null && c.inviteUrl!.isNotEmpty).toList();
+      if (unregisteredLetters.isNotEmpty) {
+        Logger.info('Found ${unregisteredLetters.length} letters with invite URLs: ${unregisteredLetters.map((c) => c.id).join(", ")}');
+      } else {
+        Logger.warning('No letters with invite URLs found in response');
+      }
 
       // Don't sort here - sorting is handled by providers based on tab requirements
       return capsules;
@@ -404,6 +419,8 @@ class ApiCapsuleRepository implements CapsuleRepository {
     String? hint1,
     String? hint2,
     String? hint3,
+    bool isUnregisteredRecipient = false,
+    String? unregisteredRecipientName,
   }) async {
     try {
       // Validate input
@@ -421,32 +438,45 @@ class ApiCapsuleRepository implements CapsuleRepository {
         );
       }
 
-      // Resolve recipient UUID (handles UUID validation and lookup)
-      final recipientRepo = ApiRecipientRepository();
-      final recipientId = await RecipientResolver.resolveRecipientId(
-        recipientId: capsule.receiverId,
-        currentUserId: currentUser.id,
-        recipientRepo: recipientRepo,
-        recipientName: capsule.receiverName,
-      );
-
-      Logger.info(
-        'Creating capsule: recipientId=$recipientId, '
-        'receiverName=${capsule.receiverName}, '
-        'unlocksAt=${capsule.unlockAt}, '
-        'isAnonymous=${capsule.isAnonymous}, '
-        'revealDelaySeconds=${capsule.revealDelaySeconds}'
-      );
-      
       // Build request payload
       final payload = <String, dynamic>{
-        'recipient_id': recipientId,
         'title': capsule.label.isNotEmpty ? capsule.label : null,
         'body_text': capsule.content,
         'unlocks_at': capsule.unlockAt.toUtc().toIso8601String(),
         'is_anonymous': capsule.isAnonymous,
         'is_disappearing': false,
       };
+      
+      // Handle unregistered recipients
+      if (isUnregisteredRecipient) {
+        payload['is_unregistered_recipient'] = true;
+        payload['unregistered_recipient_name'] = unregisteredRecipientName ?? 'Someone special';
+        Logger.info(
+          'Creating capsule for unregistered recipient: '
+          'receiverName=${capsule.receiverName}, '
+          'unlocksAt=${capsule.unlockAt}, '
+          'isAnonymous=${capsule.isAnonymous}, '
+          'revealDelaySeconds=${capsule.revealDelaySeconds}'
+        );
+      } else {
+        // Resolve recipient UUID (handles UUID validation and lookup) - only for registered recipients
+        final recipientRepo = ApiRecipientRepository();
+        final recipientId = await RecipientResolver.resolveRecipientId(
+          recipientId: capsule.receiverId,
+          currentUserId: currentUser.id,
+          recipientRepo: recipientRepo,
+          recipientName: capsule.receiverName,
+        );
+        payload['recipient_id'] = recipientId;
+        payload['is_unregistered_recipient'] = false;
+        Logger.info(
+          'Creating capsule: recipientId=$recipientId, '
+          'receiverName=${capsule.receiverName}, '
+          'unlocksAt=${capsule.unlockAt}, '
+          'isAnonymous=${capsule.isAnonymous}, '
+          'revealDelaySeconds=${capsule.revealDelaySeconds}'
+        );
+      }
       
       // Add reveal_delay_seconds if anonymous
       if (capsule.isAnonymous && capsule.revealDelaySeconds != null) {
@@ -472,8 +502,13 @@ class ApiCapsuleRepository implements CapsuleRepository {
         payload,
       );
 
+      Logger.debug('Capsule creation response: $response');
       final createdCapsule = CapsuleMapper.fromJson(response);
-      Logger.info('Capsule created successfully: id=${createdCapsule.id}');
+      Logger.info(
+        'Capsule created successfully: id=${createdCapsule.id}, '
+        'inviteUrl=${createdCapsule.inviteUrl}, '
+        'isUnregistered=$isUnregisteredRecipient'
+      );
       return createdCapsule;
     } on RepositoryException {
       // Re-throw repository exceptions as-is
@@ -1077,7 +1112,7 @@ class ApiConnectionRepository with StreamPollingMixin implements ConnectionRepos
 
   @override
   Future<List<ConnectionUserProfile>> searchUsers(String query, {String? userId}) async {
-    // Use the existing user search endpoint (same as AddRecipientScreen)
+    // Use the existing user search endpoint
     try {
       final users = await ApiUserService().searchUsers(query);
       return users.map((user) {

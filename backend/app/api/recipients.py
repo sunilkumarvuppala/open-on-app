@@ -281,6 +281,17 @@ async def list_recipients(
         
         for recipient in recipients:
             linked_user_id = getattr(recipient, 'linked_user_id', None)
+            recipient_email = getattr(recipient, 'email', None)
+            
+            # Filter out unregistered recipients (no linked_user_id AND no email)
+            # These are temporary placeholders created for letters to unregistered users
+            # They should not appear in the recipients list
+            if linked_user_id is None and recipient_email is None:
+                logger.debug(
+                    f"Filtering out unregistered recipient: id={recipient.id}, name={recipient.name} "
+                    f"for user {current_user.user_id}"
+                )
+                continue
             
             # For connection-based recipients, deduplicate by linked_user_id
             if linked_user_id is not None:

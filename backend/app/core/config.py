@@ -125,6 +125,12 @@ class Settings(BaseSettings):
     # Interval for background worker to check capsule unlock times
     # Lower values = more frequent checks but higher CPU usage
     
+    # ===== Invite URLs =====
+    invite_base_url: Optional[str] = Field(
+        default="https://openon.app/invite",
+        description="Base URL for letter invite links. Format: https://openon.app/invite (without trailing slash). For local dev, use http://localhost:3000/invite or your frontend URL. Required for unregistered recipient feature."
+    )
+    
     # ===== Notifications (Future Integration) =====
     fcm_api_key: Optional[str] = None  # Firebase Cloud Messaging API key
     apns_key_path: Optional[str] = None  # Apple Push Notification Service key path

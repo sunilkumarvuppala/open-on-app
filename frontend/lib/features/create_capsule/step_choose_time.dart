@@ -156,7 +156,12 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
       children: [
         Expanded(
           child: SingleChildScrollView(
-            padding: EdgeInsets.all(AppTheme.spacingLg),
+            padding: EdgeInsets.fromLTRB(
+              AppTheme.spacingLg,
+              AppTheme.spacingMd,
+              AppTheme.spacingLg,
+              AppTheme.spacingLg,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

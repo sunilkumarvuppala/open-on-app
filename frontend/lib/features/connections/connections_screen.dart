@@ -8,6 +8,7 @@ import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
 import 'package:openon_app/core/utils/logger.dart';
+import 'package:openon_app/core/router/app_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class ConnectionsScreen extends ConsumerWidget {
@@ -81,6 +82,14 @@ class ConnectionsScreen extends ConsumerWidget {
             },
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          context.push(Routes.addConnection);
+        },
+        backgroundColor: colorScheme.primary1,
+        elevation: 4,
+        child: const Icon(Icons.person_add, color: Colors.white),
       ),
     );
   }

@@ -57,7 +57,13 @@ class _StepPreviewState extends ConsumerState<StepPreview>
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
     final draft = ref.watch(draftCapsuleProvider);
-    final recipient = draft.recipient!;
+    final isUnregistered = draft.isUnregisteredRecipient;
+    final recipient = draft.recipient;
+    final recipientName = isUnregistered 
+        ? (draft.unregisteredRecipientName ?? 'Someone special')
+        : (recipient?.name ?? 'Recipient');
+    final recipientAvatar = isUnregistered ? '' : (recipient?.avatar ?? '');
+    final recipientUsername = isUnregistered ? null : recipient?.username;
     final unlockAt = draft.unlockAt!;
     final label = draft.label?.isNotEmpty == true
         ? draft.label!
@@ -198,8 +204,8 @@ class _StepPreviewState extends ConsumerState<StepPreview>
                             ),
                             // Recipient avatar
                             UserAvatar(
-                              name: recipient.name,
-                              imageUrl: recipient.avatar.isNotEmpty ? recipient.avatar : null,
+                              name: recipientName,
+                              imageUrl: recipientAvatar.isNotEmpty ? recipientAvatar : null,
                               size: AppConstants.previewAvatarSize,
                             ),
                           ],
@@ -242,9 +248,9 @@ class _StepPreviewState extends ConsumerState<StepPreview>
                                 ),
                                 children: [                                  
                                   TextSpan(
-                                    text: recipient.username != null && recipient.username!.isNotEmpty
-                                        ? '${recipient.name} (@${recipient.username})'
-                                        : recipient.name,
+                                    text: recipientUsername != null && recipientUsername.isNotEmpty
+                                        ? '$recipientName (@$recipientUsername)'
+                                        : recipientName,
                                     style: const TextStyle(fontWeight: FontWeight.bold),
                                   ),
                                 ],
@@ -297,6 +303,28 @@ class _StepPreviewState extends ConsumerState<StepPreview>
                             SizedBox(width: AppConstants.previewAnonymousIconSpacing),
                             Text(
                               'Anonymous',
+                              style: TextStyle(
+                                color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityFull),
+                                fontSize: AppConstants.previewUnlockTimeFontSize,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      if (isUnregistered) ...[
+                        SizedBox(height: AppTheme.spacingXs),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.link_outlined,
+                              size: AppConstants.previewSmallIconSize,
+                              color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityFull),
+                            ),
+                            SizedBox(width: AppConstants.previewAnonymousIconSpacing),
+                            Text(
+                              'Invite link will be shared',
                               style: TextStyle(
                                 color: DynamicTheme.getSecondaryTextColor(colorScheme, opacity: AppTheme.opacityFull),
                                 fontSize: AppConstants.previewUnlockTimeFontSize,

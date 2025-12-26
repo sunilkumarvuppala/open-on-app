@@ -32,10 +32,11 @@ Content-Type: application/json
 
 1. [Authentication & Profile](#authentication--profile-endpoints)
 2. [Capsules](#capsules-endpoints)
-3. [Letter Replies](#letter-replies-endpoints) ⭐ NEW
-4. [Recipients](#recipients-endpoints)
-5. [Connections](#connections-endpoints)
-6. [Error Handling](#error-handling)
+3. [Letter Invites](#letter-invites-endpoints) ⭐ NEW
+4. [Letter Replies](#letter-replies-endpoints) ⭐ NEW
+5. [Recipients](#recipients-endpoints)
+6. [Connections](#connections-endpoints)
+7. [Error Handling](#error-handling)
 
 ---
 
@@ -427,6 +428,175 @@ curl -X DELETE "http://localhost:8000/capsules/550e8400-e29b-41d4-a716-446655440
 - Shows thoughtful messaging (calm, not destructive)
 - Disabled automatically once letter is opened
 - Includes race condition protection and comprehensive error handling
+
+---
+
+## Letter Invites Endpoints ⭐ NEW
+
+The Letter Invites API enables sending letters to unregistered users via private, secure invite links. This feature supports user acquisition while maintaining privacy and security.
+
+### POST /letter-invites/letters/{letter_id}
+
+Create a letter invite for sending to an unregistered user.
+
+**Headers:**
+```http
+Authorization: Bearer <supabase_jwt_token>
+Content-Type: application/json
+```
+
+**Path Parameters:**
+- `letter_id` (UUID) - ID of the letter to create invite for
+
+**Response (201):**
+```json
+{
+  "invite_id": "550e8400-e29b-41d4-a716-446655440000",
+  "invite_token": "abc123xyz...",
+  "invite_url": "https://openon.app/invite/abc123xyz...",
+  "already_exists": false
+}
+```
+
+**Response (200) - If invite already exists:**
+```json
+{
+  "invite_id": "550e8400-e29b-41d4-a716-446655440000",
+  "invite_token": "abc123xyz...",
+  "invite_url": "https://openon.app/invite/abc123xyz...",
+  "already_exists": true
+}
+```
+
+**Business Rules:**
+- Only the sender can create invites for their letters
+- One active invite per letter (returns existing if one exists)
+- Letter must not be deleted
+- Invite token is generated automatically (32+ characters, cryptographically secure)
+
+**Example:**
+```bash
+curl -X POST "http://localhost:8000/letter-invites/letters/550e8400-e29b-41d4-a716-446655440000" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN"
+```
+
+### GET /letter-invites/preview/{invite_token}
+
+Get public preview of a letter invite (no authentication required).
+
+**Path Parameters:**
+- `invite_token` (string) - Invite token from the invite URL
+
+**Response (200):**
+```json
+{
+  "letter_id": "550e8400-e29b-41d4-a716-446655440000",
+  "unlocks_at": "2025-02-01T12:00:00Z",
+  "is_claimed": false,
+  "countdown_seconds": 86400,
+  "can_open": false
+}
+```
+
+**Response (200) - If already claimed:**
+```json
+{
+  "letter_id": "550e8400-e29b-41d4-a716-446655440000",
+  "unlocks_at": "2025-02-01T12:00:00Z",
+  "is_claimed": true,
+  "countdown_seconds": 0,
+  "can_open": false
+}
+```
+
+**Business Rules:**
+- No authentication required (public endpoint)
+- Returns only safe public data (no sender identity, no letter content)
+- Validates token format (32+ characters, base64url safe)
+- Returns error if letter is deleted or invite not found
+
+**Example:**
+```bash
+curl -X GET "http://localhost:8000/letter-invites/preview/abc123xyz..."
+```
+
+### POST /letter-invites/claim/{invite_token}
+
+Claim a letter invite when user signs up.
+
+**Headers:**
+```http
+Authorization: Bearer <supabase_jwt_token>
+Content-Type: application/json
+```
+
+**Path Parameters:**
+- `invite_token` (string) - Invite token to claim
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "letter_id": "550e8400-e29b-41d4-a716-446655440000",
+  "message": "Invite claimed successfully"
+}
+```
+
+**Error Responses:**
+
+**400 Bad Request** - Invite already claimed:
+```json
+{
+  "detail": "This letter has already been opened"
+}
+```
+
+**404 Not Found** - Invite not found:
+```json
+{
+  "detail": "Invite not found"
+}
+```
+
+**404 Not Found** - Letter deleted:
+```json
+{
+  "detail": "Letter not found"
+}
+```
+
+**Business Rules:**
+- Only authenticated users can claim invites
+- Each invite can only be claimed once (first user wins)
+- When claimed:
+  - Recipient is linked to the claiming user
+  - Mutual connection is created between sender and receiver
+  - Recipient entries are created for both users
+- Atomic operation prevents race conditions
+
+**Example:**
+```bash
+curl -X POST "http://localhost:8000/letter-invites/claim/abc123xyz..." \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN"
+```
+
+### Business Rules
+
+1. **One Invite Per Letter**: Each letter can have at most one active invite
+2. **Single Claim**: Only the first user to claim an invite gets access
+3. **Automatic Connection**: Claiming creates mutual connection between sender and receiver
+4. **Immediate Unlock**: After signup, letter unlocks immediately if open time has passed
+5. **Countdown Support**: If claimed before open time, countdown continues normally
+6. **Revocable**: Deleting the letter invalidates the invite link
+7. **No Sender Exposure**: Invite preview does not reveal sender identity
+
+### Security
+
+- **Token Generation**: Uses `secrets.token_urlsafe(32)` (cryptographically secure)
+- **Token Validation**: Regex validation prevents injection attacks
+- **RLS Policies**: Database-level security enforced via Row Level Security
+- **Race Conditions**: Handled with atomic operations (`WHERE claimed_at IS NULL`)
+- **Input Sanitization**: All inputs validated and sanitized
 
 ---
 

@@ -109,13 +109,13 @@ class ProfileScreen extends ConsumerWidget {
               
               // Account section
               _buildSectionTitle(context, 'Account', ref),
-              // Manage Recipients - emphasized as first item with subtle elevation
+              // Manage Connections - emphasized as first item with subtle elevation
               _buildSettingsTile(
                 context,
                 ref,
-                icon: Icons.manage_accounts_outlined,
-                title: 'Manage Recipients',
-                onTap: () => context.push(Routes.recipients),
+                icon: Icons.people_outlined,
+                title: 'Manage Connections',
+                onTap: () => context.push(Routes.connections),
                 isEmphasized: true,
               ),
               _buildSettingsTile(

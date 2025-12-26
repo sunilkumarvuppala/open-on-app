@@ -41,6 +41,9 @@ class Capsule {
   final String? currentHintText; // Current eligible hint text (fetched from backend)
   final int? currentHintIndex; // Current hint index (1, 2, or 3)
   
+  // Invite URL (for unregistered recipients)
+  final String? inviteUrl; // Invite URL if this is for an unregistered recipient
+  
   Capsule({
     String? id,
     required this.senderId,
@@ -62,6 +65,7 @@ class Capsule {
     this.senderRevealedAt,
     this.currentHintText,
     this.currentHintIndex,
+    this.inviteUrl,
   })  : id = id ?? _uuid.v4(),
         senderAvatar = senderAvatarValue ?? '',
         receiverAvatar = receiverAvatarValue ?? '',
@@ -256,6 +260,7 @@ class Capsule {
     String? label,
     String? content,
     String? photoUrl,
+    String? inviteUrl,
     DateTime? unlockAt,
     DateTime? createdAt,
     DateTime? openedAt,
@@ -288,6 +293,7 @@ class Capsule {
       senderRevealedAt: senderRevealedAt ?? this.senderRevealedAt,
       currentHintText: currentHintText ?? this.currentHintText,
       currentHintIndex: currentHintIndex ?? this.currentHintIndex,
+      inviteUrl: inviteUrl ?? this.inviteUrl,
     );
   }
 }
@@ -397,6 +403,11 @@ class DraftCapsule {
   final String? hint2;
   final String? hint3;
   
+  // Unregistered recipient fields
+  final bool isUnregisteredRecipient; // True if sending to someone not on OpenOn
+  final String? unregisteredRecipientName; // Name for unregistered recipient
+  final String? unregisteredPhoneNumber; // Optional phone number for sharing
+  
   const DraftCapsule({
     this.recipient,
     this.content,
@@ -409,9 +420,20 @@ class DraftCapsule {
     this.hint1,
     this.hint2,
     this.hint3,
+    this.isUnregisteredRecipient = false,
+    this.unregisteredRecipientName,
+    this.unregisteredPhoneNumber,
   });
   
   bool get isValid {
+    // For unregistered recipients, we don't need a recipient object
+    if (isUnregisteredRecipient) {
+      return content != null &&
+          content!.trim().isNotEmpty &&
+          unlockAt != null &&
+          unlockAt!.isAfter(DateTime.now());
+    }
+    // For registered recipients, recipient is required
     return recipient != null &&
         content != null &&
         content!.trim().isNotEmpty &&
@@ -432,6 +454,10 @@ class DraftCapsule {
     String? hint1,
     String? hint2,
     String? hint3,
+    bool? isUnregisteredRecipient,
+    String? unregisteredRecipientName,
+    String? unregisteredPhoneNumber,
+    bool clearUnregisteredPhone = false,
   }) {
     return DraftCapsule(
       recipient: recipient ?? this.recipient,
@@ -445,6 +471,9 @@ class DraftCapsule {
       hint1: hint1 ?? this.hint1,
       hint2: hint2 ?? this.hint2,
       hint3: hint3 ?? this.hint3,
+      isUnregisteredRecipient: isUnregisteredRecipient != null ? isUnregisteredRecipient : this.isUnregisteredRecipient,
+      unregisteredRecipientName: unregisteredRecipientName ?? this.unregisteredRecipientName,
+      unregisteredPhoneNumber: clearUnregisteredPhone ? null : (unregisteredPhoneNumber ?? this.unregisteredPhoneNumber),
     );
   }
   
@@ -452,26 +481,29 @@ class DraftCapsule {
     required String senderId,
     required String senderName,
   }) {
-    if (!isValid || recipient == null || content == null || unlockAt == null) {
+    if (!isValid || content == null || unlockAt == null) {
       throw Exception('Cannot convert invalid draft to capsule');
     }
     
-    // Use recipient.id as receiverId
-    // The RecipientResolver in createCapsule will handle UUID validation and resolution
-    // This allows the resolver to find the correct recipient UUID if the stored ID is stale
-    final receiverId = recipient!.id;
+    // For unregistered recipients, receiverId will be set by backend
+    // For registered recipients, use recipient.id
+    final receiverId = isUnregisteredRecipient ? '' : (recipient?.id ?? '');
+    final receiverName = isUnregisteredRecipient 
+        ? (this.unregisteredRecipientName ?? 'Someone special') 
+        : (recipient?.name ?? 'Recipient');
+    final receiverAvatar = isUnregisteredRecipient ? '' : (recipient?.avatar ?? '');
     
     Logger.debug(
-      'Converting draft to capsule: recipientId=$receiverId, '
-      'recipientName=${recipient!.name}, linkedUserId=${recipient!.linkedUserId}'
+      'Converting draft to capsule: isUnregistered=$isUnregisteredRecipient, '
+      'recipientId=${recipient?.id}, receiverName=$receiverName'
     );
     
     return Capsule(
       senderId: senderId,
       senderName: senderName,
-      receiverId: receiverId, // Will be validated and resolved by RecipientResolver
-      receiverName: recipient!.name,
-      receiverAvatarValue: recipient!.avatar,
+      receiverId: receiverId, // Will be validated and resolved by backend
+      receiverName: receiverName,
+      receiverAvatarValue: receiverAvatar,
       label: label ?? 'A special letter',
       content: content!,
       photoUrl: photoPath,
@@ -633,12 +665,10 @@ class SelfLetter {
       parts.add(mood!);
     }
     
-    if (createdAt != null) {
-      // Format: "Wednesday night"
-      final weekday = _getWeekdayName(createdAt.weekday);
-      final timeOfDay = _getTimeOfDay(createdAt.hour);
-      parts.add('$weekday $timeOfDay');
-    }
+    // Format: "Wednesday night"
+    final weekday = _getWeekdayName(createdAt.weekday);
+    final timeOfDay = _getTimeOfDay(createdAt.hour);
+    parts.add('$weekday $timeOfDay');
     
     if (city != null) {
       parts.add('in $city');
