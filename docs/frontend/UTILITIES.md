@@ -200,5 +200,97 @@ Logger.error('Failed to create capsule', error: e, stackTrace: stackTrace);
 
 ---
 
+## Name Filter Utilities (`core/utils/name_filter_utils.dart`)
+
+### Purpose
+Provides efficient, secure name-based filtering for letter lists. Used by the name filter feature to match sender/recipient names against search queries.
+
+### Key Functions
+
+#### `matchesNameQuery(String query, String displayName) -> bool`
+
+Checks if a query matches a display name using multiple matching strategies.
+
+**Matching Strategies**:
+1. **Substring Match**: Case-insensitive substring search
+2. **Initials Match**: Matches initials (e.g., "JD" matches "John Doe")
+3. **Multi-Token Match**: All query tokens must be present in name (any order)
+
+**Parameters**:
+- `query`: Search query string (max 100 characters)
+- `displayName`: Display name to match against
+
+**Returns**: `true` if query matches name, `false` otherwise
+
+**Examples**:
+```dart
+matchesNameQuery("john", "John Doe")        // true (substring)
+matchesNameQuery("jd", "John Doe")          // true (initials)
+matchesNameQuery("doe john", "John Doe")    // true (all tokens)
+matchesNameQuery("john smith", "John Doe")  // false (smith not present)
+matchesNameQuery("", "John Doe")           // true (empty query matches all)
+```
+
+**Security**:
+- Input length validation (max 100 characters)
+- Early returns for empty inputs
+- Efficient string operations to prevent DoS
+
+**Performance**:
+- O(n) complexity
+- Early returns for common cases
+- Optimized string operations
+
+#### `getInitials(String name) -> String`
+
+Extracts initials from a name string.
+
+**Examples**:
+- "John Doe" → "JD"
+- "Mary" → "M"
+- "John Michael Smith" → "JM" (first two words only)
+
+**Performance**: Optimized with early returns and efficient string operations.
+
+#### `normalizeForSearch(String input) -> String`
+
+Normalizes input for search matching:
+- Trims whitespace
+- Converts to lowercase
+- Normalizes multiple spaces to single space
+- Limits length to prevent DoS attacks
+
+**Security**: Limits input length to prevent DoS attacks.
+
+### Usage Example
+
+```dart
+import 'package:openon_app/core/utils/name_filter_utils.dart';
+
+// Filter capsules by sender name
+final filtered = capsules.where((capsule) {
+  return matchesNameQuery(query, capsule.displaySenderName);
+}).toList();
+
+// Extract initials
+final initials = getInitials("John Doe"); // "JD"
+
+// Normalize for search
+final normalized = normalizeForSearch("  John   Doe  "); // "john doe"
+```
+
+### Best Practices
+- ✅ Use `matchesNameQuery()` for all name filtering
+- ✅ Always validate query length before calling (max 100 chars)
+- ✅ Handle empty queries (they match everything)
+- ✅ Use `normalizeForSearch()` for consistent matching
+- ❌ Don't implement custom matching logic - use utilities
+
+### Related Documentation
+- **[NAME_FILTER.md](./features/NAME_FILTER.md)** - Complete name filter feature documentation
+- **[CORE_COMPONENTS.md](./CORE_COMPONENTS.md)** - InlineNameFilterBar widget
+
+---
+
 **Last Updated**: December 2025
 

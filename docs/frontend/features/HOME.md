@@ -32,6 +32,7 @@ features/home/
 - User greeting with avatar
 - Drafts button with count (subtle, near tabs)
 - Three tabs: Unfolding, Sealed, Opened
+- **Name filter** - On-demand inline search to filter by recipient name ⭐ NEW
 - Floating Action Button (FAB) for creating letters
 - Magic dust background animation
 - Tab animations with sparkle effects
@@ -41,21 +42,24 @@ features/home/
 1. **Unfolding Tab** (`_UnlockingSoonTab`)
    - Label: "Unfolding" (with sparkles icon)
    - Shows capsules unlocking within 7 days
-   - Uses `unlockingSoonCapsulesProvider`
+   - Uses `sendFilteredUnlockingSoonCapsulesProvider` (supports name filtering) ⭐
    - Displays countdown timers
    - Animated "Unlocking Soon" badges
+   - **Filter**: Filters by recipient name when filter is active
 
 2. **Sealed Tab** (`_UpcomingTab`)
    - Label: "Sealed" (with lock icon)
    - Shows capsules unlocking later than 7 days
-   - Uses `upcomingCapsulesProvider`
+   - Uses `sendFilteredUpcomingCapsulesProvider` (supports name filtering) ⭐
    - Shows unlock dates
+   - **Filter**: Filters by recipient name when filter is active
 
 3. **Opened Tab** (`_OpenedTab`)
    - Label: "Opened" (with heart icon)
    - Shows already opened capsules
-   - Uses `openedCapsulesProvider`
+   - Uses `sendFilteredOpenedCapsulesProvider` (supports name filtering) ⭐
    - Displays open date and reactions
+   - **Filter**: Filters by recipient name when filter is active
 
 **Layout Structure**:
 ```
@@ -64,13 +68,21 @@ HomeScreen
 │   └── Container (gradient)
 │       └── SafeArea
 │           └── Column
-│               ├── Header (avatar + greeting)
+│               ├── Header (avatar + greeting + search icon)
 │               ├── Header Separator
+│               ├── InlineNameFilterBar (expandable, hidden by default) ⭐ NEW
 │               ├── Drafts Button (subtle, near tabs)
 │               ├── TabBar (with animations)
 │               └── TabBarView (tab content)
 └── FloatingActionButton (Create Letter - pencil + mail icons)
 ```
+
+**Name Filter Integration**:
+- Search icon in header (next to notifications icon)
+- Filter bar expands below header separator when search icon is tapped
+- Filters all three tabs by recipient name ("To <name>")
+- Filter query persists when switching tabs
+- See **[NAME_FILTER.md](./NAME_FILTER.md)** for complete documentation
 
 ### CapsuleCard
 

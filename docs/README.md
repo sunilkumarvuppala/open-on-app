@@ -100,6 +100,7 @@
 - **[DRAFTS.md](./frontend/features/DRAFTS.md)** - Draft management
 - **[CONNECTIONS.md](./frontend/features/CONNECTIONS.md)** - Connections & friend requests
 - **[THOUGHTS.md](./frontend/features/THOUGHTS.md)** - Thoughts feature (presence signals)
+- **[NAME_FILTER.md](./frontend/features/NAME_FILTER.md)** - Name filter feature (on-demand search) ⭐ NEW
 - **[RECIPIENTS.md](./frontend/features/RECIPIENTS.md)** - Recipient management
 - **[PROFILE.md](./frontend/features/PROFILE.md)** - Profile & settings
 - **[NAVIGATION.md](./frontend/features/NAVIGATION.md)** - Navigation system

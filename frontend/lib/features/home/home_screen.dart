@@ -11,6 +11,7 @@ import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
+import 'package:openon_app/core/widgets/inline_name_filter_bar.dart';
 import 'package:openon_app/core/widgets/magic_dust_background.dart';
 
 /// Custom FAB location to position it right above bottom navigation
@@ -119,6 +120,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         ),
                       ),
 
+                      // Search icon
+                      Semantics(
+                        label: 'Filter by name',
+                        button: true,
+                        child: IconButton(
+                          icon: const Icon(Icons.search),
+                          tooltip: 'Filter by name',
+                          onPressed: () {
+                            if (!mounted) return;
+                            final isExpanded = ref.read(sendFilterExpandedProvider);
+                            ref.read(sendFilterExpandedProvider.notifier).state = !isExpanded;
+                            // Clear query when collapsing
+                            if (isExpanded) {
+                              ref.read(sendFilterQueryProvider.notifier).state = '';
+                            }
+                          },
+                        ),
+                      ),
+                      
                       // Notifications icon
                       Semantics(
                         label: 'Notifications',
@@ -170,6 +190,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       stops: const [0.0, 0.5, 1.0],
                     ),
                   ),
+                ),
+
+                // Filter bar (inline, expands/collapses)
+                InlineNameFilterBar(
+                  expanded: ref.watch(sendFilterExpandedProvider),
+                  query: ref.watch(sendFilterQueryProvider),
+                  onChanged: (value) {
+                    ref.read(sendFilterQueryProvider.notifier).state = value;
+                  },
+                  onClear: () {
+                    ref.read(sendFilterQueryProvider.notifier).state = '';
+                  },
+                  onToggleExpand: () {
+                    final isExpanded = ref.read(sendFilterExpandedProvider);
+                    ref.read(sendFilterExpandedProvider.notifier).state = !isExpanded;
+                    if (isExpanded) {
+                      ref.read(sendFilterQueryProvider.notifier).state = '';
+                    }
+                  },
+                  placeholder: 'Filter by recipient name…',
                 ),
 
                 // Tabs with Drafts link
@@ -584,8 +624,9 @@ class _UpcomingTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(currentUserProvider);
     final userId = userAsync.asData?.value?.id ?? '';
-    final capsulesAsync = ref.watch(upcomingCapsulesProvider(userId));
+    final capsulesAsync = ref.watch(sendFilteredUpcomingCapsulesProvider(userId));
     final allCapsulesAsync = ref.watch(capsulesProvider(userId));
+    final filterQuery = ref.watch(sendFilterQueryProvider);
     final colorScheme = ref.watch(selectedColorSchemeProvider);
 
     return RefreshIndicator(
@@ -599,6 +640,18 @@ class _UpcomingTab extends ConsumerWidget {
       child: capsulesAsync.when(
         data: (capsules) {
           if (capsules.isEmpty) {
+            // Show different empty state if filtering
+            if (filterQuery.trim().isNotEmpty) {
+              return const SingleChildScrollView(
+                physics: AlwaysScrollableScrollPhysics(),
+                child: EmptyState(
+                  icon: Icons.search_off,
+                  title: 'No letters found',
+                  message: 'No letters found for that name.',
+                ),
+              );
+            }
+            
             // Check if user has zero sent letters total
             // Use whenData for safer async handling
             return allCapsulesAsync.when(
@@ -695,7 +748,8 @@ class _UnlockingSoonTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(currentUserProvider);
     final userId = userAsync.asData?.value?.id ?? '';
-    final capsulesAsync = ref.watch(unlockingSoonCapsulesProvider(userId));
+    final capsulesAsync = ref.watch(sendFilteredUnlockingSoonCapsulesProvider(userId));
+    final filterQuery = ref.watch(sendFilterQueryProvider);
     final colorScheme = ref.watch(selectedColorSchemeProvider);
 
     return RefreshIndicator(
@@ -709,12 +763,23 @@ class _UnlockingSoonTab extends ConsumerWidget {
       child: capsulesAsync.when(
         data: (capsules) {
           if (capsules.isEmpty) {
+            // Show different empty state if filtering
+            if (filterQuery.trim().isNotEmpty) {
+              return const SingleChildScrollView(
+                physics: AlwaysScrollableScrollPhysics(),
+                child: EmptyState(
+                  icon: Icons.search_off,
+                  title: 'No letters found',
+                  message: 'No letters found for that name.',
+                ),
+              );
+            }
             return const SingleChildScrollView(
               physics: AlwaysScrollableScrollPhysics(),
               child: EmptyState(
                 icon: Icons.schedule_outlined,
                 title: 'Nothing unfolding yet',
-                message: 'When a letter is close to opening, you’ll see it here.',
+                message: "When a letter is close to opening, you'll see it here.",
               ),
             );
           }
@@ -764,12 +829,27 @@ class _OpenedTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(currentUserProvider);
     final userId = userAsync.asData?.value?.id ?? '';
-    final capsulesAsync = ref.watch(openedCapsulesProvider(userId));
+    final capsulesAsync = ref.watch(sendFilteredOpenedCapsulesProvider(userId));
+    final filterQuery = ref.watch(sendFilterQueryProvider);
 
     return capsulesAsync.when(
       data: (capsules) {
         if (capsules.isEmpty) {
         final colorScheme = ref.watch(selectedColorSchemeProvider);
+        
+        // Show different empty state if filtering
+        final emptyState = filterQuery.trim().isNotEmpty
+            ? const EmptyState(
+                icon: Icons.search_off,
+                title: 'No letters found',
+                message: 'No letters found for that name.',
+              )
+            : const EmptyState(
+                icon: Icons.mark_email_read_outlined,
+                title: 'No opened letters yet',
+                message: 'When recipients open your letters, they\'ll appear here',
+              );
+        
         return RefreshIndicator(
           onRefresh: () async {
             // Invalidate the base provider to force refresh
@@ -787,11 +867,7 @@ class _OpenedTab extends ConsumerWidget {
               physics: const AlwaysScrollableScrollPhysics(),
               child: SizedBox(
                 height: MediaQuery.of(context).size.height * 0.6,
-                child: const EmptyState(
-                  icon: Icons.mark_email_read_outlined,
-                  title: 'No opened letters yet',
-                  message: 'When recipients open your letters, they\'ll appear here',
-                ),
+                child: emptyState,
               ),
             ),
           );

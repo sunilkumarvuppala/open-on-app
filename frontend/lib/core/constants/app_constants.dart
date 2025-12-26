@@ -53,6 +53,14 @@ class AppConstants {
   static const Duration animationDurationShort = Duration(milliseconds: 200);
   static const Duration animationDurationMedium = Duration(milliseconds: 300);
   static const Duration animationDurationLong = Duration(milliseconds: 500);
+  
+  // Filter/search constants
+  static const Duration filterDebounceDuration = Duration(milliseconds: 200);
+  static const Duration filterBarAnimationDuration = Duration(milliseconds: 250);
+  static const double filterBarHeight = 48.0;
+  static const int maxFilterQueryLength = 100; // Reasonable limit for search queries
+  static const double filterIconSize = 20.0;
+  static const double filterClearIconSize = 18.0;
   static const Duration openingAnimationDuration = Duration(milliseconds: 1500);
   static const Duration openingAnimationDelay = Duration(milliseconds: 500);
   static const Duration magicDustAnimationDuration = Duration(seconds: 60); // Longer duration for extended sparkle movement

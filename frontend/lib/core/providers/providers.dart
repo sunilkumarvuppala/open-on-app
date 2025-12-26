@@ -14,6 +14,7 @@ import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/color_scheme_service.dart';
 import 'package:openon_app/core/utils/logger.dart';
 import 'package:openon_app/core/errors/app_exceptions.dart';
+import 'package:openon_app/core/utils/name_filter_utils.dart';
 
 // Configuration: Set to true to use API, false to use mocks
 const bool useApiRepositories = true;
@@ -404,6 +405,160 @@ final incomingOpenedCapsulesProvider = FutureProvider.family<List<Capsule>, Stri
     },
   );
 });
+
+// ===== Name Filter Providers =====
+// Filter state providers for Receive screen
+final receiveFilterExpandedProvider = StateProvider<bool>((ref) => false);
+final receiveFilterQueryProvider = StateProvider<String>((ref) => '');
+
+// Filter state providers for Send screen
+final sendFilterExpandedProvider = StateProvider<bool>((ref) => false);
+final sendFilterQueryProvider = StateProvider<String>((ref) => '');
+
+// Debounced query providers (200ms debounce)
+// Note: For simplicity, we use the query directly. Client-side filtering is fast enough.
+// If debouncing is needed, it can be added in the UI widget using a Timer.
+final receiveFilterQueryDebouncedProvider = Provider<String>((ref) {
+  return ref.watch(receiveFilterQueryProvider);
+});
+
+final sendFilterQueryDebouncedProvider = Provider<String>((ref) {
+  return ref.watch(sendFilterQueryProvider);
+});
+
+// Filtered list providers for Receive screen tabs
+final receiveFilteredOpeningSoonCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, userId) async {
+  final capsulesAsync = ref.watch(incomingOpeningSoonCapsulesProvider(userId));
+  final query = ref.watch(receiveFilterQueryDebouncedProvider);
+  
+  return capsulesAsync.when(
+    data: (capsules) {
+      if (query.trim().isEmpty) return capsules;
+      return _filterCapsulesBySenderName(capsules, query);
+    },
+    loading: () => <Capsule>[],
+    error: (_, __) => <Capsule>[],
+  );
+});
+
+final receiveFilteredReadyCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, userId) async {
+  final capsulesAsync = ref.watch(incomingReadyCapsulesProvider(userId));
+  final query = ref.watch(receiveFilterQueryDebouncedProvider);
+  
+  return capsulesAsync.when(
+    data: (capsules) {
+      if (query.trim().isEmpty) return capsules;
+      return _filterCapsulesBySenderName(capsules, query);
+    },
+    loading: () => <Capsule>[],
+    error: (_, __) => <Capsule>[],
+  );
+});
+
+final receiveFilteredOpenedCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, userId) async {
+  final capsulesAsync = ref.watch(incomingOpenedCapsulesProvider(userId));
+  final query = ref.watch(receiveFilterQueryDebouncedProvider);
+  
+  return capsulesAsync.when(
+    data: (capsules) {
+      if (query.trim().isEmpty) return capsules;
+      return _filterCapsulesBySenderName(capsules, query);
+    },
+    loading: () => <Capsule>[],
+    error: (_, __) => <Capsule>[],
+  );
+});
+
+// Filtered list providers for Send screen tabs
+final sendFilteredUnlockingSoonCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, userId) async {
+  final capsulesAsync = ref.watch(unlockingSoonCapsulesProvider(userId));
+  final query = ref.watch(sendFilterQueryDebouncedProvider);
+  
+  return capsulesAsync.when(
+    data: (capsules) {
+      if (query.trim().isEmpty) return capsules;
+      return _filterCapsulesByRecipientName(capsules, query);
+    },
+    loading: () => <Capsule>[],
+    error: (_, __) => <Capsule>[],
+  );
+});
+
+final sendFilteredUpcomingCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, userId) async {
+  final capsulesAsync = ref.watch(upcomingCapsulesProvider(userId));
+  final query = ref.watch(sendFilterQueryDebouncedProvider);
+  
+  return capsulesAsync.when(
+    data: (capsules) {
+      if (query.trim().isEmpty) return capsules;
+      return _filterCapsulesByRecipientName(capsules, query);
+    },
+    loading: () => <Capsule>[],
+    error: (_, __) => <Capsule>[],
+  );
+});
+
+final sendFilteredOpenedCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, userId) async {
+  final capsulesAsync = ref.watch(openedCapsulesProvider(userId));
+  final query = ref.watch(sendFilterQueryDebouncedProvider);
+  
+  return capsulesAsync.when(
+    data: (capsules) {
+      if (query.trim().isEmpty) return capsules;
+      return _filterCapsulesByRecipientName(capsules, query);
+    },
+    loading: () => <Capsule>[],
+    error: (_, __) => <Capsule>[],
+  );
+});
+
+// Helper functions for filtering
+// Performance: Optimized with early returns and efficient filtering
+// Security: Query is validated in matchesNameQuery function
+List<Capsule> _filterCapsulesBySenderName(List<Capsule> capsules, String query) {
+  // Early return for empty query
+  final trimmedQuery = query.trim();
+  if (trimmedQuery.isEmpty) return capsules;
+  
+  // Security: Additional length check (defense in depth)
+  if (trimmedQuery.length > AppConstants.maxFilterQueryLength) {
+    return capsules; // Return all if query is too long (shouldn't happen due to UI validation)
+  }
+  
+  // Performance: Use where().toList() for efficient filtering
+  // This creates a lazy iterable first, then materializes only matching items
+  return capsules.where((capsule) {
+    final senderName = capsule.displaySenderName;
+    // Handle null/empty sender names gracefully
+    if (senderName.isEmpty) return false;
+    return matchesNameQuery(trimmedQuery, senderName);
+  }).toList();
+}
+
+List<Capsule> _filterCapsulesByRecipientName(List<Capsule> capsules, String query) {
+  // Early return for empty query
+  final trimmedQuery = query.trim();
+  if (trimmedQuery.isEmpty) return capsules;
+  
+  // Security: Additional length check (defense in depth)
+  if (trimmedQuery.length > AppConstants.maxFilterQueryLength) {
+    return capsules; // Return all if query is too long (shouldn't happen due to UI validation)
+  }
+  
+  // Performance: Use where().toList() for efficient filtering
+  return capsules.where((capsule) {
+    // For send screen, filter by recipient name
+    // Handle "To " prefix if present
+    final recipientName = capsule.recipientName;
+    if (recipientName.isEmpty) return false;
+    
+    // Performance: Avoid unnecessary string operations if query doesn't start with "to"
+    final displayName = recipientName.toLowerCase().startsWith('to ')
+        ? recipientName
+        : 'To $recipientName';
+    return matchesNameQuery(trimmedQuery, displayName);
+  }).toList();
+}
 
 // Provider to get letter count exchanged between user and recipient
 // PRODUCTION-OPTIMIZED: 

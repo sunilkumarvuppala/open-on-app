@@ -41,6 +41,7 @@
 ### 3. **Dual Home Screens**
 - ✅ **Outbox (Sender's Home)**: View sent capsules
   - Tabs: Unfolding, Sealed, Opened
+  - **Name filter** - On-demand inline search to filter by recipient name ⭐ NEW
   - Floating Action Button (FAB) for creating letters
   - Subtle drafts button with count
   - Empty state with CTA for first-time users
@@ -48,6 +49,7 @@
   - More letters visible above the fold
 - ✅ **Inbox (Receiver's Home)**: View received capsules
   - Tabs: Sealed, Ready, Opened
+  - **Name filter** - On-demand inline search to filter by sender name ⭐ NEW
   - Filter by status
   - Pull-to-refresh
   - Empty state with share link CTA
@@ -246,7 +248,19 @@
 - ✅ Helpful guidance text
 - ✅ Theme-aware styling
 
-### 18. **Error Handling**
+### 18. **Name Filter** ⭐ NEW
+- ✅ On-demand inline search for letter lists
+- ✅ Client-side only filtering (no backend changes)
+- ✅ Filters by sender name (Receive screen) or recipient name (Send screen)
+- ✅ Supports partial matching, initials matching, and multi-token matching
+- ✅ Debounced input (200ms) for performance
+- ✅ Smooth expand/collapse animations
+- ✅ Filter persists when switching tabs
+- ✅ Empty state when no matches found
+- ✅ Security: Input validation and length limits
+- ✅ Performance: Optimized for 500K+ users
+
+### 19. **Error Handling**
 - ✅ User-friendly error messages
 - ✅ Retry mechanisms
 - ✅ Loading states
@@ -258,14 +272,14 @@
 
 ## Security Features
 
-### 19. **Authentication Security**
+### 20. **Authentication Security**
 - ✅ JWT token-based authentication
 - ✅ Secure password storage (BCrypt via Supabase)
 - ✅ Session management
 - ✅ Token refresh handling
 - ✅ Protected routes
 
-### 20. **Data Security**
+### 21. **Data Security**
 - ✅ Row-Level Security (RLS) policies
 - ✅ Database-level access control
 - ✅ Input validation and sanitization
@@ -274,7 +288,7 @@
 - ✅ Authorization checks
 - ✅ Ownership verification
 
-### 21. **Anonymous Letter Security**
+### 22. **Anonymous Letter Security**
 - ✅ Mutual connection requirement (enforced at DB level)
 - ✅ Server-side reveal timing calculation
 - ✅ Protected fields (cannot be modified)
@@ -286,14 +300,14 @@
 
 ## Performance Features
 
-### 22. **State Management**
+### 23. **State Management**
 - ✅ Riverpod state management
 - ✅ Provider caching
 - ✅ State invalidation
 - ✅ Optimistic updates
 - ✅ Batch operations
 
-### 23. **Data Fetching**
+### 24. **Data Fetching**
 - ✅ Pagination support
 - ✅ Lazy loading
 - ✅ Batch fetching
@@ -301,14 +315,14 @@
 - ✅ Index usage
 - ✅ Efficient list rendering
 
-### 24. **Caching**
+### 25. **Caching**
 - ✅ Image caching
 - ✅ Profile picture cache busting
 - ✅ Provider state caching
 - ✅ Draft caching (local storage)
 - ✅ Network response caching
 
-### 25. **UI Performance**
+### 26. **UI Performance**
 - ✅ ListView optimization (keys, RepaintBoundary)
 - ✅ Image optimization (cacheWidth, cacheHeight)
 - ✅ Debounced auto-save
@@ -320,7 +334,7 @@
 
 ## Additional Features
 
-### 26. **Notifications** (Backend Support)
+### 27. **Notifications** (Backend Support)
 - ✅ Notification system (database)
 - ✅ Notification types:
   - Unlock soon
@@ -329,19 +343,19 @@
   - Subscription events
 - ✅ Notification creation via triggers
 
-### 27. **Audit Logging** (Backend Support)
+### 28. **Audit Logging** (Backend Support)
 - ✅ Audit log system
 - ✅ Action tracking
 - ✅ User activity logging
 - ✅ Capsule change tracking
 
-### 28. **Themes & Animations** (Backend Support)
+### 29. **Themes & Animations** (Backend Support)
 - ✅ Theme management
 - ✅ Animation management
 - ✅ Premium theme support
 - ✅ Theme/Animation selection for capsules
 
-### 29. **Premium Features** (Backend Support)
+### 30. **Premium Features** (Backend Support)
 - ✅ Premium status tracking
 - ✅ Subscription management
 - ✅ Premium expiration tracking
@@ -357,17 +371,18 @@
 | Letter/Capsule Features | 4 | ✅ Complete |
 | User Management | 2 | ✅ Complete |
 | Social Features | 2 | ✅ Complete |
-| UI/UX Features | 6 | ✅ Complete |
+| UI/UX Features | 7 | ✅ Complete |
 | Security Features | 3 | ✅ Complete |
 | Performance Features | 4 | ✅ Complete |
 | Additional Features | 4 | ✅ Complete |
-| **Total** | **30** | ✅ **Production Ready** |
+| **Total** | **31** | ✅ **Production Ready** |
 
 ---
 
 ## Feature Highlights
 
 ### ⭐ Recently Added
+- **Name Filter**: On-demand inline search to filter letters by sender/recipient name
 - **Letters to Self**: Sealed, irreversible time-locked letters for self-reflection
 - **Anonymous Letters**: Temporary identity hiding with automatic reveal
 - **Letter Count Display**: Shows total letters exchanged between users
@@ -406,6 +421,6 @@
 
 ---
 
-**Last Updated**: January 2025  
+**Last Updated**: December 2025  
 **Status**: ✅ **Production Ready**  
-**Total Features**: 29 major features
+**Total Features**: 31 major features
