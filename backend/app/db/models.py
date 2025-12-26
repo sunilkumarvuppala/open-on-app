@@ -779,6 +779,9 @@ class SelfLetter(Base):
     scheduled_open_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     opened_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     
+    # Title (optional)
+    title: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
     # Context captured at write time
     mood: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     life_area: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

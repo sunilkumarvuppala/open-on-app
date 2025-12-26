@@ -442,6 +442,11 @@ class DraftCapsule {
   final String? unregisteredRecipientName; // Name for unregistered recipient
   final String? unregisteredPhoneNumber; // Optional phone number for sharing
   
+  // Self letter metadata (only used when recipient is "myself")
+  final String? mood; // Emoji only: 😊 😔 😌 🥹 😐
+  final String? lifeArea; // "self" | "work" | "family" | "money" | "health"
+  final String? city; // City where letter was written
+  
   const DraftCapsule({
     this.recipient,
     this.content,
@@ -457,6 +462,9 @@ class DraftCapsule {
     this.isUnregisteredRecipient = false,
     this.unregisteredRecipientName,
     this.unregisteredPhoneNumber,
+    this.mood,
+    this.lifeArea,
+    this.city,
   });
   
   bool get isValid {
@@ -492,6 +500,9 @@ class DraftCapsule {
     String? unregisteredRecipientName,
     String? unregisteredPhoneNumber,
     bool clearUnregisteredPhone = false,
+    String? mood,
+    String? lifeArea,
+    String? city,
   }) {
     return DraftCapsule(
       recipient: recipient ?? this.recipient,
@@ -508,6 +519,9 @@ class DraftCapsule {
       isUnregisteredRecipient: isUnregisteredRecipient != null ? isUnregisteredRecipient : this.isUnregisteredRecipient,
       unregisteredRecipientName: unregisteredRecipientName ?? this.unregisteredRecipientName,
       unregisteredPhoneNumber: clearUnregisteredPhone ? null : (unregisteredPhoneNumber ?? this.unregisteredPhoneNumber),
+      mood: mood ?? this.mood,
+      lifeArea: lifeArea ?? this.lifeArea,
+      city: city ?? this.city,
     );
   }
   
@@ -620,6 +634,7 @@ class Draft {
 class SelfLetter {
   final String id;
   final String userId;
+  final String? title; // Optional title for the letter
   final String? content; // Only visible after scheduled_open_at
   final int charCount;
   final DateTime scheduledOpenAt;
@@ -635,6 +650,7 @@ class SelfLetter {
   SelfLetter({
     required this.id,
     required this.userId,
+    this.title,
     this.content,
     required this.charCount,
     required this.scheduledOpenAt,
@@ -695,8 +711,14 @@ class SelfLetter {
   String get contextText {
     final parts = <String>[];
     
+    // Add mood with text description if available
     if (mood != null) {
-      parts.add(mood!);
+      final moodText = _getMoodText(mood!);
+      if (moodText != null) {
+        parts.add('$mood $moodText');
+      } else {
+        parts.add(mood!);
+      }
     }
     
     // Format: "Wednesday night"
@@ -713,6 +735,32 @@ class SelfLetter {
     }
     
     return 'Written on a ${parts.join(' ')}';
+  }
+  
+  /// Get descriptive text for mood emoji (lowercase)
+  String? _getMoodText(String emoji) {
+    const moodMap = {
+      '😊': 'happy',
+      '😔': 'sad',
+      '😌': 'peaceful',
+      '🥹': 'touched',
+      '😐': 'neutral',
+      '😄': 'joyful',
+      '😢': 'crying',
+      '😴': 'tired',
+      '🤔': 'thoughtful',
+      '😍': 'loving',
+      '😤': 'frustrated',
+      '🙂': 'grateful',
+      '😕': 'confused',
+      '😎': 'confident',
+      '🥰': 'adoring',
+      '😟': 'worried',
+      '😇': 'blessed',
+      '🤗': 'hugging',
+      '😑': 'expressionless',
+    };
+    return moodMap[emoji];
   }
   
   String _getWeekdayName(int weekday) {

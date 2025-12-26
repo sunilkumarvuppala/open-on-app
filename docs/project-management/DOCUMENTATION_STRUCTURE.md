@@ -129,6 +129,7 @@ docs/
 - `CREATE_CAPSULE.md` - Letter creation
 - `CAPSULE.md` - Capsule viewing
 - `CONNECTIONS.md` - Connections ⭐ NEW
+- `NAME_FILTER.md` - Name filter feature (on-demand search) ⭐ NEW
 - `RECIPIENTS.md` - Recipient management
 - `PROFILE.md` - Profile & settings
 - `NAVIGATION.md` - Navigation

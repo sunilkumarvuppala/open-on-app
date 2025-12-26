@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:openon_app/core/models/models.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/color_scheme.dart';
@@ -456,6 +457,26 @@ class _StepChooseTimeState extends ConsumerState<StepChooseTime> {
                     ),
                   ),
                 ],
+                
+                // Optional metadata fields for self letters (when recipient is "myself")
+                Builder(
+                  builder: (context) {
+                    final userAsync = ref.watch(currentUserProvider);
+                    final user = userAsync.asData?.value;
+                    final isSelfLetter = user != null && 
+                                        recipient != null && 
+                                        recipient.linkedUserId == user.id;
+                    
+                    if (!isSelfLetter) {
+                      return const SizedBox.shrink();
+                    }
+                    
+                    return _SelfLetterMetadataSection(
+                      draft: draft,
+                      colorScheme: colorScheme,
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -977,6 +998,400 @@ class _PeriodButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// Optional metadata section for self letters
+class _SelfLetterMetadataSection extends ConsumerStatefulWidget {
+  final DraftCapsule draft;
+  final AppColorScheme colorScheme;
+  
+  const _SelfLetterMetadataSection({
+    required this.draft,
+    required this.colorScheme,
+  });
+  
+  @override
+  ConsumerState<_SelfLetterMetadataSection> createState() => _SelfLetterMetadataSectionState();
+}
+
+class _SelfLetterMetadataSectionState extends ConsumerState<_SelfLetterMetadataSection> {
+  final TextEditingController _cityController = TextEditingController();
+  String? _selectedMood;
+  String? _selectedLifeArea;
+  
+  // Mood options with emoji and text
+  static const List<Map<String, String>> _moodOptions = [
+    {'emoji': '😊', 'text': 'Happy', 'value': '😊'},
+    {'emoji': '😔', 'text': 'Sad', 'value': '😔'},
+    {'emoji': '😌', 'text': 'Peaceful', 'value': '😌'},
+    {'emoji': '🥹', 'text': 'Touched', 'value': '🥹'},
+    {'emoji': '😐', 'text': 'Neutral', 'value': '😐'},
+    {'emoji': '😄', 'text': 'Joyful', 'value': '😄'},
+    {'emoji': '😢', 'text': 'Crying', 'value': '😢'},
+    {'emoji': '😴', 'text': 'Tired', 'value': '😴'},
+    {'emoji': '🤔', 'text': 'Thoughtful', 'value': '🤔'},
+    {'emoji': '😍', 'text': 'Loving', 'value': '😍'},
+    {'emoji': '😤', 'text': 'Frustrated', 'value': '😤'},
+    {'emoji': '😌', 'text': 'Content', 'value': '😌'},
+    {'emoji': '🙂', 'text': 'Grateful', 'value': '🙂'},
+    {'emoji': '😕', 'text': 'Confused', 'value': '😕'},
+    {'emoji': '😎', 'text': 'Confident', 'value': '😎'},
+    {'emoji': '🥰', 'text': 'Adoring', 'value': '🥰'},
+    {'emoji': '😟', 'text': 'Worried', 'value': '😟'},
+    {'emoji': '😇', 'text': 'Blessed', 'value': '😇'},
+    {'emoji': '🤗', 'text': 'Hugging', 'value': '🤗'},
+    {'emoji': '😑', 'text': 'Expressionless', 'value': '😑'},
+  ];
+  static const List<Map<String, String>> _lifeAreaOptions = [
+    {'value': 'self', 'label': 'Self'},
+    {'value': 'work', 'label': 'Work'},
+    {'value': 'family', 'label': 'Family'},
+    {'value': 'money', 'label': 'Money'},
+    {'value': 'health', 'label': 'Health'},
+  ];
+  
+  @override
+  void initState() {
+    super.initState();
+    _selectedMood = widget.draft.mood;
+    _selectedLifeArea = widget.draft.lifeArea;
+    _cityController.text = widget.draft.city ?? '';
+  }
+  
+  @override
+  void dispose() {
+    _cityController.dispose();
+    super.dispose();
+  }
+  
+  Widget _buildMoodDropdown({
+    required String? selectedMood,
+    required ValueChanged<String?> onChanged,
+    required AppColorScheme colorScheme,
+    required ThemeData theme,
+  }) {
+    final selectedOption = _moodOptions.firstWhere(
+      (option) => option['value'] == selectedMood,
+      orElse: () => _moodOptions[0],
+    );
+    
+    return Autocomplete<Map<String, String>>(
+      initialValue: selectedMood != null ? TextEditingValue(text: selectedOption['text'] ?? '') : null,
+      optionsBuilder: (TextEditingValue textEditingValue) {
+        if (textEditingValue.text.isEmpty) {
+          return _moodOptions;
+        }
+        final query = textEditingValue.text.toLowerCase();
+        return _moodOptions.where((option) {
+          final text = option['text']?.toLowerCase() ?? '';
+          final emoji = option['emoji'] ?? '';
+          return text.contains(query) || emoji.contains(query);
+        }).toList();
+      },
+      displayStringForOption: (Map<String, String> option) {
+        return option['text'] ?? '';
+      },
+      onSelected: (Map<String, String> option) {
+        onChanged(option['value']);
+        // displayStringForOption returns only text, so the field will show only text
+        // (emoji is displayed in prefixIcon)
+      },
+      fieldViewBuilder: (
+        BuildContext context,
+        TextEditingController textEditingController,
+        FocusNode focusNode,
+        VoidCallback onFieldSubmitted,
+      ) {
+        // Ensure text field shows only text when mood is selected (emoji in prefixIcon)
+        if (selectedMood != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final currentText = textEditingController.text;
+            final expectedText = selectedOption['text'] ?? '';
+            // Only update if the text includes emoji or doesn't match expected text
+            if (currentText != expectedText && currentText.isNotEmpty) {
+              textEditingController.text = expectedText;
+            }
+          });
+        }
+        
+        return TextField(
+          controller: textEditingController,
+          focusNode: focusNode,
+          onTapOutside: (event) {
+            // Unfocus when tapping outside to close dropdown
+            focusNode.unfocus();
+          },
+          onSubmitted: (String value) {
+            onFieldSubmitted();
+          },
+          decoration: InputDecoration(
+            hintText: 'Search or select mood...',
+            hintStyle: TextStyle(
+              color: DynamicTheme.getInputHintColor(colorScheme).withOpacity(0.5),
+            ),
+            prefixIcon: selectedMood != null
+                ? Padding(
+                    padding: const EdgeInsets.only(left: 12, right: 8),
+                    child: Text(
+                      selectedOption['emoji'] ?? '',
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                  )
+                : Icon(
+                    Icons.search,
+                    color: DynamicTheme.getInputHintColor(colorScheme),
+                  ),
+            suffixIcon: selectedMood != null
+                ? IconButton(
+                    icon: Icon(
+                      Icons.clear,
+                      color: DynamicTheme.getInputHintColor(colorScheme),
+                    ),
+                    onPressed: () {
+                      textEditingController.clear();
+                      onChanged(null);
+                    },
+                  )
+                : null,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              borderSide: BorderSide(
+                color: DynamicTheme.getButtonBorderColor(colorScheme).withOpacity(0.2),
+                width: 1,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              borderSide: BorderSide(
+                color: DynamicTheme.getButtonBorderColor(colorScheme).withOpacity(0.2),
+                width: 1,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              borderSide: BorderSide(
+                color: DynamicTheme.getButtonBorderColor(colorScheme).withOpacity(0.4),
+                width: 1,
+              ),
+            ),
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingMd,
+              vertical: AppTheme.spacingSm,
+            ),
+          ),
+          style: TextStyle(
+            color: DynamicTheme.getInputTextColor(colorScheme),
+          ),
+        );
+      },
+      optionsViewBuilder: (
+        BuildContext context,
+        AutocompleteOnSelected<Map<String, String>> onSelected,
+        Iterable<Map<String, String>> options,
+      ) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4.0,
+            color: Color.lerp(colorScheme.secondary1, Colors.white, 0.1) ?? colorScheme.secondary1,
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Color.lerp(colorScheme.secondary1, Colors.white, 0.1) ?? colorScheme.secondary1,
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                border: Border.all(
+                  color: DynamicTheme.getButtonBorderColor(colorScheme),
+                  width: 1,
+                ),
+              ),
+              constraints: const BoxConstraints(maxHeight: 200),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (BuildContext context, int index) {
+                  final option = options.elementAt(index);
+                  return InkWell(
+                    onTap: () => onSelected(option),
+                    hoverColor: colorScheme.primary1.withOpacity(0.2),
+                    splashColor: colorScheme.primary1.withOpacity(0.3),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppTheme.spacingMd,
+                        vertical: AppTheme.spacingSm,
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            option['emoji'] ?? '',
+                            style: const TextStyle(fontSize: 20),
+                          ),
+                          const SizedBox(width: AppTheme.spacingSm),
+                          Text(
+                            option['text'] ?? '',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+  
+  void _updateMetadata() {
+    ref.read(draftCapsuleProvider.notifier).setSelfLetterMetadata(
+      mood: _selectedMood,
+      lifeArea: _selectedLifeArea,
+      city: _cityController.text.trim().isEmpty ? null : _cityController.text.trim(),
+    );
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: AppTheme.spacingXl),
+        Divider(color: DynamicTheme.getDividerColor(widget.colorScheme)),
+        const SizedBox(height: AppTheme.spacingLg),
+        
+        Text(
+          'Optional context',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Add context to remember this moment',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: DynamicTheme.getSecondaryTextColor(widget.colorScheme).withOpacity(0.7),
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacingMd),
+        
+        // Mood searchable dropdown
+        Text(
+          'Mood',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: DynamicTheme.getSecondaryTextColor(widget.colorScheme),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacingSm),
+        _buildMoodDropdown(
+          selectedMood: _selectedMood,
+          onChanged: (value) {
+            setState(() {
+              _selectedMood = value;
+            });
+            _updateMetadata();
+          },
+          colorScheme: widget.colorScheme,
+          theme: theme,
+        ),
+        
+        const SizedBox(height: AppTheme.spacingLg),
+        
+        // Life area
+        Text(
+          'Life area',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: DynamicTheme.getSecondaryTextColor(widget.colorScheme),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacingSm),
+        Wrap(
+          spacing: AppTheme.spacingSm,
+          runSpacing: AppTheme.spacingSm,
+          children: _lifeAreaOptions.map((option) {
+            final isSelected = _selectedLifeArea == option['value'];
+            return ChoiceChip(
+              label: Text(option['label']!),
+              selected: isSelected,
+              onSelected: (selected) {
+                setState(() {
+                  _selectedLifeArea = selected ? option['value'] : null;
+                });
+                _updateMetadata();
+              },
+              selectedColor: widget.colorScheme.primary1.withOpacity(0.2),
+              checkmarkColor: widget.colorScheme.primary1,
+              labelStyle: TextStyle(
+                color: DynamicTheme.getChipLabelColor(widget.colorScheme, isSelected),
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            );
+          }).toList(),
+        ),
+        
+        const SizedBox(height: AppTheme.spacingLg),
+        
+        // City - styled similar to "Add a title" field
+        TextField(
+          controller: _cityController,
+          onChanged: (_) => _updateMetadata(),
+          style: TextStyle(
+            color: DynamicTheme.getInputTextColor(widget.colorScheme),
+            fontSize: 14,
+          ),
+          decoration: InputDecoration(
+            labelText: 'City (optional)',
+            labelStyle: TextStyle(
+              color: DynamicTheme.getSecondaryTextColor(widget.colorScheme).withOpacity(0.7),
+              fontSize: 13,
+            ),
+            hintText: 'Where are you writing from?',
+            hintStyle: TextStyle(
+              color: DynamicTheme.getInputHintColor(widget.colorScheme).withOpacity(0.5),
+              fontSize: 14,
+            ),
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingMd,
+              vertical: AppTheme.spacingSm,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              borderSide: BorderSide(
+                color: DynamicTheme.getButtonBorderColor(widget.colorScheme).withOpacity(0.2),
+                width: 1,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              borderSide: BorderSide(
+                color: DynamicTheme.getButtonBorderColor(widget.colorScheme).withOpacity(0.2),
+                width: 1,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              borderSide: BorderSide(
+                color: DynamicTheme.getButtonBorderColor(widget.colorScheme).withOpacity(0.4),
+                width: 1,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

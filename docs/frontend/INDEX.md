@@ -33,6 +33,7 @@ docs/
         ├── PROFILE.md           # Profile and settings
         ├── NAVIGATION.md        # Navigation system
         ├── THOUGHTS.md          # Thoughts feature (presence signals) ⭐ NEW
+        ├── NAME_FILTER.md       # Name filter feature (on-demand search) ⭐ NEW
         └── ANIMATIONS.md        # Animation system
     └── features/                # Cross-platform feature docs
         └── COUNTDOWN_SHARES.md # Countdown Shares feature (viral sharing) ⭐ NEW
@@ -69,6 +70,8 @@ docs/
 - **[DRAFTS.md](./features/DRAFTS.md)** - Draft management and auto-save
 - **[CONNECTIONS.md](./features/CONNECTIONS.md)** - Connections & friend requests ⭐
 - **[THOUGHTS.md](./features/THOUGHTS.md)** - Thoughts feature (presence signals) ⭐ NEW
+- **[NAME_FILTER.md](./features/NAME_FILTER.md)** - Name filter feature (on-demand search) ⭐ NEW
+- **[LETTERS_TO_SELF.md](./features/LETTERS_TO_SELF.md)** - Self Letters frontend implementation ⭐ NEW
 - **[../features/COUNTDOWN_SHARES.md](../features/COUNTDOWN_SHARES.md)** - Countdown Shares feature (viral sharing) ⭐ NEW
 - **[RECIPIENTS.md](./features/RECIPIENTS.md)** - Recipient management
 - **[PROFILE.md](./features/PROFILE.md)** - Profile and settings
@@ -125,6 +128,8 @@ docs/
 | Drafts | [DRAFTS.md](./features/DRAFTS.md) | Draft management and auto-save |
 | Connections | [CONNECTIONS.md](./features/CONNECTIONS.md) | Friend requests & mutual connections ⭐ |
 | Thoughts | [THOUGHTS.md](./features/THOUGHTS.md) | Presence signals ("I thought of you") ⭐ NEW |
+| Name Filter | [NAME_FILTER.md](./features/NAME_FILTER.md) | On-demand name-based filtering ⭐ NEW |
+| Self Letters | [LETTERS_TO_SELF.md](./features/LETTERS_TO_SELF.md) | Letters to future self ⭐ NEW |
 | Recipients | [RECIPIENTS.md](./features/RECIPIENTS.md) | Recipient management |
 | Profile | [PROFILE.md](./features/PROFILE.md) | User profile and settings |
 | Navigation | [NAVIGATION.md](./features/NAVIGATION.md) | Main navigation |

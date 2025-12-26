@@ -260,7 +260,41 @@ final upcomingCapsulesProvider = Provider.family<Future<List<Capsule>>, String>(
 );
 ```
 
-#### 4. Theme Providers
+#### 4. Name Filter Providers
+
+Provide filtered letter lists based on name queries:
+
+**State Providers**:
+- `receiveFilterExpandedProvider: StateProvider<bool>` - Receive screen filter visibility
+- `receiveFilterQueryProvider: StateProvider<String>` - Receive screen filter query
+- `sendFilterExpandedProvider: StateProvider<bool>` - Send screen filter visibility
+- `sendFilterQueryProvider: StateProvider<String>` - Send screen filter query
+
+**Filtered List Providers** (Receive Screen):
+- `receiveFilteredOpeningSoonCapsulesProvider(userId)` - Filtered "Sealed" tab
+- `receiveFilteredReadyCapsulesProvider(userId)` - Filtered "Ready" tab
+- `receiveFilteredOpenedCapsulesProvider(userId)` - Filtered "Opened" tab
+
+**Filtered List Providers** (Send Screen):
+- `sendFilteredUnlockingSoonCapsulesProvider(userId)` - Filtered "Unfolding" tab
+- `sendFilteredUpcomingCapsulesProvider(userId)` - Filtered "Sealed" tab
+- `sendFilteredOpenedCapsulesProvider(userId)` - Filtered "Opened" tab
+
+**Usage**:
+```dart
+// In tab widget
+final capsulesAsync = ref.watch(receiveFilteredOpeningSoonCapsulesProvider(userId));
+final filterQuery = ref.watch(receiveFilterQueryProvider);
+
+// Filtered list automatically updates when query changes
+// Returns full list when query is empty
+```
+
+**Performance**: Early returns for empty queries, efficient filtering, reuses cached data from base providers.
+
+**Related Documentation**: **[NAME_FILTER.md](./features/NAME_FILTER.md)**
+
+#### 5. Theme Providers
 
 Manage theme state:
 
@@ -578,6 +612,64 @@ MagicDustBackground(
   child: YourContent(),
 )
 ```
+
+### InlineNameFilterBar
+
+**File**: `inline_name_filter_bar.dart`
+
+Reusable inline search bar that expands/collapses on demand. Used for filtering letter lists by name.
+
+**Purpose**: Provides on-demand name filtering with smooth animations and debounced input.
+
+**Key Features**:
+- Hidden by default, expands when search icon is tapped
+- Auto-focuses text field when expanded
+- Shows clear button (×) when text is entered
+- Smooth expand/collapse animation (250ms)
+- 200ms debounced input to prevent excessive filtering
+- Input length limit (100 characters) for security
+- Post-frame callbacks to avoid layout conflicts
+
+**Props**:
+- `expanded: bool` - Whether the filter bar is expanded
+- `query: String` - Current filter query text
+- `onChanged: ValueChanged<String>` - Callback when query changes (debounced)
+- `onClear: VoidCallback` - Callback when clear button is tapped
+- `onToggleExpand: VoidCallback` - Callback to toggle expansion
+- `placeholder: String` - Placeholder text (default: "Filter by name…")
+
+**Usage Example**:
+```dart
+InlineNameFilterBar(
+  expanded: ref.watch(receiveFilterExpandedProvider),
+  query: ref.watch(receiveFilterQueryProvider),
+  onChanged: (value) {
+    ref.read(receiveFilterQueryProvider.notifier).state = value;
+  },
+  onClear: () {
+    ref.read(receiveFilterQueryProvider.notifier).state = '';
+  },
+  onToggleExpand: () {
+    final isExpanded = ref.read(receiveFilterExpandedProvider);
+    ref.read(receiveFilterExpandedProvider.notifier).state = !isExpanded;
+  },
+  placeholder: 'Filter by sender name…',
+)
+```
+
+**Performance Optimizations**:
+- Fixed height (48px) to prevent expansion when typing
+- Debounced state updates (200ms)
+- Post-frame callbacks to avoid "Build scheduled during frame" errors
+- Proper disposal of controllers, timers, and focus nodes
+
+**Security**:
+- Input length validation (max 100 characters)
+- Input sanitization in business logic layer
+
+**Related Documentation**:
+- **[NAME_FILTER.md](./features/NAME_FILTER.md)** - Complete name filter feature documentation
+- **[UTILITIES.md](./UTILITIES.md)** - Name filter utilities
 
 ---
 

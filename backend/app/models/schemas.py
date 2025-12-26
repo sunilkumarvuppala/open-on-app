@@ -993,14 +993,16 @@ class SelfLetterCreate(BaseModel):
     Request model for creating a self letter.
     
     Fields:
-    - content: Letter content (required, 280-500 characters)
+    - content: Letter content (required, 20-500 characters)
     - scheduled_open_at: When letter can be opened (must be in future)
+    - title: Optional title for the letter
     - mood: Optional context at write time
     - life_area: Optional life area context
     - city: Optional city where letter was written
     """
-    content: str = Field(..., min_length=280, max_length=500, description="Letter content (280-500 characters)")
+    content: str = Field(..., min_length=20, max_length=500, description="Letter content (20-500 characters)")
     scheduled_open_at: datetime = Field(..., description="When letter can be opened (must be in future)")
+    title: Optional[str] = Field(None, max_length=255, description="Optional title for the letter")
     mood: Optional[str] = Field(None, description="Context at write time (e.g. 'calm', 'anxious', 'tired')")
     life_area: Optional[str] = Field(None, description="Life area context ('self', 'work', 'family', 'money', 'health')")
     city: Optional[str] = Field(None, description="City where letter was written")
@@ -1032,6 +1034,7 @@ class SelfLetterResponse(BaseModel):
     """
     id: UUID
     user_id: UUID
+    title: Optional[str] = Field(None, description="Optional title for the letter")
     content: Optional[str] = Field(None, description="Content only visible after scheduled_open_at")
     char_count: int
     scheduled_open_at: datetime

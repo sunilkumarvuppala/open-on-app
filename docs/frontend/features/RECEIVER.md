@@ -31,6 +31,7 @@ features/receiver/
 - User greeting with avatar
 - "Your incoming capsules" subtitle
 - Three tabs: Sealed, Ready, Opened
+- **Name filter** - On-demand inline search to filter by sender name ⭐ NEW
 - Empty state with share link CTA
 - Magic dust background animation
 - Tab animations matching home screen style
@@ -40,23 +41,26 @@ features/receiver/
 1. **Sealed Tab** (`_OpeningSoonTab`)
    - Label: "Sealed" (with lock icon)
    - Shows capsules unlocking within 7 days
-   - Uses `incomingOpeningSoonCapsulesProvider`
+   - Uses `receiveFilteredOpeningSoonCapsulesProvider` (supports name filtering) ⭐
    - Displays countdown timers
    - Animated "Unlocking Soon" badges
+   - **Filter**: Filters by sender name when filter is active
 
 2. **Ready Tab** (`_LockedTab`)
    - Label: "Ready" (with sparkles icon)
    - Shows capsules locked for more than 7 days
-   - Uses `incomingLockedCapsulesProvider`
+   - Uses `receiveFilteredReadyCapsulesProvider` (supports name filtering) ⭐
    - Displays lock badges
    - Shows unlock dates
+   - **Filter**: Filters by sender name when filter is active
 
 3. **Opened Tab** (`_OpenedTab`)
    - Label: "Opened" (with heart icon)
    - Shows already opened incoming capsules
-   - Uses `incomingOpenedCapsulesProvider`
+   - Uses `receiveFilteredOpenedCapsulesProvider` (supports name filtering) ⭐
    - Displays open date
    - Shows sender information
+   - **Filter**: Filters by sender name when filter is active
 
 **Layout Structure**:
 ```
@@ -65,11 +69,19 @@ ReceiverHomeScreen
 │   └── Container (gradient)
 │       └── SafeArea
 │           └── Column
-│               ├── Header (avatar + greeting)
+│               ├── Header (avatar + greeting + search icon)
 │               ├── Header Separator
+│               ├── InlineNameFilterBar (expandable, hidden by default) ⭐ NEW
 │               ├── TabBar (with animations)
 │               └── TabBarView (tab content)
 ```
+
+**Name Filter Integration**:
+- Search icon in header (next to notifications icon)
+- Filter bar expands below header separator when search icon is tapped
+- Filters all three tabs by sender name ("From <name>")
+- Filter query persists when switching tabs
+- See **[NAME_FILTER.md](./NAME_FILTER.md)** for complete documentation
 
 ### ReceiverCapsuleCard
 

@@ -32,11 +32,12 @@ Content-Type: application/json
 
 1. [Authentication & Profile](#authentication--profile-endpoints)
 2. [Capsules](#capsules-endpoints)
-3. [Letter Invites](#letter-invites-endpoints) ⭐ NEW
-4. [Letter Replies](#letter-replies-endpoints) ⭐ NEW
-5. [Recipients](#recipients-endpoints)
-6. [Connections](#connections-endpoints)
-7. [Error Handling](#error-handling)
+3. [Self Letters](#self-letters-endpoints) ⭐ NEW
+4. [Letter Invites](#letter-invites-endpoints) ⭐ NEW
+5. [Letter Replies](#letter-replies-endpoints) ⭐ NEW
+6. [Recipients](#recipients-endpoints)
+7. [Connections](#connections-endpoints)
+8. [Error Handling](#error-handling)
 
 ---
 
@@ -428,6 +429,241 @@ curl -X DELETE "http://localhost:8000/capsules/550e8400-e29b-41d4-a716-446655440
 - Shows thoughtful messaging (calm, not destructive)
 - Disabled automatically once letter is opened
 - Includes race condition protection and comprehensive error handling
+
+---
+
+## Self Letters Endpoints ⭐ NEW
+
+> **Base Path**: `/self-letters`  
+> **Status**: ✅ Production Ready  
+> **Documentation**: See [features/SELF_LETTERS.md](../features/SELF_LETTERS.md) for complete feature documentation
+
+The Self Letters API enables users to write sealed, irreversible, time-delayed messages to their future selves for self-reflection. These are completely isolated from regular capsules (letters to others).
+
+### POST /self-letters
+
+Create a new self letter (sealed immediately, irreversible).
+
+**Headers:**
+```http
+Authorization: Bearer <supabase_jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "content": "string (20-500 characters, required)",
+  "scheduled_open_at": "ISO 8601 datetime (required, must be future)",
+  "title": "string (optional, max 255 characters)",
+  "mood": "string (optional, emoji)",
+  "life_area": "string (optional: 'self' | 'work' | 'family' | 'money' | 'health')",
+  "city": "string (optional)"
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "user_id": "550e8400-e29b-41d4-a716-446655440001",
+  "title": "Open on your birthday",
+  "content": "string | null", // null if not yet openable
+  "char_count": 123,
+  "scheduled_open_at": "2025-06-15T10:00:00Z",
+  "opened_at": null,
+  "mood": "😊",
+  "life_area": "self",
+  "city": "Toronto",
+  "reflection_answer": null,
+  "reflected_at": null,
+  "sealed": true,
+  "created_at": "2025-01-15T10:30:00Z"
+}
+```
+
+**Validations:**
+- Content must be 20-500 characters (configurable via `settings.self_letter_min_content_length` and `settings.self_letter_max_content_length`)
+- `scheduled_open_at` must be in the future
+- `life_area` must be one of: `self`, `work`, `family`, `money`, `health` (if provided)
+- All inputs are sanitized
+
+**Content Visibility:**
+- Content is `null` if letter is sealed AND `now() < scheduled_open_at`
+- Content is included if `opened_at IS NOT NULL` OR `now() >= scheduled_open_at`
+
+**Error Responses:**
+- `400`: Invalid content length, past scheduled time, invalid life area
+- `401`: Not authenticated
+- `500`: Database error
+
+**Example:**
+```bash
+curl -X POST "http://localhost:8000/self-letters" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN" \
+  -d '{
+    "content": "Dear future me, I hope you are doing well...",
+    "scheduled_open_at": "2025-06-15T10:00:00Z",
+    "title": "Open on your birthday",
+    "mood": "😊",
+    "life_area": "self",
+    "city": "Toronto"
+  }'
+```
+
+### GET /self-letters
+
+List all self letters for the current user.
+
+**Headers:**
+```http
+Authorization: Bearer <supabase_jwt_token>
+```
+
+**Query Parameters:**
+- `skip` (optional, default: 0, min: 0): Number of records to skip
+- `limit` (optional, default: 20, min: 1, max: 100): Maximum number of records to return
+
+**Response (200 OK):**
+```json
+{
+  "letters": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "user_id": "550e8400-e29b-41d4-a716-446655440001",
+      "title": "Open on your birthday",
+      "content": "string | null", // null if not yet openable
+      "char_count": 123,
+      "scheduled_open_at": "2025-06-15T10:00:00Z",
+      "opened_at": null,
+      "mood": "😊",
+      "life_area": "self",
+      "city": "Toronto",
+      "reflection_answer": null,
+      "reflected_at": null,
+      "sealed": true,
+      "created_at": "2025-01-15T10:30:00Z"
+    }
+  ],
+  "total": 10
+}
+```
+
+**Content Visibility:**
+- Content is `null` if letter is sealed AND `now() < scheduled_open_at`
+- Content is included if `opened_at IS NOT NULL` OR `now() >= scheduled_open_at`
+
+**Example:**
+```bash
+curl -X GET "http://localhost:8000/self-letters?skip=0&limit=20" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN"
+```
+
+### POST /self-letters/{letter_id}/open
+
+Open a self letter (only allowed after scheduled time).
+
+**Headers:**
+```http
+Authorization: Bearer <supabase_jwt_token>
+```
+
+**Path Parameters:**
+- `letter_id` (UUID, required): Self letter ID
+
+**Response (200 OK):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "user_id": "550e8400-e29b-41d4-a716-446655440001",
+  "title": "Open on your birthday",
+  "content": "string", // Always included after opening
+  "char_count": 123,
+  "scheduled_open_at": "2025-06-15T10:00:00Z",
+  "opened_at": "2025-06-15T10:05:00Z", // Set to now()
+  "mood": "😊",
+  "life_area": "self",
+  "city": "Toronto",
+  "reflection_answer": null,
+  "reflected_at": null,
+  "sealed": true,
+  "created_at": "2025-01-15T10:30:00Z"
+}
+```
+
+**Validations:**
+- Letter must belong to current user (ownership verified)
+- `scheduled_open_at` must have passed (`now() >= scheduled_open_at`)
+- Uses database function `open_self_letter()` for atomic operation
+
+**Error Responses:**
+- `400`: Letter cannot be opened before scheduled time
+- `403`: Not the owner
+- `404`: Letter not found
+- `500`: Database error
+
+**Example:**
+```bash
+curl -X POST "http://localhost:8000/self-letters/550e8400-e29b-41d4-a716-446655440000/open" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN"
+```
+
+### POST /self-letters/{letter_id}/reflection
+
+Submit reflection for an opened self letter (one-time only).
+
+**Headers:**
+```http
+Authorization: Bearer <supabase_jwt_token>
+Content-Type: application/json
+```
+
+**Path Parameters:**
+- `letter_id` (UUID, required): Self letter ID
+
+**Request Body:**
+```json
+{
+  "answer": "string" // Required: "yes" | "no" | "skipped"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "message": "Reflection submitted successfully"
+}
+```
+
+**Validations:**
+- Letter must belong to current user (ownership verified)
+- Letter must be opened (`opened_at IS NOT NULL`)
+- Reflection must not already be submitted (`reflection_answer IS NULL`)
+- Answer must be one of: `yes`, `no`, `skipped`
+- Uses database function `submit_self_letter_reflection()` for atomic operation
+
+**Error Responses:**
+- `400`: Letter not opened, reflection already submitted, invalid answer
+- `403`: Not the owner
+- `404`: Letter not found
+- `500`: Database error
+
+**Example:**
+```bash
+curl -X POST "http://localhost:8000/self-letters/550e8400-e29b-41d4-a716-446655440000/reflection" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN" \
+  -d '{
+    "answer": "yes"
+  }'
+```
+
+**Business Rules:**
+- ✅ Reflection can only be submitted once (immutable)
+- ✅ Only allowed after letter is opened
+- ✅ Cannot be changed after submission
+- ✅ Ownership verified at database level
 
 ---
 

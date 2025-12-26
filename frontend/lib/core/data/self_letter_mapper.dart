@@ -1,5 +1,4 @@
 import 'package:openon_app/core/models/models.dart';
-import 'package:openon_app/core/utils/logger.dart';
 
 /// Shared utility for mapping self letter JSON to SelfLetter model
 class SelfLetterMapper {
@@ -9,6 +8,7 @@ class SelfLetterMapper {
   static SelfLetter fromJson(Map<String, dynamic> json) {
     final idValue = json['id'];
     final userIdValue = json['user_id'];
+    final titleValue = json['title'];
     final contentValue = json['content'];
     final charCountValue = json['char_count'];
     final scheduledOpenAtValue = json['scheduled_open_at'];
@@ -38,6 +38,7 @@ class SelfLetterMapper {
     return SelfLetter(
       id: _safeString(idValue) ?? '',
       userId: _safeString(userIdValue) ?? '',
+      title: _safeString(titleValue),
       content: _safeString(contentValue),
       charCount: charCount,
       scheduledOpenAt: scheduledOpenAt,
@@ -87,6 +88,7 @@ class SelfLetterMapper {
     return {
       'content': letter.content ?? '',
       'scheduled_open_at': letter.scheduledOpenAt.toUtc().toIso8601String(),
+      if (letter.title != null) 'title': letter.title,
       if (letter.mood != null) 'mood': letter.mood,
       if (letter.lifeArea != null) 'life_area': letter.lifeArea,
       if (letter.city != null) 'city': letter.city,

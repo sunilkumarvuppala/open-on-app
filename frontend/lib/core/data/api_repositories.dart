@@ -1541,6 +1541,7 @@ class ApiSelfLetterRepository implements SelfLetterRepository {
   Future<SelfLetter> createSelfLetter({
     required String content,
     required DateTime scheduledOpenAt,
+    String? title,
     String? mood,
     String? lifeArea,
     String? city,
@@ -1551,6 +1552,7 @@ class ApiSelfLetterRepository implements SelfLetterRepository {
         {
           'content': content,
           'scheduled_open_at': scheduledOpenAt.toUtc().toIso8601String(),
+          if (title != null && title.isNotEmpty) 'title': title,
           if (mood != null) 'mood': mood,
           if (lifeArea != null) 'life_area': lifeArea,
           if (city != null) 'city': city,

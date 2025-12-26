@@ -494,6 +494,10 @@ class _CreateCapsuleScreenState extends ConsumerState<CreateCapsuleScreen> {
     }
     
     try {
+      // Check if this is a self letter (recipient is "myself")
+      final isSelfLetter = draft.recipient != null && 
+                          draft.recipient!.linkedUserId == user.id;
+      
       // Show loading
       showDialog(
         context: context,
@@ -503,6 +507,104 @@ class _CreateCapsuleScreenState extends ConsumerState<CreateCapsuleScreen> {
         ),
       );
       
+      // If self letter, create self letter instead of capsule
+      if (isSelfLetter) {
+        if (draft.content == null || draft.unlockAt == null) {
+          throw Exception('Content and unlock time are required');
+        }
+        
+        // Validate content length for self letters (20-500 characters)
+        final contentLength = draft.content!.trim().length;
+        if (contentLength < 20) {
+          if (mounted) {
+            Navigator.pop(context); // Close loading dialog
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Self letters must be at least 20 characters (currently $contentLength). '
+                  'Please add more to your letter.',
+                ),
+                backgroundColor: AppColors.error,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                ),
+              ),
+            );
+          }
+          return;
+        }
+        if (contentLength > 500) {
+          if (mounted) {
+            Navigator.pop(context); // Close loading dialog
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Self letters must be at most 500 characters (currently $contentLength). '
+                  'Please shorten your letter.',
+                ),
+                backgroundColor: AppColors.error,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                ),
+              ),
+            );
+          }
+          return;
+        }
+        
+        final selfLetterRepo = ref.read(selfLetterRepositoryProvider);
+        await selfLetterRepo.createSelfLetter(
+          content: draft.content!,
+          scheduledOpenAt: draft.unlockAt!,
+          title: draft.label, // Use label as title
+          mood: draft.mood,
+          lifeArea: draft.lifeArea,
+          city: draft.city,
+        );
+        
+        Logger.info('Self letter created successfully');
+        
+        // Delete draft if it exists
+        final draftId = draft.draftId;
+        if (draftId != null) {
+          try {
+            final draftRepo = ref.read(draftRepositoryProvider);
+            await draftRepo.deleteDraft(draftId, user.id);
+            ref.invalidate(draftsProvider(user.id));
+            Logger.info('Deleted draft $draftId after sending');
+          } catch (e) {
+            Logger.warning('Failed to delete draft $draftId after sending: $e');
+          }
+        }
+        
+        if (mounted) {
+          Navigator.pop(context); // Close loading dialog
+          
+          // Invalidate self letters provider to refresh the list
+          ref.invalidate(selfLettersProvider);
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Letter to yourself created successfully! 💌'),
+              backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              ),
+            ),
+          );
+          
+          // Navigate to home screen
+          context.go(Routes.home);
+        }
+        return;
+      }
+      
+      // Regular capsule creation flow
       final capsule = draft.toCapsule(
         senderId: user.id,
         senderName: user.name,

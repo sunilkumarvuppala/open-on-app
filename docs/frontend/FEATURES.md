@@ -17,6 +17,7 @@ This directory contains detailed documentation for each feature in the OpenOn ap
 9. **[Profile](./features/PROFILE.md)** - User profile and settings
 10. **[Navigation](./features/NAVIGATION.md)** - Main navigation system
 11. **[Animations](./features/ANIMATIONS.md)** - Animation system and effects
+12. **[Name Filter](./features/NAME_FILTER.md)** - On-demand name-based filtering for letter lists ⭐ NEW
 
 ## Quick Navigation
 
@@ -28,11 +29,11 @@ This directory contains detailed documentation for each feature in the OpenOn ap
 
 ### Special Features
 
-12. **[Anonymous Letters](./features/ANONYMOUS_LETTERS.md)** - Temporary identity hiding
-13. **[Letters to Self](./features/LETTERS_TO_SELF.md)** - Sealed letters to future self
-14. **[Countdown Shares](../features/COUNTDOWN_SHARES.md)** - Viral sharing feature
-15. **[Letter Replies](../features/LETTER_REPLIES.md)** - One-time recipient replies ⭐ NEW
-16. **[Anonymous Identity Hints](../features/ANONYMOUS_IDENTITY_HINTS.md)** - Progressive hint revelation ⭐ NEW
+13. **[Anonymous Letters](./features/ANONYMOUS_LETTERS.md)** - Temporary identity hiding
+14. **[Letters to Self](./features/LETTERS_TO_SELF.md)** - Sealed letters to future self
+15. **[Countdown Shares](../features/COUNTDOWN_SHARES.md)** - Viral sharing feature
+16. **[Letter Replies](../features/LETTER_REPLIES.md)** - One-time recipient replies ⭐ NEW
+17. **[Anonymous Identity Hints](../features/ANONYMOUS_IDENTITY_HINTS.md)** - Progressive hint revelation ⭐ NEW
 
 ## Feature Documentation Index
 

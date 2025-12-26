@@ -46,6 +46,11 @@
 **Architecture** (`architecture/`):
 - **[ARCHITECTURE.md](./architecture/ARCHITECTURE.md)** - System architecture
 - **[DATA_MODEL_GUIDE.md](./architecture/DATA_MODEL_GUIDE.md)** - **Critical**: Understanding users, recipients, and capsules ⭐ IMPORTANT
+
+**Features** (`features/`):
+- **[SELF_LETTERS.md](./features/SELF_LETTERS.md)** - **Self Letters feature (complete documentation)** ⭐ NEW
+- **[SELF_LETTERS_VISUAL_FLOW.md](./features/SELF_LETTERS_VISUAL_FLOW.md)** - Self Letters visual flow diagrams ⭐ NEW
+- **[SELF_LETTERS_QUICK_REFERENCE.md](./features/SELF_LETTERS_QUICK_REFERENCE.md)** - Quick reference guide ⭐ NEW
 - **[ARCHITECTURE_IMPROVEMENTS.md](./architecture/ARCHITECTURE_IMPROVEMENTS.md)** - Architecture patterns
 - **[CODE_STRUCTURE.md](./architecture/CODE_STRUCTURE.md)** - Code organization
 - **[SEQUENCE_DIAGRAMS.md](./architecture/SEQUENCE_DIAGRAMS.md)** - User flow diagrams
@@ -100,6 +105,7 @@
 - **[DRAFTS.md](./frontend/features/DRAFTS.md)** - Draft management
 - **[CONNECTIONS.md](./frontend/features/CONNECTIONS.md)** - Connections & friend requests
 - **[THOUGHTS.md](./frontend/features/THOUGHTS.md)** - Thoughts feature (presence signals)
+- **[NAME_FILTER.md](./frontend/features/NAME_FILTER.md)** - Name filter feature (on-demand search) ⭐ NEW
 - **[RECIPIENTS.md](./frontend/features/RECIPIENTS.md)** - Recipient management
 - **[PROFILE.md](./frontend/features/PROFILE.md)** - Profile & settings
 - **[NAVIGATION.md](./frontend/features/NAVIGATION.md)** - Navigation system

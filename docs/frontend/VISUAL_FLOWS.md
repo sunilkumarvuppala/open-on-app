@@ -494,5 +494,105 @@ Operation
 
 ---
 
-**Last Updated**: 2025
+## Name Filter Flow
+
+### Filter Interaction Flow
+
+```
+User Action Flow:
+┌─────────────────────────────────────────────────────────┐
+│  User Taps Search Icon                                  │
+└───────────────────────┬─────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────┐
+│  Filter Bar Expands (250ms animation)                   │
+│  Text Field Auto-Focuses                                │
+│  Keyboard Appears                                       │
+└───────────────────────┬─────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────┐
+│  User Types Query                                       │
+│  Input Debounced (200ms)                                │
+└───────────────────────┬─────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────┐
+│  Filter Applied                                         │
+│  List Updates to Show Matching Letters                  │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Filter State Management Flow
+
+```
+State Provider Hierarchy:
+┌─────────────────────────────────────────────────────────┐
+│  Filter State Providers                                 │
+│  ├── receiveFilterExpandedProvider (bool)               │
+│  ├── receiveFilterQueryProvider (String)                │
+│  ├── sendFilterExpandedProvider (bool)                  │
+│  └── sendFilterQueryProvider (String)                   │
+└───────────────────────┬─────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────┐
+│  Filtered List Providers                                │
+│  ├── receiveFilteredOpeningSoonCapsulesProvider         │
+│  ├── receiveFilteredReadyCapsulesProvider               │
+│  ├── receiveFilteredOpenedCapsulesProvider              │
+│  ├── sendFilteredUnlockingSoonCapsulesProvider         │
+│  ├── sendFilteredUpcomingCapsulesProvider               │
+│  └── sendFilteredOpenedCapsulesProvider                 │
+│                                                          │
+│  Each provider:                                         │
+│  ├── Watches base provider (e.g., incomingOpeningSoon)  │
+│  ├── Watches filter query provider                     │
+│  └── Returns filtered list when query non-empty        │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Filter Matching Algorithm Flow
+
+```
+Query Matching Process:
+┌─────────────────────────────────────────────────────────┐
+│  Input: Query String + Display Name                      │
+└───────────────────────┬─────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────┐
+│  Step 1: Early Returns                                  │
+│  ├── Empty query? → Return true (match all)             │
+│  └── Empty name? → Return false (no match)              │
+└───────────────────────┬─────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────┐
+│  Step 2: Normalize Inputs                               │
+│  ├── Trim whitespace                                    │
+│  ├── Convert to lowercase                               │
+│  └── Normalize multiple spaces                           │
+└───────────────────────┬─────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────┐
+│  Step 3: Matching Strategies (in order)                  │
+│  ├── Substring Match: normalizedName.contains(query)   │
+│  ├── Initials Match: query == initials                  │
+│  └── Multi-Token Match: all tokens present in name     │
+└───────────────────────┬─────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────┐
+│  Result: Boolean (match or no match)                    │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Related Documentation**: **[NAME_FILTER.md](./features/NAME_FILTER.md)** - Complete name filter feature documentation
+
+---
+
+**Last Updated**: December 2025
 

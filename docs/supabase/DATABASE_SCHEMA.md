@@ -899,6 +899,73 @@ SELECT * FROM get_current_anonymous_hint('letter-uuid');
 
 ---
 
+### `open_self_letter(letter_id UUID, p_user_id UUID)` ⭐ NEW
+
+Opens a self letter atomically (only allowed after scheduled time).
+
+**Type:** RPC function  
+**Security:** SECURITY DEFINER (runs with elevated privileges)  
+**Returns:** TABLE with letter data (id, title, content, char_count, scheduled_open_at, opened_at, mood, life_area, city, created_at)  
+**Usage:** Called by backend API when user opens a self letter
+
+**Validations:**
+- Letter must belong to user (`self_letters.user_id = p_user_id`)
+- Letter must exist
+- `scheduled_open_at` must have passed (`now() >= scheduled_open_at`)
+
+**Actions:**
+- Sets `opened_at = now()` (only once, idempotent)
+- Returns full letter data including content and title
+
+**Security:**
+- Ownership verified via `p_user_id` parameter
+- Time check ensures letter cannot be opened before scheduled time
+- Idempotent (safe to call multiple times)
+
+**Example:**
+```sql
+SELECT * FROM open_self_letter('letter-uuid', auth.uid());
+```
+
+**Migration:** `supabase/migrations/14_letters_to_self.sql` (updated in `22_fix_open_self_letter_ambiguous_column.sql` and `24_update_open_self_letter_for_title.sql`)
+
+---
+
+### `submit_self_letter_reflection(letter_id UUID, p_user_id UUID, answer TEXT)` ⭐ NEW
+
+Submits reflection for an opened self letter (one-time only).
+
+**Type:** RPC function  
+**Security:** SECURITY DEFINER (runs with elevated privileges)  
+**Returns:** Success status  
+**Usage:** Called by backend API when user submits reflection
+
+**Validations:**
+- Letter must belong to user (`self_letters.user_id = p_user_id`)
+- Letter must exist
+- Letter must be opened (`opened_at IS NOT NULL`)
+- Reflection must not already be submitted (`reflection_answer IS NULL`)
+- Answer must be one of: "yes", "no", "skipped"
+
+**Actions:**
+- Sets `reflection_answer = answer`
+- Sets `reflected_at = now()`
+- Prevents duplicate submissions
+
+**Security:**
+- Ownership verified via `p_user_id` parameter
+- One-time submission enforced (cannot be changed)
+- Only allowed after letter is opened
+
+**Example:**
+```sql
+SELECT * FROM submit_self_letter_reflection('letter-uuid', auth.uid(), 'yes');
+```
+
+**Migration:** `supabase/migrations/14_letters_to_self.sql` (updated in `22_fix_open_self_letter_ambiguous_column.sql`)
+
+---
+
 ### `reveal_anonymous_senders()`
 
 Automatically reveals anonymous sender identities when `reveal_at` timestamp is reached.
@@ -1336,10 +1403,14 @@ All schema changes are in numbered migration files:
 13. `13_user_profiles_search_policy.sql` - User search RLS policy
 14. `14_scheduled_jobs.sql` - pg_cron jobs
 13. `13_anonymous_letters_feature.sql` - Anonymous letters feature (complete implementation)
-14. `14_letters_to_self.sql` - Letters to self feature
+14. `14_letters_to_self.sql` - Self letters feature (initial table creation) ⭐ NEW
 15. `16_countdown_shares_feature.sql` - Countdown shares feature (viral sharing)
 16. `17_letter_replies_feature.sql` - Letter replies feature (one-time recipient replies) ⭐ NEW
 17. `18_anonymous_identity_hints.sql` - Anonymous identity hints feature (progressive hint revelation) ⭐ NEW
+18. `19_letter_invites_feature.sql` - Letter invites feature (invite by letter for unregistered users) ⭐ NEW
+19. `22_fix_open_self_letter_ambiguous_column.sql` - Fix ambiguous column references in self letter functions ⭐ NEW
+20. `23_add_title_to_self_letters.sql` - Add title field to self_letters table ⭐ NEW
+21. `24_update_open_self_letter_for_title.sql` - Update open_self_letter function to return title ⭐ NEW
 
 **To apply:** Run `supabase db reset` to apply all migrations.
 
