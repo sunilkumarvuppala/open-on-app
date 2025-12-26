@@ -407,7 +407,7 @@ class AppConstants {
   static const double lockedCapsuleEmojiFontSize = 30.0;
   static const double lockedCapsuleTextLineHeight = 1.0;
   static const double lockedCapsuleEnvelopeContainerSize = 180.0;
-  static const double lockedCapsuleCountdownFontSize = 30.0;
+  static const double lockedCapsuleCountdownFontSize = 26.0;
   static const double lockedCapsuleTitleFontSize = 22.0;
   static const double lockedCapsuleSubtitleFontSize = 16.0;
 

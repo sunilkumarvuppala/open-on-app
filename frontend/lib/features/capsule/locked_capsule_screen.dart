@@ -2235,6 +2235,7 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
                               fontWeight: FontWeight.w700,
                               letterSpacing: 2,
                             ),
+                            textAlign: TextAlign.center,
                           ),
                           SizedBox(height: AppTheme.spacingSm),
                           Text(
