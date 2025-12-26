@@ -8,8 +8,6 @@ import 'package:openon_app/features/auth/signup_screen.dart';
 import 'package:openon_app/features/home/home_screen.dart';
 import 'package:openon_app/features/receiver/receiver_home_screen.dart';
 import 'package:openon_app/features/navigation/main_navigation.dart';
-import 'package:openon_app/features/recipients/add_recipient_screen.dart';
-import 'package:openon_app/features/recipients/recipients_screen.dart';
 import 'package:openon_app/features/create_capsule/create_capsule_screen.dart';
 import 'package:openon_app/features/capsule/locked_capsule_screen.dart';
 import 'package:openon_app/features/capsule/opening_animation_screen.dart';
@@ -27,6 +25,7 @@ import 'package:openon_app/features/people/people_screen.dart';
 import 'package:openon_app/features/self_letters/create_self_letter_screen.dart';
 import 'package:openon_app/features/self_letters/self_letters_screen.dart';
 import 'package:openon_app/features/self_letters/open_self_letter_screen.dart';
+import 'package:openon_app/features/invites/invite_preview_screen.dart';
 
 /// Route names
 class Routes {
@@ -35,8 +34,6 @@ class Routes {
   static const signup = '/signup';
   static const home = '/home';
   static const receiverHome = '/inbox';
-  static const recipients = '/recipients';
-  static const addRecipient = '/recipients/add';
   static const createCapsule = '/create-capsule';
   static const lockedCapsule = '/capsule/:id';
   static const openingAnimation = '/capsule/:id/opening';
@@ -56,6 +53,8 @@ class Routes {
   static const createSelfLetter = '/self-letters/create';
   static String openSelfLetter(String id) => '/self-letters/$id/open';
   static String selfLetterDetail(String id) => '/self-letters/$id';
+  static const invitePreview = '/invite/:token';
+  static String invitePreviewByToken(String token) => '/invite/$token';
 }
 
 final goRouterProvider = Provider<GoRouter>((ref) {
@@ -72,6 +71,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // Redirect to inbox (new home) if authenticated and trying to access auth screens
       if (isAuth && isGoingToAuth) {
         return Routes.receiverHome;
+      }
+      
+      // Allow invite preview route without auth
+      final isInviteRoute = state.matchedLocation.startsWith('/invite/');
+      if (isInviteRoute) {
+        return null; // Allow access to invite preview
       }
       
       // Redirect to welcome if not authenticated and trying to access protected screens
@@ -95,7 +100,19 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: Routes.signup,
-        builder: (context, state) => const SignupScreen(),
+        builder: (context, state) {
+          // Check if there's an invite token in query params
+          final inviteToken = state.uri.queryParameters['invite_token'];
+          return SignupScreen(inviteToken: inviteToken);
+        },
+      ),
+      // Invite preview route (public, no auth required)
+      GoRoute(
+        path: Routes.invitePreview,
+        builder: (context, state) {
+          final token = state.pathParameters['token']!;
+          return InvitePreviewScreen(inviteToken: token);
+        },
       ),
       
       // Main app routes with bottom navigation
@@ -120,17 +137,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const PeopleScreen(),
           ),
         ],
-      ),
-      GoRoute(
-        path: Routes.recipients,
-        builder: (context, state) => const RecipientsScreen(),
-      ),
-      GoRoute(
-        path: Routes.addRecipient,
-        builder: (context, state) {
-          final recipient = state.extra as Recipient?;
-          return AddRecipientScreen(recipient: recipient);
-        },
       ),
       GoRoute(
         path: Routes.createCapsule,

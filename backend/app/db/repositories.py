@@ -29,7 +29,8 @@ from sqlalchemy.exc import ProgrammingError, DBAPIError
 from app.db.models import (
     UserProfile, Capsule, Recipient, Theme, Animation, Notification,
     UserSubscription, AuditLog, SelfLetter, CapsuleStatus, NotificationType,
-    SubscriptionStatus, RecipientRelationship, LetterReply, AnonymousIdentityHints
+    SubscriptionStatus, RecipientRelationship, LetterReply, AnonymousIdentityHints,
+    LetterInvite
 )
 from app.db.repository import BaseRepository
 
@@ -113,6 +114,17 @@ class UserProfileRepository(BaseRepository[UserProfile]):
             await self.session.flush()
             await self.session.refresh(profile)
         return profile
+    
+    async def get_by_ids(self, user_ids: list[UUID]) -> dict[UUID, UserProfile]:
+        """Batch get user profiles by multiple user IDs. Returns dict mapping user_id -> profile."""
+        if not user_ids:
+            return {}
+        
+        result = await self.session.execute(
+            select(UserProfile).where(UserProfile.user_id.in_(user_ids))
+        )
+        profiles = result.scalars().all()
+        return {profile.user_id: profile for profile in profiles}
 
 
 class CapsuleRepository(BaseRepository[Capsule]):
@@ -128,7 +140,8 @@ class CapsuleRepository(BaseRepository[Capsule]):
             select(Capsule)
             .options(
                 selectinload(Capsule.sender_profile),
-                selectinload(Capsule.recipient)
+                selectinload(Capsule.recipient),
+                selectinload(Capsule.invites)  # Eager load invites for performance
             )
             .where(Capsule.id == id)
         )
@@ -160,7 +173,8 @@ class CapsuleRepository(BaseRepository[Capsule]):
             select(Capsule)
             .options(
                 selectinload(Capsule.sender_profile),
-                selectinload(Capsule.recipient)
+                selectinload(Capsule.recipient),
+                selectinload(Capsule.invites)  # Eager load invites for performance
             )
             .where(
                 and_(
@@ -1328,3 +1342,84 @@ class AnonymousIdentityHintsRepository(BaseRepository[AnonymousIdentityHints]):
         if row and row[0] is not None:
             return (row[0], row[1])
         return None
+
+
+class LetterInviteRepository(BaseRepository[LetterInvite]):
+    """
+    Repository for letter invite operations.
+    
+    Handles creating invites, looking up by token, and claiming invites.
+    """
+    
+    def __init__(self, session: AsyncSession):
+        super().__init__(LetterInvite, session)
+    
+    async def get_by_token(self, invite_token: str) -> Optional[LetterInvite]:
+        """Get invite by token."""
+        result = await self.session.execute(
+            select(LetterInvite).where(LetterInvite.invite_token == invite_token)
+        )
+        return result.scalar_one_or_none()
+    
+    async def get_by_letter_id(self, letter_id: UUID) -> Optional[LetterInvite]:
+        """Get active invite for a letter (not claimed)."""
+        result = await self.session.execute(
+            select(LetterInvite)
+            .where(
+                and_(
+                    LetterInvite.letter_id == letter_id,
+                    LetterInvite.claimed_at.is_(None)
+                )
+            )
+        )
+        return result.scalar_one_or_none()
+    
+    async def get_by_letter_ids(self, letter_ids: list[UUID]) -> dict[UUID, LetterInvite]:
+        """Batch get active invites for multiple letters (not claimed). Returns dict mapping letter_id -> invite."""
+        if not letter_ids:
+            return {}
+        
+        result = await self.session.execute(
+            select(LetterInvite)
+            .where(
+                and_(
+                    LetterInvite.letter_id.in_(letter_ids),
+                    LetterInvite.claimed_at.is_(None)
+                )
+            )
+        )
+        invites = result.scalars().all()
+        return {invite.letter_id: invite for invite in invites}
+    
+    async def create(self, letter_id: UUID, invite_token: str) -> LetterInvite:
+        """Create a new letter invite."""
+        instance = LetterInvite(
+            letter_id=letter_id,
+            invite_token=invite_token
+        )
+        self.session.add(instance)
+        await self.session.flush()
+        await self.session.refresh(instance)
+        return instance
+    
+    async def claim(self, invite_id: UUID, user_id: UUID) -> Optional[LetterInvite]:
+        """Claim an invite (atomic operation)."""
+        from sqlalchemy import update
+        
+        stmt = (
+            update(LetterInvite)
+            .where(
+                and_(
+                    LetterInvite.id == invite_id,
+                    LetterInvite.claimed_at.is_(None)  # Only claim if not already claimed
+                )
+            )
+            .values(
+                claimed_at=datetime.now(timezone.utc),
+                claimed_user_id=user_id
+            )
+            .returning(LetterInvite)
+        )
+        result = await self.session.execute(stmt)
+        await self.session.flush()
+        return result.scalar_one_or_none()

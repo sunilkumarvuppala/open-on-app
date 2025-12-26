@@ -18,6 +18,7 @@ This document shows the complete flow from user interaction to database operatio
 
 2. [Capsule Management Flows](#capsule-management-flows)
    - [Create Capsule](#5-create-capsule)
+   - [Create Capsule with Invite (Unregistered Recipient)](#5b-create-capsule-with-invite-unregistered-recipient) ⭐ NEW
    - [List Capsules (Inbox/Outbox)](#6-list-capsules-inboxoutbox)
    - [Open Capsule](#7-open-capsule)
    - [Update Capsule](#8-update-capsule)

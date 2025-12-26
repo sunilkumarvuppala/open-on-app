@@ -68,6 +68,12 @@ class ApiConfig {
   static String markReceiverAnimationSeen(String letterId) => '/letter-replies/letters/$letterId/mark-receiver-animation-seen';
   static String markSenderAnimationSeen(String letterId) => '/letter-replies/letters/$letterId/mark-sender-animation-seen';
 
+  // Letter invite endpoints
+  static String createLetterInvite(String letterId) => '/letter-invites/letters/$letterId';
+  static String getInvitePreview(String inviteToken) => '/letter-invites/preview/$inviteToken';
+  static String claimInvite(String inviteToken) => '/letter-invites/claim/$inviteToken';
+  static String getInviteByLetterId(String letterId) => '/letter-invites/letters/$letterId';
+
   // Helper method to build full URL
   static String buildUrl(String endpoint) {
     return '$baseUrl$endpoint';

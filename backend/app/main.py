@@ -25,7 +25,7 @@ from app.core.config import settings
 from app.core.logging import setup_logging
 from app.db.base import init_db, close_db
 from app.workers.scheduler import start_worker, shutdown_worker
-from app.api import auth, capsules, recipients, connections, self_letters, letter_replies
+from app.api import auth, capsules, recipients, connections, self_letters, letter_replies, letter_invites
 # Note: Drafts API removed - Supabase schema doesn't include drafts table
 # Capsules are created directly in 'sealed' status with unlocks_at set
 from app.middleware.request_logging import RequestLoggingMiddleware
@@ -172,6 +172,7 @@ app.include_router(recipients.router)  # Recipient management endpoints
 app.include_router(connections.router)  # Connection management endpoints
 app.include_router(self_letters.router)  # Self letters endpoints
 app.include_router(letter_replies.router)  # Letter replies endpoints
+app.include_router(letter_invites.router)  # Letter invites endpoints
 # Note: Drafts API removed - not in Supabase schema
 
 

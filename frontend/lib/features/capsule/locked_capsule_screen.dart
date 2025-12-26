@@ -61,6 +61,8 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
   void initState() {
     super.initState();
     _capsule = widget.capsule;
+    // Fetch invite URL if missing for unregistered recipients
+    _fetchInviteUrlIfNeeded();
     
     // Breathing animation for lock icon - very slow, subtle pulse (6s cycle)
     _breathingController = AnimationController(
@@ -1155,6 +1157,263 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
     }
   }
   
+  Future<void> _fetchInviteUrlIfNeeded() async {
+    // Only fetch if inviteUrl is missing and we're the sender
+    if (_capsule.inviteUrl != null && _capsule.inviteUrl!.isNotEmpty) {
+      return; // Already has invite URL
+    }
+    
+    final userAsync = ref.read(currentUserProvider);
+    final currentUserId = userAsync.asData?.value?.id ?? '';
+    final isSender = currentUserId.isNotEmpty && _capsule.senderId == currentUserId;
+    
+    if (!isSender) {
+      return; // Only senders can fetch invite URLs
+    }
+    
+    try {
+      final capsuleRepo = ref.read(capsuleRepositoryProvider);
+      final updatedCapsule = await capsuleRepo.getCapsuleById(_capsule.id);
+      
+      if (mounted && updatedCapsule != null && updatedCapsule.inviteUrl != null && updatedCapsule.inviteUrl!.isNotEmpty) {
+        setState(() {
+          _capsule = updatedCapsule;
+        });
+        Logger.info('Fetched invite URL for capsule ${_capsule.id}: ${_capsule.inviteUrl}');
+      }
+    } catch (e) {
+      Logger.warning('Failed to fetch invite URL for capsule ${_capsule.id}', error: e);
+      // Don't show error to user - this is a background operation
+    }
+  }
+  
+  Future<void> _handleInviteShare(String inviteUrl) async {
+    if (!mounted) return;
+    
+    final colorScheme = ref.read(selectedColorSchemeProvider);
+    
+    // Show share dialog similar to create_capsule_screen
+    await showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.7),
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.all(AppTheme.spacingLg),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+              maxWidth: 500,
+            ),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [colorScheme.primary1, colorScheme.primary2],
+              ),
+              borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 30,
+                  offset: Offset(0, 10),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                  Padding(
+                    padding: EdgeInsets.all(AppTheme.spacingMd),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Share Invite Link',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.close, color: Colors.white),
+                          onPressed: () => Navigator.of(dialogContext).pop(),
+                          padding: EdgeInsets.zero,
+                          constraints: BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Content
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: AppTheme.spacingXl,
+                          vertical: AppTheme.spacingLg,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Info message
+                            Container(
+                              padding: EdgeInsets.all(AppTheme.spacingLg),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.2),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.mail_outline,
+                                    color: Colors.white,
+                                    size: 48,
+                                  ),
+                                  SizedBox(height: AppTheme.spacingMd),
+                                  Text(
+                                    'Share this private link to send the letter',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(height: AppTheme.spacingLg),
+                            // Share buttons
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              padding: EdgeInsets.symmetric(horizontal: AppTheme.spacingXs),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  _buildInviteShareButton(
+                                    icon: Icons.message,
+                                    label: 'Text',
+                                    onTap: () => _shareInviteLink(inviteUrl, dialogContext),
+                                  ),
+                                  SizedBox(width: AppTheme.spacingSm),
+                                  _buildInviteShareButton(
+                                    icon: Icons.link,
+                                    label: 'Copy Link',
+                                    onTap: () async {
+                                      await Clipboard.setData(ClipboardData(text: inviteUrl));
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Link copied to clipboard'),
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+  
+  Widget _buildInviteShareButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Icon(
+              icon,
+              size: 24,
+              color: Colors.white,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.white.withOpacity(0.9),
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Future<void> _shareInviteLink(String inviteUrl, BuildContext dialogContext) async {
+    try {
+      if (Platform.isIOS) {
+        final screenSize = MediaQuery.of(dialogContext).size;
+        await Share.share(
+          inviteUrl,
+          sharePositionOrigin: Rect.fromLTWH(
+            screenSize.width / 2 - 50,
+            screenSize.height - 100,
+            100,
+            100,
+          ),
+        );
+      } else {
+        await Share.share(inviteUrl);
+      }
+    } catch (e) {
+      Logger.error('Error sharing invite link', error: e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unable to open share dialog. Please copy the link manually.'),
+            duration: Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'Copy Link',
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: inviteUrl));
+              },
+            ),
+          ),
+        );
+      }
+    }
+  }
+  
   Future<void> _handleWithdraw() async {
     // Prevent double-withdrawal (race condition protection)
     if (_isWithdrawing || !mounted) {
@@ -1896,22 +2155,48 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
               if (!canOpen)
                 Padding(
                   padding: EdgeInsets.all(AppTheme.spacingLg),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _handleShare,
-                      icon: const Icon(Icons.share),
-                      label: const Text('Share Countdown'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme),
-                        foregroundColor: DynamicTheme.getButtonTextColor(colorScheme),
-                        padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
-                        side: DynamicTheme.getButtonBorderSide(colorScheme),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  child: Column(
+                    children: [
+                      // Always show "Share Countdown" button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _handleShare,
+                          icon: const Icon(Icons.share),
+                          label: const Text('Share Countdown'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme),
+                            foregroundColor: DynamicTheme.getButtonTextColor(colorScheme),
+                            padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                            side: DynamicTheme.getButtonBorderSide(colorScheme),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      // Show "Share Invite Link" button ONLY for unregistered recipients
+                      if (_capsule.inviteUrl != null && _capsule.inviteUrl!.isNotEmpty) ...[
+                        SizedBox(height: AppTheme.spacingMd),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _handleInviteShare(_capsule.inviteUrl!),
+                            icon: const Icon(Icons.link),
+                            label: const Text('Share Invite Link'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: colorScheme.primary1,
+                              foregroundColor: DynamicTheme.getButtonTextColor(colorScheme),
+                              padding: EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                              side: DynamicTheme.getButtonBorderSide(colorScheme),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
             ],

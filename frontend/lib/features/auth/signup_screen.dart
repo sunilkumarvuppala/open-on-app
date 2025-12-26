@@ -11,10 +11,18 @@ import 'package:openon_app/core/utils/error_handler.dart';
 import 'package:openon_app/core/utils/validation.dart';
 import 'package:openon_app/core/errors/app_exceptions.dart';
 import 'package:openon_app/core/data/api_repositories.dart';
+import 'package:openon_app/core/data/api_client.dart';
+import 'package:openon_app/core/data/api_config.dart';
+import 'package:openon_app/core/utils/logger.dart';
 import 'package:openon_app/core/constants/app_constants.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
-  const SignupScreen({super.key});
+  final String? inviteToken;
+  
+  const SignupScreen({
+    super.key,
+    this.inviteToken,
+  });
   
   @override
   ConsumerState<SignupScreen> createState() => _SignupScreenState();
@@ -178,10 +186,34 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       );
       
       ref.invalidate(currentUserProvider);
+      
+      // Claim invite if present
+      String? letterId;
+      if (widget.inviteToken != null && widget.inviteToken!.isNotEmpty) {
+        try {
+          final apiClient = ApiClient();
+          final claimResponse = await apiClient.post(
+            ApiConfig.claimInvite(widget.inviteToken!),
+            {},
+          );
+          letterId = claimResponse['letter_id'] as String?;
+          Logger.info('Invite claimed successfully: letter_id=$letterId');
+        } catch (e) {
+          Logger.warning('Failed to claim invite: $e');
+          // Don't fail signup if invite claiming fails
+        }
+      }
+      
       await Future.delayed(AppConstants.routerNavigationDelay);
       
       if (mounted) {
-        context.go(Routes.home);
+        // Navigate to letter if invite was claimed, otherwise go to home
+        if (letterId != null) {
+          // Navigate directly to the claimed letter
+          context.go('/capsule/$letterId');
+        } else {
+          context.go(Routes.home);
+        }
       }
     } catch (e) {
       final errorMsg = ErrorHandler.getErrorMessage(

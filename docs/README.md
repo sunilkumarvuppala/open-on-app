@@ -109,6 +109,7 @@
 - **[COUNTDOWN_SHARES.md](./features/COUNTDOWN_SHARES.md)** - Countdown Shares feature
 - **[LETTER_REPLIES.md](./features/LETTER_REPLIES.md)** - Letter Replies feature ⭐ NEW
 - **[ANONYMOUS_IDENTITY_HINTS.md](./features/ANONYMOUS_IDENTITY_HINTS.md)** - Anonymous Identity Hints feature ⭐ NEW
+- **[LETTER_INVITES.md](./features/LETTER_INVITES.md)** - Letter Invites feature (invite by letter for unregistered users) ⭐ NEW
 
 #### Supabase (`supabase/`)
 - **[INDEX.md](./supabase/INDEX.md)** - Supabase documentation index

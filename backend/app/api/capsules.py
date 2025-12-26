@@ -64,29 +64,62 @@ async def create_capsule(
     logger.info(
         f"Creating capsule request: sender_id={current_user.user_id}, "
         f"recipient_id={capsule_data.recipient_id}, "
+        f"is_unregistered_recipient={capsule_data.is_unregistered_recipient}, "
+        f"unregistered_recipient_name={capsule_data.unregistered_recipient_name}, "
         f"title={capsule_data.title}, "
         f"unlocks_at={capsule_data.unlocks_at}"
     )
     
     capsule_service = CapsuleService(session)
     capsule_repo = CapsuleRepository(session)
+    recipient_repo = RecipientRepository(session)
     
-    # Validate recipient and permissions
-    # This may create a self-recipient if recipient_id == sender_id
-    try:
-        validated_recipient_id = await capsule_service.validate_recipient_for_capsule(
-            capsule_data.recipient_id,
-            current_user.user_id
+    # Handle unregistered recipients
+    if capsule_data.is_unregistered_recipient:
+        # Create a recipient for unregistered user (no linked_user_id)
+        if not capsule_data.unregistered_recipient_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="unregistered_recipient_name is required when is_unregistered_recipient is True"
+            )
+        
+        # Create recipient for unregistered user
+        recipient = await recipient_repo.create(
+            owner_id=current_user.user_id,
+            name=capsule_data.unregistered_recipient_name.strip(),
+            email=None,  # No email for unregistered recipients
+            linked_user_id=None  # No linked user
         )
-    except HTTPException as e:
-        logger.error(
-            f"Recipient validation failed for user {current_user.user_id}, "
-            f"recipient_id={capsule_data.recipient_id}: {e.detail}"
+        await session.flush()
+        recipient_id_to_use = recipient.id
+        logger.info(
+            f"Created recipient for unregistered user: recipient_id={recipient_id_to_use}, "
+            f"name={capsule_data.unregistered_recipient_name}, "
+            f"email={recipient.email}, linked_user_id={recipient.linked_user_id}"
         )
-        raise
-    
-    # Use the validated recipient ID (may differ from input if self-recipient was created)
-    recipient_id_to_use = validated_recipient_id
+    else:
+        # Validate recipient and permissions for registered recipients
+        # This may create a self-recipient if recipient_id == sender_id
+        if not capsule_data.recipient_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="recipient_id is required when is_unregistered_recipient is False"
+            )
+        
+        try:
+            validated_recipient_id = await capsule_service.validate_recipient_for_capsule(
+                capsule_data.recipient_id,
+                current_user.user_id
+            )
+        except HTTPException as e:
+            logger.error(
+                f"Recipient validation failed for user {current_user.user_id}, "
+                f"recipient_id={capsule_data.recipient_id}: {e.detail}"
+            )
+            raise
+        
+        # Use the validated recipient ID (may differ from input if self-recipient was created)
+        recipient_id_to_use = validated_recipient_id
     
     # Validate content
     capsule_service.validate_content(
@@ -152,8 +185,14 @@ async def create_capsule(
     )
     
     # Eagerly load recipient to avoid lazy loading in async context
-    recipient_repo = RecipientRepository(session)
     recipient = await recipient_repo.get_by_id(capsule.recipient_id)
+    if recipient:
+        logger.info(
+            f"Capsule {capsule.id}: Loaded recipient id={recipient.id}, "
+            f"name={recipient.name}, linked_user_id={getattr(recipient, 'linked_user_id', None)}"
+        )
+    else:
+        logger.error(f"Capsule {capsule.id}: Failed to load recipient {capsule.recipient_id}")
     
     # Create hints if provided (only for anonymous letters)
     if capsule_data.is_anonymous and any([capsule_data.hint_1, capsule_data.hint_2, capsule_data.hint_3]):
@@ -171,7 +210,64 @@ async def create_capsule(
             logger.warning(f"Failed to create hints for capsule {capsule.id}: {e}")
             # Don't fail capsule creation if hints fail
     
-    return CapsuleResponse.from_orm_with_profile(capsule, recipient=recipient)
+    # Create invite for unregistered recipients
+    invite_url = None
+    if capsule_data.is_unregistered_recipient:
+        logger.info(f"Creating invite for unregistered recipient letter {capsule.id}")
+        try:
+            from app.db.repositories import LetterInviteRepository
+            import secrets
+            from app.core.config import settings
+            
+            invite_repo = LetterInviteRepository(session)
+            
+            # Check if invite already exists
+            existing_invite = await invite_repo.get_by_letter_id(capsule.id)
+            if existing_invite:
+                # Use existing invite
+                base_url = settings.invite_base_url
+                if base_url:
+                    invite_url = f"{base_url}/{existing_invite.invite_token}"
+                    logger.info(f"Using existing invite for letter {capsule.id}")
+                else:
+                    logger.warning(f"invite_base_url not configured, cannot generate invite URL for letter {capsule.id}")
+            else:
+                # Generate secure random token (32+ characters, URL-safe)
+                # Using secrets.token_urlsafe() which generates base64url-encoded random bytes
+                invite_token = secrets.token_urlsafe(32)  # 32 bytes = ~43 characters after encoding
+                
+                # Create invite
+                invite = await invite_repo.create(
+                    letter_id=capsule.id,
+                    invite_token=invite_token
+                )
+                
+                # Build invite URL
+                base_url = settings.invite_base_url
+                if base_url:
+                    invite_url = f"{base_url}/{invite.invite_token}"
+                    logger.info(f"Created invite for unregistered recipient: letter_id={capsule.id}, invite_id={invite.id}")
+                else:
+                    logger.warning(f"invite_base_url not configured, cannot generate invite URL for letter {capsule.id}")
+        except Exception as e:
+            logger.error(f"Failed to create invite for letter {capsule.id}: {e}", exc_info=True)
+            # Don't fail capsule creation if invite creation fails
+            # The invite can be created later via the invite API
+    
+    # Build response
+    response = CapsuleResponse.from_orm_with_profile(capsule, recipient=recipient)
+    
+    # Add invite_url if this is for an unregistered recipient
+    if invite_url:
+        # Create a new response with invite_url
+        response_dict = response.model_dump()
+        response_dict['invite_url'] = invite_url
+        response = CapsuleResponse(**response_dict)
+        logger.info(f"Added invite_url to response: {invite_url}")
+    else:
+        logger.warning(f"No invite_url generated for unregistered recipient letter {capsule.id}")
+    
+    return response
 
 
 @router.get("", response_model=CapsuleListResponse)
@@ -263,6 +359,8 @@ async def list_capsules(
             f"Outbox query result: found {len(capsules)} capsules for sender_id={current_user.user_id}, "
             f"total={total}"
         )
+        # Log summary (reduced logging for performance - only log at debug level per item)
+        logger.debug(f"Outbox: Processing {len(capsules)} capsules")
     
     # Build response with recipient user profiles for connection-based recipients
     from app.db.repositories import UserProfileRepository
@@ -271,54 +369,69 @@ async def list_capsules(
     
     # Collect all linked_user_ids to batch fetch user profiles
     linked_user_ids = set()
+    unregistered_letter_ids = []  # Collect letter IDs for unregistered recipients
     for capsule in capsules:
         if capsule.recipient:
-            # Check if recipient has linked_user_id attribute and it's not None
             linked_user_id = getattr(capsule.recipient, 'linked_user_id', None)
+            recipient_email = getattr(capsule.recipient, 'email', None)
             if linked_user_id:
                 linked_user_ids.add(linked_user_id)
-                logger.debug(f"Capsule {capsule.id}: recipient has linked_user_id={linked_user_id}")
-            else:
-                logger.debug(f"Capsule {capsule.id}: recipient has no linked_user_id (email-based or missing)")
+            # Track unregistered recipients (no linked_user_id AND no email)
+            elif linked_user_id is None and recipient_email is None:
+                unregistered_letter_ids.append(capsule.id)
     
-    # Batch fetch all user profiles at once
+    # Batch fetch all user profiles at once (optimized for performance - fixes N+1 query)
     user_profiles_map = {}
     if linked_user_ids:
-        logger.info(f"Fetching {len(linked_user_ids)} user profiles for recipient avatars: {linked_user_ids}")
-        for user_id in linked_user_ids:
-            try:
-                profile = await user_profile_repo.get_by_id(user_id)
-                if profile:
-                    user_profiles_map[user_id] = profile
-                    logger.info(f"Fetched profile for user {user_id}, avatar_url={profile.avatar_url}")
-                else:
-                    logger.warning(f"User profile not found for linked_user_id {user_id}")
-            except Exception as e:
-                logger.error(f"Failed to fetch user profile for linked_user_id {user_id}: {e}", exc_info=True)
+        # Remove duplicates for efficiency
+        unique_linked_user_ids = list(set(linked_user_ids))
+        logger.debug(f"Batch fetching {len(unique_linked_user_ids)} user profiles for recipient avatars")
+        try:
+            user_profiles_map = await user_profile_repo.get_by_ids(unique_linked_user_ids)
+        except Exception as e:
+            logger.error(f"Failed to batch fetch user profiles: {e}", exc_info=True)
     
-    # Build responses using the cached user profiles
+    # Batch fetch all invites for unregistered recipients (fixes N+1 query issue)
+    invites_map = {}
+    if unregistered_letter_ids:
+        logger.debug(f"Batch fetching invites for {len(unregistered_letter_ids)} unregistered recipient letters")
+        try:
+            from app.db.repositories import LetterInviteRepository
+            invite_repo = LetterInviteRepository(session)
+            invites_map = await invite_repo.get_by_letter_ids(unregistered_letter_ids)
+        except Exception as e:
+            logger.error(f"Failed to batch fetch invites: {e}", exc_info=True)
+    
+    # Get invite base URL from settings (no hardcoded fallback)
+    from app.core.config import settings
+    base_url = settings.invite_base_url
+    if not base_url:
+        logger.warning("invite_base_url not configured in settings, invite URLs will not be generated")
+    
+    # Build responses using cached data (optimized - no per-item queries)
     for capsule in capsules:
         recipient_user_profile = None
         if capsule.recipient:
             linked_user_id = getattr(capsule.recipient, 'linked_user_id', None)
-            recipient_own_avatar = getattr(capsule.recipient, 'avatar_url', None)
-            
             if linked_user_id:
                 recipient_user_profile = user_profiles_map.get(linked_user_id)
-                if recipient_user_profile:
-                    logger.info(f"Capsule {capsule.id}: Using linked user avatar_url={recipient_user_profile.avatar_url}")
-                else:
-                    logger.warning(f"Capsule {capsule.id}: Linked user profile not found for linked_user_id={linked_user_id}, falling back to recipient.avatar_url={recipient_own_avatar}")
-            else:
-                logger.info(f"Capsule {capsule.id}: Recipient has no linked_user_id (email-based), using recipient.avatar_url={recipient_own_avatar}")
         
         response = CapsuleResponse.from_orm_with_profile(
             capsule,
             recipient_user_profile=recipient_user_profile
         )
-        # Log the recipient_avatar_url from the response dict
-        response_dict = response.model_dump()
-        logger.info(f"Capsule {capsule.id}: Final recipient_avatar_url={response_dict.get('recipient_avatar_url')}")
+        
+        # For unregistered recipients, add invite URL from batch-fetched map
+        if capsule.id in invites_map:
+            invite = invites_map[capsule.id]
+            if base_url:
+                invite_url = f"{base_url}/{invite.invite_token}"
+                response_dict = response.model_dump()
+                response_dict['invite_url'] = invite_url
+                response = CapsuleResponse(**response_dict)
+            else:
+                logger.warning(f"Capsule {capsule.id}: Unregistered recipient but invite_base_url not configured")
+        
         capsule_responses.append(response)
     
     return CapsuleListResponse(
@@ -383,10 +496,37 @@ async def get_capsule(
             except Exception as e:
                 logger.warning(f"Failed to fetch recipient user profile for linked_user_id {linked_user_id}: {e}")
     
-    return CapsuleResponse.from_orm_with_profile(
+    response = CapsuleResponse.from_orm_with_profile(
         capsule,
         recipient_user_profile=recipient_user_profile
     )
+    
+    # For unregistered recipients, fetch invite URL if available
+    if capsule.recipient:
+        linked_user_id = getattr(capsule.recipient, 'linked_user_id', None)
+        recipient_email = getattr(capsule.recipient, 'email', None)
+        # Unregistered recipient: no linked_user_id AND no email
+        is_unregistered = (linked_user_id is None and recipient_email is None)
+        
+        if is_unregistered:
+            try:
+                from app.db.repositories import LetterInviteRepository
+                invite_repo = LetterInviteRepository(session)
+                invite = await invite_repo.get_by_letter_id(capsule.id)
+                if invite:
+                    from app.core.config import settings
+                    base_url = settings.invite_base_url
+                    if base_url:
+                        invite_url = f"{base_url}/{invite.invite_token}"
+                        # Add invite_url to response
+                        response_dict = response.model_dump()
+                        response_dict['invite_url'] = invite_url
+                        response = CapsuleResponse(**response_dict)
+                        logger.debug(f"Capsule {capsule.id}: Added invite_url={invite_url}")
+            except Exception as e:
+                logger.error(f"Failed to fetch invite URL for capsule {capsule.id}: {e}", exc_info=True)
+    
+    return response
 
 
 @router.get("/{capsule_id}/hint", response_model=AnonymousHintResponse)

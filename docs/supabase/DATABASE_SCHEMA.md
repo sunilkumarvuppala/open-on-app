@@ -342,6 +342,48 @@ Friend/connection requests between users.
 
 ---
 
+### `letter_invites` ⭐ NEW
+
+Letter invites for sending letters to unregistered users via private invite links.
+
+**Columns:**
+- `id` (UUID, PK, DEFAULT gen_random_uuid())
+- `letter_id` (UUID, NOT NULL, FK → `capsules.id` ON DELETE CASCADE) - Letter this invite is for
+- `invite_token` (TEXT, NOT NULL, UNIQUE) - Secure random token (32+ characters, non-guessable)
+- `created_at` (TIMESTAMPTZ, NOT NULL, DEFAULT NOW()) - Creation timestamp
+- `claimed_at` (TIMESTAMPTZ) - Timestamp when invite was claimed (NULL if not claimed)
+- `claimed_user_id` (UUID, FK → `auth.users.id` ON DELETE SET NULL) - User who claimed the invite (NULL if not claimed)
+
+**Constraints:**
+- `letter_invites_token_length`: `char_length(invite_token) >= 32` - Ensures secure token length
+
+**Relationships:**
+- `letter_id` → `capsules(id)` ON DELETE CASCADE - Deleting letter deletes invite
+- `claimed_user_id` → `auth.users(id)` ON DELETE SET NULL - If user deleted, claim info preserved
+
+**RLS Policies:**
+- **INSERT**: Senders can create invites for their own letters
+- **SELECT**: Senders can read their own invites
+- **UPDATE**: No direct updates (only via RPC function for claiming)
+- **Public Access**: Handled via RPC function `rpc_get_letter_invite_public()` for preview
+
+**Indexes:**
+- `idx_letter_invites_token` on `(invite_token)` WHERE `claimed_at IS NULL` - Fast lookup for unclaimed invites
+- `idx_letter_invites_letter` on `(letter_id)` - Find invites for a specific letter
+- `idx_letter_invites_claimed_user` on `(claimed_user_id)` WHERE `claimed_user_id IS NOT NULL` - Find invites claimed by a user
+
+**Business Rules:**
+- One active invite per letter (enforced by application logic)
+- Token must be unique and non-guessable (32+ characters)
+- Once claimed, cannot be claimed again
+- Deleting letter invalidates invite link (CASCADE delete)
+
+**Migration:** `supabase/migrations/19_letter_invites_feature.sql`
+
+**Documentation:** See [features/LETTER_INVITES.md](../features/LETTER_INVITES.md) for complete feature documentation
+
+---
+
 ### `connections`
 
 Mutual connections (friendships) between users.
@@ -747,6 +789,81 @@ SELECT * FROM create_letter_reply('letter-uuid', 'Thank you!', '❤️');
 ```
 
 **Migration:** `supabase/migrations/17_letter_replies_feature.sql`
+
+---
+
+### `rpc_get_letter_invite_public(p_invite_token TEXT)` ⭐ NEW
+
+Get public preview of a letter invite (no authentication required).
+
+**Type:** RPC function  
+**Security:** SECURITY DEFINER (runs with elevated privileges)  
+**Returns:** JSONB with safe public data  
+**Usage:** Called by backend API for public invite preview
+
+**Returns:**
+- `letter_id` (UUID) - Letter ID
+- `unlocks_at` (TIMESTAMPTZ) - When letter unlocks
+- `is_claimed` (BOOLEAN) - Whether invite is already claimed
+- `countdown_seconds` (INTEGER) - Seconds until unlock (0 if past unlock time)
+- `can_open` (BOOLEAN) - Whether letter can be opened now
+
+**Security:**
+- No authentication required (public endpoint)
+- Returns only safe public data (no sender identity, no letter content)
+- Validates token format (32+ characters, base64url safe)
+- Returns error if letter is deleted or invite not found
+
+**Example:**
+```sql
+SELECT * FROM rpc_get_letter_invite_public('abc123xyz...');
+```
+
+**Migration:** `supabase/migrations/19_letter_invites_feature.sql`
+
+---
+
+### `rpc_claim_letter_invite(p_invite_token TEXT)` ⭐ NEW
+
+Claim a letter invite when user signs up. Creates mutual connection and links recipient.
+
+**Type:** RPC function  
+**Security:** SECURITY DEFINER (runs with elevated privileges)  
+**Returns:** JSONB with success status and letter ID  
+**Usage:** Called by backend API after user signup
+
+**Actions (Atomic):**
+1. Validates user is authenticated
+2. Checks invite exists and not already claimed
+3. Checks letter is not deleted
+4. Atomically claims invite (prevents race conditions)
+5. Updates recipient to link to claiming user
+6. Creates mutual connection between sender and receiver
+7. Creates recipient entries for both users
+
+**Returns:**
+- `success` (BOOLEAN) - Whether claim succeeded
+- `letter_id` (UUID) - Letter ID
+- `message` (TEXT) - Success message
+
+**Error Handling:**
+- `LETTER_INVITE_ERROR:Not authenticated` - User not authenticated
+- `LETTER_INVITE_ERROR:INVITE_NOT_FOUND` - Invite doesn't exist
+- `LETTER_INVITE_ERROR:INVITE_ALREADY_CLAIMED` - Invite already claimed
+- `LETTER_INVITE_ERROR:LETTER_DELETED` - Letter was deleted
+
+**Security:**
+- Atomic operation prevents race conditions
+- Uses `WHERE claimed_at IS NULL` check
+- Verifies `IF NOT FOUND` after update
+- Creates connections with proper ordering (user1 < user2)
+
+**Example:**
+```sql
+SELECT * FROM rpc_claim_letter_invite('abc123xyz...');
+```
+
+**Migration:** `supabase/migrations/19_letter_invites_feature.sql`
 
 ---
 
