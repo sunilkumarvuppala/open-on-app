@@ -496,7 +496,9 @@ Anonymous letters temporarily hide the sender's identity until a reveal time is 
 - [Home Screen](./HOME.md) - For navigation to capsules
 - [Receiver Screen](./RECEIVER.md) - For receiver capsule views
 - [Create Capsule](./CREATE_CAPSULE.md) - For creating anonymous letters
-- [Anonymous Letters Feature](../../anonymous_letters.md) - Complete anonymous letters documentation
+- [Anonymous Letters Feature](./ANONYMOUS_LETTERS.md) - Complete anonymous letters documentation
+- [Letter Replies Feature](../../features/LETTER_REPLIES.md) - One-time recipient replies
+- [Anonymous Identity Hints Feature](../../features/ANONYMOUS_IDENTITY_HINTS.md) - Progressive hint revelation
 - [Animations Feature](./ANIMATIONS.md) - For animation details
 - [Performance Optimizations](../../development/PERFORMANCE_OPTIMIZATIONS.md) - For performance details
 

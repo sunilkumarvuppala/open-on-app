@@ -133,15 +133,18 @@ async def create_reply(
             )
 
 
-@router.get("/letters/{letter_id}", response_model=LetterReplyResponse)
+@router.get("/letters/{letter_id}")
 async def get_reply(
     letter_id: UUID,
     request: Request,
     current_user: CurrentUser,
     session: DatabaseSession
-) -> LetterReplyResponse:
+) -> LetterReplyResponse | None:
     """
     Get reply for a letter (sender or receiver can view).
+    
+    Returns 204 No Content if reply doesn't exist yet (expected case).
+    Returns 200 with reply data if reply exists.
     """
     user_email = getattr(request.state, 'user_email', None)
     
@@ -157,10 +160,10 @@ async def get_reply(
     reply = await reply_repo.get_by_letter_id(letter_id)
     
     if not reply:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Reply not found for this letter"
-        )
+        # Return 204 No Content instead of 404 - this is expected when no reply exists yet
+        # This prevents 404 warnings in logs for normal operation
+        from fastapi.responses import Response
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
     
     return LetterReplyResponse.from_orm_reply(reply)
 

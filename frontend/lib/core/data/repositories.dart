@@ -12,11 +12,17 @@ import 'package:openon_app/core/data/draft_storage.dart';
 abstract class CapsuleRepository {
   Future<List<Capsule>> getCapsules({required String userId, bool asSender = true});
   Future<Capsule?> getCapsuleById(String capsuleId);
-  Future<Capsule> createCapsule(Capsule capsule);
+  Future<Capsule> createCapsule(
+    Capsule capsule, {
+    String? hint1,
+    String? hint2,
+    String? hint3,
+  });
   Future<Capsule> updateCapsule(Capsule capsule);
   Future<void> deleteCapsule(String capsuleId);
   Future<void> markAsOpened(String capsuleId);
   Future<void> addReaction(String capsuleId, String reaction);
+  Future<Map<String, dynamic>?> getCurrentHint(String capsuleId);
 }
 
 /// Mock implementation for development
@@ -183,7 +189,12 @@ class MockCapsuleRepository implements CapsuleRepository {
   }
   
   @override
-  Future<Capsule> createCapsule(Capsule capsule) async {
+  Future<Capsule> createCapsule(
+    Capsule capsule, {
+    String? hint1,
+    String? hint2,
+    String? hint3,
+  }) async {
     try {
       Validation.validateContent(capsule.content);
       if (capsule.label.isNotEmpty) {
@@ -211,6 +222,12 @@ class MockCapsuleRepository implements CapsuleRepository {
         stackTrace: stackTrace,
       );
     }
+  }
+
+  @override
+  Future<Map<String, dynamic>?> getCurrentHint(String capsuleId) async {
+    // Mock implementation - return null (no hints in mock)
+    return null;
   }
   
   @override

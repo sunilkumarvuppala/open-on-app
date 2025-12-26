@@ -119,7 +119,24 @@ serve(async (req) => {
     }
 
     // Parse request body
-    const body: CreateShareRequest = await req.json();
+    let body: CreateShareRequest;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      console.error("Failed to parse request body:", parseError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error_code: "INVALID_REQUEST",
+          error_message: "Invalid JSON in request body",
+        } as CreateShareResponse),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+    
     const { letter_id, share_type, expires_at } = body;
 
     if (!letter_id) {
@@ -162,25 +179,43 @@ serve(async (req) => {
 
     if (rpcError) {
       console.error("RPC error:", rpcError);
+      console.error("RPC error details:", JSON.stringify(rpcError, null, 2));
 
       // Parse error code from error message
-      const errorMessage = rpcError.message || "";
+      const errorMessage = rpcError.message || rpcError.toString() || "Unknown RPC error";
       let errorCode = "UNEXPECTED_ERROR";
+      let httpStatus = 500; // Default to 500 for unexpected errors
 
       if (errorMessage.includes("LETTER_NOT_FOUND")) {
         errorCode = "LETTER_NOT_FOUND";
+        httpStatus = 404;
       } else if (errorMessage.includes("LETTER_NOT_LOCKED")) {
         errorCode = "LETTER_NOT_LOCKED";
+        httpStatus = 400;
       } else if (errorMessage.includes("LETTER_ALREADY_OPENED")) {
         errorCode = "LETTER_ALREADY_OPENED";
+        httpStatus = 400;
+      } else       if (errorMessage.includes("LETTER_ALREADY_REVEALED")) {
+        errorCode = "LETTER_ALREADY_REVEALED";
+        httpStatus = 400;
+      } else if (errorMessage.includes("countdown_shares_open_future") || errorMessage.includes("open_future")) {
+        errorCode = "INVALID_STATE";
+        httpStatus = 400;
       } else if (errorMessage.includes("LETTER_DELETED")) {
         errorCode = "LETTER_DELETED";
+        httpStatus = 400;
       } else if (errorMessage.includes("NOT_AUTHORIZED")) {
         errorCode = "NOT_AUTHORIZED";
+        httpStatus = 403;
+      } else if (errorMessage.includes("Not authenticated") || errorMessage.includes("auth.uid()")) {
+        errorCode = "NOT_AUTHENTICATED";
+        httpStatus = 401;
       } else if (errorMessage.includes("DAILY_LIMIT_REACHED")) {
         errorCode = "DAILY_LIMIT_REACHED";
+        httpStatus = 429;
       } else if (errorMessage.includes("INVALID_SHARE_TYPE")) {
         errorCode = "INVALID_SHARE_TYPE";
+        httpStatus = 400;
       }
 
       return new Response(
@@ -190,18 +225,34 @@ serve(async (req) => {
           error_message: errorMessage.replace(/^COUNTDOWN_SHARE_ERROR:/, ""),
         } as CreateShareResponse),
         {
-          status: 400,
+          status: httpStatus,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
     }
 
-    if (!rpcResult || !rpcResult.share_id) {
+    if (!rpcResult) {
+      console.error("RPC call returned null or undefined result");
       return new Response(
         JSON.stringify({
           success: false,
           error_code: "UNEXPECTED_ERROR",
-          error_message: "RPC call succeeded but no share_id returned",
+          error_message: "RPC call returned no result",
+        } as CreateShareResponse),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+    
+    if (!rpcResult.share_id || !rpcResult.share_token || !rpcResult.share_url) {
+      console.error("RPC result missing required fields:", JSON.stringify(rpcResult, null, 2));
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error_code: "UNEXPECTED_ERROR",
+          error_message: "RPC call succeeded but incomplete data returned",
         } as CreateShareResponse),
         {
           status: 500,
@@ -254,11 +305,20 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("Unexpected error:", error);
+    console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
+    console.error("Error details:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : typeof error === 'string' 
+        ? error 
+        : JSON.stringify(error);
+    
     return new Response(
       JSON.stringify({
         success: false,
         error_code: "UNEXPECTED_ERROR",
-        error_message: error instanceof Error ? error.message : "Unknown error",
+        error_message: errorMessage || "Unknown error occurred",
       } as CreateShareResponse),
       {
         status: 500,

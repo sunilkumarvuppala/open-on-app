@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +18,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:openon_app/core/data/supabase_config.dart';
 import 'package:openon_app/features/capsule/letter_reply_composer.dart';
 import 'package:openon_app/features/capsule/emotional_reply_reveal_screen.dart';
+import 'package:openon_app/features/capsule/identity_lock_card.dart';
+import 'package:openon_app/features/capsule/identity_reveal_animation.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
 import 'package:openon_app/animations/widgets/sparkle_particle_engine.dart';
 
@@ -34,10 +37,14 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
   Capsule? _currentCapsule;
   Timer? _revealCountdownTimer;
   StreamSubscription? _realtimeSubscription;
+  StreamSubscription? _letterReplySubscription;
+  Timer? _replyPollingTimer;
   LetterReply? _reply;
   bool _isLoadingReply = false;
   bool _showReplyAnimation = false;
   bool _replySkipped = false; // Track if receiver skipped the reply option
+  bool _showRevealAnimation = false; // Track if we should show reveal animation
+  bool _showQuietMoment = false; // Track if quiet moment should be shown
   late AnimationController _headerFadeController;
   late Animation<double> _headerFadeAnimation;
   late AnimationController _messageFadeController;
@@ -50,6 +57,9 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
   // Icon animation state
   bool _showSenderAvatar = false;
   Timer? _iconToggleTimer;
+  
+  // Key for IdentityLockCard to access share method
+  final GlobalKey<IdentityLockCardState> _identityLockCardKey = GlobalKey<IdentityLockCardState>();
   
   @override
   void initState() {
@@ -127,9 +137,18 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
     );
     
     // Start reply fade-in after message appears
+    // But if reply already exists, show it immediately (no delay)
     Future.delayed(AppConstants.openedLetterReplyFadeDelay, () {
       if (mounted) {
         _replyFadeController.forward();
+      }
+    });
+    
+    // If reply already exists when screen loads, show it immediately
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _reply != null) {
+        // Ensure animation is at full opacity if reply exists
+        _replyFadeController.value = 1.0;
       }
     });
     
@@ -146,7 +165,12 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
       _startRevealCountdownTimer();
     }
     
-    // Load reply if exists (only called once here, not duplicated)
+    // Set up reply functionality for both sender and receiver
+    // Sender needs to see replies, receiver needs to send replies
+    // Set up realtime subscription for letter replies (both sender and receiver need this)
+    _setupLetterReplySubscription();
+    
+    // Load reply if exists (both sender and receiver need this)
     _loadReply();
   }
   
@@ -160,12 +184,28 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
       final reply = await repo.getReplyByLetterId(widget.capsule.id);
       
       if (mounted) {
+        final hadReply = _reply != null;
+        final hasReply = reply != null;
+        
         setState(() {
           _reply = reply;
           _isLoadingReply = false;
           
           // Don't automatically show animation - user will click "See Reply" button
         });
+        
+        // If reply exists, ensure the reply section is visible (fade animation at full opacity)
+        if (reply != null && mounted) {
+          // Ensure animation is at full opacity so button is visible
+          _replyFadeController.value = 1.0;
+        }
+        
+        // Log state changes for debugging
+        if (!hadReply && hasReply) {
+          Logger.info('Reply loaded for letter ${widget.capsule.id}');
+        } else if (hadReply && !hasReply) {
+          Logger.info('Reply removed for letter ${widget.capsule.id}');
+        }
       }
     } catch (e, stackTrace) {
       Logger.error('Failed to load reply', error: e, stackTrace: stackTrace);
@@ -229,7 +269,7 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
   }
   
   void _handleSeeReply() {
-    // Show animation screen when user clicks "See Reply" button
+    // Show animation screen when sender clicks "See Reply" button
     if (_reply != null) {
       setState(() {
         _showReplyAnimation = true;
@@ -264,6 +304,8 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
   void dispose() {
     _revealCountdownTimer?.cancel();
     _realtimeSubscription?.cancel();
+    _letterReplySubscription?.cancel();
+    _replyPollingTimer?.cancel();
     _iconToggleTimer?.cancel();
     _headerFadeController.dispose();
     _messageFadeController.dispose();
@@ -293,6 +335,32 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
       Logger.error('Failed to set up realtime subscription', error: e, stackTrace: stackTrace);
     }
   }
+  
+  void _setupLetterReplySubscription() {
+    try {
+      final supabase = SupabaseConfig.client;
+      _letterReplySubscription = supabase
+          .from('letter_replies')
+          .stream(primaryKey: ['id'])
+          .eq('letter_id', widget.capsule.id)
+          .listen((data) {
+            if (data.isNotEmpty) {
+              // A reply was created or updated for this letter
+              Logger.info('Reply detected via realtime for letter ${widget.capsule.id}');
+              _loadReply();
+            }
+          }, onError: (error) {
+            Logger.error('Letter reply subscription error', error: error);
+            // If realtime fails, polling will handle it
+          });
+      Logger.info('Letter reply realtime subscription set up for letter ${widget.capsule.id}');
+    } catch (e, stackTrace) {
+      Logger.error('Failed to set up letter reply subscription', error: e, stackTrace: stackTrace);
+      // If realtime fails, polling will handle it
+    }
+  }
+  
+  // Removed _startReplyPolling() - sender should not see replies at all
   
   void _startRevealCountdownTimer() {
     // Use _currentCapsule if available, otherwise widget.capsule
@@ -329,9 +397,20 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
       final repo = ref.read(capsuleRepositoryProvider);
       final updatedCapsule = await repo.getCapsuleById(widget.capsule.id);
       if (updatedCapsule != null && mounted) {
+        final wasAnonymousBefore = _currentCapsule?.isAnonymous ?? widget.capsule.isAnonymous;
+        final wasRevealedBefore = _currentCapsule?.isRevealed ?? widget.capsule.isRevealed;
+        
         setState(() {
           _currentCapsule = updatedCapsule;
         });
+        
+        // Check if identity was just revealed
+        if (wasAnonymousBefore && !wasRevealedBefore && updatedCapsule.isRevealed) {
+          // Identity was just revealed - show animation
+          setState(() {
+            _showRevealAnimation = true;
+          });
+        }
         
         // If anonymous and not revealed, restart countdown timer with new reveal_at
         if (updatedCapsule.isAnonymous && !updatedCapsule.isRevealed && updatedCapsule.revealAt != null) {
@@ -341,6 +420,15 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
       }
     } catch (e, stackTrace) {
       Logger.error('Failed to refresh capsule', error: e, stackTrace: stackTrace);
+    }
+  }
+  
+  void _handleRevealAnimationComplete() {
+    if (mounted) {
+      setState(() {
+        _showRevealAnimation = false;
+        _showQuietMoment = true;
+      });
     }
   }
   
@@ -355,7 +443,6 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
     final backgroundGradient = DynamicTheme.warmGradient(colorScheme);
     final isAnonymous = capsule.isAnonymous;
     final isRevealed = capsule.isRevealed;
-    final revealCountdown = capsule.revealCountdownText;
     
     // Check if current user is receiver
     final userAsync = ref.watch(currentUserProvider);
@@ -366,12 +453,13 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
     // Check if this is a self letter (sender and receiver are the same)
     final isSelfLetter = capsule.senderId == capsule.receiverId;
     
-    // Show animation if needed (only once)
-    if (_showReplyAnimation && _reply != null) {
+    // Show animation if needed (only for sender viewing reply)
+    // Note: Animation is shown to sender when they click "See Reply" button
+    if (_showReplyAnimation && _reply != null && !isReceiver) {
       return EmotionalReplyRevealScreen(
         key: ValueKey('reply_animation_${_reply!.id}'), // Unique key to prevent recreation
         reply: _reply!,
-        isReceiver: isReceiver,
+        isReceiver: false, // Sender viewing reply
         onComplete: _handleAnimationComplete,
       );
     }
@@ -422,35 +510,6 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
                             context.go(Routes.receiverHome);
                           },
                         ),
-                        const Spacer(),
-                        IconButton(
-                          icon: Icon(
-                            Icons.share,
-                            color: DynamicTheme.getPrimaryIconColor(colorScheme),
-                          ),
-                          style: IconButton.styleFrom(
-                            backgroundColor: DynamicTheme.getCardBackgroundColor(colorScheme).withOpacity(AppConstants.openedLetterCardBackgroundOpacity),
-                            foregroundColor: DynamicTheme.getPrimaryIconColor(colorScheme),
-                          ),
-                          onPressed: () {
-                            final colorScheme = ref.read(selectedColorSchemeProvider);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  AppConstants.shareFeatureComingSoon,
-                                  style: TextStyle(
-                                    color: DynamicTheme.getSnackBarTextColor(colorScheme),
-                                  ),
-                                ),
-                                backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
                       ],
                     ),
                   ),
@@ -465,7 +524,7 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Envelope header - toggles between letter icon and sender avatar every 3 seconds
+                    // Envelope header - shows anonymous card if anonymous and not revealed, otherwise shows icon/avatar
                     // Uses theme-based gradient similar to share cards
                     // Opacity reduces after title appears
                     Center(
@@ -474,59 +533,79 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
                         builder: (context, child) {
                           return Opacity(
                             opacity: _envelopeOpacityAnimation.value,
-                            child: Container(
-                              padding: EdgeInsets.all(AppTheme.spacingMd),
-                              decoration: BoxDecoration(
-                                gradient: envelopeGradient,
-                                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                                // Add subtle shadow for depth (similar to share cards)
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: colorScheme.primary1.withOpacity(AppConstants.openedLetterShadowOpacity),
-                                    blurRadius: AppTheme.glowBlurRadiusMedium,
-                                    offset: const Offset(0, 4),
+                            child: AnimatedSwitcher(
+                              duration: AppConstants.openedLetterIconToggleTransitionDuration,
+                              transitionBuilder: (Widget child, Animation<double> animation) {
+                                return FadeTransition(
+                                  opacity: CurvedAnimation(
+                                    parent: animation,
+                                    curve: Curves.easeInOut, // Smooth, slow fade
                                   ),
-                                ],
-                              ),
-                              child: AnimatedSwitcher(
-                                duration: AppConstants.openedLetterIconToggleTransitionDuration,
-                                transitionBuilder: (Widget child, Animation<double> animation) {
-                                  return FadeTransition(
-                                    opacity: CurvedAnimation(
-                                      parent: animation,
-                                      curve: Curves.easeInOut, // Smooth, slow fade
-                                    ),
-                                    child: child,
-                                  );
-                                },
-                                child: _showSenderAvatar
-                                    ? Container(
-                                        key: const ValueKey('avatar'),
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          // Add gradient overlay for avatar when shown
-                                          gradient: LinearGradient(
-                                            colors: [
-                                              Colors.white.withOpacity(AppConstants.openedLetterAvatarGradientOpacity),
-                                              Colors.transparent,
-                                            ],
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
+                                  child: child,
+                                );
+                              },
+                              // Show anonymous card if anonymous and not revealed, otherwise show icon/avatar
+                              child: (isReceiver && isAnonymous && !isRevealed && !_showRevealAnimation)
+                                  ? IdentityLockCard(
+                                      key: _identityLockCardKey,
+                                      capsule: capsule,
+                                      colorScheme: colorScheme,
+                                    )
+                                  : Container(
+                                      key: const ValueKey('envelope_icon'),
+                                      padding: EdgeInsets.all(AppTheme.spacingMd),
+                                      decoration: BoxDecoration(
+                                        gradient: envelopeGradient,
+                                        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                                        // Add subtle shadow for depth (similar to share cards)
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: colorScheme.primary1.withOpacity(AppConstants.openedLetterShadowOpacity),
+                                            blurRadius: AppTheme.glowBlurRadiusMedium,
+                                            offset: const Offset(0, 4),
                                           ),
-                                        ),
-                                        child: UserAvatar(
-                                          imageUrl: capsule.senderAvatar.isNotEmpty ? capsule.senderAvatar : null,
-                                          name: capsule.senderName,
-                                          size: AppConstants.openedLetterEnvelopeIconSize,
-                                        ),
-                                      )
-                                    : Icon(
-                                        Icons.mail,
-                                        key: const ValueKey('mail'),
-                                        size: AppConstants.openedLetterEnvelopeIconSize,
-                                        color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                                        ],
                                       ),
-                              ),
+                                      child: AnimatedSwitcher(
+                                        duration: AppConstants.openedLetterIconToggleTransitionDuration,
+                                        transitionBuilder: (Widget child, Animation<double> animation) {
+                                          return FadeTransition(
+                                            opacity: CurvedAnimation(
+                                              parent: animation,
+                                              curve: Curves.easeInOut, // Smooth, slow fade
+                                            ),
+                                            child: child,
+                                          );
+                                        },
+                                        child: _showSenderAvatar && (!isAnonymous || isRevealed)
+                                            ? Container(
+                                                key: const ValueKey('avatar'),
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  // Add gradient overlay for avatar when shown
+                                                  gradient: LinearGradient(
+                                                    colors: [
+                                                      Colors.white.withOpacity(AppConstants.openedLetterAvatarGradientOpacity),
+                                                      Colors.transparent,
+                                                    ],
+                                                    begin: Alignment.topLeft,
+                                                    end: Alignment.bottomRight,
+                                                  ),
+                                                ),
+                                                child: UserAvatar(
+                                                  imageUrl: capsule.displaySenderAvatar.isNotEmpty ? capsule.displaySenderAvatar : null,
+                                                  name: capsule.displaySenderName,
+                                                  size: AppConstants.openedLetterEnvelopeIconSize,
+                                                ),
+                                              )
+                                            : Icon(
+                                                Icons.mail,
+                                                key: const ValueKey('mail'),
+                                                size: AppConstants.openedLetterEnvelopeIconSize,
+                                                color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                                              ),
+                                      ),
+                                    ),
                             ),
                           );
                         },
@@ -535,53 +614,45 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
                     
                     SizedBox(height: AppTheme.spacingLg),
                     
+                    // Show reveal animation if identity is being revealed (between envelope and date)
+                    if (isReceiver && _showRevealAnimation) ...[
+                      IdentityRevealAnimation(
+                        capsule: capsule,
+                        colorScheme: colorScheme,
+                        onComplete: _handleRevealAnimationComplete,
+                      ),
+                      SizedBox(height: AppTheme.spacingLg),
+                    ],
+                    
                     // Opened date (moved before title)
                     Center(
                       child: Column(
                         children: [
-                          // Only show "From" line for receiver (not sender)
-                          if (isReceiver) ...[
-                            Text(
-                              'From ${capsule.displaySenderName}',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: DynamicTheme.getSecondaryTextColor(colorScheme),
-                                  ),
-                            ),
-                            SizedBox(height: AppTheme.spacingXs),
-                          ],
-                          // Show reveal countdown if anonymous and not yet revealed
-                          if (isAnonymous && !isRevealed && revealCountdown.isNotEmpty) ...[
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: AppTheme.spacingMd,
-                                vertical: AppTheme.spacingXs,
-                              ),
-                              decoration: BoxDecoration(
-                                color: colorScheme.primary1.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                                border: Border.all(
-                                  color: colorScheme.primary1.withOpacity(0.3),
+                          // Show "From" line for non-anonymous or revealed letters (after animation)
+                          if (isReceiver && (!isAnonymous || isRevealed) && !_showRevealAnimation) ...[
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'From ${capsule.displaySenderName}',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                        color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                                      ),
                                 ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.schedule,
-                                    size: AppConstants.openedLetterCountdownIconSize,
-                                    color: colorScheme.primary1,
-                                  ),
-                                  SizedBox(width: AppTheme.spacingXs),
+                                // Quiet moment text after reveal
+                                if (_showQuietMoment) ...[
+                                  SizedBox(height: AppTheme.spacingSm),
                                   Text(
-                                    revealCountdown,
-                                    style: TextStyle(
-                                      fontSize: AppConstants.openedLetterDateFontSize,
-                                      fontWeight: FontWeight.w600,
-                                      color: colorScheme.primary1,
-                                    ),
+                                    'Some answers take time.',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                          color: DynamicTheme.getSecondaryTextColor(colorScheme)
+                                              .withOpacity(0.6),
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                    textAlign: TextAlign.center,
                                   ),
                                 ],
-                              ),
+                              ],
                             ),
                             SizedBox(height: AppTheme.spacingXs),
                           ],
@@ -727,20 +798,53 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
                           opacity: _replyFadeAnimation.value,
                           child: Builder(
                             builder: (context) {
-                              final userAsync = ref.watch(currentUserProvider);
-                              final currentUserId = userAsync.asData?.value?.id;
+                              // Use cached currentUserId from parent build() to avoid duplicate watch
+                              // Explicitly check if user is the sender
+                              final isSender = currentUserId != null && currentUserId == capsule.senderId;
                               // If user is not the sender, they must be the receiver
                               // (backend only allows viewing capsules you sent or received)
                               final isReceiver = currentUserId != null && currentUserId != capsule.senderId;
                               
+                              // Debug logging (remove in production if needed)
+                              if (kDebugMode) {
+                                Logger.debug(
+                                  'Reply UI check - isSender: $isSender, isReceiver: $isReceiver, '
+                                  'currentUserId: $currentUserId, '
+                                  'senderId: ${capsule.senderId}, '
+                                  'receiverId: ${capsule.receiverId}, '
+                                  'hasReply: ${_reply != null}, '
+                                  'isLoading: $_isLoadingReply, '
+                                  'replySkipped: $_replySkipped'
+                                );
+                              }
+                              
+                              // Logic:
+                              // - Sender: Show "See Reply" button if reply exists, hide composer
+                              // - Receiver: Show composer if no reply, hide "See Reply" button
+                              
+                              if (isSender && !_isLoadingReply) {
+                                // Sender: Show "See Reply" button if reply exists
+                                if (_reply != null) {
+                                  return Column(
+                                    children: [
+                                      SizedBox(height: AppTheme.spacingSm), // Reduced spacing
+                                      _buildSeeReplyButton(context, colorScheme),
+                                    ],
+                                  );
+                                }
+                                // Sender: No reply yet - don't show anything
+                                return const SizedBox.shrink();
+                              }
+                              
                               if (isReceiver && !_isLoadingReply) {
+                                // Receiver: Show composer if no reply and not skipped
                                 if (_reply == null && !_replySkipped) {
-                                  // Show composer if no reply and not skipped
                                   return Column(
                                     children: [
                                       SizedBox(height: AppTheme.spacingMd), // Reduced spacing
                                       LetterReplyComposer(
                                         letterId: capsule.id,
+                                        senderId: capsule.senderId, // Pass senderId for safety check
                                         onReplySent: _handleReplySent,
                                         onSkip: _handleReplySkipped,
                                       ),
@@ -748,19 +852,11 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
                                   );
                                 } else {
                                   // Receiver has sent reply or skipped - don't show anything
-                                  // Reply is for sender to see, not receiver
                                   return const SizedBox.shrink();
                                 }
-                              } else if (!isReceiver && _reply != null) {
-                                // Sender viewing reply - show "See Reply" button
-                                // Receiver's reply should be visible to sender, not receiver
-                                return Column(
-                                  children: [
-                                    SizedBox(height: AppTheme.spacingSm), // Reduced spacing
-                                    _buildSeeReplyButton(context, colorScheme),
-                                  ],
-                                );
                               }
+                              
+                              // Fallback: If we can't determine role, don't show reply UI
                               return const SizedBox.shrink();
                             },
                           ),
@@ -786,49 +882,52 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
     
     final theme = Theme.of(context);
     
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Subtle copy above button to make it feel earned (whisper-like)
-        Padding(
-          padding: EdgeInsets.only(bottom: AppTheme.spacingSm),
-          child: Text(
-            "They've left a short response.",
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(AppConstants.openedLetterWhisperTextOpacity),
-              fontStyle: FontStyle.italic,
-              fontSize: theme.textTheme.bodyMedium?.fontSize != null 
-                  ? theme.textTheme.bodyMedium!.fontSize! * AppConstants.opacityNearlyOpaque // Slightly smaller for whisper effect
-                  : null,
-            ),
-          ),
-        ),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _handleSeeReply,
-            style: ElevatedButton.styleFrom(
-              padding: EdgeInsets.symmetric(
-                vertical: AppTheme.spacingMd,
-                horizontal: AppTheme.spacingLg,
-              ),
-              backgroundColor: colorScheme.primary1.withOpacity(AppConstants.openedLetterSeeReplyButtonOpacity),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              ),
-              elevation: 0,
-            ),
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Subtle copy above button to make it feel earned (whisper-like)
+          Padding(
+            padding: EdgeInsets.only(bottom: AppTheme.spacingSm),
             child: Text(
-              'See how it was received',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w500, // Slightly lighter weight (was w600)
-                color: Colors.white.withOpacity(AppConstants.openedLetterSeeReplyTextOpacity),
+              "They've left a short response.",
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(AppConstants.openedLetterWhisperTextOpacity),
+                fontStyle: FontStyle.italic,
+                fontSize: theme.textTheme.bodyMedium?.fontSize != null 
+                    ? theme.textTheme.bodyMedium!.fontSize! * AppConstants.opacityNearlyOpaque // Slightly smaller for whisper effect
+                    : null,
               ),
             ),
           ),
-        ),
-      ],
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _handleSeeReply,
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(
+                  vertical: AppTheme.spacingMd,
+                  horizontal: AppTheme.spacingLg,
+                ),
+                backgroundColor: colorScheme.primary1.withOpacity(AppConstants.openedLetterSeeReplyButtonOpacity),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                ),
+                elevation: 0,
+              ),
+              child: Text(
+                'See how it was received',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w500, // Slightly lighter weight (was w600)
+                  color: Colors.white.withOpacity(AppConstants.openedLetterSeeReplyTextOpacity),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
   

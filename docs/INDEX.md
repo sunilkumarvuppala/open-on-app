@@ -59,6 +59,8 @@
 - **[frontend/features/CONNECTIONS.md](./frontend/features/CONNECTIONS.md)** - Connections & friend requests
 - **[frontend/features/THOUGHTS.md](./frontend/features/THOUGHTS.md)** - Thoughts feature (presence signals) ⭐ NEW
 - **[features/COUNTDOWN_SHARES.md](./features/COUNTDOWN_SHARES.md)** - Countdown Shares feature (viral sharing) ⭐ NEW
+- **[features/LETTER_REPLIES.md](./features/LETTER_REPLIES.md)** - Letter Replies feature (one-time recipient replies) ⭐ NEW
+- **[features/ANONYMOUS_IDENTITY_HINTS.md](./features/ANONYMOUS_IDENTITY_HINTS.md)** - Anonymous Identity Hints feature (progressive hint revelation) ⭐ NEW
 - **[frontend/features/RECIPIENTS.md](./frontend/features/RECIPIENTS.md)** - Recipient management
 - **[frontend/features/PROFILE.md](./frontend/features/PROFILE.md)** - Profile & settings
 - **[frontend/features/NAVIGATION.md](./frontend/features/NAVIGATION.md)** - Navigation system
@@ -67,6 +69,9 @@
 ### Special Features
 - **[frontend/features/ANONYMOUS_LETTERS.md](./frontend/features/ANONYMOUS_LETTERS.md)** - Anonymous Letters feature
 - **[frontend/features/LETTERS_TO_SELF.md](./frontend/features/LETTERS_TO_SELF.md)** - Letters to Self feature
+- **[features/COUNTDOWN_SHARES.md](./features/COUNTDOWN_SHARES.md)** - Countdown Shares feature (viral sharing)
+- **[features/LETTER_REPLIES.md](./features/LETTER_REPLIES.md)** - Letter Replies feature (one-time recipient replies) ⭐ NEW
+- **[features/ANONYMOUS_IDENTITY_HINTS.md](./features/ANONYMOUS_IDENTITY_HINTS.md)** - Anonymous Identity Hints feature (progressive hint revelation) ⭐ NEW
 
 ---
 

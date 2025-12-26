@@ -7,9 +7,9 @@ A production-ready Flutter application for creating and sending time-locked emot
 ### Backend (Python/FastAPI)
 ```bash
 cd backend
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 

@@ -371,6 +371,10 @@ class CapsuleBase(BaseModel):
     theme_id: Optional[UUID] = None
     animation_id: Optional[UUID] = None
     expires_at: Optional[datetime] = None
+    # Anonymous identity hints (optional, only for anonymous letters)
+    hint_1: Optional[str] = Field(None, max_length=60)
+    hint_2: Optional[str] = Field(None, max_length=60)
+    hint_3: Optional[str] = Field(None, max_length=60)
 
 
 class CapsuleCreate(CapsuleBase):
@@ -1110,6 +1114,20 @@ class LetterReplyResponse(BaseModel):
             sender_animation_seen_at=reply.sender_animation_seen_at,
             created_at=reply.created_at
         )
+    
+    class Config:
+        from_attributes = True
+
+
+class AnonymousHintResponse(BaseModel):
+    """
+    Response model for current anonymous identity hint.
+    
+    Returns the hint text and index (1, 2, or 3) if a hint is currently eligible.
+    Returns None if no hint is eligible yet or if hints don't exist.
+    """
+    hint_text: Optional[str] = None
+    hint_index: Optional[int] = Field(None, ge=1, le=3)
     
     class Config:
         from_attributes = True

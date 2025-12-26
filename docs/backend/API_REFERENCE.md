@@ -32,9 +32,10 @@ Content-Type: application/json
 
 1. [Authentication & Profile](#authentication--profile-endpoints)
 2. [Capsules](#capsules-endpoints)
-3. [Recipients](#recipients-endpoints)
-4. [Connections](#connections-endpoints)
-5. [Error Handling](#error-handling)
+3. [Letter Replies](#letter-replies-endpoints) ⭐ NEW
+4. [Recipients](#recipients-endpoints)
+5. [Connections](#connections-endpoints)
+6. [Error Handling](#error-handling)
 
 ---
 
@@ -265,6 +266,50 @@ curl -X GET "http://localhost:8000/capsules/550e8400-e29b-41d4-a716-446655440003
   -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN"
 ```
 
+### GET /capsules/{capsule_id}/current-hint ⭐ NEW
+
+Get the current eligible hint for an anonymous letter (recipient only).
+
+**Path Parameters:**
+- `capsule_id` (UUID): The ID of the anonymous letter
+
+**Response (200 OK):**
+```json
+{
+  "hint_text": "We met at the coffee shop",
+  "hint_index": 1
+}
+```
+
+**Response (200 OK, no hint yet):**
+```json
+{
+  "hint_text": null,
+  "hint_index": null
+}
+```
+
+**Errors:**
+- `403 Forbidden`: User is not the recipient
+- `404 Not Found`: Letter not found or not anonymous
+
+**Business Rules:**
+- Only available for anonymous letters
+- Letter must be opened
+- Hints appear based on elapsed time percentage:
+  - 1 hint: Shows at 50% elapsed
+  - 2 hints: Shows at 35% and 70% elapsed
+  - 3 hints: Shows at 30%, 50%, and 85% elapsed
+- Hints are no longer shown after identity is revealed
+
+**Documentation**: See [features/ANONYMOUS_IDENTITY_HINTS.md](../features/ANONYMOUS_IDENTITY_HINTS.md) for complete feature documentation
+
+**Example:**
+```bash
+curl -X GET "http://localhost:8000/capsules/550e8400-e29b-41d4-a716-446655440003/current-hint" \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT_TOKEN"
+```
+
 ### PUT /capsules/{capsule_id}
 
 Update a capsule (only before opening).
@@ -382,6 +427,119 @@ curl -X DELETE "http://localhost:8000/capsules/550e8400-e29b-41d4-a716-446655440
 - Shows thoughtful messaging (calm, not destructive)
 - Disabled automatically once letter is opened
 - Includes race condition protection and comprehensive error handling
+
+---
+
+## Letter Replies Endpoints ⭐ NEW
+
+> **Base Path**: `/letter-replies`  
+> **Status**: ✅ Production Ready  
+> **Documentation**: See [features/LETTER_REPLIES.md](../features/LETTER_REPLIES.md) for complete feature documentation
+
+### POST /letter-replies/letters/{letter_id}
+
+Create a one-time reply to a letter (receiver only).
+
+**Path Parameters:**
+- `letter_id` (UUID): The ID of the letter to reply to
+
+**Request Body:**
+```json
+{
+  "reply_text": "Thank you so much!",
+  "reply_emoji": "❤️"
+}
+```
+
+**Validation:**
+- `reply_text`: Required, 1-60 characters
+- `reply_emoji`: Required, must be one of: ❤️ 🥹 😊 😎 😢 🤍 🙏
+
+**Response (201 Created):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "letter_id": "550e8400-e29b-41d4-a716-446655440001",
+  "reply_text": "Thank you so much!",
+  "reply_emoji": "❤️",
+  "receiver_animation_seen_at": null,
+  "sender_animation_seen_at": null,
+  "created_at": "2025-12-25T19:00:00Z"
+}
+```
+
+**Errors:**
+- `400 Bad Request`: Letter not opened, reply already exists, invalid emoji
+- `403 Forbidden`: User is not the recipient
+- `404 Not Found`: Letter not found
+
+**Business Rules:**
+- Only recipients can create replies
+- Letter must be opened before replying
+- Maximum one reply per letter (enforced at database level)
+- Replies cannot be edited or deleted
+
+### GET /letter-replies/letters/{letter_id}
+
+Get reply for a letter (sender or receiver can view).
+
+**Path Parameters:**
+- `letter_id` (UUID): The ID of the letter
+
+**Response (200 OK):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "letter_id": "550e8400-e29b-41d4-a716-446655440001",
+  "reply_text": "Thank you so much!",
+  "reply_emoji": "❤️",
+  "receiver_animation_seen_at": "2025-12-25T19:01:00Z",
+  "sender_animation_seen_at": null,
+  "created_at": "2025-12-25T19:00:00Z"
+}
+```
+
+**Response (204 No Content):** Reply doesn't exist yet (expected case)
+
+**Errors:**
+- `403 Forbidden`: User is not sender or recipient
+- `404 Not Found`: Letter not found
+
+### POST /letter-replies/letters/{letter_id}/mark-receiver-animation-seen
+
+Mark receiver animation as seen (after sending reply).
+
+**Path Parameters:**
+- `letter_id` (UUID): The ID of the letter
+
+**Response (200 OK):**
+```json
+{
+  "message": "Animation marked as seen"
+}
+```
+
+**Errors:**
+- `403 Forbidden`: User is not the recipient
+- `404 Not Found`: Reply not found
+
+### POST /letter-replies/letters/{letter_id}/mark-sender-animation-seen
+
+Mark sender animation as seen (when viewing reply).
+
+**Path Parameters:**
+- `letter_id` (UUID): The ID of the letter
+
+**Response (200 OK):**
+```json
+{
+  "message": "Animation marked as seen"
+}
+```
+
+**Errors:**
+- `403 Forbidden`: User is not the sender
+- `404 Not Found`: Reply not found
 
 ---
 
@@ -925,6 +1083,6 @@ All errors follow this format:
 
 ---
 
-**Last Updated**: January 2025
+**Last Updated**: December 2025
 
-**Production Status**: ✅ Ready for 100,000+ users
+**Production Status**: ✅ Ready for 500,000+ users

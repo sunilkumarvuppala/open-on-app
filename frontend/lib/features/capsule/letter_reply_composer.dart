@@ -14,14 +14,18 @@ import 'package:openon_app/core/utils/logger.dart';
 /// - Single-line text input (max 60 characters)
 /// - Emoji selection from fixed set
 /// - Skip and Send buttons
+/// 
+/// IMPORTANT: This widget should ONLY be shown to receivers, never to senders.
 class LetterReplyComposer extends ConsumerStatefulWidget {
   final String letterId;
+  final String? senderId; // Optional: sender ID for safety check
   final VoidCallback? onReplySent;
   final VoidCallback? onSkip;
   
   const LetterReplyComposer({
     super.key,
     required this.letterId,
+    this.senderId,
     this.onReplySent,
     this.onSkip,
   });
@@ -184,6 +188,20 @@ class _LetterReplyComposerState extends ConsumerState<LetterReplyComposer> {
   
   @override
   Widget build(BuildContext context) {
+    // CRITICAL SAFETY CHECK: Verify user is NOT the sender
+    // Only receivers can use the composer to send replies
+    final userAsync = ref.watch(currentUserProvider);
+    final currentUserId = userAsync.asData?.value?.id;
+    
+    // If senderId is provided, verify current user is NOT the sender
+    if (widget.senderId != null && currentUserId != null) {
+      if (currentUserId == widget.senderId) {
+        // User is the sender - hide composer completely (senders can't send replies)
+        Logger.debug('LetterReplyComposer: User is sender, hiding composer. letterId: ${widget.letterId}');
+        return const SizedBox.shrink();
+      }
+    }
+    
     final colorScheme = ref.watch(selectedColorSchemeProvider);
     final theme = Theme.of(context);
     

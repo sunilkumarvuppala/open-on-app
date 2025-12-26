@@ -78,6 +78,7 @@
 - ✅ Opened timestamp
 - ✅ Reaction system (emoji reactions)
 - ✅ Beautiful letter presentation UI
+- ✅ **Letter Replies** ⭐ NEW: One-time recipient replies with emoji shower animation
 
 ---
 
@@ -93,6 +94,7 @@
 - ✅ Realtime updates when sender is revealed
 - ✅ Database-level security enforcement
 - ✅ Server-side reveal timing calculation
+- ✅ **Anonymous Identity Hints** ⭐ NEW: Progressive hint revelation (1-3 hints, time-based display)
 
 ### 7. **Letters to Self** ⭐ NEW
 - ✅ Write sealed letters to future self

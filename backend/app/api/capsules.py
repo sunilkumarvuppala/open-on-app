@@ -31,7 +31,8 @@ from app.models.schemas import (
     CapsuleUpdate,
     CapsuleResponse,
     CapsuleListResponse,
-    MessageResponse
+    MessageResponse,
+    AnonymousHintResponse
 )
 from app.dependencies import DatabaseSession, CurrentUser
 from app.db.repositories import CapsuleRepository, RecipientRepository
@@ -153,6 +154,22 @@ async def create_capsule(
     # Eagerly load recipient to avoid lazy loading in async context
     recipient_repo = RecipientRepository(session)
     recipient = await recipient_repo.get_by_id(capsule.recipient_id)
+    
+    # Create hints if provided (only for anonymous letters)
+    if capsule_data.is_anonymous and any([capsule_data.hint_1, capsule_data.hint_2, capsule_data.hint_3]):
+        from app.db.repositories import AnonymousIdentityHintsRepository
+        hints_repo = AnonymousIdentityHintsRepository(session)
+        try:
+            await hints_repo.create(
+                letter_id=capsule.id,
+                hint_1=capsule_data.hint_1,
+                hint_2=capsule_data.hint_2,
+                hint_3=capsule_data.hint_3
+            )
+            logger.info(f"Created identity hints for capsule {capsule.id}")
+        except ValueError as e:
+            logger.warning(f"Failed to create hints for capsule {capsule.id}: {e}")
+            # Don't fail capsule creation if hints fail
     
     return CapsuleResponse.from_orm_with_profile(capsule, recipient=recipient)
 
@@ -370,6 +387,66 @@ async def get_capsule(
         capsule,
         recipient_user_profile=recipient_user_profile
     )
+
+
+@router.get("/{capsule_id}/hint", response_model=AnonymousHintResponse)
+async def get_current_hint(
+    capsule_id: UUID,
+    request: Request,  # Added to access user_email from request state
+    current_user: CurrentUser,
+    session: DatabaseSession
+) -> AnonymousHintResponse:
+    """
+    Get the current eligible hint for an anonymous letter.
+    
+    Returns the hint text and index (1, 2, or 3) if a hint is currently eligible
+    based on time rules. Returns None if no hint is eligible yet.
+    
+    Only recipients of anonymous letters can view hints.
+    """
+    from app.db.repositories import AnonymousIdentityHintsRepository
+    
+    # Verify capsule exists
+    capsule_repo = CapsuleRepository(session)
+    capsule = await capsule_repo.get_by_id(capsule_id)
+    
+    if not capsule:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Capsule not found"
+        )
+    
+    # Only allow for anonymous letters
+    if not capsule.is_anonymous:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Hints are only available for anonymous letters"
+        )
+    
+    # Verify user is recipient (hints are only for recipients)
+    user_email = getattr(request.state, 'user_email', None)
+    if not user_email:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User email required to verify recipient access"
+        )
+    
+    await verify_capsule_recipient(
+        session,
+        capsule_id,
+        current_user.user_id,
+        user_email
+    )
+    
+    # Get current hint using repository method
+    hints_repo = AnonymousIdentityHintsRepository(session)
+    hint_result = await hints_repo.get_current_hint(capsule_id)
+    
+    if hint_result:
+        hint_text, hint_index = hint_result
+        return AnonymousHintResponse(hint_text=hint_text, hint_index=hint_index)
+    else:
+        return AnonymousHintResponse(hint_text=None, hint_index=None)
 
 
 @router.put("/{capsule_id}", response_model=CapsuleResponse)

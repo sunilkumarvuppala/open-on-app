@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
+import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/utils/logger.dart';
 
 class StepAnonymousSettings extends ConsumerStatefulWidget {
@@ -23,6 +24,11 @@ class _StepAnonymousSettingsState extends ConsumerState<StepAnonymousSettings> {
   bool _isCheckingConnection = false;
   bool _isMutualConnection = false;
   bool _hasCheckedConnection = false;
+  bool _showHints = false;
+  
+  final TextEditingController _hint1Controller = TextEditingController();
+  final TextEditingController _hint2Controller = TextEditingController();
+  final TextEditingController _hint3Controller = TextEditingController();
   
   // Reveal delay options in seconds
   static const List<Map<String, dynamic>> _revealDelayOptions = [
@@ -39,6 +45,23 @@ class _StepAnonymousSettingsState extends ConsumerState<StepAnonymousSettings> {
   void initState() {
     super.initState();
     _checkMutualConnection();
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Initialize hint controllers with existing values (only once)
+    if (_hint1Controller.text.isEmpty && _hint2Controller.text.isEmpty && _hint3Controller.text.isEmpty) {
+      final draft = ref.read(draftCapsuleProvider);
+      _hint1Controller.text = draft.hint1 ?? '';
+      _hint2Controller.text = draft.hint2 ?? '';
+      _hint3Controller.text = draft.hint3 ?? '';
+      if (mounted) {
+        setState(() {
+          _showHints = draft.hint1 != null || draft.hint2 != null || draft.hint3 != null;
+        });
+      }
+    }
   }
   
   Future<void> _checkMutualConnection() async {
@@ -265,6 +288,88 @@ class _StepAnonymousSettingsState extends ConsumerState<StepAnonymousSettings> {
                         );
                       }).toList(),
                     ),
+                    
+                    // Identity hints section (optional)
+                    SizedBox(height: AppTheme.spacingLg),
+                    Card(
+                      elevation: 1,
+                      color: DynamicTheme.getCardBackgroundColor(colorScheme),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                      ),
+                      child: SwitchListTile(
+                        value: _showHints,
+                        onChanged: (value) {
+                          setState(() {
+                            _showHints = value;
+                            if (!value) {
+                              // Clear hints when toggle is off
+                              _hint1Controller.clear();
+                              _hint2Controller.clear();
+                              _hint3Controller.clear();
+                              ref.read(draftCapsuleProvider.notifier).setHint1(null);
+                              ref.read(draftCapsuleProvider.notifier).setHint2(null);
+                              ref.read(draftCapsuleProvider.notifier).setHint3(null);
+                            }
+                          });
+                        },
+                        title: Text(
+                          'Add identity hints (optional)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                          ),
+                        ),
+                        subtitle: Text(
+                          'These hints will appear over time before your identity is revealed.',
+                          style: TextStyle(
+                            color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                            fontSize: 13,
+                          ),
+                        ),
+                        activeColor: colorScheme.primary1,
+                      ),
+                    ),
+                    
+                    // Hint input fields (only shown if toggle is enabled)
+                    if (_showHints) ...[
+                      SizedBox(height: AppTheme.spacingMd),
+                      _buildHintInput(
+                        context,
+                        colorScheme,
+                        controller: _hint1Controller,
+                        label: 'Hint 1 (earliest)',
+                        onChanged: (value) {
+                          ref.read(draftCapsuleProvider.notifier).setHint1(
+                            value.trim().isEmpty ? null : value.trim()
+                          );
+                        },
+                      ),
+                      SizedBox(height: AppTheme.spacingSm),
+                      _buildHintInput(
+                        context,
+                        colorScheme,
+                        controller: _hint2Controller,
+                        label: 'Hint 2 (middle)',
+                        onChanged: (value) {
+                          ref.read(draftCapsuleProvider.notifier).setHint2(
+                            value.trim().isEmpty ? null : value.trim()
+                          );
+                        },
+                      ),
+                      SizedBox(height: AppTheme.spacingSm),
+                      _buildHintInput(
+                        context,
+                        colorScheme,
+                        controller: _hint3Controller,
+                        label: 'Hint 3 (final)',
+                        onChanged: (value) {
+                          ref.read(draftCapsuleProvider.notifier).setHint3(
+                            value.trim().isEmpty ? null : value.trim()
+                          );
+                        },
+                      ),
+                    ],
                   ],
                 ],
               ],
@@ -325,5 +430,48 @@ class _StepAnonymousSettingsState extends ConsumerState<StepAnonymousSettings> {
         ),
       ],
     );
+  }
+  
+  Widget _buildHintInput(
+    BuildContext context,
+    AppColorScheme colorScheme, {
+    required TextEditingController controller,
+    required String label,
+    required ValueChanged<String> onChanged,
+  }) {
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      maxLength: 60,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: 'Enter a short hint (max 60 characters)',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        ),
+        filled: true,
+        fillColor: DynamicTheme.getCardBackgroundColor(colorScheme),
+        labelStyle: TextStyle(
+          color: DynamicTheme.getSecondaryTextColor(colorScheme),
+        ),
+        hintStyle: TextStyle(
+          color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(0.6),
+        ),
+        counterStyle: TextStyle(
+          color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(0.6),
+        ),
+      ),
+      style: TextStyle(
+        color: DynamicTheme.getPrimaryTextColor(colorScheme),
+      ),
+    );
+  }
+  
+  @override
+  void dispose() {
+    _hint1Controller.dispose();
+    _hint2Controller.dispose();
+    _hint3Controller.dispose();
+    super.dispose();
   }
 }

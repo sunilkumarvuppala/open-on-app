@@ -399,7 +399,12 @@ class ApiCapsuleRepository implements CapsuleRepository {
   }
 
   @override
-  Future<Capsule> createCapsule(Capsule capsule) async {
+  Future<Capsule> createCapsule(
+    Capsule capsule, {
+    String? hint1,
+    String? hint2,
+    String? hint3,
+  }) async {
     try {
       // Validate input
       Validation.validateContent(capsule.content);
@@ -446,6 +451,19 @@ class ApiCapsuleRepository implements CapsuleRepository {
       // Add reveal_delay_seconds if anonymous
       if (capsule.isAnonymous && capsule.revealDelaySeconds != null) {
         payload['reveal_delay_seconds'] = capsule.revealDelaySeconds;
+      }
+      
+      // Add hints if anonymous and provided
+      if (capsule.isAnonymous) {
+        if (hint1 != null && hint1.trim().isNotEmpty) {
+          payload['hint_1'] = hint1.trim();
+        }
+        if (hint2 != null && hint2.trim().isNotEmpty) {
+          payload['hint_2'] = hint2.trim();
+        }
+        if (hint3 != null && hint3.trim().isNotEmpty) {
+          payload['hint_3'] = hint3.trim();
+        }
       }
       
       // Create capsule via API
@@ -534,6 +552,28 @@ class ApiCapsuleRepository implements CapsuleRepository {
         originalError: e,
         stackTrace: stackTrace,
       );
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>?> getCurrentHint(String capsuleId) async {
+    try {
+      UuidUtils.validateCapsuleId(capsuleId);
+      
+      final response = await _apiClient.get(ApiConfig.capsuleHint(capsuleId));
+      
+      // Response format: {"hint_text": "...", "hint_index": 1/2/3} or {"hint_text": null, "hint_index": null}
+      if (response['hint_text'] != null && response['hint_index'] != null) {
+        return {
+          'hint_text': response['hint_text'],
+          'hint_index': response['hint_index'],
+        };
+      }
+      return null;
+    } catch (e, stackTrace) {
+      Logger.error('Failed to get current hint', error: e, stackTrace: stackTrace);
+      // Don't throw - hints are optional, return null if error
+      return null;
     }
   }
 
@@ -1572,16 +1612,23 @@ class ApiLetterReplyRepository implements LetterReplyRepository {
     try {
       UuidUtils.validateCapsuleId(letterId);
       
-      Logger.info('Fetching reply for letter: $letterId');
+      Logger.debug('Fetching reply for letter: $letterId');
       
       final response = await _apiClient.get(ApiConfig.letterReplyByLetterId(letterId));
       
-      return LetterReply.fromJson(response as Map<String, dynamic>);
-    } catch (e, stackTrace) {
-      Logger.error('Failed to get reply by letter ID', error: e, stackTrace: stackTrace);
-      if (e is NotFoundException) {
+      // If response is empty (204 No Content), no reply exists yet
+      if (response.isEmpty) {
         return null;
       }
+      
+      return LetterReply.fromJson(response as Map<String, dynamic>);
+    } catch (e, stackTrace) {
+      // Handle 404 for backward compatibility (though backend now returns 204)
+      if (e is NotFoundException) {
+        Logger.debug('No reply found for letter: $letterId (expected)');
+        return null;
+      }
+      Logger.error('Failed to get reply by letter ID', error: e, stackTrace: stackTrace);
       if (e is AppException) {
         rethrow;
       }
