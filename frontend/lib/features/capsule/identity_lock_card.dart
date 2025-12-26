@@ -128,7 +128,7 @@ class IdentityLockCardState extends ConsumerState<IdentityLockCard> with TickerP
     
     // Fetch initial hint and poll for updates
     _fetchHint();
-    _hintPollTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+    _hintPollTimer = Timer.periodic(AppConstants.hintPollInterval, (timer) {
       if (mounted) {
         _fetchHint();
       }
@@ -1177,7 +1177,7 @@ class IdentityLockCardState extends ConsumerState<IdentityLockCard> with TickerP
                                           children: [
                                             _ShareOptionButton(
                                               key: GlobalKey(),
-                                              iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Instagram_icon.png/1024px-Instagram_icon.png',
+                                              iconUrl: AppConstants.instagramIconUrl,
                                               label: 'Instagram',
                                               onTap: () async {
                                                 await _shareMessage(currentShareUrl, buttonContext);
@@ -1187,7 +1187,7 @@ class IdentityLockCardState extends ConsumerState<IdentityLockCard> with TickerP
                                             SizedBox(width: AppTheme.spacingSm),
                                             _ShareOptionButton(
                                               key: GlobalKey(),
-                                              iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/TikTok_logo.svg/512px-TikTok_logo.svg.png',
+                                              iconUrl: AppConstants.tiktokIconUrl,
                                               label: 'TikTok',
                                               onTap: () async {
                                                 await _shareMessage(currentShareUrl, buttonContext);
@@ -1197,7 +1197,7 @@ class IdentityLockCardState extends ConsumerState<IdentityLockCard> with TickerP
                                             SizedBox(width: AppTheme.spacingSm),
                                             _ShareOptionButton(
                                               key: GlobalKey(),
-                                              iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/WhatsApp.svg/512px-WhatsApp.svg.png',
+                                              iconUrl: AppConstants.whatsappIconUrl,
                                               label: 'WhatsApp',
                                               onTap: () async {
                                                 await _shareMessage(currentShareUrl, buttonContext);

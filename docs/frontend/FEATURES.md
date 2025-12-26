@@ -26,6 +26,14 @@ This directory contains detailed documentation for each feature in the OpenOn ap
 - **Performance**: [../development/PERFORMANCE_OPTIMIZATIONS.md](../development/PERFORMANCE_OPTIMIZATIONS.md)
 - **API Reference**: [../reference/API_REFERENCE.md](../reference/API_REFERENCE.md)
 
+### Special Features
+
+12. **[Anonymous Letters](./features/ANONYMOUS_LETTERS.md)** - Temporary identity hiding
+13. **[Letters to Self](./features/LETTERS_TO_SELF.md)** - Sealed letters to future self
+14. **[Countdown Shares](../features/COUNTDOWN_SHARES.md)** - Viral sharing feature
+15. **[Letter Replies](../features/LETTER_REPLIES.md)** - One-time recipient replies ⭐ NEW
+16. **[Anonymous Identity Hints](../features/ANONYMOUS_IDENTITY_HINTS.md)** - Progressive hint revelation ⭐ NEW
+
 ## Feature Documentation Index
 
 Each feature document includes:
@@ -39,5 +47,5 @@ Each feature document includes:
 
 ---
 
-**Last Updated**: 2025
+**Last Updated**: December 2025
 

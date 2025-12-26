@@ -598,5 +598,13 @@ class AppConstants {
   
   // Retry delay for share creation (exponential backoff)
   static const Duration shareCreationRetryDelay = Duration(milliseconds: 500);
+  
+  // Social media icon URLs (centralized for maintainability)
+  static const String instagramIconUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Instagram_icon.png/1024px-Instagram_icon.png';
+  static const String tiktokIconUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/TikTok_logo.svg/512px-TikTok_logo.svg.png';
+  static const String whatsappIconUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/WhatsApp.svg/512px-WhatsApp.svg.png';
+  
+  // Hint polling interval (optimized for performance - 30 seconds)
+  static const Duration hintPollInterval = Duration(seconds: 30);
 }
 

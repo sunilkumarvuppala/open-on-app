@@ -798,9 +798,7 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
                           opacity: _replyFadeAnimation.value,
                           child: Builder(
                             builder: (context) {
-                              final userAsync = ref.watch(currentUserProvider);
-                              final currentUserId = userAsync.asData?.value?.id;
-                              
+                              // Use cached currentUserId from parent build() to avoid duplicate watch
                               // Explicitly check if user is the sender
                               final isSender = currentUserId != null && currentUserId == capsule.senderId;
                               // If user is not the sender, they must be the receiver

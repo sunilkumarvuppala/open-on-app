@@ -392,6 +392,82 @@ Abuse prevention - tracks blocked users.
 
 ---
 
+### `letter_replies` ⭐ NEW
+
+One-time recipient replies to letters.
+
+**Columns:**
+- `id` (UUID, PK, DEFAULT gen_random_uuid())
+- `letter_id` (UUID, NOT NULL, FK → `capsules.id` ON DELETE CASCADE, UNIQUE) - One reply per letter
+- `reply_text` (VARCHAR(60), NOT NULL) - Reply text content
+- `reply_emoji` (VARCHAR(4), NOT NULL) - Selected emoji (❤️ 🥹 😊 😎 😢 🤍 🙏)
+- `receiver_animation_seen_at` (TIMESTAMPTZ) - When receiver saw animation (after sending)
+- `sender_animation_seen_at` (TIMESTAMPTZ) - When sender saw animation (when viewing reply)
+- `created_at` (TIMESTAMPTZ, NOT NULL, DEFAULT NOW())
+
+**Relationships:**
+- `letter_id` → `capsules(id)` ON DELETE CASCADE
+
+**Constraints:**
+- `letter_replies_text_length`: `char_length(reply_text) <= 60`
+- `letter_replies_emoji_check`: `reply_emoji IN ('❤️', '🥹', '😊', '😎', '😢', '🤍', '🙏')`
+- `letter_replies_one_per_letter`: UNIQUE constraint on `letter_id`
+
+**RLS:**
+- SELECT: Receivers can view their own replies, senders can view replies to their letters
+- INSERT: Only recipients can create replies, letter must be opened, one reply per letter
+- UPDATE: Receivers and senders can update their animation timestamps only
+- DELETE: No deletes allowed (replies are permanent)
+
+**Indexes:**
+- `idx_letter_replies_letter_id` on `(letter_id)` - Fast lookups by letter
+- `idx_letter_replies_created_at` on `(created_at)` - Sorting by creation time
+
+**Migration:** `supabase/migrations/17_letter_replies_feature.sql`
+
+**Documentation**: See [features/LETTER_REPLIES.md](../features/LETTER_REPLIES.md) for complete feature documentation
+
+---
+
+### `anonymous_identity_hints` ⭐ NEW
+
+Progressive hints for anonymous letters that reveal over time.
+
+**Columns:**
+- `id` (UUID, PK, DEFAULT gen_random_uuid())
+- `letter_id` (UUID, NOT NULL, FK → `capsules(id)` ON DELETE CASCADE, UNIQUE) - One hint record per letter
+- `hint_1` (TEXT) - First hint (max 60 characters)
+- `hint_2` (TEXT) - Second hint (max 60 characters)
+- `hint_3` (TEXT) - Third hint (max 60 characters)
+- `created_at` (TIMESTAMPTZ, NOT NULL, DEFAULT NOW())
+
+**Relationships:**
+- `letter_id` → `capsules(id)` ON DELETE CASCADE
+
+**Constraints:**
+- `anonymous_identity_hints_hint_1_length`: `hint_1 IS NULL OR LENGTH(hint_1) <= 60`
+- `anonymous_identity_hints_hint_2_length`: `hint_2 IS NULL OR LENGTH(hint_2) <= 60`
+- `anonymous_identity_hints_hint_3_length`: `hint_3 IS NULL OR LENGTH(hint_3) <= 60`
+
+**RLS:**
+- SELECT: Recipients can view hints for received anonymous letters, senders can view hints for their own letters
+- INSERT: Only senders can insert hints for their own anonymous letters
+- UPDATE/DELETE: No updates or deletes allowed (hints are immutable)
+
+**Indexes:**
+- `idx_anonymous_identity_hints_letter_id` on `(letter_id)` - Fast lookups by letter
+
+**Hint Display Rules:**
+- 1 hint: Shows at 50% elapsed time
+- 2 hints: Shows at 35% and 70% elapsed time
+- 3 hints: Shows at 30%, 50%, and 85% elapsed time
+
+**Migration:** `supabase/migrations/18_anonymous_identity_hints.sql`
+
+**Documentation**: See [features/ANONYMOUS_IDENTITY_HINTS.md](../features/ANONYMOUS_IDENTITY_HINTS.md) for complete feature documentation
+
+---
+
 ### `audit_logs`
 
 Action logging for security and compliance.
@@ -645,6 +721,64 @@ Server-side function to open a letter. Sets `opened_at` and calculates `reveal_a
 ```sql
 SELECT * FROM open_letter('capsule-uuid-here');
 ```
+
+---
+
+### `create_letter_reply(p_letter_id UUID, p_reply_text VARCHAR(60), p_reply_emoji VARCHAR(4))` ⭐ NEW
+
+Creates a one-time reply to a letter with validation.
+
+**Type:** RPC function  
+**Security:** SECURITY DEFINER (runs with elevated privileges)  
+**Returns:** `letter_replies` record  
+**Usage:** Called by backend API when recipient creates a reply
+
+**Validations:**
+- User must be authenticated
+- User must be the recipient
+- Letter must exist and be opened
+- Reply must not already exist
+- Emoji must be from allowed set
+- Text must be ≤ 60 characters
+
+**Example:**
+```sql
+SELECT * FROM create_letter_reply('letter-uuid', 'Thank you!', '❤️');
+```
+
+**Migration:** `supabase/migrations/17_letter_replies_feature.sql`
+
+---
+
+### `get_current_anonymous_hint(letter_id_param UUID)` ⭐ NEW
+
+Determines which hint (if any) should be shown based on elapsed time percentage.
+
+**Type:** RPC function  
+**Security:** SECURITY DEFINER (runs with elevated privileges)  
+**Returns:** TABLE with `hint_text` (TEXT) and `hint_index` (INTEGER)  
+**Usage:** Called by backend API to get current eligible hint
+
+**Logic:**
+- Verifies letter exists, is anonymous, is opened, not yet revealed
+- Calculates elapsed time percentage
+- Determines which hint should be shown based on:
+  - Number of hints provided (1, 2, or 3)
+  - Elapsed time percentage
+  - Hint display rules (30%, 35%, 50%, 70%, 85%)
+
+**Hint Display Thresholds:**
+- 1 hint: 50% elapsed
+- 2 hints: 35% and 70% elapsed
+- 3 hints: 30%, 50%, and 85% elapsed
+
+**Example:**
+```sql
+SELECT * FROM get_current_anonymous_hint('letter-uuid');
+-- Returns: hint_text, hint_index (1, 2, or 3) or NULL if no hint yet
+```
+
+**Migration:** `supabase/migrations/18_anonymous_identity_hints.sql`
 
 ---
 
@@ -1086,6 +1220,9 @@ All schema changes are in numbered migration files:
 14. `14_scheduled_jobs.sql` - pg_cron jobs
 13. `13_anonymous_letters_feature.sql` - Anonymous letters feature (complete implementation)
 14. `14_letters_to_self.sql` - Letters to self feature
+15. `16_countdown_shares_feature.sql` - Countdown shares feature (viral sharing)
+16. `17_letter_replies_feature.sql` - Letter replies feature (one-time recipient replies) ⭐ NEW
+17. `18_anonymous_identity_hints.sql` - Anonymous identity hints feature (progressive hint revelation) ⭐ NEW
 
 **To apply:** Run `supabase db reset` to apply all migrations.
 

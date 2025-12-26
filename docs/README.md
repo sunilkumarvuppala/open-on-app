@@ -105,6 +105,11 @@
 - **[ANONYMOUS_LETTERS.md](./frontend/features/ANONYMOUS_LETTERS.md)** - Anonymous letters feature
 - **[LETTERS_TO_SELF.md](./frontend/features/LETTERS_TO_SELF.md)** - Letters to self feature
 
+**Special Feature Documentation** (`features/`):
+- **[COUNTDOWN_SHARES.md](./features/COUNTDOWN_SHARES.md)** - Countdown Shares feature
+- **[LETTER_REPLIES.md](./features/LETTER_REPLIES.md)** - Letter Replies feature ⭐ NEW
+- **[ANONYMOUS_IDENTITY_HINTS.md](./features/ANONYMOUS_IDENTITY_HINTS.md)** - Anonymous Identity Hints feature ⭐ NEW
+
 #### Supabase (`supabase/`)
 - **[INDEX.md](./supabase/INDEX.md)** - Supabase documentation index
 - **[GETTING_STARTED.md](./supabase/GETTING_STARTED.md)** - Supabase setup guide
@@ -264,6 +269,6 @@ docs/
 
 ---
 
-**Last Updated**: 2025-01-15  
+**Last Updated**: 2025-12-25  
 **Maintainer**: Engineering Team  
 **Status**: Production Ready

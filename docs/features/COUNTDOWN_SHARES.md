@@ -925,12 +925,16 @@ app.share_base_url = 'https://openon.app/share'
 
 ### Related Features
 
-- [Capsule Feature](../frontend/features/CAPSULE.md)
-- [Anonymous Letters](../frontend/features/ANONYMOUS_LETTERS.md)
-- [Connections Feature](../frontend/features/CONNECTIONS.md)
+- [Capsule Feature](../frontend/features/CAPSULE.md) - Letter viewing and opening
+- [Anonymous Letters](../frontend/features/ANONYMOUS_LETTERS.md) - Anonymous letters feature
+- [Letter Replies Feature](./LETTER_REPLIES.md) - One-time recipient replies ⭐ NEW
+- [Anonymous Identity Hints Feature](./ANONYMOUS_IDENTITY_HINTS.md) - Progressive hint revelation ⭐ NEW
+- [Connections Feature](../frontend/features/CONNECTIONS.md) - Friend requests & mutual connections
+- [Backend API Reference](../backend/API_REFERENCE.md) - Complete API documentation
+- [Database Schema](../supabase/DATABASE_SCHEMA.md) - Complete database schema
 
 ---
 
-**Last Updated**: January 2025  
+**Last Updated**: December 2025  
 **Maintained By**: Development Team  
 **Status**: ✅ Production Ready & Acquisition Ready

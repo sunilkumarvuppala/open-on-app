@@ -272,21 +272,15 @@ if (capsule.isAnonymous && !capsule.isRevealed) {
 
 ## Related Documentation
 
-- [Database Schema](../supabase/DATABASE_SCHEMA.md)
-- [RLS Policies](../supabase/INDEX.md)
-- [API Reference](../backend/API_REFERENCE.md)
-- [Flutter Features](../frontend/features/CREATE_CAPSULE.md)
+- [Capsule Feature](./CAPSULE.md) - Letter viewing and opening
+- [Create Capsule](./CREATE_CAPSULE.md) - For creating anonymous letters
+- [Receiver Screen](./RECEIVER.md) - Inbox display of anonymous letters
+- [Anonymous Identity Hints Feature](../../features/ANONYMOUS_IDENTITY_HINTS.md) - Progressive hint revelation for anonymous letters ⭐ NEW
+- [Letter Replies Feature](../../features/LETTER_REPLIES.md) - One-time recipient replies
+- [Backend API Reference](../../backend/API_REFERENCE.md) - Complete API documentation
+- [Database Schema](../../supabase/DATABASE_SCHEMA.md) - Complete database schema
 
 ---
 
-**Last Updated**: January 2025  
+**Last Updated**: December 2025  
 **Status**: ✅ **PRODUCTION READY** - Database, Backend, and Flutter Implementation Complete
-
-## Related Documentation
-
-- [Database Schema](./supabase/DATABASE_SCHEMA.md) - Complete schema reference
-- [Backend API Reference](./backend/API_REFERENCE.md) - API endpoints for anonymous letters
-- [Create Capsule Feature](./frontend/features/CREATE_CAPSULE.md) - How to create anonymous letters
-- [Capsule Viewing Feature](./frontend/features/CAPSULE.md) - How anonymous letters are displayed
-- [Receiver Screen Feature](./frontend/features/RECEIVER.md) - Inbox display of anonymous letters
-- [Security Review](./SECURITY_AND_BEST_PRACTICES_REVIEW.md) - Comprehensive security analysis
