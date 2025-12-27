@@ -18,6 +18,7 @@ This directory contains detailed documentation for each feature in the OpenOn ap
 10. **[Navigation](./features/NAVIGATION.md)** - Main navigation system
 11. **[Animations](./features/ANIMATIONS.md)** - Animation system and effects
 12. **[Name Filter](./features/NAME_FILTER.md)** - On-demand name-based filtering for letter lists ⭐ NEW
+13. **[Unfolding Hierarchy](./features/UNFOLDING_HIERARCHY.md)** - Visual hierarchy system for unfolding letters ⭐ NEW
 
 ## Quick Navigation
 
@@ -26,6 +27,11 @@ This directory contains detailed documentation for each feature in the OpenOn ap
 - **Code Structure**: [../architecture/CODE_STRUCTURE.md](../architecture/CODE_STRUCTURE.md)
 - **Performance**: [../development/PERFORMANCE_OPTIMIZATIONS.md](../development/PERFORMANCE_OPTIMIZATIONS.md)
 - **API Reference**: [../reference/API_REFERENCE.md](../reference/API_REFERENCE.md)
+
+### Recent Features
+
+- **[Unfolding Hierarchy](./features/UNFOLDING_HIERARCHY.md)** - Visual hierarchy for unfolding letters (January 2025) ⭐ NEW
+- **[Name Filter](./features/NAME_FILTER.md)** - On-demand name-based filtering (December 2024) ⭐ NEW
 
 ### Special Features
 

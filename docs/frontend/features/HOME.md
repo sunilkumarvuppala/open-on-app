@@ -44,11 +44,16 @@ features/home/
    - **Content**: Only regular capsules (letters to others)
    - Shows capsules unlocking within 7 days (unlocking soon)
    - Shows capsules unlocking later than 7 days (upcoming)
-   - Uses `unlockingSoonCapsulesProvider` and `upcomingCapsulesProvider`
+   - Uses `unlockingSoonCapsulesProvider`, `upcomingCapsulesProvider`, and `readyCapsulesProvider`
    - Displays countdown timers
    - Animated "Unlocking Soon" badges
+   - **Unfolding Hierarchy**: Enforces visual and behavioral hierarchy for letters ⭐ NEW
+     - Letters within 48h appear first (full cards)
+     - Aged ready letters (>36h) grouped in "Waiting for the moment" capsule
+     - Letters beyond 48h appear last (softened visual emphasis)
    - **Sorting**: Sorted by time remaining to unlock (ascending - shortest time first)
    - **Note**: Self letters are NOT shown here (they appear in "Future Me" tab)
+   - See **[UNFOLDING_HIERARCHY.md](./UNFOLDING_HIERARCHY.md)** for complete documentation
 
 2. **Future Me Tab** (`_ForYouTab`) ⭐ NEW
    - Label: "Future Me" (with person icon)
@@ -388,6 +393,8 @@ return capsulesAsync.when(
 - [Capsule Viewing](./CAPSULE.md) - For capsule detail screens
 - [Create Capsule](./CREATE_CAPSULE.md) - For letter creation
 - [Drafts](./DRAFTS.md) - For draft management
+- [Unfolding Hierarchy](./UNFOLDING_HIERARCHY.md) - Unfolding tab hierarchy system ⭐ NEW
+- [Name Filter](./NAME_FILTER.md) - Name-based filtering feature
 - [Performance Optimizations](../../development/PERFORMANCE_OPTIMIZATIONS.md) - For performance details
 
 ---

@@ -71,6 +71,7 @@ docs/
 - **[CONNECTIONS.md](./features/CONNECTIONS.md)** - Connections & friend requests ⭐
 - **[THOUGHTS.md](./features/THOUGHTS.md)** - Thoughts feature (presence signals) ⭐ NEW
 - **[NAME_FILTER.md](./features/NAME_FILTER.md)** - Name filter feature (on-demand search) ⭐ NEW
+- **[UNFOLDING_HIERARCHY.md](./features/UNFOLDING_HIERARCHY.md)** - Unfolding hierarchy system (visual prioritization) ⭐ NEW
 - **[LETTERS_TO_SELF.md](./features/LETTERS_TO_SELF.md)** - Self Letters frontend implementation ⭐ NEW
 - **[SELF_LETTERS_UI_COMPONENTS.md](./features/SELF_LETTERS_UI_COMPONENTS.md)** - Self Letters UI components (reflection card, animations) ⭐ NEW
 - **[../features/COUNTDOWN_SHARES.md](../features/COUNTDOWN_SHARES.md)** - Countdown Shares feature (viral sharing) ⭐ NEW
@@ -130,6 +131,7 @@ docs/
 | Connections | [CONNECTIONS.md](./features/CONNECTIONS.md) | Friend requests & mutual connections ⭐ |
 | Thoughts | [THOUGHTS.md](./features/THOUGHTS.md) | Presence signals ("I thought of you") ⭐ NEW |
 | Name Filter | [NAME_FILTER.md](./features/NAME_FILTER.md) | On-demand name-based filtering ⭐ NEW |
+| Unfolding Hierarchy | [UNFOLDING_HIERARCHY.md](./features/UNFOLDING_HIERARCHY.md) | Visual hierarchy for unfolding letters ⭐ NEW |
 | Self Letters | [LETTERS_TO_SELF.md](./features/LETTERS_TO_SELF.md) | Letters to future self ⭐ NEW |
 | Recipients | [RECIPIENTS.md](./features/RECIPIENTS.md) | Recipient management |
 | Profile | [PROFILE.md](./features/PROFILE.md) | User profile and settings |
