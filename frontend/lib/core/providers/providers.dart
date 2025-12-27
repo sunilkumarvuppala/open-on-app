@@ -671,12 +671,32 @@ final letterCountProvider = FutureProvider.family<int, String>((ref, key) async 
         int count = 0;
         
         if (isSelfRecipient) {
-          // For self-recipients: Count only sent letters (sent to self = received from self, so count once)
-          // OPTIMIZATION: Use fold instead of where().length to avoid creating intermediate list
-          count = sentCapsules.fold<int>(
+          // For self-recipients: Count both regular capsules sent to self AND self letters
+          // Count regular capsules sent to self
+          final regularCapsuleCount = sentCapsules.fold<int>(
             0,
             (sum, c) => c.recipientId == recipientId ? sum + 1 : sum,
           );
+          
+          // Count self letters (stored in separate table)
+          int selfLetterCount = 0;
+          try {
+            final selfLettersAsync = ref.read(selfLettersProvider);
+            if (selfLettersAsync.hasValue) {
+              final selfLetters = selfLettersAsync.value ?? [];
+              selfLetterCount = selfLetters.length;
+            } else {
+              // Fallback to repository if not cached (should be rare)
+              final selfLetterRepo = ref.read(selfLetterRepositoryProvider);
+              final selfLetters = await selfLetterRepo.getSelfLetters();
+              selfLetterCount = selfLetters.length;
+            }
+          } catch (e) {
+            Logger.warning('Error counting self letters', error: e);
+            // Continue with regular capsule count only
+          }
+          
+          count = regularCapsuleCount + selfLetterCount;
         } else {
           // For regular recipients: Count both sent + received (bidirectional exchange)
           // OPTIMIZATION: Use fold for efficient counting without intermediate lists
