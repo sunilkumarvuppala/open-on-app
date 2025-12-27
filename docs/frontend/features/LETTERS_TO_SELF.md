@@ -175,6 +175,50 @@ The Self Letters feature allows users to write sealed, irreversible, time-delaye
 - Passes title from draft label
 
 **`OpenSelfLetterScreen`** - Letter opening and reflection:
+
+#### UI Components
+
+**Reflection Prompt Card (`_ReflectionPromptCard`)**:
+- **Layout**: Stack-based layout with absolute positioning
+- **Question**: Centered text "How does this feel to read now?" (18px, w600)
+- **Psychology Icon**: Left-aligned, top-left corner (`AppTheme.spacingMd` from top, `AppTheme.spacingLg + AppTheme.spacingMd` from left)
+  - Uses `_PulsingPsychologyIcon` widget with continuous animation
+  - Size: 28px
+  - Color: Primary text color with opacity animation (0.7-0.9)
+- **Dismiss Button**: Right-aligned, top-right corner (`AppTheme.spacingMd` from top, `AppTheme.spacingLg + AppTheme.spacingMd` from right)
+  - Icon: `Icons.close` (18px)
+  - Color: Secondary text color with 0.7 opacity
+  - Material/InkWell for tap feedback
+- **Reflection Options**: Horizontal layout with two expanded options
+  - "Still true" (left): `Icons.check_circle_outline`, submits 'yes'
+  - "Changed" (right): `Icons.change_circle_outlined`, submits 'no'
+  - Each option uses `_buildReflectionOption` helper with icon (32px) and label
+- **Skip Button**: Centered, subtle `TextButton` below main options
+  - Submits 'skipped'
+  - Foreground color: Secondary text with 0.7 opacity
+- **Styling**:
+  - Card background: `DynamicTheme.getCardBackgroundColor(colorScheme)`
+  - Border: Divider color with 0.3 opacity
+  - Border radius: `AppTheme.radiusXl`
+  - Shadow: Black with 0.1 opacity, 20px blur, 4px offset
+
+**Pulsing Psychology Icon (`_PulsingPsychologyIcon`)**:
+- **Type**: Stateful widget with `SingleTickerProviderStateMixin`
+- **Animation**:
+  - Duration: 2000ms (2 seconds)
+  - Curve: `Curves.easeInOut`
+  - Mode: Continuous reverse (loops indefinitely)
+- **Effects**:
+  - Scale: 0.92 to 1.0 (8% scale variation)
+  - Opacity: 0.7 to 0.9 (20% opacity variation)
+- **Implementation**:
+  - Uses `AnimationController` with `repeat(reverse: true)`
+  - `AnimatedBuilder` for efficient rebuilds
+  - `Transform.scale` and `Opacity` widgets for visual effects
+  - Properly disposes controller in `dispose()` method
+- **Performance**: Optimized with `AnimatedBuilder` (only rebuilds icon, not parent)
+
+**Reflection Display (`_buildReflectionDisplay`)**:
 - **Lock Screen** (if not yet openable):
   - Gradient background with animated lock/envelope icon
   - Title display (user-provided or "Letter to myself")
@@ -224,7 +268,7 @@ The Self Letters feature allows users to write sealed, irreversible, time-delaye
 6. Optionally enters city (with auto-detection support)
 7. Taps "Seal Letter"
 8. Letter is created and sealed immediately
-9. Returns to Home screen (letter appears in "Sealed" tab)
+9. Returns to Home screen (letter appears in "Future Me" tab)
 
 ### Creation Flow (Regular Flow)
 
@@ -236,11 +280,11 @@ The Self Letters feature allows users to write sealed, irreversible, time-delaye
 5. Step 4: Anonymous settings (skipped for self)
 6. Step 5: Preview → Submit
 7. Letter is created via self letter API (not capsule API)
-8. Returns to Home screen (letter appears in "Sealed" tab)
+8. Returns to Home screen (letter appears in "Future Me" tab)
 
 ### Opening Flow
 
-1. User sees letter in "Sealed" tab (Home screen)
+1. User sees letter in "Future Me" tab (Home screen)
 2. Letter shows countdown or "Ready to open" badge
 3. User taps letter → Opens `OpenSelfLetterScreen`
 4. **Lock Screen** (if not yet openable):

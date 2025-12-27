@@ -45,7 +45,7 @@ class _SelfLettersScreenState extends ConsumerState<SelfLettersScreen>
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () => context.push(Routes.createSelfLetter),
+            onPressed: () => context.push(Routes.createCapsule),
             tooltip: 'Write to future me',
           ),
         ],

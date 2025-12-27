@@ -5,6 +5,7 @@ import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/utils/logger.dart';
+import 'package:openon_app/core/utils/name_filter_utils.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
 
 /// Optimized widget for displaying letter count
@@ -188,13 +189,22 @@ class _StepChooseRecipientState extends ConsumerState<StepChooseRecipient> {
             // Combine: self-recipient (always present) + other recipients
             final allRecipients = [...finalSelfRecipient, ...otherRecipients];
             
-            // STEP 3: Apply search filter
+            // STEP 3: Apply search filter using sophisticated name matching
+            // Uses matchesNameQuery() for consistency with other screens (supports initials, multi-token, etc.)
             final filteredRecipients = allRecipients.where((r) {
-              if (_searchQuery.isEmpty) return true;
-              final name = r.name.toLowerCase();
-              final username = r.username?.toLowerCase() ?? '';
-              final query = _searchQuery.toLowerCase();
-              return name.contains(query) || username.contains(query);
+              if (_searchQuery.trim().isEmpty) return true;
+              
+              // Check name match using sophisticated matching (initials, multi-token, etc.)
+              if (matchesNameQuery(_searchQuery, r.name)) {
+                return true;
+              }
+              
+              // Also check username if present
+              if (r.username != null && r.username!.isNotEmpty) {
+                return matchesNameQuery(_searchQuery, r.username!);
+              }
+              
+              return false;
             }).toList();
             
             return Column(

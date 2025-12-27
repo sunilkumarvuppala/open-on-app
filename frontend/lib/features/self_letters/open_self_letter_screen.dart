@@ -927,73 +927,254 @@ class _ReflectionPromptCard extends ConsumerWidget {
     final colorScheme = ref.watch(selectedColorSchemeProvider);
     final theme = Theme.of(context);
     
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingLg),
-      decoration: BoxDecoration(
-        color: DynamicTheme.getCardBackgroundColor(colorScheme),
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(
-          color: DynamicTheme.getDividerColor(colorScheme).withOpacity(AppConstants.letterReplyDividerOpacity),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Dismiss button
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.close, size: 18),
-                onPressed: onDismiss,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(0.6),
+    return Stack(
+      children: [
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.spacingXl,
+            AppTheme.spacingXl,
+            AppTheme.spacingXl,
+            AppTheme.spacingLg,
+          ),
+          decoration: BoxDecoration(
+            color: DynamicTheme.getCardBackgroundColor(colorScheme),
+            borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+            border: Border.all(
+              color: DynamicTheme.getDividerColor(colorScheme).withOpacity(AppConstants.letterReplyDividerOpacity),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
-          
-          // Question
-          Text(
-            'How does this feel to read now?',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: DynamicTheme.getPrimaryTextColor(colorScheme),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Question text - centered
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingXl),
+                  child: Text(
+                    'How does this feel to read now?',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: AppTheme.spacingXl),
+              
+              // Reflection options - horizontal layout with icons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  // Still true
+                  Expanded(
+                    child: _buildReflectionOption(
+                      context: context,
+                      colorScheme: colorScheme,
+                      theme: theme,
+                      icon: Icons.check_circle_outline,
+                      label: 'Still true',
+                      onTap: () => onSubmit('yes'),
+                    ),
+                  ),
+                  
+                  const SizedBox(width: AppTheme.spacingMd),
+                  
+                  // Changed
+                  Expanded(
+                    child: _buildReflectionOption(
+                      context: context,
+                      colorScheme: colorScheme,
+                      theme: theme,
+                      icon: Icons.change_circle_outlined,
+                      label: 'Changed',
+                      onTap: () => onSubmit('no'),
+                    ),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: AppTheme.spacingMd),
+              
+              // Skip button - centered, subtle
+              Center(
+                child: TextButton(
+                  onPressed: () => onSubmit('skipped'),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacingLg,
+                      vertical: AppTheme.spacingSm,
+                    ),
+                    foregroundColor: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(AppConstants.letterReplySecondaryTextOpacity),
+                  ),
+                  child: Text(
+                    'Skip',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        // Left icon - same horizontal line as X button, but on left side
+        Positioned(
+          top: AppTheme.spacingMd,
+          left: AppTheme.spacingLg + AppTheme.spacingMd,
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: _PulsingPsychologyIcon(colorScheme: colorScheme),
+          ),
+        ),
+        
+        // Dismiss button - positioned absolutely at top right
+        Positioned(
+          top: AppTheme.spacingMd,
+          right: AppTheme.spacingLg + AppTheme.spacingMd,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onDismiss,
+              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Icon(
+                  Icons.close,
+                  size: 18,
+                  color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(0.7),
+                ),
+              ),
             ),
           ),
-          
-          const SizedBox(height: AppTheme.spacingLg),
-          
-          // Reflection buttons
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildReflectionOption({
+    required BuildContext context,
+    required AppColorScheme colorScheme,
+    required ThemeData theme,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppTheme.spacingMd,
+            vertical: AppTheme.spacingLg,
+          ),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: DynamicTheme.getDividerColor(colorScheme).withOpacity(0.3),
+              width: 1,
+            ),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              TextButton(
-                onPressed: () => onSubmit('yes'),
-                style: TextButton.styleFrom(
-                  foregroundColor: DynamicTheme.getPrimaryTextColor(colorScheme),
-                ),
-                child: const Text('Still true'),
+              Icon(
+                icon,
+                size: 32,
+                color: DynamicTheme.getPrimaryTextColor(colorScheme),
               ),
-              TextButton(
-                onPressed: () => onSubmit('no'),
-                style: TextButton.styleFrom(
-                  foregroundColor: DynamicTheme.getPrimaryTextColor(colorScheme),
+              const SizedBox(height: AppTheme.spacingSm),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: DynamicTheme.getPrimaryTextColor(colorScheme),
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
                 ),
-                child: const Text('Changed'),
-              ),
-              TextButton(
-                onPressed: () => onSubmit('skipped'),
-                style: TextButton.styleFrom(
-                  foregroundColor: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(AppConstants.letterReplySecondaryTextOpacity),
-                ),
-                child: const Text('Skip'),
               ),
             ],
           ),
-        ],
+        ),
       ),
+    );
+  }
+}
+
+/// Stateful widget for continuously pulsing psychology icon
+class _PulsingPsychologyIcon extends StatefulWidget {
+  final AppColorScheme colorScheme;
+  
+  const _PulsingPsychologyIcon({
+    required this.colorScheme,
+  });
+  
+  @override
+  State<_PulsingPsychologyIcon> createState() => _PulsingPsychologyIconState();
+}
+
+class _PulsingPsychologyIconState extends State<_PulsingPsychologyIcon>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+  
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    )..repeat(reverse: true);
+    
+    _animation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeInOut,
+      ),
+    );
+  }
+  
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        // Create a gentle pulsing effect
+        final scale = 0.92 + (_animation.value * 0.08); // Scale between 0.92 and 1.0
+        final opacity = 0.7 + (_animation.value * 0.2); // Opacity between 0.7 and 0.9
+        
+        return Transform.scale(
+          scale: scale,
+          child: Opacity(
+            opacity: opacity,
+            child: Icon(
+              Icons.psychology_outlined,
+              size: 28,
+              color: DynamicTheme.getPrimaryTextColor(widget.colorScheme).withOpacity(opacity),
+            ),
+          ),
+        );
+      },
     );
   }
 }

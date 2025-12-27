@@ -110,6 +110,42 @@ class _StepPreviewState extends ConsumerState<StepPreview>
                 ),
                 SizedBox(height: AppTheme.spacingMd),
                 
+                // Warning for self letters
+                if (isSelfLetter) ...[
+                  Container(
+                    padding: const EdgeInsets.all(AppTheme.spacingMd),
+                    decoration: BoxDecoration(
+                      color: colorScheme.accent.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      border: Border.all(
+                        color: colorScheme.accent.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: colorScheme.accent,
+                          size: 20,
+                        ),
+                        const SizedBox(width: AppTheme.spacingSm),
+                        Expanded(
+                          child: Text(
+                            'Self letters cannot be deleted once created.',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: DynamicTheme.getSecondaryTextColor(colorScheme),
+                                  fontSize: 13,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: AppTheme.spacingMd),
+                ],
+                
                 // Envelope preview
                 Container(
                   width: double.infinity,

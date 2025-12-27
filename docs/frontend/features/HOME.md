@@ -31,7 +31,7 @@ features/home/
 **Key Features**:
 - User greeting with avatar
 - Drafts button with count (subtle, near tabs)
-- Three tabs: Unfolding, Sealed, Opened
+- Three tabs: **Unfolding**, **Future Me**, **Opened** ⭐ UPDATED
 - **Name filter** - On-demand inline search to filter by recipient name ⭐ NEW
 - Floating Action Button (FAB) for creating letters
 - Magic dust background animation
@@ -41,25 +41,33 @@ features/home/
 
 1. **Unfolding Tab** (`_UnlockingSoonTab`)
    - Label: "Unfolding" (with sparkles icon)
-   - Shows capsules unlocking within 7 days
-   - Uses `sendFilteredUnlockingSoonCapsulesProvider` (supports name filtering) ⭐
+   - **Content**: Only regular capsules (letters to others)
+   - Shows capsules unlocking within 7 days (unlocking soon)
+   - Shows capsules unlocking later than 7 days (upcoming)
+   - Uses `unlockingSoonCapsulesProvider` and `upcomingCapsulesProvider`
    - Displays countdown timers
    - Animated "Unlocking Soon" badges
-   - **Filter**: Filters by recipient name when filter is active
+   - **Sorting**: Sorted by time remaining to unlock (ascending - shortest time first)
+   - **Note**: Self letters are NOT shown here (they appear in "Future Me" tab)
 
-2. **Sealed Tab** (`_UpcomingTab`)
-   - Label: "Sealed" (with lock icon)
-   - Shows capsules unlocking later than 7 days
-   - Uses `sendFilteredUpcomingCapsulesProvider` (supports name filtering) ⭐
-   - Shows unlock dates
-   - **Filter**: Filters by recipient name when filter is active
+2. **Future Me Tab** (`_ForYouTab`) ⭐ NEW
+   - Label: "Future Me" (with person icon)
+   - **Content**: All sealed self letters (not yet opened)
+   - Shows self letters that are:
+     - Sealed (not yet openable - `scheduled_open_at > now()`)
+     - Ready to open (openable but not opened - `scheduled_open_at <= now() && opened_at IS NULL`)
+   - Uses `selfLettersProvider` (filters for `!isOpened`)
+   - Displays countdown timers and status badges
+   - **Sorting**: Sorted by scheduled open date (descending - most recent first)
+   - **Note**: This tab is dedicated to self letters only
 
 3. **Opened Tab** (`_OpenedTab`)
    - Label: "Opened" (with heart icon)
-   - Shows already opened capsules
-   - Uses `sendFilteredOpenedCapsulesProvider` (supports name filtering) ⭐
+   - **Content**: Opened self letters AND opened capsules (combined)
+   - Shows already opened letters (both self letters and regular capsules)
+   - Uses `openedCapsulesProvider` and `selfLettersProvider` (filters for `isOpened`)
    - Displays open date and reactions
-   - **Filter**: Filters by recipient name when filter is active
+   - **Sorting**: Sorted by opened date (descending - most recently opened first)
 
 **Layout Structure**:
 ```

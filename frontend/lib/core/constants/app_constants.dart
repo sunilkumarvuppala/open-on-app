@@ -54,6 +54,11 @@ class AppConstants {
   static const Duration animationDurationMedium = Duration(milliseconds: 300);
   static const Duration animationDurationLong = Duration(milliseconds: 500);
   
+  // RefreshIndicator constants
+  static const double refreshIndicatorStrokeWidth = 3.0;
+  static const double refreshIndicatorDisplacement = 40.0;
+  static const Duration refreshIndicatorDelay = Duration(milliseconds: 200);
+  
   // Filter/search constants
   static const Duration filterDebounceDuration = Duration(milliseconds: 200);
   static const Duration filterBarAnimationDuration = Duration(milliseconds: 250);

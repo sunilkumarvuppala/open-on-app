@@ -13,6 +13,7 @@ import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/utils/logger.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
+import 'package:openon_app/core/constants/app_constants.dart';
 
 /// Drafts List Screen
 /// 
@@ -119,16 +120,17 @@ class DraftsScreen extends ConsumerWidget {
                     if (deduplicatedDrafts.isEmpty) {
                       return RefreshIndicator(
                         onRefresh: () async {
-                          Logger.debug('Pull-to-refresh: Invalidating drafts for user: ${user.id}');
+                          Logger.debug('Pull-to-refresh: Refreshing drafts for user: ${user.id}');
+                          // Invalidate provider to trigger refresh, then wait for smooth animation
                           ref.invalidate(draftsProvider(user.id));
-                          await Future.delayed(const Duration(milliseconds: 300));
+                          await Future.delayed(AppConstants.refreshIndicatorDelay);
                         },
                         color: colorScheme.accent,
                         backgroundColor: colorScheme.isDarkTheme 
                             ? Colors.white.withOpacity(0.1)
                             : Colors.black.withOpacity(0.05),
-                        strokeWidth: 3.0,
-                        displacement: 40.0,
+                        strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+                        displacement: AppConstants.refreshIndicatorDisplacement,
                         child: SingleChildScrollView(
                           physics: const AlwaysScrollableScrollPhysics(),
                           child: SizedBox(
@@ -140,14 +142,17 @@ class DraftsScreen extends ConsumerWidget {
                     }
                     return RefreshIndicator(
                       onRefresh: () async {
-                        Logger.debug('Pull-to-refresh: Invalidating drafts for user: ${user.id}');
+                        Logger.debug('Pull-to-refresh: Refreshing drafts for user: ${user.id}');
+                        // Invalidate provider to trigger refresh, then wait for smooth animation
                         ref.invalidate(draftsProvider(user.id));
-                        await Future.delayed(const Duration(milliseconds: 300));
+                        await Future.delayed(AppConstants.refreshIndicatorDelay);
                       },
                       color: colorScheme.accent,
-                      backgroundColor: Colors.transparent,
-                      strokeWidth: 2.0,
-                      displacement: 40.0,
+                      backgroundColor: colorScheme.isDarkTheme 
+                          ? Colors.white.withOpacity(0.1)
+                          : Colors.black.withOpacity(0.05),
+                      strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+                      displacement: AppConstants.refreshIndicatorDisplacement,
                       child: _buildDraftsList(context, ref, deduplicatedDrafts, colorScheme, user.id),
                     );
                   },
@@ -160,15 +165,16 @@ class DraftsScreen extends ConsumerWidget {
                   ),
                   error: (error, stack) => RefreshIndicator(
                     onRefresh: () async {
+                      // Invalidate provider to trigger refresh, then wait for smooth animation
                       ref.invalidate(draftsProvider(user.id));
-                      await Future.delayed(const Duration(milliseconds: 300));
+                      await Future.delayed(AppConstants.refreshIndicatorDelay);
                     },
                     color: colorScheme.accent,
                     backgroundColor: colorScheme.isDarkTheme 
                         ? Colors.white.withOpacity(0.1)
                         : Colors.black.withOpacity(0.05),
-                    strokeWidth: 3.0,
-                    displacement: 40.0,
+                    strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+                    displacement: AppConstants.refreshIndicatorDisplacement,
                     child: SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       child: Center(

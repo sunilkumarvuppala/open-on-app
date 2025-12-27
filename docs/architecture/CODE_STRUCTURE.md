@@ -259,13 +259,13 @@ Login/Signup
     ↓
 Main Navigation (Bottom Nav)
     ├── Inbox (Receiver) - Tab 0 (PRIMARY)
-    │   ├── Sealed Tab
+    │   ├── Future Me Tab (self letters)
     │   ├── Ready Tab
     │   └── Opened Tab
     │
     └── Outbox (Sender) - Tab 1 (SECONDARY)
         ├── Unfolding Tab
-        ├── Sealed Tab
+        ├── Future Me Tab (self letters)
         └── Opened Tab
     ↓
 Feature Screens

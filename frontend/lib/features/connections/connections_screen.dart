@@ -9,6 +9,7 @@ import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
 import 'package:openon_app/core/utils/logger.dart';
 import 'package:openon_app/core/router/app_router.dart';
+import 'package:openon_app/core/constants/app_constants.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class ConnectionsScreen extends ConsumerWidget {
@@ -55,14 +56,16 @@ class ConnectionsScreen extends ConsumerWidget {
 
           return RefreshIndicator(
             onRefresh: () async {
+              // StreamProvider doesn't have .future, use invalidate() and wait a bit
               ref.invalidate(connectionsProvider);
+              await Future.delayed(AppConstants.refreshIndicatorDelay);
             },
             color: colorScheme.accent,
             backgroundColor: colorScheme.isDarkTheme 
                 ? Colors.white.withOpacity(0.1)
                 : Colors.black.withOpacity(0.05),
-            strokeWidth: 3.0,
-            displacement: 40.0,
+            strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+            displacement: AppConstants.refreshIndicatorDisplacement,
             child: ListView.builder(
               padding: EdgeInsets.all(AppTheme.spacingMd),
               itemCount: connections.length,

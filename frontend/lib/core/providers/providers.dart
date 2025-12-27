@@ -196,6 +196,36 @@ final unlockingSoonCapsulesProvider = FutureProvider.family<List<Capsule>, Strin
   );
 });
 
+final readyCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, userId) async {
+  final capsulesAsync = ref.watch(capsulesProvider(userId));
+  
+  return capsulesAsync.when(
+    data: (capsules) {
+      // Filter capsules that are ready to open (unlocked but not yet opened)
+      // Status is 'ready' when unlockAt has passed but openedAt is null
+      final filtered = capsules
+          .where((c) {
+            final isReady = c.isUnlocked && !c.isOpened;
+            if (isReady) {
+              Logger.debug('Found ready capsule: ${c.id}, unlockAt: ${c.unlockAt}, status: ${c.status}');
+            }
+            return isReady;
+          })
+          .toList();
+      
+      // Sort by unlock date (most recently unlocked first)
+      filtered.sort((a, b) {
+        return b.unlockAt.compareTo(a.unlockAt); // Descending order
+      });
+      
+      Logger.info('Ready capsules for sender $userId: ${filtered.length} out of ${capsules.length} total');
+      return filtered;
+    },
+    loading: () => <Capsule>[],
+    error: (_, __) => <Capsule>[],
+  );
+});
+
 final openedCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, userId) async {
   final capsulesAsync = ref.watch(capsulesProvider(userId));
   
@@ -498,6 +528,20 @@ final sendFilteredUpcomingCapsulesProvider = FutureProvider.family<List<Capsule>
   );
 });
 
+final sendFilteredReadyCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, userId) async {
+  final capsulesAsync = ref.watch(readyCapsulesProvider(userId));
+  final query = ref.watch(sendFilterQueryDebouncedProvider);
+  
+  return capsulesAsync.when(
+    data: (capsules) {
+      if (query.trim().isEmpty) return capsules;
+      return _filterCapsulesByRecipientName(capsules, query);
+    },
+    loading: () => <Capsule>[],
+    error: (_, __) => <Capsule>[],
+  );
+});
+
 final sendFilteredOpenedCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, userId) async {
   final capsulesAsync = ref.watch(openedCapsulesProvider(userId));
   final query = ref.watch(sendFilterQueryDebouncedProvider);
@@ -627,12 +671,32 @@ final letterCountProvider = FutureProvider.family<int, String>((ref, key) async 
         int count = 0;
         
         if (isSelfRecipient) {
-          // For self-recipients: Count only sent letters (sent to self = received from self, so count once)
-          // OPTIMIZATION: Use fold instead of where().length to avoid creating intermediate list
-          count = sentCapsules.fold<int>(
+          // For self-recipients: Count both regular capsules sent to self AND self letters
+          // Count regular capsules sent to self
+          final regularCapsuleCount = sentCapsules.fold<int>(
             0,
             (sum, c) => c.recipientId == recipientId ? sum + 1 : sum,
           );
+          
+          // Count self letters (stored in separate table)
+          int selfLetterCount = 0;
+          try {
+            final selfLettersAsync = ref.read(selfLettersProvider);
+            if (selfLettersAsync.hasValue) {
+              final selfLetters = selfLettersAsync.value ?? [];
+              selfLetterCount = selfLetters.length;
+            } else {
+              // Fallback to repository if not cached (should be rare)
+              final selfLetterRepo = ref.read(selfLetterRepositoryProvider);
+              final selfLetters = await selfLetterRepo.getSelfLetters();
+              selfLetterCount = selfLetters.length;
+            }
+          } catch (e) {
+            Logger.warning('Error counting self letters', error: e);
+            // Continue with regular capsule count only
+          }
+          
+          count = regularCapsuleCount + selfLetterCount;
         } else {
           // For regular recipients: Count both sent + received (bidirectional exchange)
           // OPTIMIZATION: Use fold for efficient counting without intermediate lists

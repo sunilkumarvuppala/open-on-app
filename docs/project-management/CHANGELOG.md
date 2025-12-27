@@ -7,6 +7,62 @@ This document tracks the documentation creation and updates.
 
 ## Documentation Created - 2025
 
+### December 2025 - Documentation Cleanup
+
+**Redundant Files Removed**:
+- ✅ Removed `OPTIMIZATION_SUMMARY.md` (redundant with `OPTIMIZATION_COUNTDOWN_SHARES.md`)
+- ✅ Removed `frontend/DOCUMENTATION_SUMMARY_RECIPIENT_ID.md` (meta-documentation, not needed)
+- ✅ Removed `frontend/DOCUMENTATION_VERIFICATION.md` (verification checklist, not needed)
+- ✅ Removed `frontend/CHANGELOG_RECIPIENT_ID_REFACTOR.md` (historical, covered in main CHANGELOG)
+- ✅ Removed `supabase/MIGRATION_OPTIMIZATION_SUMMARY.md` (redundant with DATABASE_OPTIMIZATIONS.md)
+- ✅ Removed `supabase/MIGRATION_CLEANUP.md` (historical guide, not needed)
+- ✅ Removed `supabase/MIGRATION_CONSOLIDATION.md` (historical guide, not needed)
+
+**Documentation Created**:
+- ✅ Created `project-management/DOCUMENTATION_CLEANUP_DECEMBER_2025.md` - Cleanup summary
+
+**Result**: Cleaner documentation structure with only production-ready, actively-used files.
+
+### December 2025 - Self Letters UI Components Documentation & Tab Structure Updates
+
+**Tab Structure Changes**:
+- ✅ Removed "Sealed" tab from Home screen
+- ✅ Added "Future Me" tab for self letters only
+- ✅ "Unfolding" tab now only shows regular capsules (sorted by time remaining)
+- ✅ "Future Me" tab shows all sealed self letters (sorted by scheduled open date)
+- ✅ "Opened" tab shows both opened self letters and opened capsules (combined)
+
+**Documentation Updates**:
+- ✅ Updated `frontend/features/HOME.md` - Corrected tab structure and descriptions
+- ✅ Updated `features/SELF_LETTERS.md` - Updated user flows to reference "Future Me" tab
+- ✅ Updated `frontend/features/LETTERS_TO_SELF.md` - Updated references from "Sealed" to "Future Me"
+- ✅ Updated `architecture/CODE_STRUCTURE.md` - Updated tab references
+- ✅ Updated `reviews/SELF_LETTERS_COMPREHENSIVE_REVIEW_DECEMBER_2025.md` - Updated UI separation description
+
+### December 2025 - Self Letters UI Components Documentation
+
+**New Documentation Added**:
+- ✅ **[frontend/features/SELF_LETTERS_UI_COMPONENTS.md](../frontend/features/SELF_LETTERS_UI_COMPONENTS.md)** - Comprehensive UI component documentation ⭐ NEW
+  - Detailed documentation for reflection prompt card
+  - Pulsing psychology icon animation details
+  - Reflection display component
+  - Component architecture and lifecycle
+  - Styling guidelines and best practices
+  - Animation performance considerations
+
+**Documentation Updates**:
+- ✅ Updated `frontend/features/LETTERS_TO_SELF.md` - Added reflection card and psychology icon details
+- ✅ Updated `features/SELF_LETTERS.md` - Added UI components section with reference to detailed docs
+- ✅ Updated `frontend/INDEX.md` - Added reference to UI components documentation
+- ✅ Updated `project-management/CHANGELOG.md` - Added entry for UI documentation
+
+**Purpose**: Production-ready documentation for recent UI enhancements including:
+- Reflection prompt card redesign with improved layout
+- Animated pulsing psychology icon implementation
+- Component positioning and styling details
+- Animation performance optimization
+- Best practices for UI component development
+
 ### January 2025 - Self Letters Feature Documentation
 
 **Complete Feature Documentation Added**:
@@ -77,7 +133,7 @@ This document tracks the documentation creation and updates.
 **Critical Documentation Added**:
 - ✅ **[frontend/RECIPIENT_ID_REFACTOR.md](../frontend/RECIPIENT_ID_REFACTOR.md)** - Comprehensive production-ready documentation for recipient ID refactor
 - ✅ **[architecture/DATA_MODEL_GUIDE.md](../architecture/DATA_MODEL_GUIDE.md)** - Complete guide to understanding users, recipients, and capsules
-- ✅ **[frontend/CHANGELOG_RECIPIENT_ID_REFACTOR.md](../frontend/CHANGELOG_RECIPIENT_ID_REFACTOR.md)** - Detailed changelog for refactor
+- ✅ Recipient ID refactor changes documented in main CHANGELOG.md
 
 **Documentation Updates**:
 - ✅ Updated `frontend/INDEX.md` - Added reference to recipient ID refactor
