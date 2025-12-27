@@ -14,10 +14,11 @@
 4. [Database Schema](#database-schema)
 5. [Backend Implementation](#backend-implementation)
 6. [Frontend Implementation](#frontend-implementation)
-7. [API Reference](#api-reference)
-8. [Security & Performance](#security--performance)
-9. [Testing](#testing)
-10. [Troubleshooting](#troubleshooting)
+7. [UI Components](#ui-components) ⭐ NEW
+8. [API Reference](#api-reference)
+9. [Security & Performance](#security--performance)
+10. [Testing](#testing)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -100,7 +101,7 @@ User → Home Screen → FAB → Create Letter
 ### Flow 3: View Sealed Self Letter
 
 ```
-User → Home Screen → "Sealed" tab
+User → Home Screen → "Future Me" tab
   → See self letter card
     → Title (user-provided or extracted from content)
     → "To myself" label
@@ -380,9 +381,11 @@ See [API Reference](#api-reference) section below.
 ### Integration Points
 
 **Home Screen** (`frontend/lib/features/home/home_screen.dart`):
-- Self letters appear in "Sealed" tab (combined with capsules)
-- Self letters appear in "Opened" tab (combined with capsules)
-- Uses union type `_SealedItem` for type safety
+- **Tab Structure**: 3 tabs - "Unfolding", "Future Me", "Opened"
+- **"Unfolding" Tab**: Only regular capsules (unlocking soon and upcoming), sorted by time remaining
+- **"Future Me" Tab**: All sealed self letters (not yet opened), sorted by scheduled open date (most recent first)
+- **"Opened" Tab**: Opened self letters and opened capsules (combined), sorted by opened date
+- Uses union type `_SealedItem` for type safety in "Unfolding" tab
 - Separate cards: `_SelfLetterCard` vs `_CapsuleCard`
 
 **Create Capsule Flow** (`frontend/lib/features/create_capsule/create_capsule_screen.dart`):

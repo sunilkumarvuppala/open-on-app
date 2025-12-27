@@ -505,10 +505,10 @@ class _LockedTab extends ConsumerWidget {
   const _LockedTab();
 
   Future<void> _onRefresh(WidgetRef ref, String userId) async {
+    // Invalidate providers to trigger refresh, then wait for smooth animation
     ref.invalidate(incomingReadyCapsulesProvider(userId));
     ref.invalidate(incomingCapsulesProvider(userId));
-    // Wait a bit for the provider to refresh
-    await Future.delayed(const Duration(milliseconds: 100));
+    await Future.delayed(AppConstants.refreshIndicatorDelay);
   }
 
   @override
@@ -525,8 +525,8 @@ class _LockedTab extends ConsumerWidget {
       backgroundColor: colorScheme.isDarkTheme 
           ? Colors.white.withOpacity(0.1)
           : Colors.black.withOpacity(0.05),
-      strokeWidth: 3.0,
-      displacement: 40.0,
+      strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+      displacement: AppConstants.refreshIndicatorDisplacement,
       child: capsulesAsync.when(
         data: (capsules) {
           if (capsules.isEmpty) {
@@ -591,10 +591,10 @@ class _OpeningSoonTab extends ConsumerWidget {
   const _OpeningSoonTab();
 
   Future<void> _onRefresh(WidgetRef ref, String userId) async {
+    // Invalidate providers to trigger refresh, then wait for smooth animation
     ref.invalidate(incomingOpeningSoonCapsulesProvider(userId));
     ref.invalidate(incomingCapsulesProvider(userId));
-    // Wait a bit for the provider to refresh
-    await Future.delayed(const Duration(milliseconds: 100));
+    await Future.delayed(AppConstants.refreshIndicatorDelay);
   }
 
   @override
@@ -611,8 +611,8 @@ class _OpeningSoonTab extends ConsumerWidget {
       backgroundColor: colorScheme.isDarkTheme 
           ? Colors.white.withOpacity(0.1)
           : Colors.black.withOpacity(0.05),
-      strokeWidth: 3.0,
-      displacement: 40.0,
+      strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+      displacement: AppConstants.refreshIndicatorDisplacement,
       child: capsulesAsync.when(
         data: (capsules) {
           if (capsules.isEmpty) {
@@ -677,10 +677,10 @@ class _OpenedTab extends ConsumerWidget {
   const _OpenedTab();
 
   Future<void> _onRefresh(WidgetRef ref, String userId) async {
+    // Invalidate providers to trigger refresh, then wait for smooth animation
     ref.invalidate(incomingOpenedCapsulesProvider(userId));
     ref.invalidate(incomingCapsulesProvider(userId));
-    // Wait a bit for the provider to refresh
-    await Future.delayed(const Duration(milliseconds: 100));
+    await Future.delayed(AppConstants.refreshIndicatorDelay);
   }
 
   @override
@@ -697,8 +697,8 @@ class _OpenedTab extends ConsumerWidget {
       backgroundColor: colorScheme.isDarkTheme 
           ? Colors.white.withOpacity(0.1)
           : Colors.black.withOpacity(0.05),
-      strokeWidth: 3.0,
-      displacement: 40.0,
+      strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+      displacement: AppConstants.refreshIndicatorDisplacement,
       child: capsulesAsync.when(
         data: (capsules) {
           if (capsules.isEmpty) {

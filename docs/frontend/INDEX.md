@@ -72,6 +72,7 @@ docs/
 - **[THOUGHTS.md](./features/THOUGHTS.md)** - Thoughts feature (presence signals) ⭐ NEW
 - **[NAME_FILTER.md](./features/NAME_FILTER.md)** - Name filter feature (on-demand search) ⭐ NEW
 - **[LETTERS_TO_SELF.md](./features/LETTERS_TO_SELF.md)** - Self Letters frontend implementation ⭐ NEW
+- **[SELF_LETTERS_UI_COMPONENTS.md](./features/SELF_LETTERS_UI_COMPONENTS.md)** - Self Letters UI components (reflection card, animations) ⭐ NEW
 - **[../features/COUNTDOWN_SHARES.md](../features/COUNTDOWN_SHARES.md)** - Countdown Shares feature (viral sharing) ⭐ NEW
 - **[RECIPIENTS.md](./features/RECIPIENTS.md)** - Recipient management
 - **[PROFILE.md](./features/PROFILE.md)** - Profile and settings

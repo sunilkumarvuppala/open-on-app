@@ -8,6 +8,7 @@ import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
 import 'package:openon_app/core/utils/logger.dart';
+import 'package:openon_app/core/constants/app_constants.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class RequestsScreen extends ConsumerStatefulWidget {
@@ -122,23 +123,44 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
     return incomingAsync.when(
       data: (requests) {
         if (requests.isEmpty) {
-          return _buildEmptyState(
-            context,
-            'No incoming requests',
-            'You don\'t have any pending connection requests.',
+          return RefreshIndicator(
+            onRefresh: () async {
+              // StreamProvider doesn't have .future, use invalidate() and wait a bit
+              ref.invalidate(incomingRequestsProvider);
+              await Future.delayed(AppConstants.refreshIndicatorDelay);
+            },
+            color: colorScheme.accent,
+            backgroundColor: colorScheme.isDarkTheme 
+                ? Colors.white.withOpacity(0.1)
+                : Colors.black.withOpacity(0.05),
+            strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+            displacement: AppConstants.refreshIndicatorDisplacement,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.6,
+                child: _buildEmptyState(
+                  context,
+                  'No incoming requests',
+                  'You don\'t have any pending connection requests.',
+                ),
+              ),
+            ),
           );
         }
 
         return RefreshIndicator(
           onRefresh: () async {
+            // StreamProvider doesn't have .future, use invalidate() and wait a bit
             ref.invalidate(incomingRequestsProvider);
+            await Future.delayed(AppConstants.refreshIndicatorDelay);
           },
           color: colorScheme.accent,
           backgroundColor: colorScheme.isDarkTheme 
               ? Colors.white.withOpacity(0.1)
               : Colors.black.withOpacity(0.05),
-          strokeWidth: 3.0,
-          displacement: 40.0,
+          strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+          displacement: AppConstants.refreshIndicatorDisplacement,
           child: ListView.builder(
             padding: EdgeInsets.all(AppTheme.spacingMd),
             itemCount: requests.length,
@@ -166,10 +188,29 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
     return outgoingAsync.when(
       data: (requests) {
         if (requests.isEmpty) {
-          return _buildEmptyState(
-            context,
-            'No outgoing requests',
-            'You haven\'t sent any connection requests yet.',
+          return RefreshIndicator(
+            onRefresh: () async {
+              // StreamProvider doesn't have .future, use invalidate() and wait a bit
+              ref.invalidate(outgoingRequestsProvider);
+              await Future.delayed(AppConstants.refreshIndicatorDelay);
+            },
+            color: colorScheme.accent,
+            backgroundColor: colorScheme.isDarkTheme 
+                ? Colors.white.withOpacity(0.1)
+                : Colors.black.withOpacity(0.05),
+            strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+            displacement: AppConstants.refreshIndicatorDisplacement,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.6,
+                child: _buildEmptyState(
+                  context,
+                  'No outgoing requests',
+                  'You haven\'t sent any connection requests yet.',
+                ),
+              ),
+            ),
           );
         }
 
@@ -186,14 +227,16 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen>
 
         return RefreshIndicator(
           onRefresh: () async {
+            // StreamProvider doesn't have .future, use invalidate() and wait a bit
             ref.invalidate(outgoingRequestsProvider);
+            await Future.delayed(AppConstants.refreshIndicatorDelay);
           },
           color: colorScheme.accent,
           backgroundColor: colorScheme.isDarkTheme 
               ? Colors.white.withOpacity(0.1)
               : Colors.black.withOpacity(0.05),
-          strokeWidth: 3.0,
-          displacement: 40.0,
+          strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+          displacement: AppConstants.refreshIndicatorDisplacement,
           child: ListView(
             padding: EdgeInsets.all(AppTheme.spacingMd),
             children: [

@@ -196,6 +196,36 @@ final unlockingSoonCapsulesProvider = FutureProvider.family<List<Capsule>, Strin
   );
 });
 
+final readyCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, userId) async {
+  final capsulesAsync = ref.watch(capsulesProvider(userId));
+  
+  return capsulesAsync.when(
+    data: (capsules) {
+      // Filter capsules that are ready to open (unlocked but not yet opened)
+      // Status is 'ready' when unlockAt has passed but openedAt is null
+      final filtered = capsules
+          .where((c) {
+            final isReady = c.isUnlocked && !c.isOpened;
+            if (isReady) {
+              Logger.debug('Found ready capsule: ${c.id}, unlockAt: ${c.unlockAt}, status: ${c.status}');
+            }
+            return isReady;
+          })
+          .toList();
+      
+      // Sort by unlock date (most recently unlocked first)
+      filtered.sort((a, b) {
+        return b.unlockAt.compareTo(a.unlockAt); // Descending order
+      });
+      
+      Logger.info('Ready capsules for sender $userId: ${filtered.length} out of ${capsules.length} total');
+      return filtered;
+    },
+    loading: () => <Capsule>[],
+    error: (_, __) => <Capsule>[],
+  );
+});
+
 final openedCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, userId) async {
   final capsulesAsync = ref.watch(capsulesProvider(userId));
   
@@ -486,6 +516,20 @@ final sendFilteredUnlockingSoonCapsulesProvider = FutureProvider.family<List<Cap
 
 final sendFilteredUpcomingCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, userId) async {
   final capsulesAsync = ref.watch(upcomingCapsulesProvider(userId));
+  final query = ref.watch(sendFilterQueryDebouncedProvider);
+  
+  return capsulesAsync.when(
+    data: (capsules) {
+      if (query.trim().isEmpty) return capsules;
+      return _filterCapsulesByRecipientName(capsules, query);
+    },
+    loading: () => <Capsule>[],
+    error: (_, __) => <Capsule>[],
+  );
+});
+
+final sendFilteredReadyCapsulesProvider = FutureProvider.family<List<Capsule>, String>((ref, userId) async {
+  final capsulesAsync = ref.watch(readyCapsulesProvider(userId));
   final query = ref.watch(sendFilterQueryDebouncedProvider);
   
   return capsulesAsync.when(

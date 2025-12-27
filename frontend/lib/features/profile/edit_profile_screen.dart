@@ -489,7 +489,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       
       // Small delay to ensure the provider has fully updated before navigating
       // This gives the UI time to rebuild with the new avatar URL
-      await Future.delayed(const Duration(milliseconds: 200));
+      await Future.delayed(AppConstants.refreshIndicatorDelay);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

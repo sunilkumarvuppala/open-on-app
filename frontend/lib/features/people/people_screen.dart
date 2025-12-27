@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openon_app/core/models/connection_models.dart';
 import 'package:openon_app/core/models/models.dart';
-import 'package:openon_app/core/models/thought_models.dart';
 import 'package:openon_app/core/providers/providers.dart';
 import 'package:openon_app/core/router/app_router.dart';
 import 'package:openon_app/core/theme/app_theme.dart';
@@ -221,14 +220,16 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
               if (filteredConnections.isEmpty && _searchController.text.isNotEmpty) {
                 return RefreshIndicator(
                   onRefresh: () async {
+                    // StreamProvider doesn't have .future, use invalidate() and wait a bit
                     ref.invalidate(connectionsProvider);
+                    await Future.delayed(AppConstants.refreshIndicatorDelay);
                   },
                   color: colorScheme.accent,
                   backgroundColor: colorScheme.isDarkTheme 
                       ? Colors.white.withOpacity(0.1)
                       : Colors.black.withOpacity(0.05),
-                  strokeWidth: 3.0,
-                  displacement: 40.0,
+                  strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+                  displacement: AppConstants.refreshIndicatorDisplacement,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     child: _buildEmptySearchState(context, colorScheme),
@@ -239,14 +240,16 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
               if (filteredConnections.isEmpty) {
                 return RefreshIndicator(
                   onRefresh: () async {
+                    // StreamProvider doesn't have .future, use invalidate() and wait a bit
                     ref.invalidate(connectionsProvider);
+                    await Future.delayed(AppConstants.refreshIndicatorDelay);
                   },
                   color: colorScheme.accent,
                   backgroundColor: colorScheme.isDarkTheme 
                       ? Colors.white.withOpacity(0.1)
                       : Colors.black.withOpacity(0.05),
-                  strokeWidth: 3.0,
-                  displacement: 40.0,
+                  strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+                  displacement: AppConstants.refreshIndicatorDisplacement,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     child: _buildEmptyConnectionsState(context, colorScheme),
@@ -256,12 +259,16 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
 
               return RefreshIndicator(
                 onRefresh: () async {
+                  // StreamProvider doesn't have .future, use invalidate() and wait a bit
                   ref.invalidate(connectionsProvider);
+                  await Future.delayed(AppConstants.refreshIndicatorDelay);
                 },
                 color: colorScheme.accent,
-                backgroundColor: Colors.transparent,
-                strokeWidth: 2.0,
-                displacement: 40.0,
+                backgroundColor: colorScheme.isDarkTheme 
+                    ? Colors.white.withOpacity(0.1)
+                    : Colors.black.withOpacity(0.05),
+                strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+                displacement: AppConstants.refreshIndicatorDisplacement,
                 child: ListView.builder(
                   padding: EdgeInsets.only(
                     left: AppTheme.spacingMd,
@@ -293,14 +300,16 @@ class _ConnectionsTabViewState extends ConsumerState<ConnectionsTabView> {
                 // We have cached data, show it instead of error
                 return RefreshIndicator(
                   onRefresh: () async {
+                    // StreamProvider doesn't have .future, use invalidate() and wait a bit
                     ref.invalidate(connectionsProvider);
+                    await Future.delayed(AppConstants.refreshIndicatorDelay);
                   },
                   color: colorScheme.accent,
                   backgroundColor: colorScheme.isDarkTheme 
                       ? Colors.white.withOpacity(0.1)
                       : Colors.black.withOpacity(0.05),
-                  strokeWidth: 3.0,
-                  displacement: 40.0,
+                  strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+                  displacement: AppConstants.refreshIndicatorDisplacement,
                   child: ListView.builder(
                     padding: EdgeInsets.only(
                       left: AppTheme.spacingMd,
@@ -1163,8 +1172,8 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
           backgroundColor: colorScheme.isDarkTheme 
               ? Colors.white.withOpacity(0.1)
               : Colors.black.withOpacity(0.05),
-          strokeWidth: 3.0,
-          displacement: 40.0,
+          strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+          displacement: AppConstants.refreshIndicatorDisplacement,
           child: ListView.builder(
             padding: EdgeInsets.all(AppTheme.spacingMd),
             itemCount: requests.length,
@@ -1202,8 +1211,8 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
             backgroundColor: colorScheme.isDarkTheme 
                 ? Colors.white.withOpacity(0.1)
                 : Colors.black.withOpacity(0.05),
-            strokeWidth: 3.0,
-            displacement: 40.0,
+            strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+            displacement: AppConstants.refreshIndicatorDisplacement,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               child: _buildEmptyOutgoingState(context, colorScheme),
@@ -1228,8 +1237,8 @@ class _RequestsTabViewState extends ConsumerState<RequestsTabView>
           },
           color: colorScheme.accent,
           backgroundColor: Colors.transparent,
-          strokeWidth: 2.0,
-          displacement: 40.0,
+          strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+          displacement: AppConstants.refreshIndicatorDisplacement,
           child: ListView(
             padding: EdgeInsets.all(AppTheme.spacingMd),
             children: [

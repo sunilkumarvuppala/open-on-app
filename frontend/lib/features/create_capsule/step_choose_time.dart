@@ -1132,17 +1132,27 @@ class _SelfLetterMetadataSectionState extends ConsumerState<_SelfLetterMetadataS
               color: DynamicTheme.getInputHintColor(colorScheme).withOpacity(0.5),
             ),
             prefixIcon: selectedMood != null
-                ? Padding(
-                    padding: const EdgeInsets.only(left: 12, right: 8),
-                    child: Text(
-                      selectedOption['emoji'] ?? '',
-                      style: const TextStyle(fontSize: 20),
+                ? SizedBox(
+                    width: 40,
+                    height: 48,
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 12, right: 8),
+                        child: Text(
+                          selectedOption['emoji'] ?? '',
+                          style: const TextStyle(fontSize: 20),
+                        ),
+                      ),
                     ),
                   )
                 : Icon(
                     Icons.search,
                     color: DynamicTheme.getInputHintColor(colorScheme),
                   ),
+            prefixIconConstraints: const BoxConstraints(
+              minWidth: 40,
+              minHeight: 48,
+            ),
             suffixIcon: selectedMood != null
                 ? IconButton(
                     icon: Icon(

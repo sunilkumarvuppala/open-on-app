@@ -307,11 +307,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 mainAxisSize: MainAxisSize.min,
                                 children: const [
-                                  Icon(Icons.lock_outline, size: 14),
+                                  Icon(Icons.person_outline, size: 14),
                                   SizedBox(width: AppConstants.tabSpacing),
                                   Flexible(
                                     child: Text(
-                                      'Sealed',
+                                      'Future Me',
                                       overflow: TextOverflow.ellipsis,
                                       maxLines: 1,
                                     ),
@@ -351,7 +351,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     controller: _tabController,
                     children: const [
                       _UnlockingSoonTab(),
-                      _UpcomingTab(),
+                      _ForYouTab(),
                       _OpenedTab(),
                     ],
                   ),
@@ -610,22 +610,37 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
   }
 }
 
-class _UpcomingTab extends ConsumerWidget {
-  const _UpcomingTab();
+// Helper class to combine capsules and self letters in a single list
+class _SealedItem {
+  final Capsule? capsule;
+  final SelfLetter? selfLetter;
+  
+  _SealedItem.capsule(this.capsule) : selfLetter = null;
+  _SealedItem.selfLetter(this.selfLetter) : capsule = null;
+  
+  bool get isSelfLetter => selfLetter != null;
+  bool get isCapsule => capsule != null;
+}
+
+class _UnlockingSoonTab extends ConsumerWidget {
+  const _UnlockingSoonTab();
 
   Future<void> _onRefresh(WidgetRef ref, String userId) async {
+    // Invalidate providers to trigger refresh, then wait for smooth animation
+    ref.invalidate(unlockingSoonCapsulesProvider(userId));
     ref.invalidate(upcomingCapsulesProvider(userId));
     ref.invalidate(capsulesProvider(userId));
     ref.invalidate(selfLettersProvider);
-    // Wait a bit for the providers to refresh
-    await Future.delayed(const Duration(milliseconds: 300));
+    // Small delay for smooth animation completion
+    await Future.delayed(AppConstants.refreshIndicatorDelay);
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(currentUserProvider);
     final userId = userAsync.asData?.value?.id ?? '';
-    final capsulesAsync = ref.watch(sendFilteredUpcomingCapsulesProvider(userId));
+    final unlockingSoonAsync = ref.watch(sendFilteredUnlockingSoonCapsulesProvider(userId));
+    final upcomingAsync = ref.watch(sendFilteredUpcomingCapsulesProvider(userId));
     final selfLettersAsync = ref.watch(selfLettersProvider);
     final allCapsulesAsync = ref.watch(capsulesProvider(userId));
     final filterQuery = ref.watch(sendFilterQueryProvider);
@@ -637,42 +652,43 @@ class _UpcomingTab extends ConsumerWidget {
       backgroundColor: colorScheme.isDarkTheme 
           ? Colors.white.withOpacity(0.1)
           : Colors.black.withOpacity(0.05),
-      strokeWidth: 3.0,
-      displacement: 40.0,
-      child: capsulesAsync.when(
-        data: (capsules) {
-          // Use previous data during refresh to avoid flickering
-          final selfLetters = selfLettersAsync.asData?.value ?? <SelfLetter>[];
-          
-          // If loading and we have no previous data, show loading
-          if (selfLettersAsync.isLoading && selfLetters.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          
-          // Filter self letters to only sealed ones (not yet opened)
-          final sealedSelfLetters = selfLetters.where((l) => !l.isOpened).toList();
-          
-          // Combine capsules and self letters
-          final allItems = <_SealedItem>[];
-          
-          // Add self letters first (they should appear at top or mixed)
-          for (final letter in sealedSelfLetters) {
-            allItems.add(_SealedItem.selfLetter(letter));
-          }
-          
-          // Add capsules
-          for (final capsule in capsules) {
-            allItems.add(_SealedItem.capsule(capsule));
-          }
-          
-          // Sort by unlock/scheduled date (most recent first)
-          allItems.sort((a, b) {
-            final aDate = a.isSelfLetter ? a.selfLetter!.scheduledOpenAt : a.capsule!.unlockAt;
-            final bDate = b.isSelfLetter ? b.selfLetter!.scheduledOpenAt : b.capsule!.unlockAt;
-            return bDate.compareTo(aDate);
-          });
-          
-          if (allItems.isEmpty) {
+      strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+      displacement: AppConstants.refreshIndicatorDisplacement,
+      child: unlockingSoonAsync.when(
+        data: (unlockingSoonCapsules) {
+          return upcomingAsync.when(
+            data: (upcomingCapsules) {
+              // Use previous data during refresh to avoid flickering
+              final selfLetters = selfLettersAsync.asData?.value ?? <SelfLetter>[];
+              
+              // If loading and we have no previous data, show loading
+              if (selfLettersAsync.isLoading && selfLetters.isEmpty) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              
+              // Combine all sealed letters: unlocking soon capsules + upcoming capsules
+              // Note: Self letters are now shown in the "Future Me" tab, not here
+              final allItems = <_SealedItem>[];
+              
+              // Add unlocking soon capsules first (they should appear at top)
+              for (final capsule in unlockingSoonCapsules) {
+                allItems.add(_SealedItem.capsule(capsule));
+              }
+              
+              // Add upcoming (sealed) capsules
+              for (final capsule in upcomingCapsules) {
+                allItems.add(_SealedItem.capsule(capsule));
+              }
+              
+              // Sort by time remaining to open in ascending order (shortest time first)
+              // Note: Only capsules are shown here, self letters are in "Future Me" tab
+              allItems.sort((a, b) {
+                final aDuration = a.capsule!.timeUntilUnlock;
+                final bDuration = b.capsule!.timeUntilUnlock;
+                return aDuration.compareTo(bDuration); // Ascending order (shortest time first)
+              });
+              
+              if (allItems.isEmpty) {
                 // Show different empty state if filtering
                 if (filterQuery.trim().isNotEmpty) {
                   return const SingleChildScrollView(
@@ -705,54 +721,18 @@ class _UpcomingTab extends ConsumerWidget {
                                 child: const Text('Write your first letter'),
                               ),
                             ),
-                            const SizedBox(height: AppTheme.spacingLg),
-                            // "Write to myself" entry point
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
-                              child: OutlinedButton.icon(
-                                onPressed: () => context.push(Routes.createSelfLetter),
-                                icon: const Icon(Icons.person_outline, size: 18),
-                                label: const Text('Write to myself'),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: AppTheme.spacingLg,
-                                    vertical: AppTheme.spacingMd,
-                                  ),
-                                ),
-                              ),
-                            ),
                           ],
                         ),
                       );
                     }
                     
-                    // Normal empty state with "Write to myself" option
-                    return SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      child: Column(
-                        children: [
-                          const EmptyState(
-                            icon: Icons.mail_outline,
-                            title: 'No upcoming letters',
-                            message: 'Letters scheduled to unlock will appear here',
-                          ),
-                          const SizedBox(height: AppTheme.spacingLg),
-                          // "Write to myself" entry point
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
-                            child: OutlinedButton.icon(
-                              onPressed: () => context.push(Routes.createSelfLetter),
-                              icon: const Icon(Icons.person_outline, size: 18),
-                              label: const Text('Write to myself'),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppTheme.spacingLg,
-                                  vertical: AppTheme.spacingMd,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                    // Normal empty state
+                    return const SingleChildScrollView(
+                      physics: AlwaysScrollableScrollPhysics(),
+                      child: EmptyState(
+                        icon: Icons.schedule_outlined,
+                        title: 'Nothing unfolding yet',
+                        message: "When you create letters, you'll see them here.",
                       ),
                     );
                   },
@@ -760,16 +740,16 @@ class _UpcomingTab extends ConsumerWidget {
                   error: (_, __) => SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     child: const EmptyState(
-                      icon: Icons.mail_outline,
-                      title: 'No upcoming letters',
-                      message: 'Letters scheduled to unlock will appear here',
+                      icon: Icons.schedule_outlined,
+                      title: 'Nothing unfolding yet',
+                      message: "When you create letters, you'll see them here.",
                     ),
                   ),
                 );
               }
 
               return ListView.builder(
-                key: const PageStorageKey('upcoming_capsules'),
+                key: const PageStorageKey('unfolding_items'),
                 padding: EdgeInsets.only(
                   left: AppTheme.spacingLg,
                   right: AppTheme.spacingLg,
@@ -779,36 +759,108 @@ class _UpcomingTab extends ConsumerWidget {
                 itemCount: allItems.length,
                 itemBuilder: (context, index) {
                   final item = allItems[index];
-                  if (item.isSelfLetter) {
-                    return Padding(
-                      key: ValueKey('self_letter_${item.selfLetter!.id}'),
-                      padding: EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
-                      child: InkWell(
-                        onTap: () => context.push(Routes.openSelfLetter(item.selfLetter!.id)),
-                        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                        child: _SelfLetterCard(letter: item.selfLetter!),
-                      ),
-                    );
-                  } else {
-                    return Padding(
-                      key: ValueKey('upcoming_${item.capsule!.id}'),
-                      padding: EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
-                      child: InkWell(
-                        onTap: () => context.push('/capsule/${item.capsule!.id}', extra: item.capsule),
-                        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                        child: _CapsuleCard(capsule: item.capsule!),
-                      ),
-                    );
-                  }
+                  return Padding(
+                    key: ValueKey(
+                      item.isSelfLetter
+                          ? 'unfolding_self_${item.selfLetter!.id}'
+                          : 'unfolding_${item.capsule!.id}',
+                    ),
+                    padding: EdgeInsets.only(
+                      bottom: AppConstants.capsuleListItemSpacing,
+                    ),
+                    child: InkWell(
+                      onTap: () {
+                        if (item.isSelfLetter) {
+                          context.push(Routes.openSelfLetter(item.selfLetter!.id));
+                        } else {
+                          context.push('/capsule/${item.capsule!.id}', extra: item.capsule);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                      child: item.isSelfLetter
+                          ? _SelfLetterCard(letter: item.selfLetter!)
+                          : _CapsuleCard(capsule: item.capsule!),
+                    ),
+                  );
                 },
               );
+            },
+            loading: () {
+              // Show previous data if available
+              // Note: Self letters are now shown in the "Future Me" tab, not here
+              if (unlockingSoonCapsules.isEmpty) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              
+              // Show what we have while loading
+              final allItems = <_SealedItem>[];
+              for (final capsule in unlockingSoonCapsules) {
+                allItems.add(_SealedItem.capsule(capsule));
+              }
+              
+              if (allItems.isEmpty) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              
+              // Sort by time remaining to open in ascending order (shortest time first)
+              allItems.sort((a, b) {
+                final aDuration = a.capsule!.timeUntilUnlock;
+                final bDuration = b.capsule!.timeUntilUnlock;
+                return aDuration.compareTo(bDuration); // Ascending order (shortest time first)
+              });
+              
+              return ListView.builder(
+                key: const PageStorageKey('unfolding_items'),
+                padding: EdgeInsets.only(
+                  left: AppTheme.spacingLg,
+                  right: AppTheme.spacingLg,
+                  top: AppTheme.spacingXs,
+                  bottom: AppTheme.spacingSm,
+                ),
+                itemCount: allItems.length,
+                itemBuilder: (context, index) {
+                  final item = allItems[index];
+                  return Padding(
+                    key: ValueKey(
+                      item.isSelfLetter
+                          ? 'unfolding_self_${item.selfLetter!.id}'
+                          : 'unfolding_${item.capsule!.id}',
+                    ),
+                    padding: EdgeInsets.only(
+                      bottom: AppConstants.capsuleListItemSpacing,
+                    ),
+                    child: InkWell(
+                      onTap: () {
+                        if (item.isSelfLetter) {
+                          context.push(Routes.openSelfLetter(item.selfLetter!.id));
+                        } else {
+                          context.push('/capsule/${item.capsule!.id}', extra: item.capsule);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                      child: item.isSelfLetter
+                          ? _SelfLetterCard(letter: item.selfLetter!)
+                          : _CapsuleCard(capsule: item.capsule!),
+                    ),
+                  );
+                },
+              );
+            },
+            error: (error, stack) => SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: ErrorDisplay(
+                message: 'Failed to load capsules',
+                onRetry: () => ref.invalidate(upcomingCapsulesProvider(userId)),
+              ),
+            ),
+          );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: ErrorDisplay(
             message: 'Failed to load capsules',
-            onRetry: () => ref.invalidate(upcomingCapsulesProvider(userId)),
+            onRetry: () => ref.invalidate(unlockingSoonCapsulesProvider(userId)),
           ),
         ),
       ),
@@ -816,33 +868,20 @@ class _UpcomingTab extends ConsumerWidget {
   }
 }
 
-// Helper class to combine capsules and self letters in a single list
-class _SealedItem {
-  final Capsule? capsule;
-  final SelfLetter? selfLetter;
-  
-  _SealedItem.capsule(this.capsule) : selfLetter = null;
-  _SealedItem.selfLetter(this.selfLetter) : capsule = null;
-  
-  bool get isSelfLetter => selfLetter != null;
-  bool get isCapsule => capsule != null;
-}
-
-class _UnlockingSoonTab extends ConsumerWidget {
-  const _UnlockingSoonTab();
+class _ForYouTab extends ConsumerWidget {
+  const _ForYouTab();
 
   Future<void> _onRefresh(WidgetRef ref, String userId) async {
-    ref.invalidate(unlockingSoonCapsulesProvider(userId));
-    ref.invalidate(capsulesProvider(userId));
-    // Wait a bit for the provider to refresh
-    await Future.delayed(const Duration(milliseconds: 100));
+    // Invalidate provider to trigger refresh, then wait for smooth animation
+    ref.invalidate(selfLettersProvider);
+    await Future.delayed(AppConstants.refreshIndicatorDelay);
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(currentUserProvider);
     final userId = userAsync.asData?.value?.id ?? '';
-    final capsulesAsync = ref.watch(sendFilteredUnlockingSoonCapsulesProvider(userId));
+    final selfLettersAsync = ref.watch(selfLettersProvider);
     final filterQuery = ref.watch(sendFilterQueryProvider);
     final colorScheme = ref.watch(selectedColorSchemeProvider);
 
@@ -852,11 +891,20 @@ class _UnlockingSoonTab extends ConsumerWidget {
       backgroundColor: colorScheme.isDarkTheme 
           ? Colors.white.withOpacity(0.1)
           : Colors.black.withOpacity(0.05),
-      strokeWidth: 3.0,
-      displacement: 40.0,
-      child: capsulesAsync.when(
-        data: (capsules) {
-          if (capsules.isEmpty) {
+      strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+      displacement: AppConstants.refreshIndicatorDisplacement,
+      child: selfLettersAsync.when(
+        data: (selfLetters) {
+          // Filter self letters to only sealed ones (not yet opened)
+          // This includes both sealed (not yet openable) and ready to open (openable but not opened)
+          final sealedSelfLetters = selfLetters.where((l) => !l.isOpened).toList();
+          
+          // Sort by scheduled open date (most recent first)
+          sealedSelfLetters.sort((a, b) {
+            return b.scheduledOpenAt.compareTo(a.scheduledOpenAt);
+          });
+          
+          if (sealedSelfLetters.isEmpty) {
             // Show different empty state if filtering
             if (filterQuery.trim().isNotEmpty) {
               return const SingleChildScrollView(
@@ -871,33 +919,33 @@ class _UnlockingSoonTab extends ConsumerWidget {
             return const SingleChildScrollView(
               physics: AlwaysScrollableScrollPhysics(),
               child: EmptyState(
-                icon: Icons.schedule_outlined,
-                title: 'Nothing unfolding yet',
-                message: "When a letter is close to opening, you'll see it here.",
+                icon: Icons.person_outline,
+                title: 'No letters to future you yet',
+                message: "When you write letters to yourself, they'll appear here.",
               ),
             );
           }
 
           return ListView.builder(
-            key: const PageStorageKey('unlocking_soon_capsules'),
+            key: const PageStorageKey('future_me_items'),
             padding: EdgeInsets.only(
               left: AppTheme.spacingLg,
               right: AppTheme.spacingLg,
               top: AppTheme.spacingXs,
               bottom: AppTheme.spacingSm,
             ),
-            itemCount: capsules.length,
+            itemCount: sealedSelfLetters.length,
             itemBuilder: (context, index) {
-              final capsule = capsules[index];
+              final letter = sealedSelfLetters[index];
               return Padding(
-                key: ValueKey('unlocking_soon_${capsule.id}'),
-                padding:
-                    EdgeInsets.only(bottom: AppConstants.capsuleListItemSpacing),
+                key: ValueKey('future_me_${letter.id}'),
+                padding: EdgeInsets.only(
+                  bottom: AppConstants.capsuleListItemSpacing,
+                ),
                 child: InkWell(
-                  onTap: () =>
-                      context.push('/capsule/${capsule.id}', extra: capsule),
+                  onTap: () => context.push(Routes.openSelfLetter(letter.id)),
                   borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                  child: _CapsuleCard(capsule: capsule),
+                  child: _SelfLetterCard(letter: letter),
                 ),
               );
             },
@@ -907,8 +955,8 @@ class _UnlockingSoonTab extends ConsumerWidget {
         error: (error, stack) => SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: ErrorDisplay(
-            message: 'Failed to load capsules',
-            onRetry: () => ref.invalidate(unlockingSoonCapsulesProvider(userId)),
+            message: 'Failed to load self letters',
+            onRetry: () => ref.invalidate(selfLettersProvider),
           ),
         ),
       ),
@@ -977,17 +1025,16 @@ class _OpenedTab extends ConsumerWidget {
         
         return RefreshIndicator(
           onRefresh: () async {
-            // Invalidate the base provider to force refresh
+            // Invalidate provider to trigger refresh, then wait for smooth animation
             ref.invalidate(capsulesProvider(userId));
-            // Wait for refresh to complete
-            await Future.delayed(const Duration(milliseconds: 300));
+            await Future.delayed(AppConstants.refreshIndicatorDelay);
           },
           color: colorScheme.accent,
           backgroundColor: colorScheme.isDarkTheme 
               ? Colors.white.withOpacity(0.1)
               : Colors.black.withOpacity(0.05),
-          strokeWidth: 3.0,
-          displacement: 40.0,
+          strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+          displacement: AppConstants.refreshIndicatorDisplacement,
           child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               child: SizedBox(
@@ -1001,18 +1048,17 @@ class _OpenedTab extends ConsumerWidget {
         final colorScheme = ref.watch(selectedColorSchemeProvider);
         return RefreshIndicator(
           onRefresh: () async {
-            // Invalidate the base providers to force refresh
+            // Invalidate providers to trigger refresh, then wait for smooth animation
             ref.invalidate(capsulesProvider(userId));
             ref.invalidate(selfLettersProvider);
-            // Wait for refresh to complete
-            await Future.delayed(const Duration(milliseconds: 300));
+            await Future.delayed(AppConstants.refreshIndicatorDelay);
           },
           color: colorScheme.accent,
           backgroundColor: colorScheme.isDarkTheme 
               ? Colors.white.withOpacity(0.1)
               : Colors.black.withOpacity(0.05),
-          strokeWidth: 3.0,
-          displacement: 40.0,
+          strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+          displacement: AppConstants.refreshIndicatorDisplacement,
           child: ListView.builder(
             key: const PageStorageKey('opened_items'),
             padding: EdgeInsets.only(
