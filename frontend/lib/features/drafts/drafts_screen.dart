@@ -13,6 +13,7 @@ import 'package:openon_app/core/theme/color_scheme.dart';
 import 'package:openon_app/core/theme/dynamic_theme.dart';
 import 'package:openon_app/core/utils/logger.dart';
 import 'package:openon_app/core/widgets/common_widgets.dart';
+import 'package:openon_app/core/widgets/inline_name_filter_bar.dart';
 import 'package:openon_app/core/constants/app_constants.dart';
 
 /// Drafts List Screen
@@ -45,7 +46,7 @@ class DraftsScreen extends ConsumerWidget {
       );
     }
 
-    final draftsAsync = ref.watch(draftsProvider(user.id));
+    final draftsAsync = ref.watch(filteredDraftsProvider(user.id));
 
     return Scaffold(
       body: Container(
@@ -55,11 +56,16 @@ class DraftsScreen extends ConsumerWidget {
         child: SafeArea(
           child: Column(
             children: [
-              // App Bar
+              // Header - Same structure as Receiver and Send screens
               Padding(
-                padding: EdgeInsets.all(AppTheme.spacingLg),
+                padding: EdgeInsets.only(
+                  left: AppTheme.spacingLg,
+                  right: AppTheme.spacingLg,
+                  bottom: AppTheme.spacingLg,
+                ),
                 child: Row(
                   children: [
+                    // Back button
                     IconButton(
                       icon: Icon(
                         Icons.arrow_back,
@@ -68,29 +74,77 @@ class DraftsScreen extends ConsumerWidget {
                       onPressed: () => context.pop(),
                     ),
                     SizedBox(width: AppTheme.spacingMd),
+                    
+                    // Title
                     Expanded(
-                      child: Text(
-                        'Drafts',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: colorScheme.primary1,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Drafts',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                        ],
                       ),
                     ),
-                    // Refresh button
-                    IconButton(
-                      icon: Icon(
-                        Icons.refresh,
-                        color: DynamicTheme.getPrimaryIconColor(colorScheme),
+                    
+                    // Search icon
+                    Semantics(
+                      label: 'Filter drafts',
+                      button: true,
+                      child: IconButton(
+                        icon: const Icon(Icons.search),
+                        tooltip: 'Filter drafts',
+                        onPressed: () {
+                          final isExpanded = ref.read(draftsFilterExpandedProvider);
+                          ref.read(draftsFilterExpandedProvider.notifier).state = !isExpanded;
+                          // Clear query when collapsing
+                          if (isExpanded) {
+                            ref.read(draftsFilterQueryProvider.notifier).state = '';
+                          }
+                        },
                       ),
-                      onPressed: () {
-                        Logger.debug('Manually refreshing drafts for user: ${user.id}');
-                        ref.invalidate(draftsProvider(user.id));
-                      },
-                      tooltip: 'Refresh drafts',
                     ),
                   ],
                 ),
+              ),
+
+              // Subtle Header Separator
+              Container(
+                height: AppConstants.headerSeparatorHeight,
+                margin: EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      Colors.white.withOpacity(0.0),
+                      Colors.white.withOpacity(0.1),
+                      Colors.white.withOpacity(0.0),
+                    ],
+                    stops: const [0.0, 0.5, 1.0],
+                  ),
+                ),
+              ),
+
+              // Filter bar (inline, expands/collapses)
+              InlineNameFilterBar(
+                expanded: ref.watch(draftsFilterExpandedProvider),
+                query: ref.watch(draftsFilterQueryProvider),
+                onChanged: (value) {
+                  ref.read(draftsFilterQueryProvider.notifier).state = value;
+                },
+                onClear: () {
+                  ref.read(draftsFilterQueryProvider.notifier).state = '';
+                },
+                onToggleExpand: () {
+                  final isExpanded = ref.read(draftsFilterExpandedProvider);
+                  ref.read(draftsFilterExpandedProvider.notifier).state = !isExpanded;
+                  if (isExpanded) {
+                    ref.read(draftsFilterQueryProvider.notifier).state = '';
+                  }
+                },
+                placeholder: 'Search drafts…',
               ),
 
               // Drafts List
@@ -114,6 +168,31 @@ class DraftsScreen extends ConsumerWidget {
                     if (deduplicatedDrafts.length != drafts.length) {
                       Logger.info(
                         'Deduplicated drafts: ${drafts.length} -> ${deduplicatedDrafts.length}'
+                      );
+                    }
+                    
+                    // Check if search is active and has no results
+                    final searchQuery = ref.watch(draftsFilterQueryProvider);
+                    if (deduplicatedDrafts.isEmpty && searchQuery.isNotEmpty) {
+                      return RefreshIndicator(
+                        onRefresh: () async {
+                          Logger.debug('Pull-to-refresh: Refreshing drafts for user: ${user.id}');
+                          ref.invalidate(draftsProvider(user.id));
+                          await Future.delayed(AppConstants.refreshIndicatorDelay);
+                        },
+                        color: colorScheme.accent,
+                        backgroundColor: colorScheme.isDarkTheme 
+                            ? Colors.white.withOpacity(0.1)
+                            : Colors.black.withOpacity(0.05),
+                        strokeWidth: AppConstants.refreshIndicatorStrokeWidth,
+                        displacement: AppConstants.refreshIndicatorDisplacement,
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: SizedBox(
+                            height: MediaQuery.of(context).size.height - 200,
+                            child: _buildEmptySearchState(context, colorScheme),
+                          ),
+                        ),
                       );
                     }
                     
@@ -226,29 +305,55 @@ class DraftsScreen extends ConsumerWidget {
   Widget _buildEmptyState(BuildContext context, AppColorScheme colorScheme) {
     return Center(
       child: Padding(
-        padding: EdgeInsets.all(AppTheme.spacingXl),
+        padding: const EdgeInsets.all(AppTheme.spacingXl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               Icons.edit_note,
               size: 80,
-              color: colorScheme.primary1.withOpacity(0.3),
+              color: AppTheme.lavender,
             ),
-            SizedBox(height: AppTheme.spacingLg),
+            const SizedBox(height: AppTheme.spacingLg),
             Text(
-              'You don\'t have any drafts yet.',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: colorScheme.primary1,
-                fontWeight: FontWeight.w600,
-              ),
+              'Unfinished thoughts live here.',
+              style: Theme.of(context).textTheme.titleLarge,
+              textAlign: TextAlign.center,
             ),
-            SizedBox(height: AppTheme.spacingSm),
+            const SizedBox(height: AppTheme.spacingSm),
             Text(
-              'Drafts appear automatically when you start writing.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: colorScheme.primary1.withOpacity(0.7),
-              ),
+              'You can come back anytime.',
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptySearchState(BuildContext context, AppColorScheme colorScheme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppTheme.spacingXl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.search_off,
+              size: 80,
+              color: AppTheme.lavender,
+            ),
+            const SizedBox(height: AppTheme.spacingLg),
+            Text(
+              'No drafts found',
+              style: Theme.of(context).textTheme.titleLarge,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppTheme.spacingSm),
+            Text(
+              'Try a different search term.',
+              style: Theme.of(context).textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
           ],
@@ -270,9 +375,11 @@ class DraftsScreen extends ConsumerWidget {
 
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(), // Required for RefreshIndicator
-      padding: EdgeInsets.symmetric(
-        horizontal: AppTheme.spacingLg,
-        vertical: AppTheme.spacingSm,
+      padding: EdgeInsets.only(
+        left: AppTheme.spacingLg,
+        right: AppTheme.spacingLg,
+        top: AppTheme.spacingXs,
+        bottom: AppTheme.spacingSm,
       ),
       itemCount: sortedDrafts.length,
       itemBuilder: (context, index) {
@@ -289,16 +396,10 @@ class DraftsScreen extends ConsumerWidget {
     AppColorScheme colorScheme,
     String userId,
   ) {
-    final dateFormat = DateFormat('MMM dd, yyyy');
-    final timeFormat = DateFormat('h:mm a');
-    final lastEditedText = draft.lastEdited.day == DateTime.now().day &&
-            draft.lastEdited.month == DateTime.now().month &&
-            draft.lastEdited.year == DateTime.now().year
-        ? 'Today at ${timeFormat.format(draft.lastEdited)}'
-        : dateFormat.format(draft.lastEdited);
+    final lastEditedText = _formatLastEdited(draft.lastEdited);
 
     return Padding(
-      padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
+      padding: EdgeInsets.only(bottom: AppTheme.spacingSm),
       child: Material(
         color: DynamicTheme.getCardBackgroundColor(colorScheme),
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
@@ -353,7 +454,6 @@ class DraftsScreen extends ConsumerWidget {
                       Text(
                         draft.recipientName ?? 'Untitled Draft',
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: DynamicTheme.getPrimaryTextColor(colorScheme),
                           fontWeight: FontWeight.w600,
                           height: 1.2,
                         ),
@@ -366,7 +466,6 @@ class DraftsScreen extends ConsumerWidget {
                         Text(
                           draft.title!,
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: DynamicTheme.getSecondaryTextColor(colorScheme),
                             fontSize: 13,
                           ),
                           maxLines: 1,
@@ -380,13 +479,11 @@ class DraftsScreen extends ConsumerWidget {
                           Icon(
                             Icons.access_time,
                             size: 12,
-                            color: DynamicTheme.getSecondaryIconColor(colorScheme),
                           ),
                           SizedBox(width: 4),
                           Text(
-                            'Last edited $lastEditedText',
+                            lastEditedText,
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: DynamicTheme.getSecondaryTextColor(colorScheme),
                               fontSize: 11,
                             ),
                           ),
@@ -416,6 +513,41 @@ class DraftsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Format last edited date in a human-friendly, emotionally softer way
+  String _formatLastEdited(DateTime lastEdited) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final editedDate = DateTime(lastEdited.year, lastEdited.month, lastEdited.day);
+    final difference = today.difference(editedDate).inDays;
+    
+    // If edited today
+    if (difference == 0) {
+      return 'Edited today';
+    }
+    // If edited yesterday
+    else if (difference == 1) {
+      return 'Edited yesterday';
+    }
+    // If edited within last 7 days, show relative days
+    else if (difference < 7) {
+      return 'Edited $difference days ago';
+    }
+    // If edited within last 30 days, show relative days
+    else if (difference < 30) {
+      return 'Edited $difference days ago';
+    }
+    // For older dates, still use relative but with weeks/months if appropriate
+    else if (difference < 60) {
+      final weeks = (difference / 7).floor();
+      return 'Edited $weeks ${weeks == 1 ? 'week' : 'weeks'} ago';
+    }
+    // For very old dates, fall back to a simple date format
+    else {
+      final dateFormat = DateFormat('MMM d, yyyy');
+      return 'Edited ${dateFormat.format(lastEdited)}';
+    }
   }
 
   Widget _buildReceiverAvatar(

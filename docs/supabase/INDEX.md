@@ -10,11 +10,16 @@ Complete Supabase backend documentation for OpenOn time-locked letters app.
 
 ```
 docs/supabase/
-├── INDEX.md (this file)            # Overview and navigation
-├── GETTING_STARTED.md              # Quick start guide
-├── LOCAL_SETUP.md                  # Complete local development setup
-├── DATABASE_SCHEMA.md              # Complete database schema reference
-└── DATABASE_OPTIMIZATIONS.md       # Database query and indexing optimizations
+├── INDEX.md (this file)                    # Overview and navigation
+├── GETTING_STARTED.md                      # Quick start guide
+├── LOCAL_SETUP.md                          # Complete local development setup
+├── DATABASE_SCHEMA.md                      # Complete database schema reference
+├── DATABASE_OPTIMIZATIONS.md               # Database query and indexing optimizations
+├── MIGRATIONS_MASTER_GUIDE.md              # ⭐ START HERE - Migrations 25-27 master guide
+├── MIGRATIONS_25_26_27.md                  # Complete technical documentation
+├── MIGRATIONS_QUICK_REFERENCE.md           # Quick reference (1 page)
+├── MIGRATIONS_VISUAL_FLOW.md               # Visual flow diagrams
+└── HOW_TO_UPDATE_MIGRATIONS.md             # Migration management guide
 ```
 
 ## 🚀 Quick Start
@@ -53,9 +58,12 @@ Save the `anon key` and `service_role key` for your Flutter app.
 3. **[DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md)** - Database schema reference
 
 ### For Database Developers
-1. **[DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md)** - Complete schema documentation
-2. **[DATABASE_OPTIMIZATIONS.md](./DATABASE_OPTIMIZATIONS.md)** - Query optimizations and indexing strategies
-3. **[LOCAL_SETUP.md](./LOCAL_SETUP.md)** - Development environment setup
+1. **[MIGRATIONS_MASTER_GUIDE.md](./MIGRATIONS_MASTER_GUIDE.md)** - ⭐ START HERE - Complete guide for migrations 25-27
+2. **[DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md)** - Complete schema documentation
+3. **[DATABASE_OPTIMIZATIONS.md](./DATABASE_OPTIMIZATIONS.md)** - Query optimizations and indexing strategies
+4. **[MIGRATIONS_25_26_27.md](./MIGRATIONS_25_26_27.md)** - open_letter function enhancement documentation
+5. **[HOW_TO_UPDATE_MIGRATIONS.md](./HOW_TO_UPDATE_MIGRATIONS.md)** - Migration management guide
+6. **[LOCAL_SETUP.md](./LOCAL_SETUP.md)** - Development environment setup
 
 ### For Backend Integration
 1. **[DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md)** - Understand data models
@@ -104,11 +112,15 @@ supabase/                          # Root Supabase directory (config files)
 └── README.md                    # Quick reference (points to docs/)
 
 docs/supabase/                    # Documentation directory
-├── README.md (this file)         # Documentation overview
+├── INDEX.md (this file)          # Documentation overview
 ├── GETTING_STARTED.md            # Quick start guide
 ├── LOCAL_SETUP.md                # Complete setup guide
 ├── DATABASE_SCHEMA.md            # Schema reference
-└── DATABASE_OPTIMIZATIONS.md     # Query optimizations and indexing
+├── DATABASE_OPTIMIZATIONS.md     # Query optimizations and indexing
+├── MIGRATIONS_25_26_27.md        # open_letter function enhancement (detailed)
+├── MIGRATIONS_QUICK_REFERENCE.md # Quick reference for migrations 25-27
+├── MIGRATIONS_VISUAL_FLOW.md     # Visual flow diagrams
+└── HOW_TO_UPDATE_MIGRATIONS.md   # Migration management guide
 ```
 
 ## 🗄️ Database Schema Overview
@@ -156,6 +168,11 @@ docs/supabase/                    # Documentation directory
 - **[LOCAL_SETUP.md](./LOCAL_SETUP.md)** - Detailed setup instructions and troubleshooting
 - **[DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md)** - Complete database schema reference
 - **[DATABASE_OPTIMIZATIONS.md](./DATABASE_OPTIMIZATIONS.md)** - Database query and indexing optimizations
+- **[MIGRATIONS_MASTER_GUIDE.md](./MIGRATIONS_MASTER_GUIDE.md)** - ⭐ START HERE - Complete guide for migrations 25-27
+- **[MIGRATIONS_25_26_27.md](./MIGRATIONS_25_26_27.md)** - open_letter function enhancement (self-send support, security, performance)
+- **[MIGRATIONS_QUICK_REFERENCE.md](./MIGRATIONS_QUICK_REFERENCE.md)** - Quick reference for migrations 25-27
+- **[MIGRATIONS_VISUAL_FLOW.md](./MIGRATIONS_VISUAL_FLOW.md)** - Visual flow diagrams
+- **[HOW_TO_UPDATE_MIGRATIONS.md](./HOW_TO_UPDATE_MIGRATIONS.md)** - How to update existing migrations
 
 ---
 
