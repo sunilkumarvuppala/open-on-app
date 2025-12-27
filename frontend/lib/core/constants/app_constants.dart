@@ -6,6 +6,15 @@ class AppConstants {
   // Capsule status thresholds
   static const int unlockingSoonDaysThreshold = 7;
   static const int arrowDisplayDaysThreshold = 3; // Show arrow only if unlock time is within 3 days
+  
+  // Unfolding hierarchy thresholds (for sender screen classification)
+  static const Duration readyFreshThreshold = Duration(hours: 36); // Ready letters within 36h are "fresh" and active
+  static const Duration waitTime48hThreshold = Duration(hours: 48); // Letters with wait time <= 48h go to "within48h" section
+  static const Duration farFutureThreshold = Duration(days: 7); // Letters unlocking >7 days are "far future"
+  
+  // Unfolding hierarchy visual constants
+  static const double waitingCapsuleOpacity = 0.8; // Opacity for waiting letters in expanded view
+  static const double beyond48hCapsuleOpacity = 0.7; // Opacity for letters beyond 48h (softened visual emphasis)
   static const int maxContentLength = 10000;
   static const int maxTitleLength = 200;
   static const int maxLabelLength = 100;
@@ -495,6 +504,11 @@ class AppConstants {
   static const String failedToPrepareLetterMessage = 'Failed to prepare letter';
   static const String failedToLoadConnectionDetailsMessage = 'Failed to load connection details';
   static const String connectionNotFoundMessage = 'Connection not found';
+  
+  // Unfolding hierarchy strings
+  static const String waitingForTheMomentText = 'Waiting for the moment';
+  static const String oneLetterText = 'One letter';
+  static const String severalLettersText = 'Several letters';
   
   // Default relationship type
   static const String defaultRelationshipType = 'friend';

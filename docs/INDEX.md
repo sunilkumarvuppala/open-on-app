@@ -62,6 +62,7 @@
 - **[frontend/features/CONNECTIONS.md](./frontend/features/CONNECTIONS.md)** - Connections & friend requests
 - **[frontend/features/THOUGHTS.md](./frontend/features/THOUGHTS.md)** - Thoughts feature (presence signals) ⭐ NEW
 - **[frontend/features/NAME_FILTER.md](./frontend/features/NAME_FILTER.md)** - Name filter feature (on-demand search) ⭐ NEW
+- **[frontend/features/UNFOLDING_HIERARCHY.md](./frontend/features/UNFOLDING_HIERARCHY.md)** - Unfolding hierarchy system (visual prioritization) ⭐ NEW
 - **[features/COUNTDOWN_SHARES.md](./features/COUNTDOWN_SHARES.md)** - Countdown Shares feature (viral sharing) ⭐ NEW
 - **[features/LETTER_REPLIES.md](./features/LETTER_REPLIES.md)** - Letter Replies feature (one-time recipient replies) ⭐ NEW
 - **[features/ANONYMOUS_IDENTITY_HINTS.md](./features/ANONYMOUS_IDENTITY_HINTS.md)** - Anonymous Identity Hints feature (progressive hint revelation) ⭐ NEW

@@ -610,16 +610,278 @@ class _MagicalTabIndicatorPainter extends BoxPainter {
   }
 }
 
-// Helper class to combine capsules and self letters in a single list
-class _SealedItem {
-  final Capsule? capsule;
-  final SelfLetter? selfLetter;
+/// Classification result for unfolding hierarchy
+class _UnfoldingClassification {
+  final List<Capsule> within48h; // Letters with wait time <= 48h (locked or ready)
+  final List<Capsule> waiting; // Ready but aged > 48h
+  final List<Capsule> beyond48h; // Letters with wait time > 48h (locked)
   
-  _SealedItem.capsule(this.capsule) : selfLetter = null;
-  _SealedItem.selfLetter(this.selfLetter) : capsule = null;
+  _UnfoldingClassification({
+    required this.within48h,
+    required this.waiting,
+    required this.beyond48h,
+  });
   
-  bool get isSelfLetter => selfLetter != null;
-  bool get isCapsule => capsule != null;
+  bool get isEmpty => within48h.isEmpty && waiting.isEmpty && beyond48h.isEmpty;
+}
+
+/// Classifies capsules into Within 48h, Waiting, and Beyond 48h categories
+/// 
+/// Rules:
+/// - Within 48h: unopened, wait time to open <= 48h (includes both locked and ready)
+///   Note: Ready letters (wait time = 0) always go here, regardless of ready age
+/// - Waiting: unopened, ready but aged > 48h (these have wait time = 0 but are aged)
+/// - Beyond 48h: unopened, locked with wait time > 48h
+_UnfoldingClassification _classifyCapsules(List<Capsule> capsules) {
+  final now = DateTime.now();
+  final within48h = <Capsule>[];
+  final waiting = <Capsule>[];
+  final beyond48h = <Capsule>[];
+  
+  for (final capsule in capsules) {
+    // Skip opened capsules
+    if (capsule.isOpened) continue;
+    
+    final unlockTime = capsule.unlockAt;
+    final isUnlocked = unlockTime.isBefore(now) || unlockTime.isAtSameMomentAs(now);
+    
+    if (isUnlocked) {
+      // Ready but unopened - wait time = 0
+      // Check ready_age to determine if it goes to waiting or within48h
+      final readyAge = now.difference(unlockTime);
+      if (readyAge > AppConstants.readyFreshThreshold) {
+        // Aged ready letter (ready but aged > 48h) - Waiting
+        waiting.add(capsule);
+      } else {
+        // Fresh ready letter (ready within 48h) - Within 48h
+        // Ready letters with wait time = 0 always go here
+        within48h.add(capsule);
+      }
+    } else {
+      // Still locked - check wait time to open
+      final timeUntilUnlock = unlockTime.difference(now);
+      // Defensive check: ensure non-negative duration (should always be positive since isUnlocked is false)
+      if (timeUntilUnlock.isNegative) {
+        // Edge case: capsule appears locked but unlock time is in past
+        // Treat as ready (shouldn't happen, but handle gracefully)
+        final readyAge = now.difference(unlockTime);
+        if (readyAge > AppConstants.readyFreshThreshold) {
+          waiting.add(capsule);
+        } else {
+          within48h.add(capsule);
+        }
+      } else if (timeUntilUnlock <= AppConstants.waitTime48hThreshold) {
+        // Will unlock within 48h - Within 48h
+        within48h.add(capsule);
+      } else {
+        // Will unlock in > 48h - Beyond 48h
+        beyond48h.add(capsule);
+      }
+    }
+  }
+  
+  // Sort within 48h: ready letters first, then by time remaining (shortest first)
+  within48h.sort((a, b) {
+    final aIsReady = a.isUnlocked;
+    final bIsReady = b.isUnlocked;
+    if (aIsReady != bIsReady) {
+      return aIsReady ? -1 : 1; // Ready letters first
+    }
+    if (aIsReady) {
+      // Both ready - sort by unlock time (most recent first)
+      return b.unlockAt.compareTo(a.unlockAt);
+    }
+    // Both locked - sort by time remaining (shortest first)
+    return a.timeUntilUnlock.compareTo(b.timeUntilUnlock);
+  });
+  
+  // Sort waiting by unlock time (most recent first)
+  waiting.sort((a, b) => b.unlockAt.compareTo(a.unlockAt));
+  
+  // Sort beyond 48h by time remaining (shortest first)
+  beyond48h.sort((a, b) => a.timeUntilUnlock.compareTo(b.timeUntilUnlock));
+  
+  return _UnfoldingClassification(
+    within48h: within48h,
+    waiting: waiting,
+    beyond48h: beyond48h,
+  );
+}
+
+/// Waiting Capsule Component - collapsed by default, shows all waiting letters
+/// 
+/// Rules:
+/// - Muted background, no elevation, no countdown, no lock icon, no motion
+/// - Tap to expand inline
+/// - Expanded view shows individual cards (non-animated)
+/// - Never auto-expands, never animates on entry
+class _WaitingCapsule extends ConsumerStatefulWidget {
+  final List<Capsule> waitingCapsules;
+  
+  const _WaitingCapsule({required this.waitingCapsules});
+  
+  @override
+  ConsumerState<_WaitingCapsule> createState() => _WaitingCapsuleState();
+}
+
+class _WaitingCapsuleState extends ConsumerState<_WaitingCapsule> {
+  bool _isExpanded = false;
+  
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = ref.watch(selectedColorSchemeProvider);
+    
+    if (!_isExpanded) {
+      // Collapsed state - single muted capsule
+      return Padding(
+        padding: EdgeInsets.only(
+          bottom: AppConstants.capsuleListItemSpacing,
+        ),
+        child: InkWell(
+          onTap: () {
+            setState(() {
+              _isExpanded = true;
+            });
+          },
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          child: Container(
+            decoration: BoxDecoration(
+              color: colorScheme.isDarkTheme
+                  ? colorScheme.primary1.withOpacity(0.15)
+                  : colorScheme.primary1.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(AppConstants.capsuleCardBorderRadius),
+              // No elevation/shadow for muted appearance
+            ),
+            padding: EdgeInsets.all(AppTheme.spacingSm),
+            child: Row(
+              children: [
+                // Muted icon
+                Icon(
+                  Icons.schedule_outlined,
+                  size: AppConstants.capsuleCardAvatarSize * 0.6,
+                  color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(0.5),
+                ),
+                SizedBox(width: AppTheme.spacingMd),
+                // Text content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        AppConstants.waitingForTheMomentText,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(AppConstants.openedLetterSecondaryTextOpacityMedium),
+                          fontWeight: FontWeight.w500,
+                          fontSize: AppConstants.capsuleCardTitleFontSize,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      SizedBox(height: AppTheme.spacingXs),
+                      Text(
+                        widget.waitingCapsules.length == 1
+                            ? AppConstants.oneLetterText
+                            : AppConstants.severalLettersText,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(0.5),
+                          fontSize: AppConstants.capsuleCardDateFontSize,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Expand icon
+                Icon(
+                  Icons.chevron_right,
+                  color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(0.4),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    
+    // Expanded state - show individual cards
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Collapse header
+        Padding(
+          padding: EdgeInsets.only(
+            bottom: AppConstants.capsuleListItemSpacing,
+          ),
+          child: InkWell(
+            onTap: () {
+              setState(() {
+                _isExpanded = false;
+              });
+            },
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+            child: Container(
+              decoration: BoxDecoration(
+                color: colorScheme.isDarkTheme
+                    ? colorScheme.primary1.withOpacity(0.15)
+                    : colorScheme.primary1.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(AppConstants.capsuleCardBorderRadius),
+              ),
+              padding: EdgeInsets.all(AppTheme.spacingSm),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.schedule_outlined,
+                    size: AppConstants.capsuleCardAvatarSize * 0.6,
+                    color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(0.5),
+                  ),
+                  SizedBox(width: AppTheme.spacingMd),
+                  Expanded(
+                    child: Text(
+                      AppConstants.waitingForTheMomentText,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(AppConstants.openedLetterSecondaryTextOpacityMedium),
+                        fontWeight: FontWeight.w500,
+                        fontSize: AppConstants.capsuleCardTitleFontSize,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.expand_less,
+                    color: DynamicTheme.getSecondaryTextColor(colorScheme).withOpacity(0.4),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Individual waiting cards (non-animated) - use ListView.builder for performance
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: widget.waitingCapsules.length,
+          itemBuilder: (context, index) {
+            final capsule = widget.waitingCapsules[index];
+            return Padding(
+              key: ValueKey('waiting_${capsule.id}'),
+              padding: EdgeInsets.only(
+                bottom: AppConstants.capsuleListItemSpacing,
+              ),
+              child: InkWell(
+                onTap: () {
+                  context.push('/capsule/${capsule.id}', extra: capsule);
+                },
+                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                child: Opacity(
+                  opacity: AppConstants.waitingCapsuleOpacity,
+                  child: _CapsuleCard(capsule: capsule),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
 }
 
 class _UnlockingSoonTab extends ConsumerWidget {
@@ -629,6 +891,7 @@ class _UnlockingSoonTab extends ConsumerWidget {
     // Invalidate providers to trigger refresh, then wait for smooth animation
     ref.invalidate(unlockingSoonCapsulesProvider(userId));
     ref.invalidate(upcomingCapsulesProvider(userId));
+    ref.invalidate(readyCapsulesProvider(userId));
     ref.invalidate(capsulesProvider(userId));
     ref.invalidate(selfLettersProvider);
     // Small delay for smooth animation completion
@@ -641,6 +904,7 @@ class _UnlockingSoonTab extends ConsumerWidget {
     final userId = userAsync.asData?.value?.id ?? '';
     final unlockingSoonAsync = ref.watch(sendFilteredUnlockingSoonCapsulesProvider(userId));
     final upcomingAsync = ref.watch(sendFilteredUpcomingCapsulesProvider(userId));
+    final readyAsync = ref.watch(sendFilteredReadyCapsulesProvider(userId));
     final selfLettersAsync = ref.watch(selfLettersProvider);
     final allCapsulesAsync = ref.watch(capsulesProvider(userId));
     final filterQuery = ref.watch(sendFilterQueryProvider);
@@ -658,156 +922,330 @@ class _UnlockingSoonTab extends ConsumerWidget {
         data: (unlockingSoonCapsules) {
           return upcomingAsync.when(
             data: (upcomingCapsules) {
-              // Use previous data during refresh to avoid flickering
-              final selfLetters = selfLettersAsync.asData?.value ?? <SelfLetter>[];
-              
-              // If loading and we have no previous data, show loading
-              if (selfLettersAsync.isLoading && selfLetters.isEmpty) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              
-              // Combine all sealed letters: unlocking soon capsules + upcoming capsules
-              // Note: Self letters are now shown in the "Future Me" tab, not here
-              final allItems = <_SealedItem>[];
-              
-              // Add unlocking soon capsules first (they should appear at top)
-              for (final capsule in unlockingSoonCapsules) {
-                allItems.add(_SealedItem.capsule(capsule));
-              }
-              
-              // Add upcoming (sealed) capsules
-              for (final capsule in upcomingCapsules) {
-                allItems.add(_SealedItem.capsule(capsule));
-              }
-              
-              // Sort by time remaining to open in ascending order (shortest time first)
-              // Note: Only capsules are shown here, self letters are in "Future Me" tab
-              allItems.sort((a, b) {
-                final aDuration = a.capsule!.timeUntilUnlock;
-                final bDuration = b.capsule!.timeUntilUnlock;
-                return aDuration.compareTo(bDuration); // Ascending order (shortest time first)
-              });
-              
-              if (allItems.isEmpty) {
-                // Show different empty state if filtering
-                if (filterQuery.trim().isNotEmpty) {
-                  return const SingleChildScrollView(
-                    physics: AlwaysScrollableScrollPhysics(),
-                    child: EmptyState(
-                      icon: Icons.search_off,
-                      title: 'No letters found',
-                      message: 'No letters found for that name.',
-                    ),
-                  );
-                }
-                
-                // Check if user has zero sent letters total
-                return allCapsulesAsync.when(
-                  data: (allCapsules) {
-                    final hasAnyLetters = allCapsules.isNotEmpty || selfLetters.isNotEmpty;
-                    
-                    // Show special empty state with CTA only if user has zero letters
-                    if (!hasAnyLetters) {
-                      return SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        child: Column(
-                          children: [
-                            EmptyState(
-                              icon: Icons.mail_outline,
-                              title: 'No letters yet',
-                              message: 'Start your journey by writing your first letter',
-                              action: ElevatedButton(
-                                onPressed: () => context.push(Routes.createCapsule),
-                                child: const Text('Write your first letter'),
-                              ),
-                            ),
-                          ],
+              return readyAsync.when(
+                data: (readyCapsules) {
+                  // Use previous data during refresh to avoid flickering
+                  final selfLetters = selfLettersAsync.asData?.value ?? <SelfLetter>[];
+                  
+                  // If loading and we have no previous data, show loading
+                  if (selfLettersAsync.isLoading && selfLetters.isEmpty) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  
+                  // Combine all unopened capsules
+                  final allCapsules = <Capsule>[
+                    ...unlockingSoonCapsules,
+                    ...upcomingCapsules,
+                    ...readyCapsules,
+                  ];
+                  
+                  // FILTER OVERRIDE: When filter is active, show flat list without grouping
+                  if (filterQuery.trim().isNotEmpty) {
+                    if (allCapsules.isEmpty) {
+                      return const SingleChildScrollView(
+                        physics: AlwaysScrollableScrollPhysics(),
+                        child: EmptyState(
+                          icon: Icons.search_off,
+                          title: 'No letters found',
+                          message: 'No letters found for that name.',
                         ),
                       );
                     }
                     
-                    // Normal empty state
-                    return const SingleChildScrollView(
-                      physics: AlwaysScrollableScrollPhysics(),
-                      child: EmptyState(
-                        icon: Icons.schedule_outlined,
-                        title: 'Nothing unfolding yet',
-                        message: "When you create letters, you'll see them here.",
+                    // Flat list - sort by time remaining
+                    allCapsules.sort((a, b) {
+                      final aDuration = a.isUnlocked 
+                          ? Duration.zero 
+                          : a.timeUntilUnlock;
+                      final bDuration = b.isUnlocked 
+                          ? Duration.zero 
+                          : b.timeUntilUnlock;
+                      return aDuration.compareTo(bDuration);
+                    });
+                    
+                    return ListView.builder(
+                      key: const PageStorageKey('unfolding_items_filtered'),
+                      padding: EdgeInsets.only(
+                        left: AppTheme.spacingLg,
+                        right: AppTheme.spacingLg,
+                        top: AppTheme.spacingXs,
+                        bottom: AppTheme.spacingSm,
+                      ),
+                      itemCount: allCapsules.length,
+                      itemBuilder: (context, index) {
+                        final capsule = allCapsules[index];
+                        return Padding(
+                          key: ValueKey('unfolding_${capsule.id}'),
+                          padding: EdgeInsets.only(
+                            bottom: AppConstants.capsuleListItemSpacing,
+                          ),
+                          child: InkWell(
+                            onTap: () {
+                              context.push('/capsule/${capsule.id}', extra: capsule);
+                            },
+                            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                            child: _CapsuleCard(capsule: capsule),
+                          ),
+                        );
+                      },
+                    );
+                  }
+                  
+                  // CLASSIFICATION: Group capsules into Active, Waiting, Future
+                  final classification = _classifyCapsules(allCapsules);
+                  
+                  if (classification.isEmpty) {
+                    // Check if user has zero sent letters total
+                    return allCapsulesAsync.when(
+                      data: (allCapsules) {
+                        final hasAnyLetters = allCapsules.isNotEmpty || selfLetters.isNotEmpty;
+                        
+                        // Show special empty state with CTA only if user has zero letters
+                        if (!hasAnyLetters) {
+                          return SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: Column(
+                              children: [
+                                EmptyState(
+                                  icon: Icons.mail_outline,
+                                  title: 'No letters yet',
+                                  message: 'Start your journey by writing your first letter',
+                                  action: ElevatedButton(
+                                    onPressed: () => context.push(Routes.createCapsule),
+                                    child: const Text('Write your first letter'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        
+                        // Normal empty state
+                        return const SingleChildScrollView(
+                          physics: AlwaysScrollableScrollPhysics(),
+                          child: EmptyState(
+                            icon: Icons.schedule_outlined,
+                            title: 'Nothing unfolding yet',
+                            message: "When you create letters, you'll see them here.",
+                          ),
+                        );
+                      },
+                      loading: () => const Center(child: CircularProgressIndicator()),
+                      error: (_, __) => SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: const EmptyState(
+                          icon: Icons.schedule_outlined,
+                          title: 'Nothing unfolding yet',
+                          message: "When you create letters, you'll see them here.",
+                        ),
                       ),
                     );
-                  },
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (_, __) => SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    child: const EmptyState(
-                      icon: Icons.schedule_outlined,
-                      title: 'Nothing unfolding yet',
-                      message: "When you create letters, you'll see them here.",
-                    ),
-                  ),
-                );
-              }
-
-              return ListView.builder(
-                key: const PageStorageKey('unfolding_items'),
-                padding: EdgeInsets.only(
-                  left: AppTheme.spacingLg,
-                  right: AppTheme.spacingLg,
-                  top: AppTheme.spacingXs,
-                  bottom: AppTheme.spacingSm,
-                ),
-                itemCount: allItems.length,
-                itemBuilder: (context, index) {
-                  final item = allItems[index];
-                  return Padding(
-                    key: ValueKey(
-                      item.isSelfLetter
-                          ? 'unfolding_self_${item.selfLetter!.id}'
-                          : 'unfolding_${item.capsule!.id}',
-                    ),
+                  }
+                  
+                  // RENDER ORDER: Within 48h → Waiting Capsule → Beyond 48h
+                  final sections = <Widget>[];
+                  
+                  // 1. Within 48h (full cards - wait time <= 48h)
+                  for (final capsule in classification.within48h) {
+                    sections.add(
+                      Padding(
+                        key: ValueKey('within48h_${capsule.id}'),
+                        padding: EdgeInsets.only(
+                          bottom: AppConstants.capsuleListItemSpacing,
+                        ),
+                        child: InkWell(
+                          onTap: () {
+                            context.push('/capsule/${capsule.id}', extra: capsule);
+                          },
+                          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                          child: _CapsuleCard(capsule: capsule),
+                        ),
+                      ),
+                    );
+                  }
+                  
+                  // 2. Waiting Capsule (collapsed by default - right below 48h letters)
+                  if (classification.waiting.isNotEmpty) {
+                    sections.add(
+                      _WaitingCapsule(waitingCapsules: classification.waiting),
+                    );
+                  }
+                  
+                  // 3. Beyond 48h (softened cards - wait time > 48h)
+                  for (final capsule in classification.beyond48h) {
+                    sections.add(
+                      Padding(
+                        key: ValueKey('beyond48h_${capsule.id}'),
+                        padding: EdgeInsets.only(
+                          bottom: AppConstants.capsuleListItemSpacing,
+                        ),
+                        child: InkWell(
+                          onTap: () {
+                            context.push('/capsule/${capsule.id}', extra: capsule);
+                          },
+                          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                          child: Opacity(
+                            opacity: AppConstants.beyond48hCapsuleOpacity,
+                            child: _CapsuleCard(capsule: capsule),
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  
+                  return ListView.builder(
+                    key: const PageStorageKey('unfolding_items'),
                     padding: EdgeInsets.only(
-                      bottom: AppConstants.capsuleListItemSpacing,
+                      left: AppTheme.spacingLg,
+                      right: AppTheme.spacingLg,
+                      top: AppTheme.spacingXs,
+                      bottom: AppTheme.spacingSm,
                     ),
-                    child: InkWell(
-                      onTap: () {
-                        if (item.isSelfLetter) {
-                          context.push(Routes.openSelfLetter(item.selfLetter!.id));
-                        } else {
-                          context.push('/capsule/${item.capsule!.id}', extra: item.capsule);
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                      child: item.isSelfLetter
-                          ? _SelfLetterCard(letter: item.selfLetter!)
-                          : _CapsuleCard(capsule: item.capsule!),
-                    ),
+                    itemCount: sections.length,
+                    itemBuilder: (context, index) => sections[index],
                   );
                 },
+                loading: () {
+                  // Show previous data if available
+                  if (unlockingSoonCapsules.isEmpty && upcomingCapsules.isEmpty) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  
+                  // Show what we have while loading
+                  final allCapsules = <Capsule>[
+                    ...unlockingSoonCapsules,
+                    ...upcomingCapsules,
+                  ];
+                  
+                  if (allCapsules.isEmpty) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  
+                  // Use classification for consistent rendering
+                  final classification = _classifyCapsules(allCapsules);
+                  if (classification.isEmpty) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  
+                  final sections = <Widget>[];
+                  for (final capsule in classification.within48h) {
+                    sections.add(
+                      Padding(
+                        key: ValueKey('within48h_${capsule.id}'),
+                        padding: EdgeInsets.only(
+                          bottom: AppConstants.capsuleListItemSpacing,
+                        ),
+                        child: InkWell(
+                          onTap: () {
+                            context.push('/capsule/${capsule.id}', extra: capsule);
+                          },
+                          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                          child: _CapsuleCard(capsule: capsule),
+                        ),
+                      ),
+                    );
+                  }
+                  if (classification.waiting.isNotEmpty) {
+                    sections.add(
+                      _WaitingCapsule(waitingCapsules: classification.waiting),
+                    );
+                  }
+                  for (final capsule in classification.beyond48h) {
+                    sections.add(
+                      Padding(
+                        key: ValueKey('beyond48h_${capsule.id}'),
+                        padding: EdgeInsets.only(
+                          bottom: AppConstants.capsuleListItemSpacing,
+                        ),
+                        child: InkWell(
+                          onTap: () {
+                            context.push('/capsule/${capsule.id}', extra: capsule);
+                          },
+                          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                          child: Opacity(
+                            opacity: AppConstants.beyond48hCapsuleOpacity,
+                            child: _CapsuleCard(capsule: capsule),
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  
+                  return ListView.builder(
+                    key: const PageStorageKey('unfolding_items'),
+                    padding: EdgeInsets.only(
+                      left: AppTheme.spacingLg,
+                      right: AppTheme.spacingLg,
+                      top: AppTheme.spacingXs,
+                      bottom: AppTheme.spacingSm,
+                    ),
+                    itemCount: sections.length,
+                    itemBuilder: (context, index) => sections[index],
+                  );
+                },
+                error: (error, stack) => SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: ErrorDisplay(
+                    message: 'Failed to load ready capsules',
+                    onRetry: () => ref.invalidate(readyCapsulesProvider(userId)),
+                  ),
+                ),
               );
             },
             loading: () {
               // Show previous data if available
-              // Note: Self letters are now shown in the "Future Me" tab, not here
               if (unlockingSoonCapsules.isEmpty) {
                 return const Center(child: CircularProgressIndicator());
               }
               
-              // Show what we have while loading
-              final allItems = <_SealedItem>[];
-              for (final capsule in unlockingSoonCapsules) {
-                allItems.add(_SealedItem.capsule(capsule));
-              }
-              
-              if (allItems.isEmpty) {
+              final classification = _classifyCapsules(unlockingSoonCapsules);
+              if (classification.isEmpty) {
                 return const Center(child: CircularProgressIndicator());
               }
               
-              // Sort by time remaining to open in ascending order (shortest time first)
-              allItems.sort((a, b) {
-                final aDuration = a.capsule!.timeUntilUnlock;
-                final bDuration = b.capsule!.timeUntilUnlock;
-                return aDuration.compareTo(bDuration); // Ascending order (shortest time first)
-              });
+              final sections = <Widget>[];
+              for (final capsule in classification.within48h) {
+                sections.add(
+                  Padding(
+                    key: ValueKey('within48h_${capsule.id}'),
+                    padding: EdgeInsets.only(
+                      bottom: AppConstants.capsuleListItemSpacing,
+                    ),
+                    child: InkWell(
+                      onTap: () {
+                        context.push('/capsule/${capsule.id}', extra: capsule);
+                      },
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                      child: _CapsuleCard(capsule: capsule),
+                    ),
+                  ),
+                );
+              }
+              if (classification.waiting.isNotEmpty) {
+                sections.add(
+                  _WaitingCapsule(waitingCapsules: classification.waiting),
+                );
+              }
+              for (final capsule in classification.beyond48h) {
+                sections.add(
+                  Padding(
+                    key: ValueKey('beyond48h_${capsule.id}'),
+                    padding: EdgeInsets.only(
+                      bottom: AppConstants.capsuleListItemSpacing,
+                    ),
+                    child: InkWell(
+                      onTap: () {
+                        context.push('/capsule/${capsule.id}', extra: capsule);
+                      },
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                      child: Opacity(
+                        opacity: AppConstants.beyond48hCapsuleOpacity,
+                        child: _CapsuleCard(capsule: capsule),
+                      ),
+                    ),
+                  ),
+                );
+              }
               
               return ListView.builder(
                 key: const PageStorageKey('unfolding_items'),
@@ -817,33 +1255,8 @@ class _UnlockingSoonTab extends ConsumerWidget {
                   top: AppTheme.spacingXs,
                   bottom: AppTheme.spacingSm,
                 ),
-                itemCount: allItems.length,
-                itemBuilder: (context, index) {
-                  final item = allItems[index];
-                  return Padding(
-                    key: ValueKey(
-                      item.isSelfLetter
-                          ? 'unfolding_self_${item.selfLetter!.id}'
-                          : 'unfolding_${item.capsule!.id}',
-                    ),
-                    padding: EdgeInsets.only(
-                      bottom: AppConstants.capsuleListItemSpacing,
-                    ),
-                    child: InkWell(
-                      onTap: () {
-                        if (item.isSelfLetter) {
-                          context.push(Routes.openSelfLetter(item.selfLetter!.id));
-                        } else {
-                          context.push('/capsule/${item.capsule!.id}', extra: item.capsule);
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                      child: item.isSelfLetter
-                          ? _SelfLetterCard(letter: item.selfLetter!)
-                          : _CapsuleCard(capsule: item.capsule!),
-                    ),
-                  );
-                },
+                itemCount: sections.length,
+                itemBuilder: (context, index) => sections[index],
               );
             },
             error: (error, stack) => SingleChildScrollView(
