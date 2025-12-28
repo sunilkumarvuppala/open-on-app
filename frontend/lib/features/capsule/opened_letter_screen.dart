@@ -160,7 +160,10 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
     _refreshCapsule();
     
     // Set up realtime subscription for reveal updates
-    if (widget.capsule.isAnonymous && !widget.capsule.isRevealed) {
+    // IMPORTANT: Only set up for receivers - senders should never see reveal countdown or reveal functionality
+    final currentUser = ref.read(currentUserProvider).asData?.value;
+    final isReceiver = currentUser != null && currentUser.id != widget.capsule.senderId;
+    if (isReceiver && widget.capsule.isAnonymous && !widget.capsule.isRevealed) {
       _setupRealtimeSubscription();
       _startRevealCountdownTimer();
     }
@@ -405,15 +408,20 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
         });
         
         // Check if identity was just revealed
-        if (wasAnonymousBefore && !wasRevealedBefore && updatedCapsule.isRevealed) {
-          // Identity was just revealed - show animation
+        // IMPORTANT: Only show reveal animation for receivers - senders should never see this
+        final currentUser = ref.read(currentUserProvider).asData?.value;
+        final isReceiver = currentUser != null && currentUser.id != updatedCapsule.senderId;
+        if (isReceiver && wasAnonymousBefore && !wasRevealedBefore && updatedCapsule.isRevealed) {
+          // Identity was just revealed - show animation (only for receivers)
           setState(() {
             _showRevealAnimation = true;
           });
         }
         
         // If anonymous and not revealed, restart countdown timer with new reveal_at
-        if (updatedCapsule.isAnonymous && !updatedCapsule.isRevealed && updatedCapsule.revealAt != null) {
+        // IMPORTANT: Only for receivers - senders should never see reveal countdown
+        // Reuse isReceiver from above check
+        if (isReceiver && updatedCapsule.isAnonymous && !updatedCapsule.isRevealed && updatedCapsule.revealAt != null) {
           _revealCountdownTimer?.cancel();
           _startRevealCountdownTimer();
         }
@@ -444,14 +452,23 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
     final isAnonymous = capsule.isAnonymous;
     final isRevealed = capsule.isRevealed;
     
-    // Check if current user is receiver
+    // Check if current user is sender or receiver
     final userAsync = ref.watch(currentUserProvider);
     final currentUserId = userAsync.asData?.value?.id;
+    // Explicitly check if user is the sender
+    // IMPORTANT: Senders should ALWAYS see their own identity, never anonymous UI
+    final isSender = currentUserId != null && currentUserId == capsule.senderId;
     // If user is not the sender, they must be the receiver
     // (backend only allows viewing capsules you sent or received)
-    final isReceiver = currentUserId != null && currentUserId != capsule.senderId;
+    // IMPORTANT: Only receivers should see anonymous identity lock card and reveal functionality
+    final isReceiver = currentUserId != null && !isSender;
     // Check if this is a self letter (sender and receiver are the same)
     final isSelfLetter = capsule.senderId == capsule.recipientId;
+    
+    // For senders: always use actual sender name/avatar (never "Anonymous")
+    // For receivers: use displaySenderName/displaySenderAvatar which respects anonymous status
+    final senderDisplayName = isSender ? capsule.senderName : capsule.displaySenderName;
+    final senderDisplayAvatar = isSender ? capsule.senderAvatar : capsule.displaySenderAvatar;
     
     // Show animation if needed (only for sender viewing reply)
     // Note: Animation is shown to sender when they click "See Reply" button
@@ -577,7 +594,7 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
                                             child: child,
                                           );
                                         },
-                                        child: _showSenderAvatar && (!isAnonymous || isRevealed)
+                                        child: _showSenderAvatar && (isSender || !isAnonymous || isRevealed)
                                             ? Container(
                                                 key: const ValueKey('avatar'),
                                                 decoration: BoxDecoration(
@@ -593,8 +610,8 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
                                                   ),
                                                 ),
                                                 child: UserAvatar(
-                                                  imageUrl: capsule.displaySenderAvatar.isNotEmpty ? capsule.displaySenderAvatar : null,
-                                                  name: capsule.displaySenderName,
+                                                  imageUrl: senderDisplayAvatar.isNotEmpty ? senderDisplayAvatar : null,
+                                                  name: senderDisplayName,
                                                   size: AppConstants.openedLetterEnvelopeIconSize,
                                                 ),
                                               )
@@ -634,7 +651,7 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  'From ${capsule.displaySenderName}',
+                                  'From $senderDisplayName',
                                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                         color: DynamicTheme.getSecondaryTextColor(colorScheme),
                                       ),
@@ -799,11 +816,8 @@ class _OpenedLetterScreenState extends ConsumerState<OpenedLetterScreen>
                           child: Builder(
                             builder: (context) {
                               // Use cached currentUserId from parent build() to avoid duplicate watch
-                              // Explicitly check if user is the sender
-                              final isSender = currentUserId != null && currentUserId == capsule.senderId;
-                              // If user is not the sender, they must be the receiver
-                              // (backend only allows viewing capsules you sent or received)
-                              final isReceiver = currentUserId != null && currentUserId != capsule.senderId;
+                              // Use the same isSender/isReceiver logic as defined in parent build() scope
+                              // isSender and isReceiver are already defined in the build method scope above
                               
                               // Debug logging (remove in production if needed)
                               if (kDebugMode) {

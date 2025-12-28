@@ -125,6 +125,11 @@
 - **[LOCAL_SETUP.md](./supabase/LOCAL_SETUP.md)** - Local development setup
 - **[DATABASE_SCHEMA.md](./supabase/DATABASE_SCHEMA.md)** - Complete database schema reference
 - **[DATABASE_OPTIMIZATIONS.md](./supabase/DATABASE_OPTIMIZATIONS.md)** - Database optimizations
+- **[MIGRATIONS_MASTER_GUIDE.md](./supabase/MIGRATIONS_MASTER_GUIDE.md)** - ⭐ START HERE - Complete guide for migrations 25-27 ⭐ NEW
+- **[MIGRATIONS_25_26_27.md](./supabase/MIGRATIONS_25_26_27.md)** - open_letter function enhancement (self-send support) ⭐ NEW
+- **[MIGRATIONS_QUICK_REFERENCE.md](./supabase/MIGRATIONS_QUICK_REFERENCE.md)** - Quick reference for migrations 25-27 ⭐ NEW
+- **[MIGRATIONS_VISUAL_FLOW.md](./supabase/MIGRATIONS_VISUAL_FLOW.md)** - Visual flow diagrams ⭐ NEW
+- **[HOW_TO_UPDATE_MIGRATIONS.md](./supabase/HOW_TO_UPDATE_MIGRATIONS.md)** - Migration management guide
 
 ---
 

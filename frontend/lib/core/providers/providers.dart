@@ -445,6 +445,10 @@ final receiveFilterQueryProvider = StateProvider<String>((ref) => '');
 final sendFilterExpandedProvider = StateProvider<bool>((ref) => false);
 final sendFilterQueryProvider = StateProvider<String>((ref) => '');
 
+// Filter state providers for Drafts screen
+final draftsFilterExpandedProvider = StateProvider<bool>((ref) => false);
+final draftsFilterQueryProvider = StateProvider<String>((ref) => '');
+
 // Debounced query providers (200ms debounce)
 // Note: For simplicity, we use the query directly. Client-side filtering is fast enough.
 // If debouncing is needed, it can be added in the UI widget using a Timer.
@@ -454,6 +458,10 @@ final receiveFilterQueryDebouncedProvider = Provider<String>((ref) {
 
 final sendFilterQueryDebouncedProvider = Provider<String>((ref) {
   return ref.watch(sendFilterQueryProvider);
+});
+
+final draftsFilterQueryDebouncedProvider = Provider<String>((ref) {
+  return ref.watch(draftsFilterQueryProvider);
 });
 
 // Filtered list providers for Receive screen tabs
@@ -1216,6 +1224,44 @@ final draftsCountProvider = Provider.family<int, String>((ref, userId) {
   final draftsAsync = ref.watch(draftsProvider(userId));
   return draftsAsync.asData?.value.length ?? 0;
 });
+
+// Filtered drafts provider
+final filteredDraftsProvider = FutureProvider.family<List<Draft>, String>((ref, userId) async {
+  final draftsAsync = ref.watch(draftsProvider(userId));
+  final query = ref.watch(draftsFilterQueryDebouncedProvider);
+  
+  return draftsAsync.when(
+    data: (drafts) {
+      if (query.trim().isEmpty) return drafts;
+      return _filterDrafts(drafts, query);
+    },
+    loading: () => <Draft>[],
+    error: (_, __) => <Draft>[],
+  );
+});
+
+List<Draft> _filterDrafts(List<Draft> drafts, String query) {
+  // Early return for empty query
+  final trimmedQuery = query.trim();
+  if (trimmedQuery.isEmpty) return drafts;
+  
+  // Security: Additional length check (defense in depth)
+  if (trimmedQuery.length > AppConstants.maxFilterQueryLength) {
+    return drafts; // Invalid query, return all
+  }
+  
+  final lowerQuery = trimmedQuery.toLowerCase();
+  
+  return drafts.where((draft) {
+    final recipientName = (draft.recipientName ?? '').toLowerCase();
+    final title = (draft.title ?? '').toLowerCase();
+    final body = draft.body.toLowerCase();
+    
+    return recipientName.contains(lowerQuery) ||
+        title.contains(lowerQuery) ||
+        body.contains(lowerQuery);
+  }).toList();
+}
 
 // Connection providers
 final pendingRequestsProvider = StreamProvider<PendingRequests>((ref) async* {

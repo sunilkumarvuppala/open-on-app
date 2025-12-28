@@ -40,7 +40,7 @@ from app.dependencies import DatabaseSession, CurrentUser
 from app.db.repositories import CapsuleRepository, RecipientRepository
 from app.db.models import CapsuleStatus
 from app.core.logging import get_logger
-from app.core.permissions import verify_capsule_access, verify_capsule_sender, verify_capsule_recipient
+from app.core.permissions import verify_capsule_access, verify_capsule_sender, verify_capsule_recipient, verify_users_are_connected
 from app.core.pagination import calculate_pagination
 from app.services.capsule_service import CapsuleService
 from app.core.config import settings
@@ -460,22 +460,43 @@ async def get_capsule(
     capsule_repo = CapsuleRepository(session)
     user_email = getattr(request.state, 'user_email', None)
     
-    # Verify access (raises 404 or 403 if not authorized)
-    is_sender, is_recipient = await verify_capsule_access(
-        session,
-        capsule_id,
-        current_user.user_id,
-        user_email
-    )
-    
-    # Get capsule (already verified to exist by verify_capsule_access)
-    # get_by_id eagerly loads sender_profile and recipient relationships
+    # Get capsule first (eagerly loads relationships for performance)
+    # This avoids duplicate query since verify_capsule_access also calls get_by_id
     capsule = await capsule_repo.get_by_id(capsule_id)
     if not capsule:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Capsule not found"
         )
+    
+    # Verify access using the already-loaded capsule (optimization: avoid duplicate query)
+    # Check sender first (fail-fast)
+    is_sender = capsule.sender_id == current_user.user_id
+    
+    is_recipient = False
+    if not is_sender:
+        # Verify recipient access
+        recipient = capsule.recipient
+        if recipient:
+            # Email-based recipient: match email
+            if recipient.email and user_email:
+                user_email_lower = user_email.lower().strip()
+                recipient_email_lower = recipient.email.lower().strip()
+                is_recipient = user_email_lower == recipient_email_lower
+            # Connection-based recipient: check if sender and user are connected
+            elif not recipient.email:
+                is_recipient = await verify_users_are_connected(
+                    session,
+                    capsule.sender_id,
+                    current_user.user_id,
+                    raise_on_not_connected=False
+                )
+        
+        if not is_recipient:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to view this capsule"
+            )
     
     # Recipients can only view if status is ready or opened
     if is_recipient and not is_sender:
@@ -484,6 +505,24 @@ async def get_capsule(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Capsule is not ready yet (current status: {capsule.status.value})"
             )
+    
+    # SECURITY: Senders can only view opened letters if it's a self-send
+    # Senders cannot view opened letters they sent to others
+    if is_sender and capsule.status == CapsuleStatus.OPENED:
+        # Check if this is a self-send (sender == recipient)
+        recipient = capsule.recipient
+        if recipient:
+            recipient_linked_user_id = getattr(recipient, 'linked_user_id', None)
+            is_self_send = (
+                recipient_linked_user_id is not None and 
+                str(recipient_linked_user_id) == str(capsule.sender_id)
+            )
+            if not is_self_send:
+                # Sender trying to view opened letter sent to someone else - NOT ALLOWED
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You cannot view opened letters you sent to others. Only recipients can view opened letters."
+                )
     
     # get_by_id already eagerly loads relationships, so from_orm_with_profile is safe
     # Get recipient user profile if recipient is connection-based

@@ -1685,9 +1685,37 @@ class _LockedCapsuleScreenState extends ConsumerState<LockedCapsuleScreen>
   void _handleTapEnvelope() {
     if (!mounted) return;
     
+    // SECURITY: Check if user is sender - senders cannot open letters sent to others
+    // (Only recipients can open letters, except for self-sends which backend will handle)
+    final userAsync = ref.read(currentUserProvider);
+    final currentUserId = userAsync.asData?.value?.id ?? '';
+    final isSender = currentUserId.isNotEmpty && _capsule.isCurrentUserSender(currentUserId);
+    
+    // If sender, prevent opening (backend will allow self-sends, but we prevent navigation here for UX)
+    if (isSender) {
+      final colorScheme = ref.read(selectedColorSchemeProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Only the recipient can open this letter ♥',
+            style: TextStyle(
+              color: DynamicTheme.getSnackBarTextColor(colorScheme),
+            ),
+          ),
+          duration: const Duration(seconds: 2),
+          backgroundColor: DynamicTheme.getSnackBarBackgroundColor(colorScheme),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          ),
+        ),
+      );
+      return;
+    }
+    
     // Use current capsule state (may have been refreshed)
     if (_capsule.canOpen) {
-      // Navigate to opening animation
+      // Navigate to opening animation (only for recipients)
       context.push(
         '/capsule/${_capsule.id}/opening',
         extra: _capsule,
